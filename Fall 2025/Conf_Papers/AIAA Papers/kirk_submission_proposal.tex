@@ -1,0 +1,183 @@
+% !TEX program = pdflatex
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
+
+\title{User-in-the-Loop CFAR Parameter Optimization for Littoral/Stationary Radar Scenes}
+
+\author{\IEEEauthorblockN{Nathan Kirk}\IEEEauthorblockA{Dept. of Mechanical Engineering\\ University of South Carolina\\ Columbia, SC, USA}
+\and\IEEEauthorblockN{J. C. Vaught}\IEEEauthorblockA{M.S. Student, Mechanical Engineering\\ University of South Carolina\\ Columbia, SC, USA}
+\and\IEEEauthorblockN{Yi Wang}\IEEEauthorblockA{Professor, Mechanical Engineering\\ University of South Carolina\\ Columbia, SC, USA}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present a user-in-the-loop methodology for automatically tuning parameters of Constant False Alarm Rate (CFAR) detectors for coastal (littoral) radar scenes in which the background is quasi-stationary and targets of interest are stationary or repeatedly present. A practitioner provides a small set of bounding boxes around persistent objects (e.g., aids-to-navigation, towers, or shoreline structures) on one or more frames. The system then (i) propagates those regions across a sequence of frames, (ii) sweeps the parameter spaces of multiple CFAR variants (CA-, GO-, SO-, OS-, VI-/censored CFAR), and (iii) solves a multi-objective optimization that maximizes true detections inside the annotated regions while minimizing false alarms elsewhere under an explicit P\textsubscript{FA} constraint. The outcome is an \emph{optimal algorithm--parameter configuration} tailored to the specific littoral scene and sensor.
+
+Beyond introducing the optimization and evaluation protocol, we outline an experimental plan with synthetic sea-clutter (K/Pareto) and real coastal radar data, discuss computational trade-offs (e.g., OS-CFAR sorting vs. CA-CFAR closed-form thresholds), and map the contribution to AIAA audiences via relevance to on-board maritime surveillance for UAVs and small aerial platforms.\footnote{This is a methodology/position paper; quantitative evaluation on field data is planned for the camera-ready version.}
+\end{abstract}
+
+\begin{IEEEkeywords}
+CFAR, maritime radar, littoral environments, OS-CFAR, CA-CFAR, parameter optimization, Bayesian optimization, Pareto clutter, K-distribution, UAV coastal surveillance.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Coastal and port approaches are operationally challenging radar environments due to strong, non-Gaussian sea clutter, land--sea transition edges, multipath from shoreline infrastructure, and mixed cooperative/non-cooperative traffic. Tuning CFAR detector parameters for these scenes is notoriously scene- and sensor-dependent. We propose a \emph{user-in-the-loop} approach in which a human operator selects a few stationary reference objects; the system then seeks CFAR parameters that consistently detect those objects while suppressing clutter-induced false alarms elsewhere.
+
+\textbf{AIAA motivation.} Small unmanned aircraft systems (UAS) and optionally piloted platforms are increasingly tasked with maritime domain awareness, search-and-rescue, and coastal environmental monitoring. Their radars often operate at low grazing angles in littoral airspace with tight size, weight, power, and cost (SWaP-C) constraints. A configurable CFAR stack that can be quickly tuned in-situ to a given shoreline helps enable robust on-board autonomy and low-latency situational awareness.
+
+\textbf{Contributions.} (1) A formal multi-objective objective for CFAR tuning anchored to human-selected stationary references; (2) a solver-agnostic strategy (grid/racing, evolutionary, Bayesian optimization) over algorithm and parameter spaces; (3) a practical evaluation protocol with percentile-robust detection metrics and explicit penalties for out-of-ROI false alarms; (4) reproducible pseudocode and open-source implementation plan.
+
+\section{Background and Related Work}
+\subsection{CFAR Detectors}
+The CA-CFAR family estimates background power via local training windows and compares the cell-under-test to a scaled statistic to maintain a desired constant false alarm rate P\textsubscript{FA} \cite{finn1968, gandhi1988, mathworksCFAR}. GO- and SO-CFAR improve robustness near clutter edges and in multi-target scenes by partitioning leading/trailing windows and taking greatest- or smallest-of statistics \cite{hansen1972, trunk1978}. Order-statistic (OS-) CFAR sorts reference cells and selects a k-th order statistic to resist outliers/interferers \cite{rohling1983, rimbert2005}. Variability-index and censored/trimmed-mean CFAR further mitigate heterogeneous backgrounds \cite{himonas1992, farina2005review}.
+
+\subsection{Littoral Sea-Clutter Models}
+High-resolution maritime clutter is heavy-tailed and spatially nonhomogeneous; K-distribution and Pareto Type I/II models are widely used \cite{jakeman1976, ward2006, weinberg2013}. These models motivate CFAR designs that avoid contamination of training windows across land--sea transitions and surf zones, and inspire OS-/censoring strategies in heterogeneous clutter \cite{cranfieldKCFAR, weinberg2019}.
+
+\subsection{Parameter Tuning and Compute Considerations}
+CA-CFAR admits closed-form threshold multipliers as functions of P\textsubscript{FA} and reference-cell counts, while OS-CFAR trades robustness for sorting cost and tabulated multipliers \cite{katzlberger2018}. Real-time variants, FPGA/HLS implementations, and runtime-reconfigurable CFAR engines demonstrate feasibility for embedded platforms \cite{rostov2025, zenodoRTOSCFAR}. Recent learning-based approaches (e.g., CFARNet) seek CFAR-like guarantees from data \cite{cfarnet2022}, but target-agnostic hyperparameter selection remains an open, scene-specific problem---precisely what our user-anchored objective addresses.
+
+\paragraph{Positioning relative to prior work.} CFAR has been widely used across maritime and aerial surveillance owing to its controllable $P_{FA}$, local-statistics design, and suitability for embedded implementations \cite{farina2005review,gandhi1988,ward2006}. Despite numerous efforts to simplify or automate CFAR tuning—ranging from vendor rule-of-thumb guides and interactive GUIs to heuristic or evolutionary search over thresholds for a single CFAR variant \cite{mathworksCFAR,katzlberger2018,zenodoRTOSCFAR}—we are not aware of methods that explicitly combine human accuracy (via bounding boxes on stationary reference objects) with computational optimization to both accelerate the process and maintain accuracy in heterogeneous littoral clutter. Therefore, we formulate an ROI-anchored, multi-algorithm parameter search that uses human-provided supervision to define the objective while leveraging modern optimizers to efficiently explore the algorithm–parameter space.
+
+\section{Problem Formulation}
+Let \(I_t \in \mathbb{R}^{M\times N}\) denote radar intensity (range--Doppler or range--azimuth) frames, \(t = 1,\dots,T\). A user provides \(B\) axis-aligned bounding boxes \(\{\mathcal{R}_b\}_{b=1}^B\) around stationary objects on a reference frame; we assume platform motion compensation (or a stationary sensor) allows propagation of \(\mathcal{R}_b\) across frames.
+
+Consider a CFAR algorithm \(a\in\mathcal{A}\) (e.g., CA, GO, SO, OS, VI/censored) with parameter vector \(\theta_a\): number of reference cells \(N_r\), guard cells \(N_g\), order \(k\) (OS), censoring/variability thresholds, and threshold scaling factor \(\alpha\). Applying \((a,\theta_a)\) to frame \(I_t\) yields a binary detection map \(D_t(a,\theta_a)\in\{0,1\}^{M\times N}\).
+
+We define in-ROI detection rate
+\begin{equation}
+\mathrm{TPR}(a,\theta_a) 
+= \operatorname{median}_{b\in [B]}\;\operatorname{quantile}_{t\in[T]}\Big[ \frac{\sum_{(i,j)\in\mathcal{R}_b} D_t(i,j)}{|\mathcal{R}_b|} \Big;\; q\Big],
+\end{equation}
+with percentile \(q\in[0.5,0.95]\) to emphasize persistent detection. False-alarm density outside ROIs is
+\begin{equation}
+\mathrm{FAD}(a,\theta_a)=\frac{\sum_{t}\sum_{(i,j)\notin\cup_b \mathcal{R}_b} D_t(i,j)}{\sum_{t} |\Omega\setminus\cup_b \mathcal{R}_b|}.
+\end{equation}
+We enforce an empirical P\textsubscript{FA} constraint \(\widehat{P}_{FA}(a,\theta_a)\le P_{FA}^{\max}\) over background-only tiles.
+
+The tuning objective is a weighted scalarization
+\begin{equation}
+J(a,\theta_a)= \mathrm{TPR}(a,\theta_a) - \lambda\, \mathrm{FAD}(a,\theta_a), \label{eq:objective}
+\end{equation}
+optionally subject to smoothness or compute regularizers (e.g., \(\rho\,\mathbb{1}[a=\text{OS}]\) to price sorting cost).
+
+\section{Optimization Strategy}
+\subsection{Search Over Algorithms and Parameters}
+We search jointly over \(a\in\mathcal{A}\) and \(\theta_a\). For small problems, Latin-hypercube or racing-based grid searches work well. For larger or expensive evaluations (e.g., long sequences), we apply Bayesian optimization (BO) with Gaussian-process surrogates and acquisition functions (EI/LCB), treating \(a\) as a categorical variable encoded via one-hot embeddings.
+
+\subsection{Robust Cross-Validation in Littoral Scenes}
+We divide frames into \emph{shoreline strata} (sea-only, land-only, transition bands) based on a land/sea mask or texture segmentation, and compute \(J\) within each stratum. The final score averages across strata with operator-chosen weights. This guards against overfitting to, for example, calm-sea conditions while degrading near surf.
+
+\subsection{Percentile-Robust Metrics and PFA Control}
+The quantile in TPR emphasizes persistence across frames, while FAD penalizes spurious detections in background. We also report ROC-like curves within ROIs by sweeping \(\alpha\) to verify that the chosen configuration meets \(P_{FA}^{\max}\) in held-out background tiles.
+
+\begin{algorithm}[t]
+\caption{User-in-the-Loop CFAR Tuning (High Level)}
+\label{alg:cfar}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} frames $\{I_t\}_{t=1}^T$, user ROIs $\{\mathcal{R}_b\}_{b=1}^B$, CFAR family $\mathcal{A}$, budget $H$, weights $(\lambda, q)$, $P_{FA}^{\max}$
+\STATE Propagate ROIs across frames (identity or via registration)
+\FOR{$h=1$ to $H$}
+    \STATE Propose $(a,\theta_a)$ via grid/GA/BO
+    \STATE Compute $D_t\leftarrow \mathrm{CFAR}(I_t; a,\theta_a)$ for all $t$
+    \STATE Estimate $\mathrm{TPR}$, $\mathrm{FAD}$, $\widehat{P}_{FA}$ on validation frames/tiles
+    \STATE If $\widehat{P}_{FA}>P_{FA}^{\max}$ then set $J\leftarrow -\infty$ and continue
+    \STATE Update incumbent $(a^\star,\theta_a^\star)\leftarrow \arg\max J$
+\ENDFOR
+\STATE \textbf{Return} $(a^\star,\theta_a^\star)$ and diagnostics (per-stratum metrics, ROC within ROIs)
+\end{algorithmic}
+\end{algorithm}
+
+\section{Experimental Design}
+\subsection{Data}
+\textbf{Synthetic.} Generate sea clutter with K- and Pareto Type II statistics across sea states and grazing angles; inject stationary point/extended targets (Swerling I/III-like fluctuations). Add shoreline edges by stitching land and sea tiles with step changes.\newline
+\textbf{Real.} Fixed-shore radar or UAS-borne FMCW radar sequences of harbors/inlets with persistent aids-to-navigation and towers as ROIs. Annotate 5--10 ROIs per scene.
+
+\subsection{Baselines and Ablations}
+Compare CA-/GO-/SO-/OS-/censored (trimmed-mean/VI) CFAR. Ablate: (i) no percentile aggregation, (ii) no stratum balancing, (iii) single-algorithm tuning.
+
+\subsection{Metrics}
+Primary: (i) in-ROI detection percentile at $q\in\{0.5,0.9\}$, (ii) background FAD, (iii) scene-level F\textsubscript{\beta} with $\beta<1$ to emphasize precision (false-alarm control), (iv) compute cost per frame. Secondary: per-stratum scores and CFAR loss (dB) vs. reference-cell count.
+
+\section{AIAA Relevance and Use Cases}
+For maritime UAS, rapidly configurable CFAR improves: (1) on-board detection of fixed navigation aids during autonomous coastal mapping; (2) port approach monitoring and deconfliction; (3) search-and-rescue in surf zones where sea spikes create false alarms. The proposed tuner fits SWaP-C limits by allowing selection of compute-cheaper variants (e.g., CA-/GO-CFAR) when OS-/censoring is too costly.
+
+\section{Discussion and Limitations}
+Our method assumes (quasi-)stationary reference objects and accurate registration across frames. Extension to moving targets would require track-before-detect or multi-frame association. Future work includes adaptive land/sea transition detection to automatically censor contaminated training windows and joint tuning with tracking/clustering stages.
+
+\section{Conclusion}
+We introduced a practical user-in-the-loop CFAR tuning framework tailored to littoral radar scenes, unifying multi-algorithm selection with scene-specific parameter search under explicit P\textsubscript{FA} control. We expect consistent improvements in persistent detection of operator-specified stationary objects with fewer background alarms, enabling robust maritime sensing on constrained aerial platforms.
+
+\appendices
+\section{Implementation Details}
+\subsection{Parameter Spaces}
+\begin{itemize}
+  \item CA-/GO-/SO-CFAR: $N_r\in[8,\,128]$, $N_g\in[1,\,8]$, multiplier $\alpha$ matched to target $P_{FA} \in [10^{-6},10^{-3}]$ via closed forms.
+  \item OS-CFAR: $N_r\in[16,\,256]$, $k\in[\lceil0.5N_r\rceil,\,N_r-1]$, $\alpha$ from tables or numerical inversion.
+  \item Censored/VI-CFAR: upper/lower censoring fractions in $[0,0.2]$, variability gate in $[0.0,0.5]$.
+\end{itemize}
+
+\subsection{Pseudocode Snippet}
+\begin{algorithm}[h]
+\caption{Score and Constraint Evaluation}
+\begin{algorithmic}[1]
+\STATE $\mathrm{TPR}\leftarrow \mathrm{Quantile}_t\,\mathrm{Median}_b\;\frac{\sum_{(i,j)\in\mathcal{R}_b} D_t(i,j)}{|\mathcal{R}_b|}$
+\STATE $\mathrm{FAD}\leftarrow \frac{\sum_{t}\sum_{(i,j)\notin\cup_b \mathcal{R}_b} D_t(i,j)}{\sum_{t}|\Omega\setminus\cup_b \mathcal{R}_b|}$
+\STATE Enforce $\widehat{P}_{FA}\le P_{FA}^{\max}$ using background-only tiles
+\STATE Return $J=\mathrm{TPR}-\lambda\,\mathrm{FAD}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Alternate Title Options}
+\begin{enumerate}
+  \item Scene-Tailored CFAR: User-Annotated Parameter Optimization for Littoral Surveillance Radars
+  \item Tuning CFAR for the Coast: A User-in-the-Loop Multi-Algorithm Search with P\textsubscript{FA} Guarantees
+  \item Bounding-Box-Guided CFAR Selection for Stationary Targets in Maritime Radar
+  \item Practical CFAR Autotuning for UAS Maritime Sensing in Littoral Environments
+  \item Robust CFAR in Heterogeneous Sea Clutter via Percentile-Robust, Multi-Objective Search
+\end{enumerate}
+
+\section{Acronyms}
+\begin{tabular}{ll}
+CFAR & Constant False Alarm Rate \\
+GO-/SO-/OS- & Greatest-/Smallest-/Order-Statistic \\
+ROI & Region of Interest \\
+UAS & Unmanned Aircraft System \\
+FAD & False Alarm Density \\
+\end{tabular}
+
+\section*{Acknowledgments}
+The authors thank the University of South Carolina Radar and Autonomy Group for feedback on early prototypes.
+
+\begin{thebibliography}{99}
+\bibitem{finn1968} H. M. Finn and R. S. Johnson, ``Adaptive detection mode with threshold control as a function of spatially sampled clutter level estimates,'' \emph{RCA Review}, vol. 29, pp. 414--464, Sept. 1968.
+\bibitem{hansen1972} V. G. Hansen and J. H. Ward, ``Detection performance of the cell averaging log/CFAR receiver,'' \emph{IEEE Trans. Aerosp. Electron. Syst.}, vol. AES-8, no. 5, pp. 648--654, Sept. 1972.
+\bibitem{trunk1978} G. V. Trunk, ``Range resolution of targets using automatic detectors,'' \emph{IEEE Trans. Aerosp. Electron. Syst.}, vol. AES-14, no. 5, pp. 750--755, 1978. [SO-CFAR progenitor]
+\bibitem{rohling1983} H. Rohling, ``Radar CFAR thresholding in clutter and multiple target situations,'' \emph{IEEE Trans. Aerosp. Electron. Syst.}, vol. 19, no. 4, pp. 608--621, 1983.
+\bibitem{gandhi1988} P. P. Gandhi and S. A. Kassam, ``Analysis of CFAR processors in nonhomogeneous background,'' \emph{IEEE Trans. Aerosp. Electron. Syst.}, vol. 24, no. 4, pp. 427--445, Jul. 1988.
+\bibitem{himonas1992} S. D. Himonas and M. Barkat, ``Automatic censored CFAR detection for nonhomogeneous environments,'' \emph{IEEE Trans. Aerosp. Electron. Syst.}, vol. 28, no. 1, pp. 286--304, 1992.
+\bibitem{farina2005review} A. Farina, ``A review of CFAR detection techniques in radar systems,'' in \emph{DSP for Radar and Communications}, 2005, pp. 1--42.
+\bibitem{jakeman1976} E. Jakeman and P. N. Pusey, ``A model for non-Rayleigh sea echo,'' \emph{IEEE Trans. Antennas Propag.}, vol. 24, no. 6, pp. 806--814, 1976.
+\bibitem{ward2006} K. D. Ward, R. J. A. Tough, and S. Watts, \emph{Sea Clutter: Scattering, the K Distribution and Radar Performance}. IET, 2006.
+\bibitem{weinberg2013} G. V. Weinberg, ``Examination of classical detection schemes for targets in Pareto distributed clutter,'' \emph{Signal, Image and Video Processing}, vol. 7, pp. 1333--1345, 2013.
+\bibitem{cranfieldKCFAR} M. V. Greco, et al., ``CFAR detection in heterogeneous K-distributed sea clutter,'' in \emph{Proc. IET Radar}, 2010. [or similar Cranfield technical report]
+\bibitem{katzlberger2018} B. Katzlberger, ``Object Detection with Automotive Radar Sensors using CFAR Algorithms,'' B.Sc. thesis, Johannes Kepler Univ., 2018.
+\bibitem{zenodoRTOSCFAR} M. Rangaswamy, ``Real-Time Implementations of Ordered-Statistic CFAR,'' \emph{Zenodo} preprint, 2018.
+\bibitem{cfarnet2022} T. Diskin, Y. Beer, U. Okun, and A. Wiesel, ``CFARNet: Deep learning for target detection with constant false alarm rate,'' arXiv:2208.02474, 2022.
+\bibitem{rostov2025} A. Rostov, ``CFAR detector implementation using Vitis HLS,'' Hackster.io, Jan. 2025.
+\bibitem{mitbo2024} G. Farina, ``Bayesian optimization,'' MIT lecture notes, 2024.
+\bibitem{weinberg2019} G. V. Weinberg, ``Multipulse OS-CFAR in Pareto background,'' arXiv:1901.03437, 2019.
+\bibitem{mathworksCFAR} MathWorks, ``Constant False Alarm Rate (CFAR) Detection,'' online documentation, accessed Nov. 2025.
+\end{thebibliography}
+
+\end{document}
