@@ -80,10 +80,24 @@ RADAR300 is a public marine radar dataset containing $3000$ PPI radar frames wit
 
 In our experiments, RADAR300 serves as a source dataset for generic boat detection. We treat its single boat class as compatible with the dynamic-boat class in our canal dataset and use it to initialize weights for modern one-stage detectors. The precise split of RADAR300 into training, validation, and testing subsets can follow the original dataset recommendation or, when not specified, a conventional division such as $80$~\% training and $20$~\% validation. Because this paper focuses on transfer to the canal dataset, RADAR300 performance is reported primarily to confirm that pretraining has converged.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig04_radar300_samples.png}
+\caption{Sample detections from the RADAR300 public dataset. These $3000$ radar frames with boat annotations serve as our pretraining source domain. Lime bounding boxes show detected boats across diverse marine environments.}
+\label{fig:radar300_samples}
+\end{figure}
+
 \subsection{USC Canal Radar Dataset}
 The new labeled dataset introduced in this work is a canal-style marine radar dataset collected using a Furuno NXT radar between May~2025 and December~2025. Data collection covers several inland lakes and near-coastal environments in the southeastern United States and Virginia, including Lake Murray, Lake Greenwood, Lake Monticello, Portsmouth City Park on the Elizabeth River, the Charleston harbor region near Grice Marine Lab and Demetre Park, and open-ocean conditions off Folly Beach. Environmental variability includes rain, nighttime, early morning, mid-day, and windy conditions, but no snow at present. Individual data-collection sessions last up to approximately two hours at a time.
 
 The currently labeled subset contains $96$ frames with a total of $637$ annotated objects. Annotations are divided into two classes. The first class, dynamic, corresponds to moving boats and other actively maneuvering targets. The second class, static, covers moored boats, piers, and other non-moving or quasi-static objects that are relevant for navigation but exhibit different radar signatures and dynamics. The choice of a two-class scheme reflects a compromise between annotation cost and the need to separate moving targets from persistent clutter.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig05_usc_canal_samples.png}
+\caption{Sample labeled frames from the USC Canal dataset showing dynamic (green) and static (orange) boat detections. Higher clutter and environmental complexity compared to RADAR300 reflect the challenges of inland and near-coastal autonomy.}
+\label{fig:usc_canal_samples}
+\end{figure}
 
 The unlabeled portion of the dataset currently contains $196\,000$ frames. These frames share the same acquisition hardware and environmental diversity as the labeled subset but have not yet been manually annotated. They are intended for future self-supervised and semi-supervised learning experiments, as well as for scaling models when annotation resources permit. For this paper, the unlabeled frames are used implicitly via echo-trail generation when temporal context spans multiple sweeps, but no explicit pseudo-labeling is performed.
 
@@ -105,8 +119,36 @@ Pohang-Subset & $N_{\text{P}}^\ast$ & $M_{\text{P}}^\ast$ & $C_{\text{P}}^\ast$ 
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig06_dataset_comparison.png}
+\caption{Dataset comparison showing visual differences between RADAR300 (left, cleaner with less clutter) and USC Canal (right, more cluttered inland environment). This distribution shift motivates the use of pretraining and fine-tuning rather than training only on the small canal dataset.}
+\label{fig:dataset_comparison}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig07_class_distribution.png}
+\caption{USC Canal dataset statistics: distribution of objects per frame, bounding box sizes, class imbalance (dynamic vs.\ static), and split allocation. The dataset contains $637$ annotated objects across $96$ labeled frames with significant size variation and class imbalance.}
+\label{fig:class_distribution}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig08_temporal_coverage.png}
+\caption{Temporal distribution of the $196\,000$ unlabeled frames, showing collection intensity by time of day and date. Warmer colors indicate higher frame density. More collection during daytime and weekends reflects opportunistic sampling patterns.}
+\label{fig:temporal_coverage}
+\end{figure}
+
 \subsection{Pohang Canal Dataset for Qualitative Generalization}
 The Pohang Canal radar dataset is an external dataset collected in a Korean canal environment and has been used in prior maritime perception work. In this paper, we do not use Pohang images for training or validation. Instead, a small subset is reserved for generating qualitative figures that illustrate how models trained on RADAR300 and the USC canal dataset behave under distribution shift. The experimental protocol is simple: detectors trained on our training sets are applied to Pohang Canal radar frames without further fine-tuning, and their predictions are visualized alongside any available annotations. This provides an intuitive sense of cross-dataset generalization without affecting the main quantitative conclusions.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig09_pohang_preview.png}
+\caption{Preview of the Pohang Canal dataset, showing samples from a Korean canal environment with different radar hardware and traffic patterns. Used for qualitative cross-dataset generalization testing without retraining.}
+\label{fig:pohang_preview}
+\end{figure}
 
 \section{Radar Acquisition and Preprocessing}
 \label{sec:acq}
