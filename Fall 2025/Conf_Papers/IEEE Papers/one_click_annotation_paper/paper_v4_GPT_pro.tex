@@ -430,6 +430,20 @@ The $96$ labeled canal frames are partitioned into training, validation, and tes
 
 RADAR300 is split into training and validation sets following either its original documentation or a standard $80$/$20$ division. No canal frames are used during RADAR300 pretraining, and no RADAR300 frames are used during canal-only test evaluation. For joint training regimes, sampling ratios are tuned to ensure that canal frames are seen frequently despite the larger size of RADAR300.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig28_dataset_split.png}
+\caption{Dataset allocation: 58 training (60\%), 19 validation (20\%), 19 test (20\%) frames. Temporal coherence preserved to avoid leakage; stratified sampling ensures balanced class representation across splits. Right panel details frame and object counts per split.}
+\label{fig:dataset_split}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig29_class_imbalance.png}
+\caption{Class imbalance analysis showing dynamic vs.\ static object distribution. Overall ratio: 2.7:1 (637 dynamic, 237 static). Consistent across train/val/test splits. Implies need for weighted loss or focal loss to improve static object recall.}
+\label{fig:class_imbalance}
+\end{figure}
+
 \subsection{Evaluation Metrics}
 The primary evaluation metric is mean Average Precision at an Intersection-over-Union (IoU) threshold of $0.5$ (mAP@0.5) on the canal test set. This metric is widely used in object detection and provides a clear measure of localization and classification quality. A more stringent metric, mAP averaged over IoU thresholds between $0.5$ and $0.95$, can also be reported if sample sizes permit stable estimation.
 
@@ -439,6 +453,13 @@ Per-class Average Precision for the dynamic and static classes provides insight 
 All detectors are implemented in a standard deep-learning framework and trained on a single modern GPU. Training proceeds for a fixed number of epochs or until validation performance saturates. Model selection is performed based on validation mAP, and the selected models are then evaluated on the test set once. For fairness, echo-trail and single-frame models are trained and evaluated under the same pipeline except for the choice of input representation.
 
 Because the label budget is extremely small, confidence calibration and robust training practices such as cosine learning-rate schedules, label smoothing, and careful regularization can have outsized effects. These implementation details, along with random seeds, should be recorded in the final experimental log and may be added to this section once experiments are finalized.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig30_metadata_distribution.png}
+\caption{Metadata distribution across the 96 labeled frames showing diversity in collection parameters. Range settings (0.5–3 nm), time of day (day/dusk/night), weather conditions (clear to heavy rain), collection sites (6 inland/coastal locations), and antenna rotation speeds (24–48 rpm). This diversity demonstrates the dataset's robustness to operational variability.}
+\label{fig:metadata_distribution}
+\end{figure}
 
 \section{Results}
 \label{sec:results}
