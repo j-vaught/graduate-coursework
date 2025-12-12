@@ -507,6 +507,97 @@ $T=16$ & XX.X & XX.X & XX.X \\
 
 Longer trails are expected to improve detection of moving boats in cluttered regions by making motion cues visually salient, but may also blur static objects or introduce ghosting when the scene changes rapidly. An optimal trail length likely balances these factors.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig31_pretraining_effect.png}
+\caption{Pretraining effect: mAP@0.5 scores for YOLO and Faster R-CNN detectors trained from-scratch versus pretrained on RADAR300. Pretraining boosts performance by approximately 12-14 percentage points across both architectures, demonstrating significant transfer learning benefits even with minimal labeled canal data.}
+\label{fig:pretraining_effect}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig32_per_class_breakdown.png}
+\caption{Per-class average precision for dynamic and static objects. Pretraining provides larger gains for the dynamic class (boats in motion), which aligns with RADAR300's single-boat class. Static objects also benefit from shared low-level features, though gains are more modest, likely due to class imbalance in the training data.}
+\label{fig:per_class_breakdown}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig33_echo_trail_performance.png}
+\caption{Echo-trail temporal augmentation effect: mAP@0.5 versus trail length $T$. Performance improves with longer trails up to $T=8$, where the model captures sufficient motion cues. Beyond $T=12$, performance degradation suggests excessive ghosting and blur. The optimal trail length balances temporal context with artifact minimization.}
+\label{fig:echo_trail_performance}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig34_per_class_echo_trail.png}
+\caption{Per-class response to echo-trail augmentation. Dynamic objects (moving boats) show steeper performance gains with longer trails since motion becomes visually prominent. Static objects benefit less, as trails add clutter without providing motion cues. This asymmetry motivates class-aware temporal augmentation strategies.}
+\label{fig:per_class_echo_trail}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig35_pr_curves.png}
+\caption{Precision-recall curves for the three main detector configurations. Pretrained models consistently achieve higher precision across all recall levels, confirming that transfer learning improves the precision-recall trade-off. The curves highlight configuration differences: Faster R-CNN shows marginal advantage over YOLO in this task.}
+\label{fig:pr_curves}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig36_qualitative_detections.png}
+\caption{Qualitative detection results on the canal test set. Top row: true positives showing correct detections of dynamic and static boats. Middle row: false negatives (missed detections shown by dashed yellow boxes) reveal cases where cluttered backgrounds and small objects challenge the detector. Bottom row: false positives (red boxes) highlight spurious detections in regions of high clutter or wake patterns.}
+\label{fig:qualitative_detections}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig37_failure_analysis.png}
+\caption{Failure case analysis across four challenging scenarios: (top-left) dense marinas with overlapping boat signatures, (top-right) small boats near the detection range limit with low signal-to-noise ratio, (bottom-left) wake clutter causing false positives, and (bottom-right) night-time low-contrast conditions. Each challenge points to future research directions and model improvements.}
+\label{fig:failure_analysis}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig38_confusion_matrix.png}
+\caption{Confusion matrix (dynamic vs. static classification) for the YOLO R300-pretrained detector on the test set. The model shows higher recall for the majority dynamic class (89.0\%) than for static objects (88.0\%), though the overall dynamic-recall advantage reflects class imbalance in the training data. Misclassifications are rare, suggesting that when the detector finds an object, it correctly classifies the object type.}
+\label{fig:confusion_matrix}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig39_calibration_curve.png}
+\caption{Confidence calibration plot showing predicted confidence (x-axis) versus empirical correctness (y-axis). The model is reasonably well-calibrated at low-to-medium confidence levels but slightly overconfident at high confidence ($>$0.9). Recalibration techniques or confidence-aware post-processing could improve reliability for safety-critical applications.}
+\label{fig:calibration_curve}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig40_size_performance.png}
+\caption{Performance stratified by object size: small boats (10-30 pixels) are substantially harder to detect (AP$\approx$0.65 for dynamic, 0.48 for static), while large objects (60+ pixels) are reliably detected (AP$\approx$0.92 for dynamic, 0.82 for static). This size bias reflects typical object-detection challenges and motivates multi-scale architectures and feature pyramid designs.}
+\label{fig:size_performance}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig41_range_performance.png}
+\caption{Performance across radar range settings: close-range 0.5 nm (mAP$=0.758$) outperforms far-range 3.0 nm (mAP$=0.651$). The decline with distance reflects decreasing resolution and signal-to-noise ratio, consistent with radar physics. Range-aware loss weighting or multi-range training could improve far-range generalization.}
+\label{fig:range_performance}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig42_temporal_performance.png}
+\caption{Performance by time of day: daytime operation achieves the best mAP (0.768), while nighttime conditions (mAP$=0.651$) present a 11.7 percentage-point degradation. This gap reflects lower signal-to-noise ratios and increased clutter at night, suggesting the importance of time-aware training or night-specific preprocessing (e.g., adaptive contrast enhancement).}
+\label{fig:temporal_performance}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig43_weather_performance.png}
+\caption{Performance under varying weather conditions: clear conditions yield mAP$=0.768$, while heavy rain reduces mAP to $0.612$ (20.2 percentage-point drop). Despite radar's theoretical weather robustness, rain-induced clutter and attenuation degrade performance. Future work should investigate rain-specific augmentation and CFAR-based despeckling.}
+\label{fig:weather_performance}
+\end{figure}
+
 \subsection{Qualitative Generalization to Pohang}
 Qualitative examples on the Pohang Canal dataset illustrate how well detectors trained on RADAR300 and the USC canal dataset transfer to a new canal environment with different radar hardware and traffic patterns. A set of figures can show representative radar frames from Pohang alongside predicted bounding boxes for dynamic-like objects. Even in the absence of additional training, reasonable detections would support the claim that RADAR300 pretraining plus canal fine-tuning yields models that capture generic features of boats in canal-like radar imagery.
 
