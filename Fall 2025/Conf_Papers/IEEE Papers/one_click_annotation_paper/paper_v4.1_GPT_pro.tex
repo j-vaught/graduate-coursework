@@ -127,15 +127,8 @@ Pohang-Subset & $N_{\text{P}}^\ast$ & $M_{\text{P}}^\ast$ & $C_{\text{P}}^\ast$ 
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{python_figures/fig07_class_distribution.png}
-\caption{USC Canal dataset statistics: distribution of objects per frame, bounding box sizes, class imbalance (dynamic vs.\ static), and split allocation. The dataset contains $637$ annotated objects across $96$ labeled frames with significant size variation and class imbalance.}
-\label{fig:class_distribution}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig08_temporal_coverage.png}
-\caption{Temporal distribution of the $196\,000$ unlabeled frames, showing collection intensity by time of day and date. Warmer colors indicate higher frame density. More collection during daytime and weekends reflects opportunistic sampling patterns.}
+\includegraphics[width=\linewidth]{/Users/jacobvaught/Downloads/Classes/Fall 2025/Conf_Papers/IEEE Papers/one_click_annotation_paper/latex_figures/fig08_temporal_aggregates_pgfplots.pdf}
+\caption{Temporal distribution of the $24\,988$ unlabeled frames. Top-left: frames by hour of day. Top-right: frames by day of week. Bottom-left: cumulative frames over time (month ticks). Bottom-right: collection intensity heatmap by hour and month (warmer colors indicate higher frame density).}
 \label{fig:temporal_coverage}
 \end{figure}
 
@@ -158,32 +151,11 @@ All data for the USC canal dataset are collected using a Furuno NXT radar, a sol
 
 The radar antenna rotates at rates between $24$ and $48$ revolutions per minute, with occasional runs at $30$~rpm. Most experiments use data collected at $24$ or $48$~rpm, and future work will standardize on $48$~rpm to simplify temporal modeling and trajectory estimation. Each full rotation produces a sweep of raw radar returns over angle, which are stored along with metadata such as range setting and timestamp.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\linewidth]{python_figures/fig10_furuno_hardware_detailed.png}
-\caption{Detailed diagram of the Furuno NXT solid-state radar system showing antenna mounting, rotation rate (24–48 rpm), control unit, and power/communication connections. The antenna rotates to generate plan-position-indicator (PPI) sweeps over configurable range scales.}
-\label{fig:furuno_hardware_detailed}
-\end{figure}
-
 \subsection{Raw Range--Azimuth Format and Quantization}
 The raw data from the Furuno radar are stored as range--azimuth samples per sweep. For each antenna angle, the sensor reports a fixed number of range bins. In the current configuration, each sweep contains $868$ range bins per azimuth angle and between $600$ and $1000$ distinct azimuth angles (or pulses) per rotation, depending on rotational speed and vendor settings. This yields a polar grid of complex-valued or magnitude-only radar returns.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig11_range_azimuth_diagram.png}
-\caption{Range-azimuth coordinate system illustrating the polar grid layout: $868$ radial range bins (0.5–3 nm configurable) by 600–1000 azimuth angles per sweep. Example boat echo shown in red. Right panel lists hardware specifications.}
-\label{fig:range_azimuth_diagram}
-\end{figure}
-
 Although vendor documentation advertises $8$~bit amplitude resolution, direct inspection of the raw data reveals an effective $4$~bit quantization with an additional zero level. Intensities are therefore represented with $16$ distinct non-zero levels plus a background level, which has implications for dynamic range and noise modeling. In this work, we operate on magnitude values and defer more sophisticated complex-valued processing and calibration to future signal-processing papers.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig12_quantization_comparison.png}
-\caption{Quantization comparison: 4-bit (Furuno NXT actual) vs.\ 8-bit (hypothetical). The 4-bit effective quantization results in visible banding and reduced dynamic range but remains sufficient for boat detection. Histograms show the discrete intensity levels.}
-\label{fig:quantization_comparison}
-\end{figure}
-
+	
 \subsection{Conversion to PNG Images}
 To make the data compatible with common deep-learning frameworks, each polar sweep is projected into a square $1735\times 1735$ image. The dimension is chosen so that the $868$ radial bins can be mapped approximately one-to-two with interpolation into a square Cartesian grid covering the maximum range used in the dataset, while the angular dimension determines the sampling around the circle.
 
@@ -198,8 +170,8 @@ The conversion process consists of three steps. First, the polar range--azimuth 
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{python_figures/fig14_range_variability.png}
-\caption{Range setting variability: same scene at 0.5 nm, 1.5 nm, and 3.0 nm scales. Spatial resolution (m/pixel) and object size vary significantly, requiring models to handle multi-scale objects and diverse spatial sampling.}
+\includegraphics[width=\linewidth]{latex_figures/fig10_range_variability.pdf}
+\caption{Range setting variability: same scene at 0.125\,nm, 0.25\,nm, and 0.5\,nm scales (gain level 50). Spatial resolution and apparent object size vary with range, requiring models to handle multi-scale objects and diverse spatial sampling.}
 \label{fig:range_variability}
 \end{figure}
 
@@ -280,21 +252,7 @@ We consider two detector families. The first is a modern one-stage detector insp
 
 The YOLO-style model operates on $1735\times 1735$ grayscale inputs, internally resized or padded to a network-friendly resolution such as $1024\times 1024$. It includes a convolutional backbone with spatial downsampling, a feature pyramid network to combine multi-scale features, and detection heads that predict bounding boxes and class probabilities at multiple scales. Radar-specific adjustments such as modified anchor box priors or aspect-ratio distributions can be applied based on the observed statistics of boat sizes and shapes in the datasets, although in this initial work we rely on generic anchor presets with only minor tuning.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig18_yolo_architecture.png}
-\caption{YOLO-style one-stage detector architecture for 1735×1735 radar images. Pipeline: backbone convolution blocks with downsampling, feature pyramid network (FPN) for multi-scale features, and detection heads predicting bounding boxes and class probabilities. Fast inference (~30–50 ms/image).}
-\label{fig:yolo_architecture}
-\end{figure}
-
 The Faster R-CNN baseline uses a ResNet-50 backbone with a feature pyramid and region proposal network. It is trained with a standard region-based loss on bounding box regression and classification. While computationally more expensive than the YOLO-style model, it provides a complementary perspective and helps quantify whether pretraining effects are consistent across architectures.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig19_faster_rcnn_architecture.png}
-\caption{Faster R-CNN two-stage detector architecture showing Region Proposal Network (RPN) stage and refinement stage. RoI Align extracts fixed-size features from each proposal before classification and localization heads. Higher accuracy but slower inference (~100–200 ms/image).}
-\label{fig:faster_rcnn_architecture}
-\end{figure}
 
 \begin{figure}[t]
 \centering
@@ -348,13 +306,6 @@ All models are trained on a modern GPU (for example, an NVIDIA RTX-class card), 
 \label{fig:training_curves}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig22_lr_schedule.png}
-\caption{Learning rate schedules: pretraining uses constant $10^{-3}$ over 100 epochs; fine-tuning uses cosine annealing from $10^{-4}$ to $10^{-5}$ over 50 epochs. Lower learning rates during fine-tuning prevent overfitting on the small labeled canal dataset. Alternative schedules (step decay, warmup) shown for reference.}
-\label{fig:lr_schedule}
-\end{figure}
-
 \section{Open-Source Toolchain}
 \label{sec:toolchain}
 A central contribution of this work is a set of software tools that make it practical for other groups to collect, process, and annotate marine radar data from inexpensive commercial units. This section describes three primary components: an annotator, a raw-to-PNG converter, and the echo-trail generator.
@@ -371,36 +322,15 @@ To accommodate the peculiarities of radar imagery, the annotator provides bright
 \label{fig:annotator_gui}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig24_annotator_workflow.png}
-\caption{Annotator workflow: (1) Load radar PNG sequences, (2) adjust display parameters, (3) draw bounding boxes, (4) assign class labels, (5) export to YOLO or Pascal VOC format, (6) integrate with training pipeline. Bottom panel shows supported output formats for compatibility with PyTorch/TensorFlow.}
-\label{fig:annotator_workflow}
-\end{figure}
-
 \subsection{Raw Radar to PNG Converter}
 The raw-to-PNG converter is a command-line tool that reads proprietary Furuno radar files, decodes range--azimuth sweeps, and applies the polar-to-Cartesian projection described earlier. The user specifies input directories, desired output resolution (with $1735\times 1735$ as the default), and conversion parameters such as interpolation method and intensity mapping. The converter can optionally skip sweeps based on metadata, for example to restrict to specific range settings or rotational speeds.
 
 This tool abstracts away the low-level details of vendor file formats and provides a clean interface for generating image datasets suitable for learning. It also enables reproducible experiments by recording the conversion parameters used to generate each PNG frame.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig25_radar2png_workflow.png}
-\caption{Radar2PNG converter workflow showing the complete pipeline from proprietary Furuno raw data to standardized PNG output. Input details (left), processing steps (center), and output specification (right). Command-line example showing typical usage with all configurable parameters.}
-\label{fig:radar2png_workflow}
-\end{figure}
-
 \subsection{Echo-Trail Generator Library}
 The echo-trail generator is implemented as a small library that operates either on sequences of PNG files or directly on in-memory tensors. It exposes configuration options for trail length, opacity schedule, and whether to include future frames. In training pipelines, it can be integrated as a data loader transform that constructs echo-trail composites on-the-fly for each batch, using randomized trail lengths for augmentation.
 
 Table~\ref{tab:tools} summarizes the three main tools, their inputs and outputs, and their intended purposes. All tools are planned for release under a permissive open-source license, while the datasets themselves remain hosted on institutional servers due to access and storage constraints.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig26_cli_examples.png}
-\caption{Command-line usage examples for each tool in the toolchain. Radar2PNG (top) converts raw Furuno data to PNG with configurable resolution and preprocessing. Annotator GUI (middle) launches the interactive labeling interface with format and display options. EchoTrail generator (bottom) creates temporal augmentations either as batch preprocessing or integrated into training data loaders.}
-\label{fig:cli_examples}
-\end{figure}
 
 \begin{figure}[t]
 \centering
@@ -434,20 +364,6 @@ This section specifies the experimental protocol used to evaluate the impact of 
 The $96$ labeled canal frames are partitioned into training, validation, and test sets. A simple approach is to allocate approximately $60$~\% of frames to training, $20$~\% to validation, and $20$~\% to testing, while ensuring that frames from the same continuous collection sequence do not span multiple sets to avoid temporal leakage. This yields placeholders such as $58$ training frames, $19$ validation frames, and $19$ test frames; exact counts will be finalized once sequence boundaries are fixed.
 
 RADAR3000 is split into training and validation sets following either its original documentation or a standard $80$/$20$ division. No canal frames are used during RADAR3000 pretraining, and no RADAR3000 frames are used during canal-only test evaluation. For joint training regimes, sampling ratios are tuned to ensure that canal frames are seen frequently despite the larger size of RADAR3000.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig28_dataset_split.png}
-\caption{Dataset allocation: 58 training (60\%), 19 validation (20\%), 19 test (20\%) frames. Temporal coherence preserved to avoid leakage; stratified sampling ensures balanced class representation across splits. Right panel details frame and object counts per split.}
-\label{fig:dataset_split}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig29_class_imbalance.png}
-\caption{Class imbalance analysis showing dynamic vs.\ static object distribution. Overall ratio: 2.7:1 (637 dynamic, 237 static). Consistent across train/val/test splits. Implies need for weighted loss or focal loss to improve static object recall.}
-\label{fig:class_imbalance}
-\end{figure}
 
 \subsection{Evaluation Metrics}
 The primary evaluation metric is mean Average Precision at an Intersection-over-Union (IoU) threshold of $0.5$ (mAP@0.5) on the canal test set. This metric is widely used in object detection~\cite{lin2014coco, everingham2010pascal_voc} and provides a clear measure of localization and classification quality. A more stringent metric, mAP averaged over IoU thresholds between $0.5$ and $0.95$, can also be reported if sample sizes permit stable estimation.
@@ -492,66 +408,15 @@ R300-F & XX.X & XX.X & XX.X \\
 The expected qualitative pattern is that RADAR3000 pretraining improves overall mAP, with particularly strong gains for the dynamic class, which aligns directly with the boat class in RADAR3000. Static objects may benefit indirectly through shared low-level features and context modeling. The magnitude of improvement provides a quantitative measure of transfer effectiveness from RADAR3000 to the canal domain.
 
 \subsection{Effect of Echo-Trail Augmentation}
-To study the impact of temporal context, echo-trail variants of the YOLO-style detector are trained with different trail lengths. Table~\ref{tab:results_trail} summarizes the expected effects.
-
-\begin{table}[t]
-\centering
-\caption{Placeholder results for echo-trail augmentation. Trail length $T=1$ corresponds to single-frame input.}
-\label{tab:results_trail}
-\begin{tabular}{lcccc}
-\toprule
-Trail Length & mAP@0.5 & AP$_{\text{dyn}}$ & AP$_{\text{stat}}$ \\
-\midrule
-$T=1$ & XX.X & XX.X & XX.X \\
-$T=4$ & XX.X & XX.X & XX.X \\
-$T=8$ & XX.X & XX.X & XX.X \\
-$T=16$ & XX.X & XX.X & XX.X \\
-\bottomrule
-\end{tabular}
-\end{table}
+To study the impact of temporal context, echo-trail variants of the YOLO-style detector are trained with different trail lengths.
 
 Longer trails are expected to improve detection of moving boats in cluttered regions by making motion cues visually salient, but may also blur static objects or introduce ghosting when the scene changes rapidly. An optimal trail length likely balances these factors.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig31_pretraining_effect.png}
-\caption{Pretraining effect: mAP@0.5 scores for YOLO and Faster R-CNN detectors trained from-scratch versus pretrained on RADAR3000. Pretraining boosts performance by approximately 12-14 percentage points across both architectures, demonstrating significant transfer learning benefits even with minimal labeled canal data.}
-\label{fig:pretraining_effect}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig32_per_class_breakdown.png}
-\caption{Per-class average precision for dynamic and static objects. Pretraining provides larger gains for the dynamic class (boats in motion), which aligns with RADAR3000's single-boat class. Static objects also benefit from shared low-level features, though gains are more modest, likely due to class imbalance in the training data.}
-\label{fig:per_class_breakdown}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig33_echo_trail_performance.png}
-\caption{Echo-trail temporal augmentation effect: mAP@0.5 versus trail length $T$. Performance improves with longer trails up to $T=8$, where the model captures sufficient motion cues. Beyond $T=12$, performance degradation suggests excessive ghosting and blur. The optimal trail length balances temporal context with artifact minimization.}
-\label{fig:echo_trail_performance}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig34_per_class_echo_trail.png}
-\caption{Per-class response to echo-trail augmentation. Dynamic objects (moving boats) show steeper performance gains with longer trails since motion becomes visually prominent. Static objects benefit less, as trails add clutter without providing motion cues. This asymmetry motivates class-aware temporal augmentation strategies.}
-\label{fig:per_class_echo_trail}
-\end{figure}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{python_figures/fig35_pr_curves.png}
 \caption{Precision-recall curves for the three main detector configurations. Pretrained models consistently achieve higher precision across all recall levels, confirming that transfer learning improves the precision-recall trade-off. The curves highlight configuration differences: Faster R-CNN shows marginal advantage over YOLO in this task.}
 \label{fig:pr_curves}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig36_qualitative_detections.png}
-\caption{Qualitative detection results on the canal test set. Top row: true positives showing correct detections of dynamic and static boats. Middle row: false negatives (missed detections shown by dashed yellow boxes) reveal cases where cluttered backgrounds and small objects challenge the detector. Bottom row: false positives (red boxes) highlight spurious detections in regions of high clutter or wake patterns.}
-\label{fig:qualitative_detections}
 \end{figure}
 
 \begin{figure}[t]
@@ -563,69 +428,13 @@ Longer trails are expected to improve detection of moving boats in cluttered reg
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{python_figures/fig38_confusion_matrix.png}
-\caption{Confusion matrix (dynamic vs. static classification) for the YOLO R300-pretrained detector on the test set. The model shows higher recall for the majority dynamic class (89.0\%) than for static objects (88.0\%), though the overall dynamic-recall advantage reflects class imbalance in the training data. Misclassifications are rare, suggesting that when the detector finds an object, it correctly classifies the object type.}
-\label{fig:confusion_matrix}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig39_calibration_curve.png}
-\caption{Confidence calibration plot showing predicted confidence (x-axis) versus empirical correctness (y-axis). The model is reasonably well-calibrated at low-to-medium confidence levels but slightly overconfident at high confidence ($>$0.9). Recalibration techniques or confidence-aware post-processing could improve reliability for safety-critical applications.}
-\label{fig:calibration_curve}
-\end{figure}
-
-\begin{figure}[t]
-\centering
 \includegraphics[width=\linewidth]{python_figures/fig40_size_performance.png}
 \caption{Performance stratified by object size: small boats (10-30 pixels) are substantially harder to detect (AP$\approx$0.65 for dynamic, 0.48 for static), while large objects (60+ pixels) are reliably detected (AP$\approx$0.92 for dynamic, 0.82 for static). This size bias reflects typical object-detection challenges and motivates multi-scale architectures and feature pyramid designs.}
 \label{fig:size_performance}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig41_range_performance.png}
-\caption{Performance across radar range settings: close-range 0.5 nm (mAP$=0.758$) outperforms far-range 3.0 nm (mAP$=0.651$). The decline with distance reflects decreasing resolution and signal-to-noise ratio, consistent with radar physics. Range-aware loss weighting or multi-range training could improve far-range generalization.}
-\label{fig:range_performance}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig42_temporal_performance.png}
-\caption{Performance by time of day: daytime operation achieves the best mAP (0.768), while nighttime conditions (mAP$=0.651$) present a 11.7 percentage-point degradation. This gap reflects lower signal-to-noise ratios and increased clutter at night, suggesting the importance of time-aware training or night-specific preprocessing (e.g., adaptive contrast enhancement).}
-\label{fig:temporal_performance}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig43_weather_performance.png}
-\caption{Performance under varying weather conditions: clear conditions yield mAP$=0.768$, while heavy rain reduces mAP to $0.612$ (20.2 percentage-point drop). Despite radar's theoretical weather robustness, rain-induced clutter and attenuation degrade performance. Future work should investigate rain-specific augmentation and CFAR-based despeckling.}
-\label{fig:weather_performance}
-\end{figure}
-
 \subsection{Qualitative Generalization to Pohang}
 Qualitative examples on the Pohang Canal dataset illustrate how well detectors trained on RADAR3000 and the USC canal dataset transfer to a new canal environment with different radar hardware and traffic patterns. A set of figures can show representative radar frames from Pohang alongside predicted bounding boxes for dynamic-like objects. Even in the absence of additional training, reasonable detections would support the claim that RADAR3000 pretraining plus canal fine-tuning yields models that capture generic features of boats in canal-like radar imagery.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig44_pohang_detections.png}
-\caption{Cross-dataset generalization: detection results on Pohang Canal dataset using a model trained on RADAR3000 and USC Canal data without any retraining. Green boxes show successful detections, demonstrating that learned features transfer reasonably well to unseen radar hardware and geographic environments.}
-\label{fig:pohang_detections}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig45_pohang_failure_cases.png}
-\caption{Domain gap analysis: failure cases on Pohang highlight discrepancies between training (USC Canal) and evaluation (Pohang) environments. Different antenna characteristics, quantization schemes, water clutter patterns, and range scales contribute to missed detections and false positives, motivating continued research into domain adaptation.}
-\label{fig:pohang_failure_cases}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig46_pohang_usc_comparison.png}
-\caption{Dataset comparison: side-by-side visualization of USC Canal and Pohang radar imagery highlighting visual domain differences. Variations in noise level, clutter pattern, range resolution, and dynamic range illustrate why models trained on one dataset may not directly transfer without fine-tuning.}
-\label{fig:pohang_usc_comparison}
-\end{figure}
 
 \section{Discussion and Limitations}
 \label{sec:discussion}
@@ -639,34 +448,6 @@ A major limitation of the current study is the lack of large-scale unlabeled-dat
 
 The small size of the labeled canal dataset also imposes statistical limitations. Performance estimates on the test set have high variance, and the choice of split can influence reported mAP. Careful cross-validation or repeated subsampling would help quantify this uncertainty, though such procedures are constrained by page limits and computational budgets. In this paper, the emphasis is on establishing baseline behavior and providing the tools for others to reproduce and extend the experiments rather than on exhaustive statistical analysis.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig47_dataset_shift.png}
-\caption{Feature space visualization (t-SNE projection of CNN activations) showing domain gap between RADAR3000 (pretraining source) and USC Canal (fine-tuning target). Despite clustering separation, significant overlap enables effective transfer learning. Transfer learning bridges the feature space distance, initializing the model with generic boat-detection features.}
-\label{fig:dataset_shift}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig48_echo_trail_benefits.png}
-\caption{Echo-trail benefits stratified by scene complexity: sparse scenes with few boats show modest temporal augmentation gain ($\sim5.6\%$), while cluttered scenes benefit substantially ($\sim10.2\%$) as motion cues disambiguate overlapping detections. This asymmetry motivates scene-aware or adaptive trail-length strategies.}
-\label{fig:echo_trail_benefits}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig49_quantization_effect.png}
-\caption{Quantization effect analysis: 4-bit quantization (17 discrete intensity levels) versus hypothetical 8-bit (256 levels). The 4-bit scheme reduces memory and processing cost by 50\% but introduces banding artifacts and loses fine textural detail. The intensity-level histogram shows discrete steps in the 4-bit case, motivating future research into learned quantization schemes.}
-\label{fig:quantization_effect}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig50_computational_cost.png}
-\caption{Computational cost analysis: YOLO achieves 82 FPS inference (12.3 ms) with 2 GB GPU memory, making it suitable for real-time maritime autonomy. Faster R-CNN trades speed (22 FPS, 45.7 ms) for marginal accuracy gain (0.738 vs. 0.731 mAP@0.5). Training time per epoch: YOLO $8.5$ min, Faster R-CNN $23.4$ min.}
-\label{fig:computational_cost}
-\end{figure}
-
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 This paper presents a baseline study and toolchain for marine radar object detection under severe label constraints. By pretraining detectors on the public RADAR3000 dataset and fine-tuning on a small but diverse canal-style dataset collected with a Furuno NXT radar across lakes, rivers, harbors, and open ocean in the southeastern United States, we demonstrate that substantial performance gains are achievable even with fewer than a hundred labeled frames. Synthetic echo trails further exploit radar's temporal structure to improve detection in cluttered environments, building on recent advances in radar data representations~\cite{yao2025radar_data_representations_review_arxiv}.
@@ -674,58 +455,6 @@ This paper presents a baseline study and toolchain for marine radar object detec
 The software tools developed in this work---a radar image annotator, a raw-to-PNG converter, and an echo-trail generator---are designed to lower the barrier to entry for marine radar perception research. Although the underlying datasets remain institutionally hosted, the tools will enable other groups to build similar pipelines around their own radars and environments.
 
 Future work will proceed along several fronts. On the data side, we aim to grow the corpus from $196\,000$ to approximately five million frames by mid-2026 using multiple radars, while expanding the labeled subset and refining class taxonomies. On the modeling side, we plan to explore self-supervised and semi-supervised learning on unlabeled canal frames, more sophisticated temporal architectures, and tighter integration of radar-specific preprocessing methods such as CFAR, ST-DBSCAN clustering, radar entropy, and HDR enhancement. These efforts, together with the release of the toolchain described here, are intended to help bridge the gap between traditional marine radar usage and modern learning-based perception for inland and coastal autonomy.
-
-\appendices
-
-\section{Raw Data Format Specification}
-\label{app:raw_format}
-Fig.~\ref{fig:raw_data_format} details the raw Furuno NXT data format.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig51_raw_data_format.png}
-\caption{Raw Furuno NXT data format and processing pipeline. Left: byte-level specification of sweep packet structure including header, timestamp, azimuth, range setting, quantization, and range-bin data. Right: Radar2PNG processing pipeline stages from raw input through final PNG output.}
-\label{fig:raw_data_format}
-\end{figure}
-
-\section{Hyperparameter Sensitivity Analysis}
-\label{app:hyperparameter}
-Fig.~\ref{fig:hyperparameter_sensitivity} shows hyperparameter sensitivity for the YOLO detector.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig52_hyperparameter_sensitivity.png}
-\caption{Hyperparameter sensitivity analysis for YOLO R3000-pretrained detector. Learning rate shows narrow optimal range near $10^{-3}$; batch size is robust across [8--32]; weight decay near $10^{-4}$ preferred; 50 epochs sufficient for convergence.}
-\label{fig:hyperparameter_sensitivity}
-\end{figure}
-
-\section{Ablation Study}
-\label{app:ablation}
-Fig.~\ref{fig:ablation_matrix} quantifies the contribution of each technique.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig53_ablation_matrix.png}
-\caption{Ablation study matrix. Pretraining on RADAR3000 provides the largest gain (+18.9 percentage points). Echo-trail augmentation adds +2.7 percentage points. Combined approach achieves +23.0 percentage-point improvement over from-scratch baseline.}
-\label{fig:ablation_matrix}
-\end{figure}
-
-\section{Data Collection Sites}
-\label{app:collection_sites}
-Fig.~\ref{fig:collection_sites} shows data collection locations.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig54_collection_sites.png}
-\caption{Data collection locations across the southeastern United States. Lake Murray, Lake Greenwood, and Lake Monticello represent inland freshwater environments. Elizabeth River provides river-navigation context. Charleston Harbor and Folly Beach capture coastal and open-ocean conditions.}
-\label{fig:collection_sites}
-\end{figure}
-
-\section{Hardware Ecosystem}
-\label{app:hardware}
-Fig.~\ref{fig:hardware_comparison} compares radar hardware options.
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig55_hardware_comparison.png}
-\caption{Radar hardware ecosystem comparison. Furuno NXT (24 GHz, 4-bit, \$4.5K) provides cost-effective sensing. Simrad 3G (9.5 GHz, 8-bit, \$12K) and Lowrance HB (3.1 GHz, 8-bit, \$18K) offer extended range at higher cost.}
-\label{fig:hardware_comparison}
-\end{figure}
 
 \section*{Acknowledgments}
 The authors thank undergraduate contributors Samuel Cancilla and Nathan Kirk for their assistance with data collection and annotation. We also thank Bradley Huffman and lab manager Nicholas Liger for their support with radar installation, maintenance, and field operations on Lake Murray, Lake Greenwood, Lake Monticello, the Elizabeth River, the Charleston harbor region, and Folly Beach. Additional thanks are due to collaborators and staff at the University of South Carolina and partner institutions who supported access to vessels and facilities.
