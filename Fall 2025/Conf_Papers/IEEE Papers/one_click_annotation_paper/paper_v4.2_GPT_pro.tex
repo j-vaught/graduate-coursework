@@ -30,7 +30,7 @@ Marine radar is a critical sensor for small craft and coastal autonomy, especial
 
 We study object detection for small boats in marine radar imagery under a severe label budget. Models are first trained on the public RADAR3000 dataset of $3000$ labeled radar frames containing boat detections, then fine-tuned on a new canal-style dataset of $96$ labeled frames and $637$ annotated objects collected across lakes, rivers, and harbor scenes. In addition, we record $24\,988$ unlabeled frames across diverse locations, times of day, and weather conditions using a commercial Furuno NXT marine radar, and we introduce a family of open-source tools that make this type of data collection and processing reproducible: a radar-image annotator, a raw range--azimuth to PNG converter, and a synthetic echo-trail generator that constructs temporal context by overlaying transparent past sweeps.
 
-Experimental results show that pretraining on RADAR3000 substantially improves mean Average Precision (mAP) on the small canal dataset compared to training from scratch, with improvements of up to XX.X percentage points in mAP@0.5 on held-out canal scenes. Echo-trail augmentation further improves robustness for dynamic boats in cluttered docks and marinas. We also demonstrate qualitative generalization to the Pohang Canal radar dataset without additional training. All software tools will be released to enable the community to scale marine radar data collection and experimentation, while the datasets themselves remain institutionally hosted due to access constraints.
+We benchmark modern detector and segmentation architectures on the RADAR3000 boat-detection task, achieving up to 0.928 mAP@0.5 (YOLOv12-L, 1024 input) and 0.935 mAP@0.5 (MRISNET segmentation baseline). We also evaluate a self-supervised backbone pretraining stage that uses all available radar imagery (the $24\,988$ in-house unlabeled frames plus the $3000$ RADAR3000 frames) before standard supervised training. Finally, we demonstrate qualitative generalization to the Pohang Canal radar dataset without additional training. All software tools will be released to enable the community to scale marine radar data collection and experimentation, while the datasets themselves remain institutionally hosted due to access constraints.
 \end{abstract}
 
 \begin{figure}[t]
@@ -63,7 +63,7 @@ From a modeling perspective, we study whether pretraining detectors on RADAR3000
 \label{fig:collection_map}
 \end{figure}
 
-The main contributions can be summarized as follows in a single narrative. We assemble and describe a diverse inland and coastal marine radar dataset built around a small labeled canal subset and a much larger unlabeled corpus. We establish baseline object detection results under extreme label scarcity by pretraining on RADAR3000 and fine-tuning on the canal dataset, showing that pretraining yields a significant mAP improvement. We design and implement an open-source software stack that transforms raw range--azimuth data from a low-cost Furuno NXT radar into annotated images with optional synthetic echo trails, enabling other groups to reproduce and scale similar data-collection efforts. Finally, we demonstrate that the resulting models generalize qualitatively to the Pohang Canal radar dataset~\cite{chung2023pohang_canal_dataset} without retraining, illustrating the potential of this approach for cross-dataset transfer.
+The main contributions can be summarized as follows in a single narrative. We assemble and describe a diverse inland and coastal marine radar dataset built around a small labeled canal subset and a much larger unlabeled corpus. We benchmark modern detector and segmentation architectures on RADAR3000 and describe transfer-learning regimes for adapting models to the small canal dataset, including self-supervised backbone pretraining on the unlabeled corpus. We design and implement an open-source software stack that transforms raw range--azimuth data from a low-cost Furuno NXT radar into annotated images with optional synthetic echo trails, enabling other groups to reproduce and scale similar data-collection efforts. Finally, we demonstrate that the resulting models generalize qualitatively to the Pohang Canal radar dataset~\cite{chung2023pohang_canal_dataset} without retraining, illustrating the potential of this approach for cross-dataset transfer.
 
 The remainder of the paper builds up from data and tools to models and results. Section~\ref{sec:data} describes RADAR3000, the new canal dataset, and the unlabeled corpus. Section~\ref{sec:acq} details the radar hardware, raw data format, and conversion and echo-trail processing. Section~\ref{sec:models} presents the chosen detector architectures and training protocols. Section~\ref{sec:toolchain} describes the open-source toolchain. Section~\ref{sec:setup} outlines the experimental setup, followed by quantitative and qualitative results in Section~\ref{sec:results}. Section~\ref{sec:discussion} discusses limitations and connections to classical radar-processing techniques such as CFAR and ST-DBSCAN, and Section~\ref{sec:conclusion} concludes with future directions, including scaling to millions of frames by mid-2026.
 
@@ -74,7 +74,7 @@ This section describes the datasets used in this work. We rely on one public mar
 \subsection{RADAR3000}
 RADAR3000 is a public marine radar dataset containing $3000$ PPI radar frames with boat annotations. Each frame is labeled in a single foreground class denoted by the label ``B'' for boat. In total, the dataset contains $3000$ boat instances, suggesting that the majority of frames contain a single annotated boat, though this is not a strict requirement. The imagery is provided in a format compatible with standard object-detection frameworks, and prior work has explored its use for YOLO-style detectors.
 
-In our experiments, RADAR3000 serves as a source dataset for generic boat detection. We treat its single boat class as compatible with the dynamic-boat class in our canal dataset and use it to initialize weights for modern one-stage detectors. The precise split of RADAR3000 into training, validation, and testing subsets can follow the original dataset recommendation or, when not specified, a conventional division such as $80$~\% training and $20$~\% validation. Because this paper focuses on transfer to the canal dataset, RADAR3000 performance is reported primarily to confirm that pretraining has converged.
+In our experiments, RADAR3000 serves both as a benchmark for modern marine-radar models and as a source dataset for transfer learning. We treat its single boat class as compatible with the dynamic-boat class in our canal dataset and use it to initialize weights for modern one-stage detectors. The precise split of RADAR3000 into training, validation, and testing subsets can follow the original dataset recommendation or, when not specified, a conventional division such as $80$~\% training and $20$~\% validation. RADAR3000 performance is reported both as a standalone benchmark and to confirm that pretraining has converged before transfer to the canal dataset.
 
 \begin{figure}[t]
 \centering
@@ -286,8 +286,6 @@ R3k-Y & YOLO & R3000 & Canal & $T{=}1$ \\
 R3kJ-Y & YOLO & R3000+Canal & same & $T{=}1$ \\
 R3kT-Y & YOLO & R3000 & Canal & $T{\in}\{1,4,8,16\}$ \\
 SSL-Y8n & YOLOv8n & SSL (Canal+R3000) & R3000 & $T{=}1$ \\
-FS-F & F-RCNN & none & Canal & $T{=}1$ \\
-R3k-F & F-RCNN & R3000 & Canal & $T{=}1$ \\
 \bottomrule
 \end{tabular}%
 }
@@ -365,7 +363,7 @@ The $96$ labeled canal frames are partitioned into training, validation, and tes
 RADAR3000 is split into training and validation sets following either its original documentation or a standard $80$/$20$ division. No canal frames are used during RADAR3000 pretraining, and no RADAR3000 frames are used during canal-only test evaluation. For joint training regimes, sampling ratios are tuned to ensure that canal frames are seen frequently despite the larger size of RADAR3000.
 
 \subsection{Evaluation Metrics}
-The primary evaluation metric is mean Average Precision at an Intersection-over-Union (IoU) threshold of $0.5$ (mAP@0.5) on the canal test set. This metric is widely used in object detection~\cite{lin2014coco, everingham2010pascal_voc} and provides a clear measure of localization and classification quality. A more stringent metric, mAP averaged over IoU thresholds between $0.5$ and $0.95$, can also be reported if sample sizes permit stable estimation.
+We evaluate both the RADAR3000 benchmark and the canal dataset using mean Average Precision at an Intersection-over-Union (IoU) threshold of $0.5$ (mAP@0.5). This metric is widely used in object detection~\cite{lin2014coco, everingham2010pascal_voc} and provides a clear measure of localization and classification quality. We also report a more stringent metric, mAP averaged over IoU thresholds between $0.5$ and $0.95$ (mAP@0.5:0.95), where appropriate.
 
 Per-class Average Precision for the dynamic and static classes provides insight into whether improvements from pretraining and echo trails are concentrated on moving targets, static clutter, or both. Precision--recall curves and example detections complement the numerical metrics.
 
@@ -383,7 +381,7 @@ Because the label budget is extremely small, confidence calibration and robust t
 
 \section{Results}
 \label{sec:results}
-This section summarizes model-training results from our current experiments and provides a ranked comparison across detector and segmentation architectures. We report both mAP@0.5 and mAP@0.5:0.95.
+This section summarizes model-training results from our current experiments and provides a ranked comparison across detector and segmentation architectures. Unless otherwise noted, metrics are computed on our RADAR3000 evaluation split; we report both mAP@0.5 and mAP@0.5:0.95.
 
 \subsection{Complete Model Comparison}
 Table~\ref{tab:model_comparison} ranks models by mAP@0.5. For segmentation models, mAP is computed over masks; for detection models, mAP is computed over bounding boxes.
@@ -412,32 +410,6 @@ Rank & Model & mAP@0.5 & mAP@0.5:0.95 & Image Size & Task \\
 \subsection{Self-Supervised Backbone Pretraining}
 The YOLOv8n + SSL configuration uses self-supervised learning to pretrain the backbone on all available radar imagery (the $24\,988$ in-house unlabeled frames plus the $3000$ RADAR3000 frames), and then trains the detection head using the standard supervised RADAR3000 setup.
 
-\subsection{Effect of Echo-Trail Augmentation}
-To study the impact of temporal context, echo-trail variants of the YOLO-style detector are trained with different trail lengths.
-
-Longer trails are expected to improve detection of moving boats in cluttered regions by making motion cues visually salient, but may also blur static objects or introduce ghosting when the scene changes rapidly. An optimal trail length likely balances these factors.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig35_pr_curves.png}
-\caption{Precision-recall curves for the three main detector configurations. Pretrained models consistently achieve higher precision across all recall levels, confirming that transfer learning improves the precision-recall trade-off. The curves highlight configuration differences: Faster R-CNN shows marginal advantage over YOLO in this task.}
-\label{fig:pr_curves}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig37_failure_analysis.png}
-\caption{Failure case analysis across four challenging scenarios: (top-left) dense marinas with overlapping boat signatures, (top-right) small boats near the detection range limit with low signal-to-noise ratio, (bottom-left) wake clutter causing false positives, and (bottom-right) night-time low-contrast conditions. Each challenge points to future research directions and model improvements.}
-\label{fig:failure_analysis}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{python_figures/fig40_size_performance.png}
-\caption{Performance stratified by object size: small boats (10-30 pixels) are substantially harder to detect (AP$\approx$0.65 for dynamic, 0.48 for static), while large objects (60+ pixels) are reliably detected (AP$\approx$0.92 for dynamic, 0.82 for static). This size bias reflects typical object-detection challenges and motivates multi-scale architectures and feature pyramid designs.}
-\label{fig:size_performance}
-\end{figure}
-
 \subsection{Qualitative Generalization to Pohang}
 Qualitative examples on the Pohang Canal dataset illustrate how well detectors trained on RADAR3000 and the USC canal dataset transfer to a new canal environment with different radar hardware and traffic patterns. A set of figures can show representative radar frames from Pohang alongside predicted bounding boxes for dynamic-like objects. Even in the absence of additional training, reasonable detections would support the claim that RADAR3000 pretraining plus canal fine-tuning yields models that capture generic features of boats in canal-like radar imagery.
 
@@ -449,13 +421,13 @@ From the perspective of dataset design, RADAR3000 proves valuable as a generic p
 
 Synthetic echo trails provide a simple yet effective way to introduce temporal context. They leverage the radar's native rotational sampling without requiring explicit tracking or motion estimation. However, echo trails are limited by their purely visual overlay mechanism. They do not exploit phase information, Doppler, or explicit motion models, and they can obscure fast changes when trails are too long. Future work may explore more principled temporal encodings, including 3D convolutional networks over sequences of sweeps and architectures that explicitly track object hypotheses over time.
 
-A major limitation of the current study is the lack of large-scale unlabeled-data exploitation. The $24\,988$ unlabeled canal frames offer an opportunity for self-supervised pretraining directly on the target domain using contrastive, masked reconstruction, or teacher--student methods, potentially in combination with CFAR-based pseudo-labeling. In addition, classical radar-processing techniques such as CFAR detection~\cite{rashid2025cfar_sar_vessels}, spatio-temporal clustering with methods like ST-DBSCAN~\cite{birant2007st_dbscan} and DBSCAN~\cite{ester1996dbscan}, radar entropy measures, and radar HDR compression can feed into learning pipelines by proposing candidate regions, reweighting training samples, or enhancing input images~\cite{richards2014fundamentals_radar_signal_processing}. These topics are the focus of ongoing undergraduate and graduate projects and will be reported in separate papers.
+A major limitation of the current study is that unlabeled-data exploitation is only explored in an initial baseline. While the YOLOv8n + SSL experiment demonstrates that self-supervised backbone pretraining is feasible using the $24\,988$ in-house unlabeled canal frames plus the $3000$ RADAR3000 frames, a broader sweep of SSL objectives (contrastive learning, masked reconstruction, teacher--student methods) and larger backbones remains open. In addition, classical radar-processing techniques such as CFAR detection~\cite{rashid2025cfar_sar_vessels}, spatio-temporal clustering with methods like ST-DBSCAN~\cite{birant2007st_dbscan} and DBSCAN~\cite{ester1996dbscan}, radar entropy measures, and radar HDR compression can feed into learning pipelines by proposing candidate regions, reweighting training samples, or enhancing input images~\cite{richards2014fundamentals_radar_signal_processing}. These topics are the focus of ongoing undergraduate and graduate projects and will be reported in separate papers.
 
 The small size of the labeled canal dataset also imposes statistical limitations. Performance estimates on the test set have high variance, and the choice of split can influence reported mAP. Careful cross-validation or repeated subsampling would help quantify this uncertainty, though such procedures are constrained by page limits and computational budgets. In this paper, the emphasis is on establishing baseline behavior and providing the tools for others to reproduce and extend the experiments rather than on exhaustive statistical analysis.
 
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
-This paper presents a baseline study and toolchain for marine radar object detection under severe label constraints. By pretraining detectors on the public RADAR3000 dataset and fine-tuning on a small but diverse canal-style dataset collected with a Furuno NXT radar across lakes, rivers, harbors, and open ocean in the southeastern United States, we demonstrate that substantial performance gains are achievable even with fewer than a hundred labeled frames. Synthetic echo trails further exploit radar's temporal structure to improve detection in cluttered environments, building on recent advances in radar data representations~\cite{yao2025radar_data_representations_review_arxiv}.
+This paper presents a baseline study and toolchain for marine radar perception under severe label constraints. We benchmark several modern detector and segmentation architectures on RADAR3000, and we introduce a new canal-style dataset collected with a Furuno NXT radar across lakes, rivers, harbors, and open-ocean conditions in the southeastern United States. The dataset includes $96$ labeled frames (637 objects) and $24\,988$ unlabeled frames that support self-supervised and semi-supervised learning. Synthetic echo trails provide a practical way to incorporate temporal context in radar imagery and are supported end-to-end by our open-source tooling.
 
 The software tools developed in this work---a radar image annotator, a raw-to-PNG converter, and an echo-trail generator---are designed to lower the barrier to entry for marine radar perception research. Although the underlying datasets remain institutionally hosted, the tools will enable other groups to build similar pipelines around their own radars and environments.
 
