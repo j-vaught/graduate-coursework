@@ -279,7 +279,28 @@ We consider two detector families. The first is a modern one-stage detector insp
 
 The YOLO-style model operates on $1735\times 1735$ grayscale inputs, internally resized or padded to a network-friendly resolution such as $1024\times 1024$. It includes a convolutional backbone with spatial downsampling, a feature pyramid network to combine multi-scale features, and detection heads that predict bounding boxes and class probabilities at multiple scales. Radar-specific adjustments such as modified anchor box priors or aspect-ratio distributions can be applied based on the observed statistics of boat sizes and shapes in the datasets, although in this initial work we rely on generic anchor presets with only minor tuning.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig18_yolo_architecture.png}
+\caption{YOLO-style one-stage detector architecture for 1735×1735 radar images. Pipeline: backbone convolution blocks with downsampling, feature pyramid network (FPN) for multi-scale features, and detection heads predicting bounding boxes and class probabilities. Fast inference (~30–50 ms/image).}
+\label{fig:yolo_architecture}
+\end{figure}
+
 The Faster R-CNN baseline uses a ResNet-50 backbone with a feature pyramid and region proposal network. It is trained with a standard region-based loss on bounding box regression and classification. While computationally more expensive than the YOLO-style model, it provides a complementary perspective and helps quantify whether pretraining effects are consistent across architectures.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig19_faster_rcnn_architecture.png}
+\caption{Faster R-CNN two-stage detector architecture showing Region Proposal Network (RPN) stage and refinement stage. RoI Align extracts fixed-size features from each proposal before classification and localization heads. Higher accuracy but slower inference (~100–200 ms/image).}
+\label{fig:faster_rcnn_architecture}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig20_anchor_box_analysis.png}
+\caption{Anchor box analysis for boat detection: (top left) width vs.\ height scatter plot showing dynamic (lime) and static (orange) object distributions, (top middle) aspect ratio histograms, (top right) bounding box area distributions. (Bottom) recommended 9-anchor-box templates and matching/regression strategy.}
+\label{fig:anchor_box_analysis}
+\end{figure}
 
 \subsection{Training Regimes}
 To assess the value of pretraining and echo trails, we define several training regimes. For clarity, each regime is summarized conceptually here and later collected into a configuration table.
@@ -316,6 +337,20 @@ R300-F & Faster R-CNN & RADAR300 & USC-Canal & $T=1$ \\
 Detectors are trained using stochastic gradient descent or AdamW with standard settings for object detection. For example, a typical configuration might use an initial learning rate of $10^{-3}$ for pretraining, reduced by a factor of ten during fine-tuning, momentum of $0.9$, weight decay of $5\times 10^{-4}$, and a batch size adjusted to available GPU memory. Data augmentation consists of random rotations, flips, small spatial translations, and intensity jitter in radar images, with care taken to preserve the geometric relationship between radar returns and labels.
 
 All models are trained on a modern GPU (for example, an NVIDIA RTX-class card), and training times remain modest due to the small size of the canal dataset. Pretraining on RADAR300 dominates overall training cost. Detailed hyperparameters are left as placeholders in this draft and can be specified once final experiments are completed.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig21_training_curves.png}
+\caption{Training curves showing loss evolution during pretraining on RADAR300 (left) and fine-tuning on the USC canal dataset (middle). Right plot shows the full timeline. Bottom panels decompose total loss into classification and localization components. Fine-tuning starts from lower loss due to pretraining initialization.}
+\label{fig:training_curves}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig22_lr_schedule.png}
+\caption{Learning rate schedules: pretraining uses constant $10^{-3}$ over 100 epochs; fine-tuning uses cosine annealing from $10^{-4}$ to $10^{-5}$ over 50 epochs. Lower learning rates during fine-tuning prevent overfitting on the small labeled canal dataset. Alternative schedules (step decay, warmup) shown for reference.}
+\label{fig:lr_schedule}
+\end{figure}
 
 \section{Open-Source Toolchain}
 \label{sec:toolchain}
