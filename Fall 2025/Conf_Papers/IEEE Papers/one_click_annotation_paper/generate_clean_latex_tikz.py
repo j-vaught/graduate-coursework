@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to generate a clean LaTeX document with 6-panel TikZ figure showing cropped images 
+Script to generate a clean LaTeX document with 6-panel figure showing cropped images 
 with bounding boxes drawn using TikZ, without headers or captions for direct import.
 """
 
@@ -44,7 +44,7 @@ def get_image_dimensions(image_path):
     return None, None
 
 def generate_clean_latex_tikz_figure(processed_data_dir, output_latex_path):
-    """Generate a clean LaTeX figure with 6-panel TikZ images and bounding boxes, no text"""
+    """Generate a clean LaTeX figure with 6-panel images and TikZ bounding boxes, no text"""
     
     # Parse the bounding box data file
     data_file = os.path.join(processed_data_dir, 'bounding_boxes_data.txt')
@@ -66,76 +66,116 @@ def generate_clean_latex_tikz_figure(processed_data_dir, output_latex_path):
     
     # LaTeX content for a standalone figure
     latex_content = r"""% Clean 6-panel figure with TikZ bounding boxes for import
-\documentclass[10pt,a4paper]{article}
-\usepackage[margin=0.1in]{geometry} % Minimal margins
+\documentclass[border=2pt]{standalone}
 \usepackage{graphicx}
-\usepackage{subcaption}
 \usepackage{tikz}
 \usetikzlibrary{calc}
 
-% Remove page numbering and headers
-\pagestyle{empty}
-
 \begin{document}
 
-% 6-panel figure with cropped images and TikZ bounding boxes
-\centering
+\begin{tikzpicture}
+% Position the first row of images
 """
-    
-    # Process each selected frame to create TikZ images
-    for idx, frame_id in enumerate(selected_frame_ids):
-        # Determine if this is in the first row (1-3) or second row (4-6)
-        if idx < 3:  # First row
-            if idx == 0:  # First image in row
-                latex_content += "\\begin{subfigure}{0.32\\textwidth}\n"
-            else:
-                latex_content += "\\hfill\n\\begin{subfigure}{0.32\\textwidth}\n"
-        else:  # Second row
-            if idx == 3:  # First image in second row
-                latex_content += "\\vspace{0.1cm}\n\n"  # Add smaller vertical space between rows
-                latex_content += "\\begin{subfigure}{0.32\\textwidth}\n"
-            else:
-                latex_content += "\\hfill\n\\begin{subfigure}{0.32\\textwidth}\n"
-        
-        # Begin TikZ picture for the image with annotations
-        latex_content += "\\centering\n"
-        latex_content += "\\begin{tikzpicture}\n"
-        
-        # Add the cropped image
+
+    # Process first row (images 0, 1, 2)
+    for idx in range(min(3, len(selected_frame_ids))):
+        frame_id = selected_frame_ids[idx]
         cropped_img_path = f"processed_images/cropped/{frame_id}_all_bboxes_cropped.jpg"
         full_img_path = f"/Users/jacobvaught/Downloads/Classes/Fall 2025/Conf_Papers/IEEE Papers/one_click_annotation_paper/{cropped_img_path}"
-        
+
         # Get actual image dimensions
         img_width, img_height = get_image_dimensions(full_img_path)
         if img_width is None or img_height is None:
             print(f"Warning: Could not read image dimensions for {full_img_path}")
-            # Use a default approach with the old normalization
             img_width, img_height = 400, 400  # Default values
-        
-        latex_content += f"\\node[anchor=south west, inner sep=0] (image) at (0,0) {{\\includegraphics[width=\\textwidth]{{{cropped_img_path}}}}};\n"
-        latex_content += "\\begin{scope}[x={(image.south east)},y={(image.north west)}]\n"
-        
+
+        # Position the images side by side in the first row
+        x_pos = idx * 3.5  # Adjust spacing as needed
+        y_pos = 0  # First row
+
+        latex_content += f"\\node[anchor=north west, inner sep=0] (img{idx}) at ({x_pos},{y_pos}) {{\\includegraphics[width=3cm]{{{cropped_img_path}}}}};\n"
+        latex_content += f"\\begin{{scope}}[shift={{(img{idx}.south west)}}]\n"
+
         # Process each bounding box for this frame using actual image dimensions
         for bbox in frame_bboxes[frame_id]:
             xmin, ymin, xmax, ymax = bbox
-            
-            # Normalize coordinates to [0,1] range based on actual image dimensions
-            # In TikZ scope with [x={(image.south east)},y={(image.north west)}],
-            # (0,0) is bottom-left and (1,1) is top-right
-            # Image coordinates have (0,0) at top-left, so we need to invert Y
-            norm_xmin = xmin / img_width
-            norm_ymin = 1 - (ymax / img_height)  # Invert y coordinate
-            norm_xmax = xmax / img_width
-            norm_ymax = 1 - (ymin / img_height)  # Invert y coordinate
-            
-            latex_content += f"  \\draw[green, thick] ({norm_xmin}, {norm_ymin}) rectangle ({norm_xmax}, {norm_ymax});\n"
-        
+
+            # Calculate actual coordinates based on image size and node position
+            # The image is scaled to 3cm width, and height is calculated based on aspect ratio
+            width_scale = 3.0  # width of the image in cm
+            height_scale = (img_height / img_width) * 3.0  # height based on aspect ratio
+
+            # Convert original image coordinates to the scaled image coordinates
+            scaled_xmin = (xmin / img_width) * width_scale
+            scaled_ymin = (ymin / img_height) * height_scale
+            scaled_xmax = (xmax / img_width) * width_scale
+            scaled_ymax = (ymax / img_height) * height_scale
+
+            # In TikZ with the shift={(imgX.south west)}, the origin (0,0) is at the bottom-left
+            # of the image. The y-axis increases upward (opposite to image coordinates).
+            # So we need to flip the Y coordinates relative to the image height
+            # Convert image coordinates (top-left origin) to TikZ coordinates (bottom-left origin)
+            tikz_ymin = height_scale - scaled_ymax  # Note: swapping max and min due to coordinate flip
+            tikz_ymax = height_scale - scaled_ymin  # Note: swapping max and min due to coordinate flip
+
+            latex_content += f"  \\draw[green, thick] ({scaled_xmin}cm, {tikz_ymin}cm) rectangle ({scaled_xmax}cm, {tikz_ymax}cm);\n"
+
         latex_content += "\\end{scope}\n"
-        latex_content += "\\end{tikzpicture}\n"
-        latex_content += "\\end{subfigure}\n"
+        # Add frame ID labels (ID: XXXX format) below the image
+        latex_content += f"\\node[anchor=north] at (img{idx}.south) {{\\small ID: {frame_id}}};\n"
+
+    # Process second row (images 3, 4, 5)
+    for idx in range(3, min(6, len(selected_frame_ids))):
+        frame_id = selected_frame_ids[idx]
+        cropped_img_path = f"processed_images/cropped/{frame_id}_all_bboxes_cropped.jpg"
+        full_img_path = f"/Users/jacobvaught/Downloads/Classes/Fall 2025/Conf_Papers/IEEE Papers/one_click_annotation_paper/{cropped_img_path}"
+
+        # Get actual image dimensions
+        img_width, img_height = get_image_dimensions(full_img_path)
+        if img_width is None or img_height is None:
+            print(f"Warning: Could not read image dimensions for {full_img_path}")
+            img_width, img_height = 400, 400  # Default values
+
+        # Position the images side by side in the second row
+        x_pos = (idx - 3) * 3.5  # Adjust spacing as needed, starting from 0 again
+        y_pos = -4  # Second row, positioned below the first row
+
+        latex_content += f"\\node[anchor=north west, inner sep=0] (img{idx}) at ({x_pos},{y_pos}) {{\\includegraphics[width=3cm]{{{cropped_img_path}}}}};\n"
+        latex_content += f"\\begin{{scope}}[shift={{(img{idx}.south west)}}]\n"
+
+        # Process each bounding box for this frame using actual image dimensions
+        for bbox in frame_bboxes[frame_id]:
+            xmin, ymin, xmax, ymax = bbox
+
+            # Calculate actual coordinates based on image size and node position
+            # The image is scaled to 3cm width, and height is calculated based on aspect ratio
+            width_scale = 3.0  # width of the image in cm
+            height_scale = (img_height / img_width) * 3.0  # height based on aspect ratio
+
+            # Convert original image coordinates to the scaled image coordinates
+            scaled_xmin = (xmin / img_width) * width_scale
+            scaled_ymin = (ymin / img_height) * height_scale
+            scaled_xmax = (xmax / img_width) * width_scale
+            scaled_ymax = (ymax / img_height) * height_scale
+
+            # In TikZ with the shift={(imgX.south west)}, the origin (0,0) is at the bottom-left
+            # of the image. The y-axis increases upward (opposite to image coordinates).
+            # So we need to flip the Y coordinates relative to the image height
+            # Convert image coordinates (top-left origin) to TikZ coordinates (bottom-left origin)
+            tikz_ymin = height_scale - scaled_ymax  # Note: swapping max and min due to coordinate flip
+            tikz_ymax = height_scale - scaled_ymin  # Note: swapping max and min due to coordinate flip
+
+            latex_content += f"  \\draw[green, thick] ({scaled_xmin}cm, {tikz_ymin}cm) rectangle ({scaled_xmax}cm, {tikz_ymax}cm);\n"
+
+        latex_content += "\\end{scope}\n"
+        # Add frame ID labels (ID: XXXX format) below the image
+        latex_content += f"\\node[anchor=north] at (img{idx}.south) {{\\small ID: {frame_id}}};\n"
+
+    latex_content += "\\end{tikzpicture}\n"
     
-    # Close the figure and document
+    # Close the document
     latex_content += r"""
+
 \end{document}
 """
 
