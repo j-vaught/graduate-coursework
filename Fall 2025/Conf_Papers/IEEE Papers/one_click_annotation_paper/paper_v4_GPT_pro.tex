@@ -159,15 +159,50 @@ All data for the USC canal dataset are collected using a Furuno NXT radar, a sol
 
 The radar antenna rotates at rates between $24$ and $48$ revolutions per minute, with occasional runs at $30$~rpm. Most experiments use data collected at $24$ or $48$~rpm, and future work will standardize on $48$~rpm to simplify temporal modeling and trajectory estimation. Each full rotation produces a sweep of raw radar returns over angle, which are stored along with metadata such as range setting and timestamp.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{python_figures/fig10_furuno_hardware_detailed.png}
+\caption{Detailed diagram of the Furuno NXT solid-state radar system showing antenna mounting, rotation rate (24–48 rpm), control unit, and power/communication connections. The antenna rotates to generate plan-position-indicator (PPI) sweeps over configurable range scales.}
+\label{fig:furuno_hardware_detailed}
+\end{figure}
+
 \subsection{Raw Range--Azimuth Format and Quantization}
 The raw data from the Furuno radar are stored as range--azimuth samples per sweep. For each antenna angle, the sensor reports a fixed number of range bins. In the current configuration, each sweep contains $868$ range bins per azimuth angle and between $600$ and $1000$ distinct azimuth angles (or pulses) per rotation, depending on rotational speed and vendor settings. This yields a polar grid of complex-valued or magnitude-only radar returns.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig11_range_azimuth_diagram.png}
+\caption{Range-azimuth coordinate system illustrating the polar grid layout: $868$ radial range bins (0.5–3 nm configurable) by 600–1000 azimuth angles per sweep. Example boat echo shown in red. Right panel lists hardware specifications.}
+\label{fig:range_azimuth_diagram}
+\end{figure}
+
 Although vendor documentation advertises $8$~bit amplitude resolution, direct inspection of the raw data reveals an effective $4$~bit quantization with an additional zero level. Intensities are therefore represented with $16$ distinct non-zero levels plus a background level, which has implications for dynamic range and noise modeling. In this work, we operate on magnitude values and defer more sophisticated complex-valued processing and calibration to future signal-processing papers.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig12_quantization_comparison.png}
+\caption{Quantization comparison: 4-bit (Furuno NXT actual) vs.\ 8-bit (hypothetical). The 4-bit effective quantization results in visible banding and reduced dynamic range but remains sufficient for boat detection. Histograms show the discrete intensity levels.}
+\label{fig:quantization_comparison}
+\end{figure}
 
 \subsection{Conversion to PNG Images}
 To make the data compatible with common deep-learning frameworks, each polar sweep is projected into a square $1735\times 1735$ image. The dimension is chosen so that the $868$ radial bins can be mapped approximately one-to-two with interpolation into a square Cartesian grid covering the maximum range used in the dataset, while the angular dimension determines the sampling around the circle.
 
 The conversion process consists of three steps. First, the polar range--azimuth grid is interpolated onto a Cartesian $x$--$y$ grid centered at the radar location using a simple nearest-neighbor or bilinear scheme. Second, the $4$~bit quantized magnitudes are mapped into an 8-bit grayscale intensity range, with optional contrast stretching to emphasize relevant returns. Third, the resulting grayscale image is optionally color-mapped using standard colormaps for visualization but stored internally as a single-channel PNG for training.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig13_conversion_pipeline.png}
+\caption{Conversion pipeline from raw polar range--azimuth data to training-ready PNG images. Four stages: (1) raw Furuno sweep, (2) polar-to-Cartesian interpolation, (3) quantization and intensity mapping, (4) normalized 1735×1735 PNG output with metadata recording.}
+\label{fig:conversion_pipeline}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig14_range_variability.png}
+\caption{Range setting variability: same scene at 0.5 nm, 1.5 nm, and 3.0 nm scales. Spatial resolution (m/pixel) and object size vary significantly, requiring models to handle multi-scale objects and diverse spatial sampling.}
+\label{fig:range_variability}
+\end{figure}
 
 At this stage, we deliberately avoid heavy preprocessing such as constant false alarm rate (CFAR) thresholding, entropy-based enhancement, or radar high dynamic range (HDR) compression. Those techniques are the focus of separate, more signal-processing-oriented papers and undergraduate projects. For the present work, the primary transformation is from raw polar data to a simple, consistent Cartesian image representation that can be used with standard object detectors.
 
@@ -193,6 +228,27 @@ The basic algorithm for echo-trail generation can be expressed succinctly as fol
 \end{algorithm}
 
 In practice, the opacity schedule can be chosen as a simple linear ramp or an exponential decay. For example, a linear schedule might set $\alpha_{k} = k/T$, while an exponential schedule might use $\alpha_{k} = \beta^{T-k}$ for some $\beta \in (0,1)$. The generator is applied on-the-fly during training so that a single labeled frame can yield multiple augmented inputs with different trail lengths and opacity schedules. This effectively increases the apparent dataset size and allows the detector to exploit motion cues without explicit tracking.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig15_echo_trail_generation.png}
+\caption{Echo-trail generation process: (top row) four individual frames (T, T-1, T-2, T-3) with boat in different positions, (middle row) same frames with decreasing opacity, (bottom left) final composite echo-trail image (T=4) showing ghosted boat trajectory, (bottom right) pseudocode for the echo-trail algorithm.}
+\label{fig:echo_trail_generation}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig16_echo_trail_variants.png}
+\caption{Echo-trail length variants: T=1 (baseline, single frame) vs.\ T=4, T=8, T=16. Longer trails provide more temporal context but introduce ghosting and blur. Optimal trail length balances motion perception against computational cost.}
+\label{fig:echo_trail_variants}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig17_motion_visualization.png}
+\caption{Motion visualization: (left) individual frames showing boat trajectory with position markers, (right) echo-trail composite with full trajectory overlay and velocity vector. Motion cues emerge naturally from layered sweeps without explicit velocity estimation.}
+\label{fig:motion_visualization}
+\end{figure}
 
 Figure~\ref{fig:pipeline} illustrates the end-to-end processing pipeline from raw data to detector input, including echo-trail generation.
 
