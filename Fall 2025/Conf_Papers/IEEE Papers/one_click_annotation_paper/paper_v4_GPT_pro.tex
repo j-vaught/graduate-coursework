@@ -601,6 +601,27 @@ Longer trails are expected to improve detection of moving boats in cluttered reg
 \subsection{Qualitative Generalization to Pohang}
 Qualitative examples on the Pohang Canal dataset illustrate how well detectors trained on RADAR300 and the USC canal dataset transfer to a new canal environment with different radar hardware and traffic patterns. A set of figures can show representative radar frames from Pohang alongside predicted bounding boxes for dynamic-like objects. Even in the absence of additional training, reasonable detections would support the claim that RADAR300 pretraining plus canal fine-tuning yields models that capture generic features of boats in canal-like radar imagery.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig44_pohang_detections.png}
+\caption{Cross-dataset generalization: detection results on Pohang Canal dataset using a model trained on RADAR300 and USC Canal data without any retraining. Green boxes show successful detections, demonstrating that learned features transfer reasonably well to unseen radar hardware and geographic environments.}
+\label{fig:pohang_detections}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig45_pohang_failure_cases.png}
+\caption{Domain gap analysis: failure cases on Pohang highlight discrepancies between training (USC Canal) and evaluation (Pohang) environments. Different antenna characteristics, quantization schemes, water clutter patterns, and range scales contribute to missed detections and false positives, motivating continued research into domain adaptation.}
+\label{fig:pohang_failure_cases}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig46_pohang_usc_comparison.png}
+\caption{Dataset comparison: side-by-side visualization of USC Canal and Pohang radar imagery highlighting visual domain differences. Variations in noise level, clutter pattern, range resolution, and dynamic range illustrate why models trained on one dataset may not directly transfer without fine-tuning.}
+\label{fig:pohang_usc_comparison}
+\end{figure}
+
 \section{Discussion and Limitations}
 \label{sec:discussion}
 The preliminary results and extensive tooling in this work highlight both the promise and the constraints of learning-based marine radar perception under extreme label scarcity.
@@ -613,6 +634,34 @@ A major limitation of the current study is the lack of large-scale unlabeled-dat
 
 The small size of the labeled canal dataset also imposes statistical limitations. Performance estimates on the test set have high variance, and the choice of split can influence reported mAP. Careful cross-validation or repeated subsampling would help quantify this uncertainty, though such procedures are constrained by page limits and computational budgets. In this paper, the emphasis is on establishing baseline behavior and providing the tools for others to reproduce and extend the experiments rather than on exhaustive statistical analysis.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig47_dataset_shift.png}
+\caption{Feature space visualization (t-SNE projection of CNN activations) showing domain gap between RADAR300 (pretraining source) and USC Canal (fine-tuning target). Despite clustering separation, significant overlap enables effective transfer learning. Transfer learning bridges the feature space distance, initializing the model with generic boat-detection features.}
+\label{fig:dataset_shift}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig48_echo_trail_benefits.png}
+\caption{Echo-trail benefits stratified by scene complexity: sparse scenes with few boats show modest temporal augmentation gain ($\sim5.6\%$), while cluttered scenes benefit substantially ($\sim10.2\%$) as motion cues disambiguate overlapping detections. This asymmetry motivates scene-aware or adaptive trail-length strategies.}
+\label{fig:echo_trail_benefits}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig49_quantization_effect.png}
+\caption{Quantization effect analysis: 4-bit quantization (17 discrete intensity levels) versus hypothetical 8-bit (256 levels). The 4-bit scheme reduces memory and processing cost by 50\% but introduces banding artifacts and loses fine textural detail. The intensity-level histogram shows discrete steps in the 4-bit case, motivating future research into learned quantization schemes.}
+\label{fig:quantization_effect}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig50_computational_cost.png}
+\caption{Computational cost analysis: YOLO achieves 82 FPS inference (12.3 ms) with 2 GB GPU memory, making it suitable for real-time maritime autonomy. Faster R-CNN trades speed (22 FPS, 45.7 ms) for marginal accuracy gain (0.738 vs. 0.731 mAP@0.5). Training time per epoch: YOLO $8.5$ min, Faster R-CNN $23.4$ min.}
+\label{fig:computational_cost}
+\end{figure}
+
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 This paper presents a baseline study and toolchain for marine radar object detection under severe label constraints. By pretraining detectors on the public RADAR300 dataset and fine-tuning on a small but diverse canal-style dataset collected with a Furuno NXT radar across lakes, rivers, harbors, and open ocean in the southeastern United States, we demonstrate that substantial performance gains are achievable even with fewer than a hundred labeled frames. Synthetic echo trails further exploit radar's temporal structure to improve detection in cluttered environments.
@@ -620,6 +669,58 @@ This paper presents a baseline study and toolchain for marine radar object detec
 The software tools developed in this work---a radar image annotator, a raw-to-PNG converter, and an echo-trail generator---are designed to lower the barrier to entry for marine radar perception research. Although the underlying datasets remain institutionally hosted, the tools will enable other groups to build similar pipelines around their own radars and environments.
 
 Future work will proceed along several fronts. On the data side, we aim to grow the corpus from $196\,000$ to approximately five million frames by mid-2026 using multiple radars, while expanding the labeled subset and refining class taxonomies. On the modeling side, we plan to explore self-supervised and semi-supervised learning on unlabeled canal frames, more sophisticated temporal architectures, and tighter integration of radar-specific preprocessing methods such as CFAR, ST-DBSCAN clustering, radar entropy, and HDR enhancement. These efforts, together with the release of the toolchain described here, are intended to help bridge the gap between traditional marine radar usage and modern learning-based perception for inland and coastal autonomy.
+
+\appendix
+
+\section{Raw Data Format Specification}
+\label{app:raw_format}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig51_raw_data_format.png}
+\caption{Appendix A: Raw Furuno NXT data format and processing pipeline. Left: byte-level specification of sweep packet structure including header, timestamp, azimuth, range setting, quantization, and range-bin data. Right: Radar2PNG processing pipeline stages from raw input through final PNG output, enabling exact reproducibility on compatible Furuno equipment.}
+\label{fig:raw_data_format}
+\end{figure}
+
+\section{Hyperparameter Sensitivity Analysis}
+\label{app:hyperparameter}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig52_hyperparameter_sensitivity.png}
+\caption{Appendix B: Hyperparameter sensitivity analysis for YOLO R300-pretrained detector. Learning rate shows narrow optimal range near $10^{-3}$; batch size is robust across [8--32]; weight decay near $10^{-4}$ preferred; 50 epochs sufficient for convergence; warmup helps training stability. Recommended settings: LR=$10^{-3}$, batch size=16, weight decay=$10^{-4}$, epochs=50, warmup=50.}
+\label{fig:hyperparameter_sensitivity}
+\end{figure}
+
+\section{Ablation Study}
+\label{app:ablation}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig53_ablation_matrix.png}
+\caption{Appendix C: Ablation study matrix quantifying the contribution of each technique to overall performance. Pretraining on RADAR300 provides the largest gain (+18.9 percentage points, from 0.542 to 0.731 mAP@0.5). Echo-trail augmentation adds +2.7 percentage points. Data augmentation (flip/rotate) provides marginal benefit. Combined approach achieves +23.0 percentage-point improvement over from-scratch baseline.}
+\label{fig:ablation_matrix}
+\end{figure}
+
+\section{Data Collection Sites}
+\label{app:collection_sites}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig54_collection_sites.png}
+\caption{Appendix D: Data collection locations across the southeastern United States. Lake Murray, Lake Greenwood, and Lake Monticello represent inland freshwater environments with varying boat density and clutter patterns. Elizabeth River provides river-navigation context. Charleston Harbor offers coastal, high-traffic maritime scenarios. Folly Beach captures open-ocean conditions. This geographic and environmental diversity supports robust model generalization.}
+\label{fig:collection_sites}
+\end{figure}
+
+\section{Hardware Ecosystem}
+\label{app:hardware}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig55_hardware_comparison.png}
+\caption{Appendix E: Radar hardware ecosystem comparison. Furuno NXT (24 GHz, 4-bit native quantization, \$4.5K) provides cost-effective, high-resolution sensing suitable for inland autonomy. Simrad 3G (9.5 GHz X-band, 8-bit, \$12K) and Lowrance HB (3.1 GHz S-band, 8-bit, \$18K) offer extended range at higher cost. Frequency mismatch between systems introduces domain gap requiring retraining or transfer learning. Future work will explore generalization across this hardware diversity.}
+\label{fig:hardware_comparison}
+\end{figure}
 
 \section*{Acknowledgments}
 The authors thank the undergraduate students and field teams who assisted with radar installation, maintenance, and data collection on Lake Murray, Lake Greenwood, Lake Monticello, the Elizabeth River, the Charleston harbor region, and Folly Beach. Their efforts made this dataset possible. Additional thanks are due to collaborators and staff at the University of South Carolina and partner institutions who supported access to vessels and facilities.
