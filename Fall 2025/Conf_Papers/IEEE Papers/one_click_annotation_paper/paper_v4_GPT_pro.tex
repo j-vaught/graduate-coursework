@@ -361,15 +361,50 @@ The radar image annotator is a graphical tool designed for efficient labeling of
 
 To accommodate the peculiarities of radar imagery, the annotator provides brightness and contrast controls, optional color maps, and simple temporal navigation between adjacent sweeps. This helps annotators follow moving boats across frames, which is particularly important when distinguishing dynamic targets from static clutter.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig23_annotator_gui.png}
+\caption{Radar image annotator GUI showing a loaded radar frame with example bounding boxes. Left panel contains brightness/contrast sliders, class selector (dynamic/static), frame navigation, and export button. Center canvas displays the radar image with annotations overlaid (lime boxes = dynamic, orange = static).}
+\label{fig:annotator_gui}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig24_annotator_workflow.png}
+\caption{Annotator workflow: (1) Load radar PNG sequences, (2) adjust display parameters, (3) draw bounding boxes, (4) assign class labels, (5) export to YOLO or Pascal VOC format, (6) integrate with training pipeline. Bottom panel shows supported output formats for compatibility with PyTorch/TensorFlow.}
+\label{fig:annotator_workflow}
+\end{figure}
+
 \subsection{Raw Radar to PNG Converter}
 The raw-to-PNG converter is a command-line tool that reads proprietary Furuno radar files, decodes range--azimuth sweeps, and applies the polar-to-Cartesian projection described earlier. The user specifies input directories, desired output resolution (with $1735\times 1735$ as the default), and conversion parameters such as interpolation method and intensity mapping. The converter can optionally skip sweeps based on metadata, for example to restrict to specific range settings or rotational speeds.
 
 This tool abstracts away the low-level details of vendor file formats and provides a clean interface for generating image datasets suitable for learning. It also enables reproducible experiments by recording the conversion parameters used to generate each PNG frame.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig25_radar2png_workflow.png}
+\caption{Radar2PNG converter workflow showing the complete pipeline from proprietary Furuno raw data to standardized PNG output. Input details (left), processing steps (center), and output specification (right). Command-line example showing typical usage with all configurable parameters.}
+\label{fig:radar2png_workflow}
+\end{figure}
+
 \subsection{Echo-Trail Generator Library}
 The echo-trail generator is implemented as a small library that operates either on sequences of PNG files or directly on in-memory tensors. It exposes configuration options for trail length, opacity schedule, and whether to include future frames. In training pipelines, it can be integrated as a data loader transform that constructs echo-trail composites on-the-fly for each batch, using randomized trail lengths for augmentation.
 
 Table~\ref{tab:tools} summarizes the three main tools, their inputs and outputs, and their intended purposes. All tools are planned for release under a permissive open-source license, while the datasets themselves remain hosted on institutional servers due to access and storage constraints.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig26_cli_examples.png}
+\caption{Command-line usage examples for each tool in the toolchain. Radar2PNG (top) converts raw Furuno data to PNG with configurable resolution and preprocessing. Annotator GUI (middle) launches the interactive labeling interface with format and display options. EchoTrail generator (bottom) creates temporal augmentations either as batch preprocessing or integrated into training data loaders.}
+\label{fig:cli_examples}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{python_figures/fig27_toolchain_integration.png}
+\caption{Complete toolchain integration diagram showing the full pipeline from radar acquisition through trained model. Furuno hardware → Radar2PNG converter → Annotator GUI → EchoTrail generator → Training pipeline → Deployed detector. Data flow annotations at each stage summarize processing parameters and output characteristics.}
+\label{fig:toolchain_integration}
+\end{figure}
 
 \begin{table}[t]
 \centering
