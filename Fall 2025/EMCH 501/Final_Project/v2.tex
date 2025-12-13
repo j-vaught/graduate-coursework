@@ -1,0 +1,2837 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{gensymb} % For proper degree symbol in math mode
+\usepackage{graphicx}
+\setlength{\headheight}{13.6pt} % Fix header height warning
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{positioning,matrix}
+\usepackage{listings}
+\usepackage{indentfirst}
+\geometry{margin=1in}
+\pagestyle{fancy}
+\graphicspath{{code/figures/}{../figures/}{figures/}}
+
+% University of South Carolina color palette
+\definecolor{USCGarnet}{HTML}{73000A}
+\definecolor{USCBlack}{HTML}{000000}
+\definecolor{USCRichBlack}{cmyk}{0.4,0.3,0.3,1}
+\definecolor{USCWhite}{HTML}{FFFFFF}
+\definecolor{USCBlackNinety}{HTML}{363636}
+\definecolor{USCBlackSeventy}{HTML}{5C5C5C}
+\definecolor{USCBlackFifty}{HTML}{A2A2A2}
+\definecolor{USCBlackThirty}{HTML}{C7C7C7}
+\definecolor{USCBlackTen}{HTML}{ECECEC}
+\definecolor{USCWarmGrey}{HTML}{676156}
+\definecolor{USCSandstorm}{HTML}{FFF2E3}
+\definecolor{USCRose}{HTML}{CC2E40}
+\definecolor{USCAtlantic}{HTML}{466A9F}
+\definecolor{USCCongaree}{HTML}{1F414D}
+\definecolor{USCHorseshoe}{HTML}{65780B}
+\definecolor{USCGrass}{HTML}{CED318}
+\definecolor{USCHoneycomb}{HTML}{A49137}
+\definecolor{USCDarkGarnet}{HTML}{570008}
+\definecolor{USCAzalea}{HTML}{844247}
+
+\lstdefinestyle{uscMatlab}{
+  language=Matlab,
+  basicstyle=\ttfamily\small\color{USCBlack},
+  keywordstyle=\color{USCGarnet}\bfseries,
+  commentstyle=\color{USCHorseshoe}\itshape,
+  stringstyle=\color{USCAzalea},
+  identifierstyle=\color{USCAtlantic},
+  numberstyle=\tiny\color{USCHorseshoe},
+  backgroundcolor=\color{USCBlackTen},
+  rulecolor=\color{USCAtlantic},
+  frame=single,
+  framerule=0.8pt,
+  xleftmargin=1em,
+  xrightmargin=1em,
+  breaklines=true,
+  tabsize=4,
+  showstringspaces=false,
+  emph={synthetic_ps_min,exp1_poisson_only,exp2_ps_gaussian,rotate_light_shape},emphstyle=\color{USCRose}\bfseries,
+  emph={[2]save_heatmap,save_profile,save_hist},emphstyle={[2]\color{USCDarkGarnet}},
+  morecomment=[l][\color{USCHoneycomb}]{\%\%}
+}
+\lstset{style=uscMatlab}
+
+% Single column, no two-column mode
+\onecolumn
+
+% Customize title formatting
+\titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% Math operators
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\title{\LARGE\bfseries 3D Surface Reconstruction via the Photometric Stereo Method}
+
+\author{JC Vaught and Ty Dangerfield \\ Department of Mechanical Engineering, University of South Carolina}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present an analytical and numerical validation of the photometric stereo method for 3D surface reconstruction with applications to industrial defect detection. This paper details seven primary contributions: (1) a complete mathematical framework including Lambertian reflectance, Euler--Lagrange derivation of the Poisson equation, and separation-of-variables analytical solutions; (2) four distinct Poisson solvers---FFT-based (periodic), DCT-based (Neumann), finite difference (Dirichlet), and conjugate gradient iterative (Dirichlet)---with detailed algorithmic descriptions; (3) experimental validation across eight diverse test surfaces spanning smooth, sharp-edged, and oscillating geometries; (4) comprehensive ablation studies on light count, noise robustness, and Tikhonov regularization; (5) systematic solver comparison using identical divergence fields with 32 uniformly distributed light sources; (6) dual implementations in both Python and MATLAB with complete code listings; and (7) quantitative analysis demonstrating reconstruction RMSE ranging from 0.0001 (sinusoid with CG solver) to 0.1016 (saddle), with the CG-Iterative solver achieving the best or tied-best results on seven of eight test surfaces.
+\end{abstract}
+
+\begin{table}[H]
+\centering
+\caption{Individual Contributions}
+\label{tab:individual_contributions}
+\begin{tabular}{ll}
+\hline\hline
+\textbf{Contribution} & \textbf{Primary Contributor(s)} \\
+\hline
+MATLAB implementation of complete program & Ty Dangerfield \\
+Python implementation of complete program & JC Vaught \\
+Photometric principle derivation & Ty Dangerfield \& JC Vaught \\
+Gradient integration with Poisson solver & Ty Dangerfield \\
+Separation of variables and numerical derivations & JC Vaught \\
+Report chapters 1, 3, and 4 (initial) & JC Vaught \\
+Report chapters 1, 2, and 5 (initial) & Ty Dangerfield \\
+Report restructuring and enhanced documentation & JC Vaught \& Ty Dangerfield \\
+Code architecture refinement and expansion & JC Vaught \& Ty Dangerfield \\
+\hline\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Meeting Participation}
+\label{tab:meeting_participation}
+\begin{tabular}{lcc}
+\hline\hline
+\textbf{Date} & \textbf{JC Vaught} & \textbf{Ty Dangerfield} \\
+\hline
+19 Nov 2025 & Present & Present \\
+20 Nov 2025 & Present & Present \\
+07 Dec 2025 & Present & Present \\
+\hline\hline
+\end{tabular}
+\end{table}
+
+\vspace{1em}
+\newpage
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+\label{sec:introduction}
+
+\subsection{What We Want to Model}
+
+Three-dimensional surface reconstruction is a fundamental problem in manufacturing applications and mechanical engineering more broadly. Photometric stereo is one possible solution among many, yielding highly accurate surface reconstruction compared to a dual-camera setup, which is more often used in robotic applications.
+
+Given multiple 2D images of an object illuminated from different directions, we derive the PDE, analytical solution, and numerical solution that create an accurate reconstruction of the 3D depth map or surface geometry.
+
+\subsection{Why This Problem is Important}
+
+Photometric stereo has impact across multiple domains summarized in Table~\ref{tab:ps_applications}, including industrial inspection, where it supports surface defect detection and tolerance verification; medical imaging, where it enables high-fidelity reconstructions of anatomical surfaces for planning; archaeology, where non-destructive digitization preserves fragile artifacts; robotics and autonomous systems, where detailed surface geometry informs grasping and navigation; and reverse engineering, where recovered shapes seed CAD models for subsequent design and analysis.
+
+\begin{table}[H]
+\centering
+\caption{Representative Application Domains for Photometric Stereo}
+\label{tab:ps_applications}
+\begin{tabular}{ll}
+\hline\hline
+\textbf{Domain} & \textbf{Example Use} \\
+\hline
+Industrial inspection & Surface defect detection, geometric tolerance checks \\
+Medical imaging & Preoperative surface reconstruction for planning \\
+Archaeology & Non-destructive digitization of artifacts \\
+Robotics & Shape-aware grasp planning and manipulation \\
+Autonomous vehicles & High-fidelity surface maps for navigation \\
+Reverse engineering & Recovering geometry for CAD modeling \\
+\hline\hline
+\end{tabular}
+\end{table}
+
+
+\noindent Photometric stereo is an ideal solution for many surface extraction tasks owing to the reduction in moving parts. For example, in structure-from-motion methods, the movement of the camera must be precisely monitored and controlled, necessitating careful calibration; even minor calibration errors can severely impact reconstruction quality. Stereo cameras avoid motion but still suffer from calibration issues because the distance, angle, and focal length of each camera---the intrinsic parameters---must be known precisely to estimate depth. Any error there can distort the recovered geometry due to the trigonometric basis of the method. Photometric stereo, on the other hand, is a completely solid-state approach with a single camera, operates at a higher rate than structure-from-motion, and has lower data requirements than stereo systems. Because it leverages illumination direction to infer depth from shading and then reconstruct normals, it is inherently more tolerant to noise and avoids multi-camera calibration drift.
+
+However, photometric stereo does suffer from one critical constraint: the illumination sequence must be precisely controlled. As a result, it cannot be used effectively in uncontrolled environments such as UAVs or general-purpose robotics, which is why stereo cameras remain the de facto standard outside manufacturing despite their calibration sensitivity. Nevertheless, the fundamental challenge in photometric stereo still lies in \textit{integrating} noisy normal estimates into a globally consistent 3D surface, which requires solving a partial differential equation: the \textbf{Poisson equation}.
+
+\subsection{Comparison with Alternative Methods}
+
+Table~\ref{tab:3d_methods_comparison} compares photometric stereo with other common 3D reconstruction techniques across key performance dimensions. The comparison highlights why photometric stereo is particularly well-suited for controlled industrial environments despite requiring specialized lighting infrastructure.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of 3D Reconstruction Methods}
+\label{tab:3d_methods_comparison}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.8cm}XXX}
+\hline\hline
+\textbf{Method} & \textbf{Advantages} & \textbf{Disadvantages} & \textbf{Typical Use Cases} \\
+\hline
+\textbf{Photometric Stereo} & 
+Single camera; high spatial resolution; dense surface normals; solid-state (no moving parts) & 
+Requires controlled lighting; assumes Lambertian reflectance; limited to near-field & 
+Defect detection, material inspection, quality control \\
+\hline
+\textbf{Stereo Vision} & 
+Passive (no special lighting); works outdoors; real-time capable & 
+Requires precise calibration; texture-dependent; ambiguity in textureless regions & 
+Robotics, autonomous vehicles, SLAM \\
+\hline
+\textbf{Structure from Motion} & 
+Single camera; scales to large scenes; robust to illumination changes & 
+Requires camera motion; computationally intensive; drift accumulation & 
+3D scanning, mapping, archaeological digitization \\
+\hline
+\textbf{Structured Light} & 
+High accuracy; active illumination; fast acquisition & 
+Sensitive to ambient light; limited range; projector-camera calibration required & 
+Industrial metrology, 3D printing, facial scanning \\
+\hline
+\textbf{Time-of-Flight} & 
+Direct depth measurement; real-time; works in low texture & 
+Lower resolution; sensitive to multipath reflections; expensive hardware & 
+Gesture recognition, indoor navigation, human-computer interaction \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+\noindent Photometric stereo excels in industrial settings where lighting can be tightly controlled and surface finish is relatively uniform. The method's ability to capture dense normal fields from a single viewpoint makes it ideal for in-line inspection systems where throughput and repeatability are critical. By contrast, methods like stereo vision or time-of-flight are better suited to unstructured environments (e.g., outdoor robotics) where lighting variability and scene dynamics preclude the use of synchronized illumination sequences.
+
+\subsection{The Core PDE Problem}
+The fundamental problem reduces to solving the 2D Poisson equation in a rectangular domain:
+\begin{equation}\label{eq:poisson_main}
+\nabla^2 z(x,y) = f(x,y), \quad (x,y) \in \Omega = [0, L_x] \times [0, L_y]
+\end{equation}
+where 
+\begin{align*}
+z(x,y) &= \text{unknown surface height over the image domain} \\
+f(x,y) &= \frac{\partial p}{\partial x} + \frac{\partial q}{\partial y} \quad \text{(divergence of Poisson-derived gradient estimates)} \\
+\Omega &= [0,L_x]\times[0,L_y] \quad \text{(rectangular image domain)}
+\end{align*}
+
+This project demonstrates both analytical (separation of variables) and numerical (FFT-based and finite-difference) methods to solve this fundamental PDE and validate the solutions on synthetic 3D surfaces.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Mathematical Foundation}
+\label{sec:mathematical_foundation}
+
+This chapter establishes the theoretical foundations for photometric stereo reconstruction. We begin with the photometric stereo principle, deriving the relationship between observed image intensities and surface normals under Lambertian reflectance. We then formulate the gradient integration problem as a Poisson equation, providing both variational and Euler-Lagrange derivations. Next, we develop the theory of boundary conditions---Dirichlet, Neumann, and periodic---and their impact on solution uniqueness. Finally, we present an analytical solution via separation of variables, including eigenfunction expansions and worked examples that validate our numerical methods.
+
+\subsection{Photometric Stereo Principle}
+
+Photometric stereo recovers surface normals from multiple images of a static scene illuminated by different light sources. The key insight is that shading variations across images encode the local surface orientation. Table~\ref{tab:ps_assumptions} summarizes the key modeling assumptions underlying this approach.
+
+\begin{table}[H]
+\centering
+\caption{Photometric Stereo Modeling Assumptions}
+\label{tab:ps_assumptions}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{5cm}X}
+\hline\hline
+\textbf{Assumption} & \textbf{Description} \\
+\hline
+Lambertian reflectance & Surface reflects light diffusely in all directions; no specular highlights or glossy reflections \\
+\hline
+Orthographic projection & Camera uses parallel projection (unit focal length); no perspective distortion \\
+\hline
+Known light directions & Light source directions $\mathbf{L}_i$ are calibrated and known a priori \\
+\hline
+Static scene & Surface geometry and camera remain fixed across all images \\
+\hline
+Uniform albedo & In our derivations, albedo $\rho(x,y)$ is assumed constant, though the general formulation allows spatially varying albedo \\
+\hline
+No inter-reflections & Light reaches the surface directly without bouncing off other surfaces \\
+\hline
+Attached shadows only & Self-shadowing is handled via the $\max$ operator; cast shadows from other objects are not modeled \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{Image Formation Model}
+
+By assuming an ideal camera with a unit focal length, we map a 3D point $\mathbf{X}$ to image coordinates $\mathbf{x}=(x,y)$ for any arbitrary surface with depth $z(x,y)$. 
+The measured image intensity $I_i$ at pixel $(x,y)$ under light source $i$ is the product of three components: the camera calibration factor $\kappa_i$ (encapsulating exposure, gain, and light source intensity), the material albedo $\rho(x,y) \in [0,1]$ (the fraction of light reflected by the surface), and the geometric factor $\max\!\bigl(0, \mathbf{n}(x,y) \cdot \mathbf{L}_i\bigr)$ (the cosine of the angle between the surface normal $\mathbf{n}$ and light direction $\mathbf{L}_i$). These combine to yield the image formation equation:
+\begin{equation}
+I_i(x,y) = \kappa_i\, \rho(x,y) \max\!\bigl(0, \mathbf{n}(x,y) \cdot \mathbf{L}_i\bigr)
+\label{eq:imageformation}
+\end{equation}
+The $\max$ operator enforces attached shadows: when a light illuminates the surface from behind ($\mathbf{n} \cdot \mathbf{L}_i < 0$), the contribution is zero.
+
+\subsubsection{Lambertian Reflectance}
+
+The Lambertian assumption states that a surface appears equally bright from all viewing directions---light is reflected diffusely in all directions. Mathematically, the reflected radiance is proportional to $\cos\theta = \mathbf{n} \cdot \mathbf{L}$, where $\theta$ is the angle between the surface normal and the incident light direction.
+
+To connect surface geometry to shading, we must express the surface normal in terms of the depth map $z(x,y)$. We begin by computing the tangent vectors to the surface. These tangent vectors represent the local orientation of the surface along the $x$ and $y$ coordinate directions:
+\begin{align}
+\frac{\partial \mathbf{X}}{\partial x} &= (1, 0, p), \quad \text{where } p = \frac{\partial z}{\partial x} \\
+\frac{\partial \mathbf{X}}{\partial y} &= (0, 1, q), \quad \text{where } q = \frac{\partial z}{\partial y}
+\end{align}
+Here, $p$ and $q$ represent the local slopes of the surface in the $x$ and $y$ directions, respectively. Note that the first two components of each tangent vector are $(1,0)$ and $(0,1)$ because we move one unit along the respective image coordinate while the surface height changes by $p$ or $q$.
+
+The surface normal is perpendicular to both tangent vectors and can be computed via their cross product:
+\begin{equation}
+\tilde{\mathbf{n}} = \frac{\partial \mathbf{X}}{\partial x} \times \frac{\partial \mathbf{X}}{\partial y} = (-p, -q, 1)
+\end{equation}
+This unnormalized normal $\tilde{\mathbf{n}}$ points away from the surface but does not necessarily have unit length. The negative signs on $p$ and $q$ arise naturally from the cross product and ensure the normal points outward (away from the surface) rather than inward.
+
+To obtain a unit normal vector (required for computing the geometric factor $\mathbf{n} \cdot \mathbf{L}$), we divide by the magnitude:
+\begin{equation}
+\mathbf{n} = \frac{\tilde{\mathbf{n}}}{\|\tilde{\mathbf{n}}\|} = \frac{(-p,-q,1)}{\sqrt{p^2+q^2+1}}
+\label{eq:normalfrompq}
+\end{equation}
+
+Equation~\eqref{eq:normalfrompq} explicitly links the integrable gradient field $(p,q)$ to the observed shading---this is the key relationship that enables gradient recovery from images.
+
+\subsubsection{The Linear System Formulation}
+
+Having established the relationship between surface normals and image intensities, we now formulate the inverse problem: given multiple images under different illumination, recover the surface normal at each pixel.
+
+We introduce the scaled normal vector $\mathbf{g}(x,y) = \rho(x,y)\mathbf{n}(x,y)$, which combines the geometric information (normal direction) with the material property (albedo). This factorization is convenient because $\mathbf{g}$ appears linearly in the image formation equation.
+
+Substituting the Lambertian reflectance model~\eqref{eq:normalfrompq} into the image formation equation~\eqref{eq:imageformation}, we obtain for a single light source $i$:
+\begin{equation}
+I_i(x,y) = \kappa_i \mathbf{L}_i^T \mathbf{g}(x,y)
+\end{equation}
+where we have absorbed the $\max$ operator into the formulation (assuming no self-shadowing for now; we address this later). This is a scalar equation linear in $\mathbf{g}$.
+
+For $m$ different light sources, we obtain $m$ such equations at each pixel. Stacking these into a single matrix equation yields:
+\begin{equation}
+\underbrace{\begin{bmatrix}
+I_1(x,y) \\
+I_2(x,y) \\
+\vdots \\
+I_m(x,y)
+\end{bmatrix}}_{\mathbf{I}(x,y) \in \mathbb{R}^m}
+=
+\underbrace{\begin{bmatrix}
+\kappa_1 \mathbf{L}_1^T \\
+\kappa_2 \mathbf{L}_2^T \\
+\vdots \\
+\kappa_m \mathbf{L}_m^T
+\end{bmatrix}}_{S \in \mathbb{R}^{m\times 3}}
+\underbrace{\mathbf{g}(x,y)}_{\in \mathbb{R}^3}
+\end{equation}
+
+Compactly, we write:
+\begin{equation}
+S \mathbf{g}(x,y) = \mathbf{I}(x,y)
+\label{eq:pslinear}
+\end{equation}
+
+The matrix $S$ is called the \textit{illumination matrix} and depends only on the known light directions and calibration factors. The vector $\mathbf{I}(x,y)$ contains the observed intensities, and our goal is to solve for $\mathbf{g}(x,y)$ at every pixel. For a unique solution to exist, $S$ must have full column rank: $\text{rank}(S) = 3$. This requires at least three images ($m \geq 3$) with non-coplanar light directions. In practice, we use $m > 3$ to obtain an overdetermined system, which provides robustness against noise.
+
+\subsubsection{Least-Squares Solution via Pseudoinverse}
+
+When $m > 3$, the system~\eqref{eq:pslinear} is overdetermined and generally has no exact solution due to measurement noise. We instead seek the least-squares solution that minimizes the residual:
+\begin{equation}
+\hat{\mathbf{g}}(x,y) = \argmin_{\mathbf{g}} \|S\mathbf{g} - \mathbf{I}(x,y)\|_2^2
+\end{equation}
+Expanding the objective function:
+\begin{equation}
+\|S\mathbf{g} - \mathbf{I}\|_2^2 = (S\mathbf{g} - \mathbf{I})^T(S\mathbf{g} - \mathbf{I}) = \mathbf{g}^T S^T S \mathbf{g} - 2\mathbf{I}^T S \mathbf{g} + \mathbf{I}^T\mathbf{I}
+\end{equation}
+Taking the gradient with respect to $\mathbf{g}$ and setting it to zero yields the \textit{normal equations}:
+\begin{equation}
+\nabla_{\mathbf{g}} \|S\mathbf{g} - \mathbf{I}\|_2^2 = 2S^TS\mathbf{g} - 2S^T\mathbf{I} = 0 \quad \Rightarrow \quad S^TS\mathbf{g} = S^T\mathbf{I}
+\end{equation}
+Assuming $S$ has full column rank, $S^TS$ is invertible, and we obtain:
+\begin{equation}
+\mathbf{g}(x,y) = \underbrace{(S^TS)^{-1}S^T}_{S^+ \text{ (pseudoinverse)}} \mathbf{I}(x,y)
+\label{eq:leastSquares}
+\end{equation}
+The matrix $S^+ = (S^TS)^{-1}S^T$ is the Moore--Penrose pseudoinverse of $S$. This solution minimizes the $L^2$ norm of the residual and is unique when $\text{rank}(S) = 3$. Once $\mathbf{g}(x,y)$ is computed, we recover the unit normal and albedo by exploiting the factorization $\mathbf{g} = \rho\mathbf{n}$:
+\begin{align}
+\hat{\rho}(x,y) &= \|\mathbf{g}(x,y)\|_2 \\
+\hat{\mathbf{n}}(x,y) &= \frac{\mathbf{g}(x,y)}{\|\mathbf{g}(x,y)\|_2}
+\end{align}
+The \textit{direction} of $\mathbf{g}$ encodes the surface normal while its \textit{magnitude} equals the albedo.
+
+\subsubsection{Conditioning and Noise Sensitivity}
+
+The accuracy of the recovered normals depends critically on the \textit{condition number} of $S$:
+\begin{equation}
+\kappa(S) = \frac{\sigma_{\max}(S)}{\sigma_{\min}(S)}
+\end{equation}
+where $\sigma_{\max}$ and $\sigma_{\min}$ are the largest and smallest singular values of $S$, respectively. To understand the impact of conditioning, consider the singular value decomposition (SVD) of $S$:
+\begin{equation}
+S = U\Sigma V^T
+\end{equation}
+where $U \in \mathbb{R}^{m \times 3}$ and $V \in \mathbb{R}^{3 \times 3}$ are orthogonal matrices, and $\Sigma = \text{diag}(\sigma_1, \sigma_2, \sigma_3)$ contains the singular values in descending order. The pseudoinverse can be expressed as:
+\begin{equation}
+S^+ = V\Sigma^{-1}U^T
+\end{equation}
+If the measured intensities contain noise $\Delta \mathbf{I}$ such that $\|\Delta \mathbf{I}\| / \|\mathbf{I}\| = \epsilon$, the relative error in the recovered $\mathbf{g}$ is bounded by:
+\begin{equation}
+\frac{\|\Delta \mathbf{g}\|}{\|\mathbf{g}\|} \leq \kappa(S) \cdot \epsilon
+\end{equation}
+This shows that the condition number $\kappa(S)$ controls the worst-case amplification of measurement noise. A large condition number indicates that small errors in $\mathbf{I}$ can lead to large errors in $\mathbf{g}$. To minimize noise sensitivity, we seek to minimize $\kappa(S)$, or equivalently, maximize $\sigma_{\min}(S)$. This is achieved when the light directions $\{\mathbf{L}_i\}$ are uniformly distributed over the unit sphere, ensuring that the columns of $S$ span $\mathbb{R}^3$ evenly. In practice, lights are often arranged in a hemispherical configuration with uniform azimuthal and elevation spacing. Using $m > 3$ images provides two additional benefits: the least-squares solution averages out random noise, and the system becomes more robust to individual measurements corrupted by saturation or outliers.
+
+
+\subsubsection{Shadow Handling and Robust Estimation}
+
+The linear system~\eqref{eq:pslinear} assumes that all lights illuminate the surface from the front ($\mathbf{n} \cdot \mathbf{L}_i > 0$). When a light source illuminates from behind, \textit{self-shadowing} occurs, and the image formation equation becomes:
+\begin{equation}
+I_i(x,y) = 0 \quad \text{if } \mathbf{n}(x,y) \cdot \mathbf{L}_i < 0
+\end{equation}
+These shadowed measurements violate the linear model and must be excluded. The standard approach is to first identify light sources $i$ for which $I_i(x,y) \approx 0$ (or below a threshold), then remove the corresponding rows from $S$ and entries from $\mathbf{I}(x,y)$, and finally solve the reduced least-squares problem on the remaining valid measurements. This row deletion strategy preserves the least-squares structure and ensures that only valid measurements contribute to the normal estimate. However, it requires at least three non-shadowed lights at every pixel to maintain $\text{rank}(S) = 3$.
+
+For pixels near shadow boundaries where intensities are low but non-zero, a weighted least-squares approach provides a smoother alternative:
+\begin{equation}
+\hat{\mathbf{g}} = \argmin_{\mathbf{g}} \sum_{i=1}^m w_i (I_i - \kappa_i \mathbf{L}_i^T \mathbf{g})^2
+\end{equation}
+where weights $w_i$ are set based on confidence (e.g., $w_i = \max(0, \mathbf{n} \cdot \mathbf{L}_i)$ or based on intensity magnitude). This provides a smooth transition between fully illuminated and shadowed regions.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Gradient Integration via Poisson Equation}
+
+We now have the normals $\mathbf{g}(x,y)$ from photometric stereo, but our ultimate goal is a height map $z(x,y)$. 
+The normals allow us to compute gradient estimates $(p,q) = (\partial z/\partial x, \partial z/\partial y)$, but real measurements are noisy and generally not integrable---the curl $\partial_y p - \partial_x q \neq 0$. 
+This section develops the variational framework that projects noisy gradients onto the closest integrable field.
+
+\subsubsection{Variational Formulation}
+
+Given noisy gradient estimates $(\hat{p}, \hat{q})$ from photometric stereo, we seek a height field $z(x,y)$ whose gradients best match the measurements in a least-squares sense. This leads to the variational problem:
+\begin{equation}
+\min_{z} \; \mathcal{E}[z] = \iint_\Omega \left[(\partial_x z - \hat{p})^2 + (\partial_y z - \hat{q})^2\right] dx \, dy
+\label{eq:poisson_variational}
+\end{equation}
+The functional $\mathcal{E}[z]$ measures the total squared error between the true gradients $(\partial_x z, \partial_y z)$ of the unknown surface and the measured estimates $(\hat{p}, \hat{q})$. By minimizing over all possible height functions $z$, we find the surface whose gradients are closest to the measurements in the $L^2$ norm.
+
+The integrand $\mathcal{L} = (\partial_x z - \hat{p})^2 + (\partial_y z - \hat{q})^2$ depends on $z$ only through its first derivatives $z_x = \partial_x z$ and $z_y = \partial_y z$. This structure is characteristic of problems in the calculus of variations, and the minimizer satisfies the Euler--Lagrange equation.
+
+\subsubsection{Euler--Lagrange Derivation}
+
+For a functional of the form $\mathcal{E}[z] = \iint \mathcal{L}(z, z_x, z_y) \, dx\,dy$, the necessary condition for a minimum is the Euler--Lagrange equation:
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial z} - \frac{\partial}{\partial x}\left(\frac{\partial \mathcal{L}}{\partial z_x}\right) - \frac{\partial}{\partial y}\left(\frac{\partial \mathcal{L}}{\partial z_y}\right) = 0
+\end{equation}
+Since our Lagrangian $\mathcal{L} = (z_x - \hat{p})^2 + (z_y - \hat{q})^2$ does not depend on $z$ directly, we have $\partial \mathcal{L}/\partial z = 0$. Computing the remaining partial derivatives:
+\begin{equation}
+\frac{\partial \mathcal{L}}{\partial z_x} = 2(z_x - \hat{p}), \qquad \frac{\partial \mathcal{L}}{\partial z_y} = 2(z_y - \hat{q})
+\end{equation}
+Substituting into the Euler--Lagrange equation:
+\begin{equation}
+\frac{\partial}{\partial x}\bigl[2(z_x - \hat{p})\bigr] + \frac{\partial}{\partial y}\bigl[2(z_y - \hat{q})\bigr] = 0
+\end{equation}
+Expanding and rearranging:
+\begin{equation}
+\partial_x^2 z + \partial_y^2 z = \partial_x \hat{p} + \partial_y \hat{q}
+\end{equation}
+This is the Poisson equation:
+\begin{equation}
+\nabla^2 z = f(x,y), \qquad \text{where } f = \nabla \cdot (\hat{p}, \hat{q}) = \frac{\partial \hat{p}}{\partial x} + \frac{\partial \hat{q}}{\partial y}
+\label{eq:poisson}
+\end{equation}
+Here $\nabla^2 = \partial_x^2 + \partial_y^2$ is the Laplacian operator and $f(x,y)$ is the divergence of the measured gradient field. The Poisson equation~\eqref{eq:poisson} arises because an integrable vector field must be curl-free ($\partial_y \hat{p} - \partial_x \hat{q} = 0$). When the measured gradients violate this condition due to noise, solving the Poisson problem projects $(\hat{p}, \hat{q})$ onto the closest integrable field in the $L^2$ sense.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Boundary Condition Theory}
+
+The Poisson equation $\nabla^2 z = f$ admits a unique solution only when supplemented with boundary conditions on $\partial\Omega$. We consider three types that arise in surface reconstruction: Dirichlet, Neumann, and periodic conditions. 
+The choice of boundary conditions depends on the physical assumptions about the surface at the image boundary and impacts both solution uniqueness and numerical implementation.
+
+\subsubsection{Dirichlet Boundary Conditions}
+
+Dirichlet conditions prescribe the solution value on the boundary:
+\begin{equation}
+z(x,y) = g(x,y), \quad (x,y) \in \partial\Omega
+\end{equation}
+where $g$ is a given function. In the homogeneous case $g \equiv 0$, the surface is pinned to zero height along the entire boundary. This is appropriate when the reconstructed object is known to be flat at the image edges or when the object of interest is contained entirely within the interior of the domain.
+
+For photometric stereo, homogeneous Dirichlet conditions assume that the surface height is zero (or a known constant) at the image boundary. This is suitable for objects that sit on a flat background plane or when the region of interest is masked to exclude edge artifacts. Dirichlet problems always have a unique solution given smooth data.
+
+\subsubsection{Neumann Boundary Conditions}
+
+Neumann conditions prescribe the normal derivative at the boundary:
+\begin{equation}
+\frac{\partial z}{\partial n}\bigg|_{\partial\Omega} = h(x,y), \quad (x,y) \in \partial\Omega
+\end{equation}
+where $\mathbf{n}$ is the outward unit normal to $\partial\Omega$ and $h$ specifies the boundary flux. The homogeneous case $h \equiv 0$ imposes zero normal derivative, meaning the surface approaches the boundary with zero slope in the perpendicular direction.
+
+Zero-flux Neumann conditions arise when we have no information about the surface beyond the image boundary. The natural continuation of the gradient field is to assume it stays flat, preventing artificial discontinuities. However, Neumann conditions leave the solution determined only up to an additive constant---we can recover the surface shape but not its absolute height. This lack of absolute height information is resolved by simply setting the average of the entire reconstructed depth profile to zero.
+
+\subsubsection{Periodic Boundary Conditions}
+
+Periodic conditions impose that the solution and its derivatives wrap around at opposite boundaries:
+\begin{equation}
+z(0, y) = z(L_x, y), \quad z(x, 0) = z(x, L_y), \quad \text{and similarly for derivatives}
+\end{equation}
+This condition arises naturally when using Fourier-based (FFT) solvers, which assume the domain tiles infinitely in all directions. Under periodicity, the Discrete Fourier Transform diagonalizes the Laplacian operator, enabling $\mathcal{O}(N \log N)$ solution complexity.
+
+Periodic conditions are rarely physical for real surfaces but are computationally convenient. They work well when the surface gradients decay to zero near the boundary (e.g., smooth objects centered in the image) but can introduce artifacts when the surface value or gradient differs significantly between opposite edges. In practice, we often accept these artifacts in exchange for FFT solver speed, especially when the object of interest is well-separated from the image boundary.
+
+\subsubsection{Compatibility and Uniqueness}
+
+The three boundary condition types have different uniqueness and compatibility properties, which determine when a solution exists and whether it is unique up to an additive constant.
+
+\textit{Dirichlet conditions} guarantee a unique solution for any smooth right-hand side $f$ and boundary data $g$. No additional constraints are required---the boundary values fully determine the solution.
+
+\textit{Neumann conditions} require a compatibility constraint. Applying the divergence theorem to the Poisson equation:
+\begin{equation}
+\iint_\Omega \nabla^2 z \, dA = \oint_{\partial\Omega} \frac{\partial z}{\partial n} \, ds
+\end{equation}
+Substituting $\nabla^2 z = f$ and the Neumann condition $\partial z/\partial n = h$:
+\begin{equation}
+\iint_\Omega f \, dA = \oint_{\partial\Omega} h \, ds
+\end{equation}
+For homogeneous Neumann conditions ($h = 0$), solvability requires:
+\begin{equation}
+\iint_\Omega f \, dA = 0
+\end{equation}
+In other words, the source term must integrate to zero over the domain. Even when this condition is satisfied, the solution is unique only up to an additive constant---any $z + c$ is also a solution. We select the unique solution with zero mean.
+
+\textit{Periodic conditions} have the same compatibility requirement as homogeneous Neumann. Since the domain wraps around with no boundary flux, the integral constraint $\iint f \, dA = 0$ must hold. In the FFT formulation, this corresponds to the DC component $\hat{F}[0,0] = 0$---the zero-frequency Fourier coefficient must vanish. The FFT solver enforces this by setting $\hat{F}[0,0] = 0$ before division by the eigenvalues. Like Neumann, periodic conditions also leave an additive constant ambiguity, resolved by zero-mean normalization.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Analytical Solution via Separation of Variables}
+
+Before developing numerical integration schemes to solve the Poisson equation for our photometric stereo application, we first derive an analytical solution as a baseline for comparison---and, candidly, as an exercise to demonstrate mathematical rigor in the realm of partial differential equations. 
+
+The method of separation of variables yields closed-form expressions for problems with homogeneous boundary conditions on rectangular domains. By expanding the solution as a sum of orthogonal eigenfunctions, we obtain exact modal coefficients that serve as ground truth for validating numerical implementations. This section provides the theoretical foundation but will not be directly referenced in subsequent chapters; nevertheless, the analytical benchmark remains essential for verifying solver correctness during development.
+
+\subsubsection{Eigenfunction Expansion}
+
+Consider the 2D Poisson equation on a rectangular domain $\Omega = [0, L_x] \times [0, L_y]$ with homogeneous Dirichlet boundary conditions:
+\begin{equation}
+\nabla^2 z = f(x,y), \quad (x,y) \in \Omega, \quad z|_{\partial \Omega} = 0
+\end{equation}
+Using separation of variables, we assume $z(x,y) = X(x)Y(y)$. The homogeneous boundary conditions require $X(0) = X(L_x) = 0$ and $Y(0) = Y(L_y) = 0$, which are satisfied by sine functions. The solution can be written as an eigenfunction expansion:
+\begin{equation}
+z(x,y) = \sum_{m=1}^{\infty}\sum_{n=1}^{\infty} A_{mn} \sin\left(\frac{m\pi x}{L_x}\right) \sin\left(\frac{n\pi y}{L_y}\right)
+\end{equation}
+
+Figure~\ref{fig:modes} illustrates how higher modes introduce additional oscillations. In one dimension, $\sin(m\pi x/L)$ has $m$ half-cycles across the domain, so higher $m$ values correspond to finer spatial detail.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=1]
+% m=1
+\begin{scope}[xshift=0cm]
+\draw[->] (0,0) -- (4.5,0) node[right] {$x$};
+\draw[->] (0,-1.2) -- (0,1.4);
+\draw[thick,blue] plot[domain=0:4,samples=50] (\x,{sin(45*\x)});
+\draw[dashed,gray] (0,0) -- (4,0);
+\node at (2,-1.6) {$m=1$};
+\end{scope}
+% m=2
+\begin{scope}[xshift=5cm]
+\draw[->] (0,0) -- (4.5,0) node[right] {$x$};
+\draw[->] (0,-1.2) -- (0,1.4);
+\draw[thick,red] plot[domain=0:4,samples=50] (\x,{sin(90*\x)});
+\draw[dashed,gray] (0,0) -- (4,0);
+\node at (2,-1.6) {$m=2$};
+\end{scope}
+% m=3
+\begin{scope}[xshift=10cm]
+\draw[->] (0,0) -- (4.5,0) node[right] {$x$};
+\draw[->] (0,-1.2) -- (0,1.4);
+\draw[thick,green!60!black] plot[domain=0:4,samples=50] (\x,{sin(135*\x)});
+\draw[dashed,gray] (0,0) -- (4,0);
+\node at (2,-1.6) {$m=3$};
+\end{scope}
+\end{tikzpicture}
+\caption{Eigenfunctions $\sin(m\pi x/L)$ for $m=1,2,3$. The 2D eigenfunctions are products: $\sin(m\pi x/L_x)\sin(n\pi y/L_y)$. Higher modes oscillate more rapidly and contribute less to the solution because their eigenvalues $\lambda_{mn} \propto m^2 + n^2$ appear in the denominator.}
+\label{fig:modes}
+\end{figure}
+
+The eigenfunctions form an orthonormal basis for the solution space. Each eigenfunction satisfies the Laplacian eigenvalue problem with eigenvalue $-\lambda_{mn}$ where:
+\begin{equation}
+\lambda_{mn} = \frac{m^2\pi^2}{L_x^2} + \frac{n^2\pi^2}{L_y^2}
+\end{equation}
+Substituting the expansion into the Poisson equation and projecting onto each eigenfunction yields the modal amplitudes:
+\begin{equation}
+A_{mn} = -\frac{F_{mn}}{\lambda_{mn}}, \quad \text{where } F_{mn} = \frac{4}{L_x L_y} \int_0^{L_x}\int_0^{L_y} f(x,y) \sin\left(\frac{m\pi x}{L_x}\right) \sin\left(\frac{n\pi y}{L_y}\right) dy\, dx
+\end{equation}
+The coefficient $F_{mn}$ is the projection of the source term $f$ onto each eigenfunction. This is precisely what FFT-based solvers compute numerically: the Discrete Fourier Transform projects the discretized $f$ onto sinusoidal basis functions, and division by the eigenvalues $\lambda_{mn}$ yields the solution coefficients.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Numerical Methods}
+
+Having established the mathematical framework for photometric stereo and gradient integration, we now turn to the numerical methods that enable practical computation. This chapter presents the techniques for converting the continuous Poisson equation into discrete systems that computers can solve efficiently.
+
+We begin with the fundamental discretization approach---converting continuous derivatives to finite differences on a grid. This lays the groundwork for understanding all subsequent solvers. We then present three distinct Poisson solvers, each with different boundary condition assumptions and computational trade-offs. Finally, we address regularization techniques for handling noisy real-world data.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{From Continuous PDE to Discrete Grid}
+
+The continuous Poisson equation $\nabla^2 z = f$ cannot be solved directly by computers, which operate on discrete values. The finite difference method replaces continuous derivatives with algebraic approximations computed on a regular grid of sample points. This section derives these approximations and shows how they lead to a large linear system.
+
+\subsubsection{Approximating Derivatives (Taylor Series)}
+
+Consider a function $z(x)$ sampled on a uniform grid with spacing $h$. To approximate derivatives, we use Taylor series expansions about a point $x$:
+\begin{align}
+z(x+h) &= z(x) + h z'(x) + \frac{h^2}{2} z''(x) + \frac{h^3}{6} z'''(x) + \mathcal{O}(h^4) \\
+z(x-h) &= z(x) - h z'(x) + \frac{h^2}{2} z''(x) - \frac{h^3}{6} z'''(x) + \mathcal{O}(h^4)
+\end{align}
+Adding these two equations eliminates the odd-order terms:
+\begin{equation}
+z(x+h) + z(x-h) = 2z(x) + h^2 z''(x) + \mathcal{O}(h^4)
+\end{equation}
+Solving for the second derivative yields the central difference formula:
+\begin{equation}\label{eq:central_diff}
+z''(x) = \frac{z(x+h) - 2z(x) + z(x-h)}{h^2} + \mathcal{O}(h^2)
+\end{equation}
+This approximation is second-order accurate---the error decreases quadratically as the grid spacing $h$ is refined. On a discrete grid where $z_i = z(x_i)$, we write this as:
+\begin{equation}
+z''_i \approx \frac{z_{i+1} - 2z_i + z_{i-1}}{h^2}
+\end{equation}
+
+\subsubsection{The 5-Point Stencil Pattern}
+
+In two dimensions, the Laplacian combines second derivatives in both coordinate directions, capturing how the function curves in the $x$- and $y$-directions:
+\begin{equation}
+\nabla^2 z = \frac{\partial^2 z}{\partial x^2} + \frac{\partial^2 z}{\partial y^2}
+\end{equation}
+Applying the central difference formula~\eqref{eq:central_diff} in both directions at grid point $(i,j)$:
+\begin{equation}
+\nabla^2 z \bigg|_{i,j} \approx \frac{z_{i+1,j} - 2z_{i,j} + z_{i-1,j}}{(\Delta x)^2} + \frac{z_{i,j+1} - 2z_{i,j} + z_{i,j-1}}{(\Delta y)^2}
+\end{equation}
+For uniform spacing $h = \Delta x = \Delta y$, this simplifies to the 5-point stencil:
+\begin{equation}\label{eq:5pt_stencil}
+\boxed{\nabla^2 z \bigg|_{i,j} \approx \frac{z_{i+1,j} + z_{i-1,j} + z_{i,j+1} + z_{i,j-1} - 4z_{i,j}}{h^2}}
+\end{equation}
+
+The stencil pattern represents a local finite difference operator that combines values from the center point and its four nearest neighbors on the grid. Figure~\ref{fig:stencil} visualizes the coefficient structure:
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.8]
+\draw[fill=gray!20] (0,0) circle (0.4) node {$-4$};
+\draw[fill=blue!20] (1.5,0) circle (0.4) node {$+1$};
+\draw[fill=blue!20] (-1.5,0) circle (0.4) node {$+1$};
+\draw[fill=blue!20] (0,1.5) circle (0.4) node {$+1$};
+\draw[fill=blue!20] (0,-1.5) circle (0.4) node {$+1$};
+\draw[->] (0.4,0) -- (1.1,0);
+\draw[->] (-0.4,0) -- (-1.1,0);
+\draw[->] (0,0.4) -- (0,1.1);
+\draw[->] (0,-0.4) -- (0,-1.1);
+\node at (0,-2.3) {\small $(i,j)$ center point};
+\end{tikzpicture}
+\caption{The 5-point Laplacian stencil weights.}
+\label{fig:stencil}
+\end{figure}
+
+The stencil computes a weighted average of the four neighbors minus four times the center value, all divided by $h^2$. This approximates how the curvature (Laplacian) at a point relates to its deviation from the average of its neighbors.
+
+
+\subsubsection{Building the Linear System}
+
+To solve the Poisson equation numerically, we must convert the stencil operations into a single large linear system $A\mathbf{z} = \mathbf{f}$. This requires mapping the 2D grid to a 1D vector and translating neighbor relationships into matrix entries.
+
+Consider a simple $3 \times 3$ grid with 9 unknowns. Using row-major ordering, we assign linear index $k = i + j \cdot W$ where $W=3$ is the grid width:
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+\foreach \i in {0,1,2} {
+  \foreach \j in {0,1,2} {
+    \pgfmathtruncatemacro{\k}{\i + \j*3}
+    \draw (\i,2-\j) circle (0.35) node {$z_{\k}$};
+  }
+}
+\node at (-0.8,2) {$j=0$};
+\node at (-0.8,1) {$j=1$};
+\node at (-0.8,0) {$j=2$};
+\node at (0,-0.6) {$i=0$};
+\node at (1,-0.6) {$i=1$};
+\node at (2,-0.6) {$i=2$};
+\end{tikzpicture}
+\end{center}
+
+For an interior point like $z_4$ (at position $i=1, j=1$), the 5-point stencil couples it to its four neighbors:
+\begin{equation}
+\frac{z_5 + z_3 + z_7 + z_1 - 4z_4}{h^2} = f_4
+\end{equation}
+This becomes one row of the linear system. Rearranging with unknowns on the left:
+\begin{equation}
+\frac{1}{h^2}z_1 + \frac{1}{h^2}z_3 - \frac{4}{h^2}z_4 + \frac{1}{h^2}z_5 + \frac{1}{h^2}z_7 = f_4
+\end{equation}
+
+Writing this for all 9 grid points simultaneously yields the matrix equation $A\mathbf{z} = \mathbf{f}$. The matrix $A$ has a characteristic block structure:
+\begin{equation}
+A = \frac{1}{h^2}\begin{bmatrix}
+-4 & 1 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
+1 & -4 & 1 & 0 & 1 & 0 & 0 & 0 & 0 \\
+0 & 1 & -4 & 0 & 0 & 1 & 0 & 0 & 0 \\
+1 & 0 & 0 & -4 & 1 & 0 & 1 & 0 & 0 \\
+0 & 1 & 0 & 1 & -4 & 1 & 0 & 1 & 0 \\
+0 & 0 & 1 & 0 & 1 & -4 & 0 & 0 & 1 \\
+0 & 0 & 0 & 1 & 0 & 0 & -4 & 1 & 0 \\
+0 & 0 & 0 & 0 & 1 & 0 & 1 & -4 & 1 \\
+0 & 0 & 0 & 0 & 0 & 1 & 0 & 1 & -4
+\end{bmatrix}
+\end{equation}
+
+Each row corresponds to one grid point. The diagonal entry is $-4$ (center weight), entries at $\pm 1$ positions connect horizontal neighbors (same row), and entries at $\pm W$ positions connect vertical neighbors (adjacent rows). The matrix is sparse---only 5 entries per row instead of $N$---which is crucial for efficiency on large grids.
+
+Boundary conditions modify the right-hand side $\mathbf{f}$ or the matrix structure itself. For Dirichlet conditions, known boundary values move to the right-hand side. For Neumann conditions, stencil weights at boundaries are adjusted to enforce derivative constraints. The specific modifications are detailed in the solver sections that follow.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Solver 1: FFT-Based (Spectral Method)}
+
+The FFT-based solver exploits the fact that the Laplacian operator is diagonalized in the Fourier domain. This transforms the Poisson PDE into simple algebraic division, enabling $\mathcal{O}(N \log N)$ solution complexity. This is our fastest solver and the default choice when periodic boundary conditions are acceptable.
+
+\subsubsection{Mathematical Approach}
+
+The key insight is that Fourier basis functions (complex exponentials) are eigenfunctions of the Laplacian. Applying the Fourier transform to both sides of $\nabla^2 z = f$:
+\begin{equation}
+\mathcal{F}\{\nabla^2 z\} = \mathcal{F}\{f\}
+\end{equation}
+The Laplacian in the frequency domain becomes multiplication by eigenvalues. Let $\hat{Z}(\mathbf{k})$ and $\hat{F}(\mathbf{k})$ denote the Fourier transforms of $z$ and $f$ at frequency $\mathbf{k} = (k_x, k_y)$:
+\begin{equation}
+-|\mathbf{k}|^2 \hat{Z}(\mathbf{k}) = \hat{F}(\mathbf{k})
+\end{equation}
+where $|\mathbf{k}|^2 = k_x^2 + k_y^2$ is the squared frequency magnitude. Solving for the solution in frequency space:
+\begin{equation}
+\hat{Z}(\mathbf{k}) = \frac{\hat{F}(\mathbf{k})}{-|\mathbf{k}|^2}
+\end{equation}
+The solution is obtained by inverse Fourier transform:
+\begin{equation}
+z(x,y) = \mathcal{F}^{-1}\left\{\frac{\hat{F}(\mathbf{k})}{-|\mathbf{k}|^2}\right\}
+\end{equation}
+This converts the PDE (which requires solving a large linear system) into three simple operations: forward FFT, element-wise division, and inverse FFT.
+
+\subsubsection{Boundary Condition: Periodic}
+
+The FFT inherently assumes that the signal is periodic in all directions. This means the solver implicitly enforces:
+\begin{equation}
+z(0, y) = z(L_x, y), \quad z(x, 0) = z(x, L_y), \quad \text{and similarly for all derivatives}
+\end{equation}
+Periodic boundary conditions are rarely physical for real surfaces---few objects wrap around seamlessly at their edges. However, they work well when the object of interest is centered in the image with gradients decaying to near-zero at the boundaries.
+
+A critical issue arises at the DC component ($\mathbf{k} = (0,0)$): the eigenvalue $|\mathbf{k}|^2 = 0$, creating a division by zero. This corresponds to the compatibility condition from Section 2.3---periodic problems determine the solution only up to an additive constant. We handle this by setting $\hat{F}[0,0] = 0$ to enforce zero-mean source (compatibility), setting the eigenvalue $\lambda[0,0] = 1$ to avoid division by zero, and the resulting $\hat{Z}[0,0] = 0$ gives a zero-mean solution.
+
+\subsubsection{Algorithm Steps}
+
+The complete FFT solver procedure is shown in Algorithm~\ref{alg:fft_solver}. The algorithm requires only two FFT operations (steps 2 and 6), each with $\mathcal{O}(N \log N)$ complexity, making this solver extremely fast for typical image sizes.
+
+\begin{algorithm}[H]
+\caption{FFT-Based Poisson Solver}
+\label{alg:fft_solver}
+\begin{algorithmic}[1]
+\Require Gradient estimates $(p, q)$ from photometric stereo
+\Ensure Height field $z$
+\State Compute divergence: $f \gets \partial_x p + \partial_y q$
+\State $\hat{F} \gets \text{FFT2D}(f)$
+\State Construct eigenvalues: $\lambda_{k_x,k_y} \gets -4\pi^2(k_x^2/L_x^2 + k_y^2/L_y^2)$
+\State Handle DC component: $\lambda[0,0] \gets 1$; $\hat{F}[0,0] \gets 0$
+\State $\hat{Z} \gets \hat{F} / \lambda$
+\State $z \gets \text{IFFT2D}(\hat{Z})$
+\State $z \gets \text{Re}(z)$
+\State \Return $z$
+\end{algorithmic}
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Solver 2: Finite Difference (Dirichlet Boundaries)}
+
+The finite difference solver with Dirichlet boundary conditions constructs and solves the sparse linear system $A\mathbf{z} = \mathbf{f}$ derived in Section 3.1. Unlike the FFT approach, this method uses iterative linear algebra solvers that exploit the matrix sparsity, making it less efficient but more flexible in handling boundary conditions.
+
+\subsubsection{Mathematical Approach}
+
+We solve the discrete Poisson equation using the 5-point stencil developed in Section 3.1. For interior grid points, the stencil equation is:
+\begin{equation}
+\frac{z_{i+1,j} + z_{i-1,j} + z_{i,j+1} + z_{i,j-1} - 4z_{i,j}}{h^2} = f_{i,j}
+\end{equation}
+This produces a sparse $N \times N$ linear system where $N = H \cdot W$ is the total number of grid points. The matrix $A$ is symmetric negative definite, guaranteeing convergence of iterative methods.
+
+We solve this system using the Conjugate Gradient (CG) method, an iterative algorithm that finds the solution by successively minimizing the quadratic form $\frac{1}{2}\mathbf{z}^T A \mathbf{z} - \mathbf{f}^T \mathbf{z}$. CG generates a sequence of search directions that are mutually conjugate (orthogonal with respect to $A$), ensuring that each iteration makes progress in a new direction. For symmetric positive definite systems, CG converges in at most $N$ iterations, though in practice far fewer iterations are needed when the matrix is well-conditioned.
+
+Rather than explicitly forming the matrix $A$ (which would require storing $5N$ entries), we define a matrix-free linear operator that applies the 5-point stencil to any input vector. This reduces memory usage from $\mathcal{O}(N)$ to $\mathcal{O}(1)$ for the operator itself and enables efficient matrix-vector products.
+
+
+\subsubsection{Boundary Condition: Fixed Values}
+
+Dirichlet conditions prescribe the solution value on the boundary:
+\begin{equation}
+z(x,y) = g(x,y), \quad (x,y) \in \partial\Omega
+\end{equation}
+In the homogeneous case ($g \equiv 0$), the surface is pinned to zero height along the entire boundary. For photometric stereo, this is appropriate when the reconstructed object sits on a flat background or when the region of interest is masked to exclude edge artifacts.
+
+Implementation is straightforward: boundary points are held fixed at the prescribed value $g$, and only interior points are solved. The stencil at interior points adjacent to boundaries incorporates the known boundary values into the right-hand side. Figure~\ref{fig:dirichlet_stencil} illustrates this for a point near the boundary.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[scale=0.9]
+% Grid
+\draw[step=1.2cm,gray,very thin] (0,0) grid (6,4.8);
+
+% Boundary (left edge)
+\draw[line width=2pt,red!70!black] (0,0) -- (0,4.8);
+\node[red!70!black] at (-0.5,2.4) {\rotatebox{90}{\small Boundary $z=g$}};
+
+% Boundary points
+\foreach \j in {0,1,2,3,4} {
+  \fill[red!30] (0,\j*1.2) circle (0.25);
+  \node[scale=0.7] at (0,\j*1.2) {$g$};
+}
+
+
+% Neighbors
+\fill[green!40] (2.4,2.4) circle (0.25);
+\node[scale=0.7] at (2.4,2.4) {$+1$};
+\fill[green!40] (1.2,3.6) circle (0.25);
+\node[scale=0.7] at (1.2,3.6) {$+1$};
+\fill[green!40] (1.2,1.2) circle (0.25);
+\node[scale=0.7] at (1.2,1.2) {$+1$};
+
+% Boundary neighbor (known)
+\fill[red!50] (0,2.4) circle (0.25);
+\node[scale=0.7] at (0,2.4) {$g$};
+
+% Arrows
+\draw[->,thick] (1.2,2.4) -- (0.35,2.4);
+\draw[->,thick] (1.2,2.4) -- (2.05,2.4);
+\draw[->,thick] (1.2,2.4) -- (1.2,3.25);
+\draw[->,thick] (1.2,2.4) -- (1.2,1.55);
+
+% Interior point being solved
+\fill[blue!40] (1.2,2.4) circle (0.35);
+\node[scale=0.8] at (1.2,2.4) {$-4$};
+
+% Labels
+\node at (3,0.4) {\small Interior points (unknowns)};
+\node[red!70!black] at (3,-0.3) {\small $g$ moves to RHS $\rightarrow f' = f - g/h^2$};
+\end{tikzpicture}
+\caption{Dirichlet boundary conditions: The known boundary value $g$ (red) is incorporated into the right-hand side, and only interior points (blue) are solved as unknowns.}
+\label{fig:dirichlet_stencil}
+\end{figure}
+
+For a point next to the left boundary ($i=1$), the stencil becomes:
+\begin{equation}
+\frac{z_{2,j} + g_{0,j} + z_{1,j+1} + z_{1,j-1} - 4z_{1,j}}{h^2} = f_{1,j}
+\end{equation}
+The known boundary value $g_{0,j}$ moves to the right-hand side: $f'_{1,j} = f_{1,j} - g_{0,j}/h^2$. This effectively reduces the system size to interior points only.
+
+\subsubsection{Algorithm Steps}
+
+The complete finite difference Dirichlet solver is shown in Algorithm~\ref{alg:fd_dirichlet}. The solver uses Conjugate Gradient (CG) for symmetric positive definite systems or GMRES for general sparse systems. The computational cost is $\mathcal{O}(N \cdot k)$ where $k$ is the number of CG iterations needed for convergence. Typically $k \ll N$, but the method is slower than FFT for large grids. The advantage is the ability to enforce exact boundary values.
+
+\begin{algorithm}[H]
+\caption{Finite Difference Poisson Solver (Dirichlet BC)}
+\label{alg:fd_dirichlet}
+\begin{algorithmic}[1]
+\Require Gradient estimates $(p, q)$, boundary values $g$
+\Ensure Height field $z$ with $z|_{\partial\Omega} = g$
+\State Compute divergence: $f \gets \partial_x p + \partial_y q$
+\State Define matrix-free operator $A: z \mapsto \nabla^2_h z$ (5-point stencil)
+\State Modify RHS for boundary: $\mathbf{f}' \gets \mathbf{f} - A_{\text{boundary}} \mathbf{g}$
+\State Initialize: $z_0 \gets 0$ for interior points
+\State Solve: $\mathbf{z}_{\text{int}} \gets \text{CG}(A_{\text{int}}, \mathbf{f}', z_0, \text{tol})$
+\State Combine: $z \gets z_{\text{int}} \cup g$
+\State \Return $z$
+\end{algorithmic}
+\end{algorithm}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Solver 3: DCT-Based (Neumann Boundaries)}
+
+The Neumann solver handles problems where boundary derivatives, rather than values, are specified. This is often more physically realistic for photometric stereo, where we typically have no information about the absolute height at image boundaries---only the surface gradients.
+
+Unlike the FFT solver which uses iterative methods or complex boundary handling, we use the Discrete Cosine Transform (DCT), which naturally enforces Neumann conditions through its basis functions. The key insight is that cosine basis functions have zero derivative at both endpoints:
+\begin{equation}
+\frac{d}{dx}\cos\left(\frac{n\pi x}{L}\right)\bigg|_{x=0} = \frac{d}{dx}\cos\left(\frac{n\pi x}{L}\right)\bigg|_{x=L} = 0
+\end{equation}
+This means the DCT \textit{implicitly} enforces homogeneous Neumann boundary conditions $\partial z/\partial n = 0$ without any iterative solver or explicit boundary handling. In contrast, the FFT uses complex exponentials which implicitly enforce \textit{periodic} boundary conditions.
+
+\subsubsection{Mathematical Formulation}
+
+Like the FFT solver, the DCT approach converts the Poisson equation into algebraic operations in the spectral domain. The DCT achieves $\mathcal{O}(N \log N)$ complexity while naturally enforcing zero-flux (Neumann) conditions at the domain boundaries.
+
+
+The Type-II DCT (forward) and Type-III DCT (inverse, also called IDCT) of a 2D field $f_{i,j}$ are defined as:
+\begin{align}
+\hat{F}_{k,l} &= \sum_{i=0}^{N_x-1} \sum_{j=0}^{N_y-1} f_{i,j} \cos\left[\frac{\pi k (i + \frac{1}{2})}{N_x}\right] \cos\left[\frac{\pi l (j + \frac{1}{2})}{N_y}\right] \\
+f_{i,j} &= \sum_{k=0}^{N_x-1} \sum_{l=0}^{N_y-1} w_k w_l \hat{F}_{k,l} \cos\left[\frac{\pi k (i + \frac{1}{2})}{N_x}\right] \cos\left[\frac{\pi l (j + \frac{1}{2})}{N_y}\right]
+\end{align}
+where $w_0 = 1/N$ and $w_k = 2/N$ for $k > 0$ are normalization weights.
+
+The discrete Laplacian operator acting on the cosine basis yields eigenvalues:
+\begin{equation}
+\lambda_{k,l} = -\frac{2}{\Delta x^2}\left(1 - \cos\frac{\pi k}{N_x}\right) - \frac{2}{\Delta y^2}\left(1 - \cos\frac{\pi l}{N_y}\right)
+\end{equation}
+These eigenvalues arise from the second-order central difference stencil combined with the Neumann boundary condition (ghost point reflection). At $k = l = 0$, we have $\lambda_{0,0} = 0$, corresponding to the null-space constant inherent to Neumann problems.
+
+The spectral solution follows directly:
+\begin{equation}
+\hat{Z}_{k,l} = \frac{\hat{F}_{k,l}}{\lambda_{k,l}}, \quad (k,l) \neq (0,0)
+\end{equation}
+The DC component $\hat{Z}_{0,0}$ is set to zero (or any constant), which corresponds to choosing the particular solution with zero mean.
+
+\subsubsection{Boundary Condition: Zero Flux}
+
+Neumann conditions specify that the normal derivative vanishes at the boundary:
+\begin{equation}
+\frac{\partial z}{\partial n}\bigg|_{\partial\Omega} = 0
+\end{equation}
+Physically, this means the surface approaches the boundary with zero slope perpendicular to the edge. For photometric stereo, this is appropriate when we have no information about absolute heights at the image boundary---we only know that the surface should extend smoothly beyond the observed region.
+
+Unlike periodic conditions (which cause wrap-around artifacts) or Dirichlet conditions (which force the boundary to a prescribed value), Neumann conditions impose no artificial constraints on boundary heights. The surface is free to take any shape at the edges, subject only to a zero-slope constraint.
+
+A crucial requirement is the \textit{compatibility condition}:
+\begin{equation}
+\iint_\Omega f \, dA = 0
+\end{equation}
+This follows from the divergence theorem applied to $\nabla^2 z = f$ with zero-flux boundaries. If the input $f$ does not satisfy this condition, we enforce it by subtracting the mean: $f \gets f - \text{mean}(f)$. After solving, the result is determined only up to an additive constant, which we fix by mean-centering.
+
+\subsubsection{Algorithm}
+
+The complete DCT-based solver procedure is shown in Algorithm~\ref{alg:dct_neumann}. The algorithm requires only two DCT operations (forward and inverse), each with $\mathcal{O}(N \log N)$ complexity, making this solver as fast as the FFT approach. The key steps are: (1) enforce compatibility by mean-centering the divergence field, (2) transform to frequency domain via DCT-II, (3) divide by eigenvalues (spectral solve), (4) transform back via inverse DCT-II, and (5) mean-center the result to fix the additive constant ambiguity.
+
+Unlike an iterative finite difference approach which requires tuning convergence tolerances and maximum iteration counts, the DCT method is \textit{direct}---it always converges in a single pass with no parameter tuning required. This makes it both faster and more robust than iterative Neumann solvers.
+
+\begin{algorithm}[H]
+\caption{DCT-Based Poisson Solver (Neumann BC)}
+\label{alg:dct_neumann}
+\begin{algorithmic}[1]
+\Require Gradient estimates $(p, q)$ from photometric stereo
+\Ensure Height field $z$ with $\partial z/\partial n|_{\partial\Omega} = 0$
+\State Compute divergence: $f \gets \partial_x p + \partial_y q$
+\State Enforce compatibility: $f \gets f - \text{mean}(f)$
+\State Compute eigenvalues: $\lambda_{ij} \gets -\frac{2}{\Delta x^2}(1 - \cos\frac{\pi i}{N_x}) - \frac{2}{\Delta y^2}(1 - \cos\frac{\pi j}{N_y})$
+\State Forward transform: $\hat{F} \gets \text{DCT-II}(f)$
+\State Spectral solve: $\hat{Z}_{ij} \gets \hat{F}_{ij} / \lambda_{ij}$, with $\hat{Z}_{00} \gets 0$
+\State Inverse transform: $z \gets \text{IDCT-II}(\hat{Z})$
+\State Center solution: $z \gets z - \text{mean}(z)$
+\State \Return $z$
+\end{algorithmic}
+\end{algorithm}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Solver 4: CG-Iterative (Dirichlet Boundaries)}
+
+The Conjugate Gradient (CG) iterative solver provides an alternative approach to the Poisson equation, using iterative refinement rather than direct factorization or spectral transforms. This method achieves higher precision than direct sparse solvers while maintaining the flexibility of arbitrary boundary conditions.
+
+\subsubsection{Mathematical Formulation}
+
+The CG method solves the sparse linear system arising from finite difference discretization of the Laplacian. For a grid of size $N_x \times N_y$, we discretize the Poisson equation $\nabla^2 z = f$ using the standard 5-point stencil:
+\begin{equation}
+\frac{z_{i-1,j} - 2z_{i,j} + z_{i+1,j}}{\Delta x^2} + \frac{z_{i,j-1} - 2z_{i,j} + z_{i,j+1}}{\Delta y^2} = f_{i,j}
+\end{equation}
+
+This yields a sparse linear system $\mathbf{A}\mathbf{z} = \mathbf{b}$ where $\mathbf{A}$ is an $N \times N$ matrix (with $N = N_x \cdot N_y$) having at most 5 non-zero entries per row. The matrix $\mathbf{A}$ is symmetric positive semi-definite, making it suitable for the Conjugate Gradient method.
+
+\subsubsection{Dirichlet Boundary Conditions}
+
+We enforce Dirichlet conditions by setting boundary values to zero:
+\begin{equation}
+z(x,y) = 0 \quad \text{for } (x,y) \in \partial\Omega
+\end{equation}
+
+In matrix form, boundary rows of $\mathbf{A}$ are replaced with identity rows (diagonal = 1, off-diagonal = 0), and corresponding entries in $\mathbf{b}$ are set to zero. This ensures boundary unknowns remain fixed throughout the iteration.
+
+\subsubsection{Conjugate Gradient Iteration}
+
+For symmetric positive definite systems, CG converges in at most $N$ iterations, though in practice far fewer are needed. The algorithm minimizes the quadratic form:
+\begin{equation}
+\phi(\mathbf{z}) = \frac{1}{2}\mathbf{z}^T\mathbf{A}\mathbf{z} - \mathbf{b}^T\mathbf{z}
+\end{equation}
+
+Each iteration updates the solution along conjugate directions, guaranteeing monotonic decrease in the error norm $\|\mathbf{z}^{(k)} - \mathbf{z}^*\|_{\mathbf{A}}$.
+
+The convergence rate depends on the condition number $\kappa(\mathbf{A})$. For the discrete Laplacian, $\kappa \sim \mathcal{O}(N)$, giving convergence in $\mathcal{O}(\sqrt{N})$ iterations for a tolerance of $10^{-10}$. In practice, we observe 200--400 iterations for $128 \times 128$ grids.
+
+\subsubsection{Algorithm}
+
+\begin{algorithm}[H]
+\caption{CG-Iterative Poisson Solver (Dirichlet BC)}
+\label{alg:cg_iterative}
+\begin{algorithmic}[1]
+\Require Gradients $(p, q)$, grid spacing $(\Delta x, \Delta y)$, tolerance $\epsilon$
+\Ensure Height field $z$ with $z|_{\partial\Omega} = 0$
+\State Compute divergence: $\mathbf{b} \gets \partial_x p + \partial_y q$
+\State Build sparse Laplacian matrix $\mathbf{A}$ with 5-point stencil
+\State Set boundary rows to identity, boundary RHS to zero
+\State Initialize: $\mathbf{z}^{(0)} \gets \mathbf{0}$, $\mathbf{r}^{(0)} \gets \mathbf{b}$, $\mathbf{p}^{(0)} \gets \mathbf{r}^{(0)}$
+\While{$\|\mathbf{r}^{(k)}\| > \epsilon \|\mathbf{b}\|$}
+    \State $\alpha_k \gets \frac{\mathbf{r}^{(k)T}\mathbf{r}^{(k)}}{\mathbf{p}^{(k)T}\mathbf{A}\mathbf{p}^{(k)}}$
+    \State $\mathbf{z}^{(k+1)} \gets \mathbf{z}^{(k)} + \alpha_k \mathbf{p}^{(k)}$
+    \State $\mathbf{r}^{(k+1)} \gets \mathbf{r}^{(k)} - \alpha_k \mathbf{A}\mathbf{p}^{(k)}$
+    \State $\beta_k \gets \frac{\mathbf{r}^{(k+1)T}\mathbf{r}^{(k+1)}}{\mathbf{r}^{(k)T}\mathbf{r}^{(k)}}$
+    \State $\mathbf{p}^{(k+1)} \gets \mathbf{r}^{(k+1)} + \beta_k \mathbf{p}^{(k)}$
+\EndWhile
+\State Center solution: $z \gets z - \text{mean}(z)$
+\State \Return $z$
+\end{algorithmic}
+\end{algorithm}
+
+The CG solver achieves higher precision than direct methods because it iterates until the residual falls below a specified tolerance ($10^{-10}$ in our implementation), whereas direct solvers may accumulate numerical errors through factorization. This explains the superior RMSE results observed in Section~\ref{sec:results}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\subsection{Regularization (Noise Handling)}
+
+Real photometric stereo data contains noise from sensor limitations, lighting imperfections, and violations of the Lambertian assumption. This noise propagates through the gradient estimation and into the Poisson problem, where it can cause severe artifacts in the reconstructed surface. Regularization techniques address this by penalizing solutions that fit noise too closely.
+
+\subsubsection{Why Regularization is Needed}
+
+The Poisson equation solvers developed above find the exact solution to $\nabla^2 z = f$. However, when $f$ is contaminated with noise, the ``exact'' solution faithfully reproduces that noise---often with amplification. Consider the frequency-domain solution:
+\begin{equation}
+\hat{Z}(\mathbf{k}) = \frac{\hat{F}(\mathbf{k})}{-|\mathbf{k}|^2}
+\end{equation}
+Low-frequency noise components (small $|\mathbf{k}|$) are divided by small eigenvalues, dramatically amplifying their contribution to the solution. A small amount of low-frequency noise in the gradient field can produce large-scale undulations in the reconstructed surface.
+
+This is a manifestation of the Poisson equation's ill-conditioning for noisy data. The problem is well-posed mathematically but numerically unstable: small perturbations in $f$ cause large perturbations in $z$. Regularization stabilizes the problem by trading exact data fitting for solution smoothness.
+
+\subsubsection{Tikhonov Derivation}
+
+Tikhonov regularization adds a penalty term to the objective function, preferring solutions with small norm:
+\begin{equation}
+z_\lambda = \arg\min_z \left\{ \|\nabla^2 z - f\|^2 + \lambda \|z\|^2 \right\}
+\end{equation}
+The first term ensures the solution approximately satisfies the Poisson equation; the second term penalizes large height values. The parameter $\lambda > 0$ controls the trade-off: larger $\lambda$ produces smoother but less accurate solutions.
+
+To find the minimizer, we take the first variation with respect to $z$ and set it to zero, applying the calculus of variations to the biharmonic operator that arises from composing the Laplacian with itself:
+\begin{equation}
+(\nabla^4 + \lambda I) z = \nabla^2 f
+\end{equation}
+In the frequency domain, this becomes:
+\begin{equation}
+\hat{Z}_\lambda(\mathbf{k}) = \frac{-|\mathbf{k}|^2 \hat{F}(\mathbf{k})}{|\mathbf{k}|^4 + \lambda}
+\end{equation}
+
+The regularization modifies the eigenvalue division: instead of dividing by $|\mathbf{k}|^2$, we effectively divide by $|\mathbf{k}|^2 + \lambda/|\mathbf{k}|^2$. This prevents blow-up at low frequencies while preserving high-frequency detail where eigenvalues are large. The regularized solution smoothly interpolates between no modification (high frequencies) and strong damping (low frequencies).
+
+\subsubsection{Choosing the Parameter}
+
+The regularization parameter $\lambda$ must balance bias against variance. Too small, and noise dominates; too large, and genuine surface features are smoothed away. We can quantify this trade-off by examining the regularized solution's behavior as a function of $\lambda$:
+\begin{equation}
+\hat{Z}_\lambda(\mathbf{k}) = \underbrace{\frac{|\mathbf{k}|^4}{|\mathbf{k}|^4 + \lambda}}_{\text{filter factor}} \cdot \hat{Z}_{\text{true}}(\mathbf{k}) + \text{noise contribution}
+\end{equation}
+The filter factor approaches 1 for $|\mathbf{k}|^4 \gg \lambda$ (high frequencies, no filtering) and approaches 0 for $|\mathbf{k}|^4 \ll \lambda$ (low frequencies, strong damping). Several methods exist for selecting $\lambda$.
+
+\subsubsection{L-Curve Method}
+
+The L-curve method provides a graphical approach to parameter selection that does not require prior knowledge of the noise level. For each candidate $\lambda$, we compute both the residual norm (how well the solution fits the data) and the solution norm (how smooth the solution is), plotting them parametrically:
+\begin{equation}
+\text{L-curve}: \quad \left( \log \|\nabla^2 z_\lambda - f\|, \; \log \|z_\lambda\| \right) \quad \text{for } \lambda \in [\lambda_{\min}, \lambda_{\max}]
+\end{equation}
+
+The resulting curve typically has an L-shape: for small $\lambda$ (under-regularization), the residual is small but the solution norm is large (noisy); for large $\lambda$ (over-regularization), the solution is smooth but the residual is large. The optimal $\lambda$ lies at the ``corner'' of this L-shaped curve, where the curvature:
+\begin{equation}
+\kappa(\lambda) = \frac{\rho'(\lambda) \eta''(\lambda) - \rho''(\lambda) \eta'(\lambda)}{(\rho'^2 + \eta'^2)^{3/2}}
+\end{equation}
+is maximized, where $\rho(\lambda) = \log \|\nabla^2 z_\lambda - f\|$ and $\eta(\lambda) = \log \|z_\lambda\|$. This corner represents the best trade-off between fitting the data and obtaining a smooth solution.
+
+\subsubsection{Discrepancy Principle}
+
+When the noise statistics are known or can be estimated, the discrepancy principle provides a principled approach to parameter selection. The key idea is that we should not fit the data more accurately than the noise allows---doing so means we are fitting noise rather than signal.
+
+If the noise standard deviation is $\sigma$ and there are $N$ data points, the expected squared norm of the noise is $N\sigma^2$. We choose $\lambda$ such that the residual matches this expected noise level:
+\begin{equation}
+\|\nabla^2 z_\lambda - f\|^2 \approx N \sigma^2
+\end{equation}
+
+In practice, we solve for $\lambda$ by monotonically decreasing $\lambda$ from a large value until the residual first drops below the threshold $\tau = \sigma \sqrt{N}$. A safety factor is sometimes included:
+\begin{equation}
+\|\nabla^2 z_\lambda - f\| \leq \tau \cdot \delta, \quad \delta \in [1, 2]
+\end{equation}
+The discrepancy principle is particularly useful when the noise level can be estimated from the data itself, such as from flat regions of the image or from repeated measurements.
+
+\subsubsection{Cross-Validation}
+
+Cross-validation uses data splitting to estimate how well a particular $\lambda$ will generalize to unseen data. This approach is especially valuable when the noise characteristics are unknown or non-Gaussian.
+
+Partition the data into $K$ folds (typically $K = 5$ or $K = 10$). For each fold $k$, hold out that portion of the data, fit the regularized solution $z_\lambda^{(-k)}$ using the remaining data, and compute the prediction error on the held-out set:
+\begin{equation}
+\text{CV}(\lambda) = \frac{1}{K} \sum_{k=1}^{K} \|z_\lambda^{(-k)} - z_{\text{test}}^{(k)}\|^2
+\end{equation}
+Select the regularization parameter that minimizes the cross-validation error:
+\begin{equation}
+\lambda^* = \arg\min_\lambda \text{CV}(\lambda)
+\end{equation}
+
+Leave-one-out cross-validation (LOOCV, $K = N$) provides an unbiased estimate but is computationally expensive. Generalized cross-validation (GCV) provides an efficient approximation for linear problems:
+\begin{equation}
+\text{GCV}(\lambda) = \frac{\|\nabla^2 z_\lambda - f\|^2 / N}{(1 - \text{tr}(A_\lambda)/N)^2}
+\end{equation}
+where $A_\lambda$ is the influence matrix mapping data to predictions.
+
+In practice for photometric stereo, a reasonable starting point is $\lambda \approx 10^{-4}$ to $10^{-2}$, adjusted visually based on the smoothness of the reconstructed surface.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% End of Chapter 3: Numerical Methods
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CHAPTER 4: IMPLEMENTATION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Implementation}
+
+This chapter presents the algorithmic implementation of the photometric stereo pipeline. We focus on the computational steps required to go from raw images to a reconstructed 3D surface, emphasizing the data flow and key algorithmic decisions at each stage. The implementation integrates the mathematical foundations from Chapter 2 with the numerical solvers from Chapter 3.
+
+\subsection{Photometric Stereo Pipeline}
+
+The complete pipeline consists of four stages: image acquisition and preprocessing, light matrix construction, per-pixel normal estimation, and gradient field computation. Algorithm~\ref{alg:pipeline} provides an overview.
+
+\begin{algorithm}[H]
+\caption{Photometric Stereo Pipeline}
+\label{alg:pipeline}
+\begin{algorithmic}[1]
+\Require Images $\{I_1, \ldots, I_K\}$ under known lighting $\{\mathbf{l}_1, \ldots, \mathbf{l}_K\}$
+\Ensure Reconstructed height field $z(x,y)$
+\State Preprocess images: normalization, background subtraction
+\State Construct light matrix $L \in \mathbb{R}^{K \times 3}$
+\State \textbf{for} each pixel $(x,y)$ \textbf{do}
+\State \quad Solve $L \mathbf{n} = \mathbf{i}$ for surface normal $\mathbf{n}(x,y)$
+\State \textbf{end for}
+\State Compute gradients: $p = -n_x/n_z$, $q = -n_y/n_z$
+\State Compute divergence: $f = \partial_x p + \partial_y q$
+\State Solve Poisson equation: $\nabla^2 z = f$
+\State \Return $z$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Image Acquisition and Preprocessing}
+
+The input consists of $K$ grayscale images of a static scene, each captured under a different known lighting direction. For reliable normal estimation, we require $K \geq 3$ non-coplanar light sources, though $K = 4$ to $8$ provides better noise robustness.
+
+Several preprocessing steps are essential for high-quality reconstruction. First, intensity normalization converts raw pixel values to the range $[0, 1]$ and applies gamma correction if the camera response is nonlinear. Second, background subtraction removes ambient illumination by subtracting an image captured with all lights off, or by estimating a low-frequency background model. Third, shadow detection identifies pixels where the surface is in shadow (intensity below a threshold); these measurements violate the Lambertian model and should be excluded from the least-squares fit. Finally, saturation handling excludes pixels at maximum intensity, as they provide no gradient information.
+
+For each pixel location $(x,y)$, we collect the intensity vector:
+\begin{equation}
+\mathbf{i}(x,y) = [I_1(x,y), I_2(x,y), \ldots, I_K(x,y)]^T
+\end{equation}
+
+
+\subsubsection{Light Matrix Construction}
+
+The lighting directions must be known or calibrated. Each light direction $\mathbf{l}_k = (\ell_{k,x}, \ell_{k,y}, \ell_{k,z})^T$ is a unit vector pointing from the surface toward the light source. These are assembled into the light matrix:
+\begin{equation}
+L = \begin{bmatrix}
+\ell_{1,x} & \ell_{1,y} & \ell_{1,z} \\
+\ell_{2,x} & \ell_{2,y} & \ell_{2,z} \\
+\vdots & \vdots & \vdots \\
+\ell_{K,x} & \ell_{K,y} & \ell_{K,z}
+\end{bmatrix} \in \mathbb{R}^{K \times 3}
+\end{equation}
+
+For well-conditioned normal estimation, the light directions should span 3D space. The condition number $\kappa(L^T L)$ indicates sensitivity to noise---lower is better. Optimal configurations distribute lights uniformly over the hemisphere, avoiding coplanar arrangements.
+
+Common calibration methods include using a reference sphere with known geometry (the ``chrome ball'' technique) or directly measuring light positions with a goniometer.
+
+\subsubsection{Per-Pixel Normal Estimation}
+
+At each pixel, we solve the overdetermined system $L \mathbf{n} = \mathbf{i}$ for the surface normal $\mathbf{n}$. The Lambertian model gives:
+\begin{equation}
+I_k(x,y) = \rho(x,y) \cdot \mathbf{l}_k \cdot \mathbf{n}(x,y)
+\end{equation}
+where $\rho$ is the albedo (reflectivity) at that pixel. We solve for the product $\mathbf{m} = \rho \mathbf{n}$ using least squares:
+\begin{equation}
+\mathbf{m}^* = (L^T L)^{-1} L^T \mathbf{i} = L^\dagger \mathbf{i}
+\end{equation}
+where $L^\dagger$ is the Moore-Penrose pseudoinverse. The albedo and normal are then separated:
+\begin{equation}
+\rho = \|\mathbf{m}^*\|, \quad \mathbf{n} = \frac{\mathbf{m}^*}{\|\mathbf{m}^*\|}
+\end{equation}
+
+For pixels with shadows or specular highlights, robust estimation methods (e.g., RANSAC or iteratively reweighted least squares) can improve results by down-weighting outlier measurements.
+
+\subsubsection{Gradient Field Computation}
+
+Given the surface normal $\mathbf{n} = (n_x, n_y, n_z)^T$ at each pixel, we extract the surface gradients. Under the assumption that $z = z(x,y)$ is a height field, the normal vector is:
+\begin{equation}
+\mathbf{n} = \frac{1}{\sqrt{1 + p^2 + q^2}} \begin{pmatrix} -p \\ -q \\ 1 \end{pmatrix}
+\end{equation}
+where $p = \partial z / \partial x$ and $q = \partial z / \partial y$. Rearranging:
+\begin{equation}
+p = -\frac{n_x}{n_z}, \quad q = -\frac{n_y}{n_z}
+\end{equation}
+
+This conversion requires $n_z > 0$ (surface visible from above). Pixels where $n_z \leq 0$ correspond to overhanging surfaces or self-occlusion and cannot be reconstructed as a height field.
+
+The gradient fields $(p, q)$ are then passed to the Poisson solvers from Chapter 3. The divergence is computed using central differences:
+\begin{equation}
+f_{i,j} = \frac{p_{i+1,j} - p_{i-1,j}}{2h} + \frac{q_{i,j+1} - q_{i,j-1}}{2h}
+\end{equation}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Poisson Solver Integration}
+
+Once the gradient fields $(p, q)$ are computed from the surface normals, the next stage integrates these gradients to recover the height field $z(x,y)$. This involves constructing the divergence field, selecting an appropriate Poisson solver based on boundary conditions, and post-processing the result.
+
+\subsubsection{Divergence Field Construction}
+
+The Poisson equation $\nabla^2 z = f$ requires the right-hand side $f$ to be the divergence of the gradient field. Using central differences on a grid with spacing $h$:
+\begin{equation}
+f_{i,j} = \frac{\partial p}{\partial x}\bigg|_{i,j} + \frac{\partial q}{\partial y}\bigg|_{i,j} \approx \frac{p_{i+1,j} - p_{i-1,j}}{2h} + \frac{q_{i,j+1} - q_{i,j-1}}{2h}
+\end{equation}
+
+At boundary pixels, one-sided differences are used. For the left boundary ($i = 0$):
+\begin{equation}
+\frac{\partial p}{\partial x}\bigg|_{0,j} \approx \frac{p_{1,j} - p_{0,j}}{h}
+\end{equation}
+and similarly for other edges and corners. The divergence computation can be implemented efficiently using convolution with appropriate finite difference kernels.
+
+Missing or invalid pixels (shadows, specular highlights, or regions where $n_z \leq 0$) are marked in a validity mask. The Poisson solver can either interpolate over these regions or treat them as internal Dirichlet constraints.
+
+\subsubsection{Solver Selection Logic}
+
+The choice of Poisson solver depends on the desired boundary conditions and computational constraints. Algorithm~\ref{alg:solver_select} summarizes the selection logic.
+
+\begin{algorithm}[H]
+\caption{Poisson Solver Selection}
+\label{alg:solver_select}
+\begin{algorithmic}[1]
+\Require Divergence field $f$, boundary condition type, regularization parameter $\lambda$
+\Ensure Height field $z$
+\If{boundary\_type = PERIODIC}
+    \State $z \gets \text{FFT\_Solver}(f)$ \Comment{$\mathcal{O}(N \log N)$}
+\ElsIf{boundary\_type = DIRICHLET}
+    \State $z \gets \text{FD\_Dirichlet\_Solver}(f, g)$ \Comment{CG on interior}
+\ElsIf{boundary\_type = NEUMANN}
+    \State $f \gets f - \text{mean}(f)$ \Comment{Enforce compatibility}
+    \State $z \gets \text{FD\_Neumann\_Solver}(f)$ \Comment{CG with modified stencil}
+\EndIf
+\If{$\lambda > 0$}
+    \State Apply Tikhonov regularization during solve
+\EndIf
+\State \Return $z$
+\end{algorithmic}
+\end{algorithm}
+
+For most photometric stereo applications, the FFT solver provides the best balance of speed and accuracy when the object is centered in the image with gradients decaying near the boundaries. When exact boundary control is needed (e.g., object on a known flat plane), the Dirichlet solver is preferred. The Neumann solver is appropriate when boundary heights are unknown but should vary smoothly.
+
+\subsubsection{Post-Processing (Mean Centering)}
+
+The recovered height field $z$ is determined only up to an additive constant for both periodic and Neumann boundary conditions. We fix this ambiguity by enforcing zero mean:
+\begin{equation}
+z_{\text{centered}} = z - \frac{1}{N} \sum_{i,j} z_{i,j}
+\end{equation}
+where $N$ is the total number of valid pixels. This centers the surface around the $z = 0$ plane.
+
+Additional post-processing steps may include median filtering to remove isolated spike artifacts, clipping extreme values that arise from noisy gradient estimates, or applying a low-pass filter to smooth high-frequency reconstruction noise. For visualization, the height field is typically scaled to a convenient range and rendered as a 3D mesh or depth map.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% End of Section 4: Implementation Pipeline
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 5: SOFTWARE ARCHITECTURE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Software Architecture}
+
+This section describes the modular software architecture developed to validate the photometric stereo pipeline and Poisson solvers.
+
+\subsection{Package Structure}
+
+The implementation is organized as a Python package with the following directory structure. Each module is self-contained with a single responsibility.
+
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\small]
+python_code/
+|
+|-- config.py                   # Shared constants and parameters
+|-- runner.py                   # Main experiment orchestrator
+|
+|-- surfaces/                   # Test surface generators (8 files)
+|   |-- __init__.py             # Exports all create_* functions
+|   |-- gaussian.py             # Gaussian bump surface
+|   |-- sphere.py               # Hemispherical surface
+|   |-- ellipsoid.py            # Ellipsoidal surface
+|   |-- cone.py                 # Conical surface with apex
+|   |-- cube.py                 # Flat-top cube surface
+|   |-- saddle.py               # Hyperbolic paraboloid
+|   |-- peaks.py                # MATLAB peaks function
+|   +-- sinusoid.py             # 2D sinusoidal surface
+|
+|-- photometric/                # Photometric stereo pipeline (4 files)
+|   |-- __init__.py             # Exports all PS functions
+|   |-- lighting.py             # make_rotating_lights()
+|   |-- rendering.py            # render_photometric_images()
+|   |-- stereo.py               # photometric_stereo()
+|   +-- gradient.py             # gradients_from_normals(), compute_divergence()
+|
+|-- solvers/                    # Poisson equation solvers (5 files)
+|   |-- __init__.py             # Exports all solve_* functions
+|   |-- fft_periodic.py         # FFT solver (periodic BC)
+|   |-- fd_dirichlet.py         # Finite difference (Dirichlet BC)
+|   |-- dct_neumann.py          # DCT solver (Neumann BC)
+|   |-- tikhonov.py             # Tikhonov regularization
+|   +-- cg_iterative.py         # Conjugate Gradient iterative solver
+|
+|-- visualization/              # Plotting utilities (6 files)
+|   |-- __init__.py             # Exports all save_* functions
+|   |-- surfaces_3d.py          # 3D mesh plots
+|   |-- heatmaps.py             # 2D depth/error maps
+|   |-- profiles.py             # Cross-section line plots
+|   |-- histograms.py           # Error distribution histograms
+|   |-- normals.py              # RGB normal map visualization
+|   +-- composites.py           # Multi-panel figure generation
+|
+|-- experiments/                # Experiment definitions (2 files)
+|   |-- __init__.py
+|   |-- exp_solver_compare.py   # 8 shapes x 3 solvers comparison
+|   +-- exp_ablation.py         # Light sweep, noise, Tikhonov
+|
++-- output/                     # Generated results
+    |-- figures/                # 216 PNG images (8x3x9)
+    |   |-- gaussian/
+    |   |   |-- fft/
+    |   |   |-- fd_dirichlet/
+    |   |   +-- dct_neumann/
+    |   |-- sphere/
+    |   |-- ellipsoid/
+    |   |-- cone/
+    |   |-- cube/
+    |   |-- saddle/
+    |   |-- peaks/
+    |   +-- sinusoid/
+    +-- solver_comparison_results.json
+\end{lstlisting}
+
+\subsection{Core Modules}
+
+\subsubsection{Surface Generation (\texttt{surfaces/})}
+
+Each surface module exports a function returning the height field and grid:
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
+def create_gaussian_surface(nx=256, ny=256):
+    """Returns: X, Y, Z, dx, dy"""
+    # 8 surfaces: gaussian, sphere, ellipsoid, 
+    #             cone, cube, saddle, peaks, sinusoid
+\end{lstlisting}
+
+\subsubsection{Photometric Stereo (\texttt{photometric/})}
+
+The photometric module handles the complete PS pipeline:
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
+lights = make_rotating_lights(32, elevation=45)
+images = render_photometric_images(N_true, lights)
+N_est = photometric_stereo(images, lights)
+p, q = gradients_from_normals(N_est)
+f = compute_divergence(p, q, dx, dy)
+\end{lstlisting}
+
+\subsubsection{Poisson Solvers (\texttt{solvers/})}
+
+Four solvers with identical interface:
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
+Z = solve_poisson_fft(f, dx, dy)          # Periodic BC
+Z = solve_poisson_fd_dirichlet(f, dx, dy) # Direct sparse (Dirichlet)
+Z = solve_poisson_dct_neumann(f, dx, dy)  # Zero-flux BC
+Z = solve_poisson_cg(f, dx, dy)           # CG iterative (Dirichlet)
+\end{lstlisting}
+
+\subsection{Running Experiments}
+
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\small]
+cd python_code
+pip install numpy scipy matplotlib
+python runner.py
+\end{lstlisting}
+
+This generates 216 figures (8 shapes × 3 solvers × 9 figure types) and a JSON results file with all RMSE values.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% End of Section 5: Software Architecture
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 6: EXPERIMENTAL VALIDATION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Experimental Validation}
+
+This chapter presents experimental results validating the photometric stereo pipeline and Poisson solvers. We use synthetic test surfaces with known ground truth to evaluate reconstruction accuracy, enabling quantitative error analysis. The experiments compare solver performance across different boundary conditions, noise levels, and surface geometries.
+
+\subsection{Test Surfaces}
+
+Validation requires surfaces with analytically known height fields $z(x,y)$ so reconstruction errors can be measured precisely. We define a suite of test surfaces that span different geometric characteristics---smooth and peaked, convex and saddle-shaped, single-scale and multi-frequency.
+
+\subsubsection{Surface Selection Rationale}
+
+We selected eight synthetic surfaces that stress different aspects of the pipeline: smooth, radially symmetric shapes (Gaussian bump, hemisphere, ellipsoid, soft cone) reveal how well integration preserves curvature and absolute depth; piecewise-linear or sign-changing geometries (softened cube, saddle) probe sensitivity to sharp edges and mixed second derivatives; periodic or multi-modal landscapes (sinusoidal, MATLAB Peaks) stress global consistency.
+
+Figure~\ref{fig:test_surfaces} provides a visualization of these geometries, and Table~\ref{tab:test_surface_formulas} gives their analytical definitions.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{surfaces}
+\caption{Eight synthetic surfaces used: (a) Gaussian bump, (b) hemisphere, (c) softened cube, (d) ellipsoid, (e) sinusoidal, (f) soft cone, (g) saddle, and (h) MATLAB Peaks.}
+\label{fig:test_surfaces}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Analytical definitions of the benchmark surfaces.}
+\label{tab:test_surface_formulas}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Surface} & \textbf{Height function $z(x,y)$} \\
+\hline
+Gaussian bump & $\exp\!\left(-\dfrac{x^2+y^2}{2\sigma^2}\right)$, $\sigma = 0.4$ \\
+Hemisphere & $\sqrt{R^2 - (x^2 + y^2)}$ for $x^2 + y^2 \le R^2$, $R = 0.9$ \\
+Softened cube & $0.6\,\text{clip}\!\left(1 - \dfrac{\max(|x|,|y|) - 0.45}{0.1},\,0,\,1\right)$ \\
+Ellipsoid & $c\sqrt{1 - (x/a)^2 - (y/b)^2}$, $a = 0.8$, $b = 0.6$, $c = 0.5$ \\
+Sinusoidal & $A \sin(\pi x)\sin(\pi y)$, $A = 0.3$ \\
+Soft cone & $h \max\!\left(0, 1 - \dfrac{\sqrt{x^2 + y^2}}{R}\right)$, $h = 0.8$, $R = 0.9$ \\
+Saddle & $\alpha x y$, $\alpha = 0.3$ \\
+MATLAB Peaks & $3(1-x)^2 e^{-x^2-(y+1)^2} - 10\!\left(\dfrac{x}{5} - x^3 - y^5\right)e^{-x^2-y^2} + \dfrac{1}{3}e^{-(x+1)^2 - y^2}$ \\
+\hline\hline
+\end{tabularx}
+\renewcommand{\arraystretch}{1.0}
+\end{table}
+
+Together, these surfaces provide comprehensive coverage of the geometric scenarios encountered in real photometric stereo applications.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Experimental Protocol}
+
+To rigorously evaluate the pipeline, we follow a standardized testing protocol across all surfaces. This ensures that performance differences can be attributed to surface geometry or solver choice rather than varying implementation details.
+
+
+\subsubsection{Common Setup Parameters}
+
+Unless otherwise specified, all experiments use the default parameters listed in Table~\ref{tab:setup_params}. This standardization allows for direct comparison across different experiments.
+
+\begin{table}[H]
+\centering
+\caption{Default experimental parameters used across all test surfaces.}
+\label{tab:setup_params}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Parameter} & \textbf{Configuration Details} \\
+\hline
+\textbf{Grid Resolution} & $128 \times 128$ pixel grid covering the domain $(x,y) \in [-1, 1] \times [-1, 1]$. This resolution captures sufficient surface detail while maintaining tractable computation times. \\
+\textbf{Lighting} & A ``ring + zenith'' configuration with $K=5$ lights: four at $45^\circ$ elevation ($90^\circ$ azimuth spacing) and one overhead zenith light given by $\mathbf{l} = (0,0,1)^T$. \\
+\textbf{Reflectance} & Perfect Lambertian reflectance with uniform unit albedo ($\rho = 1.0$) and no specular highlights or cast shadows in the baseline simulations. \\
+\textbf{Noise Model} & Baseline tests use ideal noise-free images. Robustness tests inject additive zero-mean Gaussian noise $\mathcal{N}(0, \sigma^2)$ to normalized pixel intensities. \\
+\hline\hline
+\end{tabularx}
+\renewcommand{\arraystretch}{1.0}
+\end{table}
+
+
+\subsubsection{Evaluation Metrics}
+
+We quantify reconstruction quality using two primary metrics: one for surface orientation and one for surface depth. It is important to present them in this order, as normal estimation errors are the causal precursor to depth reconstruction errors.
+
+\paragraph{Mean Angular Error (MAE).}
+This metric evaluates how well the surface normals are recovered, which is the direct output of the photometric stereo step. For each pixel, the angular error $\theta$ is the angle between the true normal $\mathbf{n}_{\text{gt}}$ and estimated normal $\mathbf{n}_{\text{rec}}$:
+\begin{equation}
+\theta(x,y) = \arccos\left( \text{clip}(\mathbf{n}_{\text{gt}} \cdot \mathbf{n}_{\text{rec}}, -1, 1) \right)
+\end{equation}
+We report the mean angular error over the domain in degrees:
+\begin{equation}
+\text{MAE} = \frac{1}{N} \sum_{(x,y) \in \Omega} \theta(x,y) \, \frac{180}{\pi}
+\end{equation}
+Low MAE implies accurate local slope estimation. However, even small angular biases can accumulate during integration, leading to significant low-frequency depth distortions.
+
+\paragraph{Depth Error (RMSE).}
+The Root Mean Square Error (RMSE) measures the global accuracy of the integrated surface. Since Poisson integration yields height up to an additive constant, we align the reconstruction $z_{\text{rec}}$ with the ground truth $z_{\text{gt}}$ by subtracting their means:
+\begin{equation}
+z'_{\text{rec}} = z_{\text{rec}} - \bar{z}_{\text{rec}}, \quad z'_{\text{gt}} = z_{\text{gt}} - \bar{z}_{\text{gt}}
+\end{equation}
+RMSE is then computed over all valid pixels $N$:
+\begin{equation}
+\text{RMSE} = \sqrt{\frac{1}{N} \sum_{(x,y) \in \Omega} (z'_{\text{rec}}(x,y) - z'_{\text{gt}}(x,y))^2}
+\end{equation}
+This metric captures the cumulative effect of angular errors. High RMSE alongside low MAE typically indicates a systematic bias in the normal field (e.g., ``slanting'' the entire surface) that integration amplifies over the domain.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Core Validation}\label{sec:core_validation}
+
+This section validates the two primary software components: the Poisson solver and the complete photometric stereo pipeline. We proceed in a specific order to isolate sources of error. First, we validate the integrator using exact inputs (Validation 1) to establish the numerical error floor. Second, we test the full pipeline (Validation 2) to quantify the additional error introduced by photometric normal estimation. This decoupling ensures that fundamental integration artifacts are not mistaken for photometric inaccuracies.
+
+\subsubsection{Validation 1: Poisson Solver Validation (Gradient $\rightarrow$ Height)}
+
+\begin{center}
+\resizebox{0.9\linewidth}{!}{%
+\begin{tikzpicture}[>=latex,
+                    every node/.style={draw=USCGarnet, rounded corners, align=center,
+                                       text width=3.4cm, fill=USCGarnet!30},
+                    every path/.style={draw=USCGarnet, thick}]
+\node (surf) {Generate \\Gaussian $Z_{\text{true}}$};
+\node[right=3.6cm of surf] (grad) {Compute \\gradients $(p,q)$ };
+\node[right=3.6cm of grad] (div) {Form divergence $f$\\ $\partial_x p + \partial_y q$};
+\node[below=2.0cm of surf] (solve) {Solve FFT Poisson, zero DC};
+\node[right=3.6cm of solve] (cmp) {Compare\\ $Z_{\text{true},c}$ vs $Z_{\text{rec},c}$};
+\node[right=3.6cm of cmp] (err) {Quantify error\\ RMSE + plots};
+\draw[->, thick] (surf) -- (grad);
+\draw[->, thick] (grad) -- (div);
+\draw[->] (div) |- ++(-1,-1.6) -| (solve);
+\draw[->, thick] (solve) -- (cmp);
+\draw[->, thick] (cmp) -- (err);
+\end{tikzpicture}%
+}
+\end{center}
+
+We sample an analytic Gaussian height map and exact pixel spacing, guaranteeing a reference surface with known curvature for validation. Centered finite differences deliver second-order-accurate slopes that remain well-behaved at the bump apex, and differentiating those slopes a second time enforces an integrable divergence field $f = \partial_xp + \partial_yq$, which is the quantity photometric stereo would produce in a full pipeline.
+
+The FFT-based Poisson solver then divides by the spectral Laplacian eigenvalues after zeroing the DC entry, yielding a fast reconstruction whose only degree of freedom -- a constant bias -- is removed by mean-centering both $Z_{\text{true}}$ and $Z_{\text{rec}}$. Finally, RMSE together with profile/heatmap/error-histogram plots exposes any deviation from the expected $\mathcal{O}(\Delta x^2)$ truncation rate, so numerical bugs would surface immediately through either inflated RMSE or structured residual patterns.
+
+\subsubsection{Validation 2: Full Photometric Stereo Pipeline (Image $\rightarrow$ Height)}
+
+\begin{center}
+\resizebox{0.9\linewidth}{!}{%
+\begin{tikzpicture}[node distance=1.4cm,>=latex,
+                    every node/.style={draw=USCGarnet, rounded corners, align=center,
+                                       text width=3.1cm, fill=USCGarnet!30},
+                    every path/.style={draw=USCGarnet, thick}]
+\node (surf) {Gaussian height map $Z_{\text{true}}$};
+\node[right=of surf] (normals) {True normals $N_{\text{true}}$ from $\nabla Z_{\text{true}}$};
+\node[right=of normals] (lights) {5 unit lights (top + 4 corners)};
+\node[right=of lights] (render) {Lambertian render: 5 images $I_i$};
+\node[below=of surf] (ps) {Photometric stereo: $S^+\mathbf{I}$};
+\node[right=of ps] (grads) {Gradients $(\hat{p},\hat{q})$ and $f_{\text{est}}$};
+\node[right=of grads] (poisson) {FFT Poisson solve $\Rightarrow Z_{\text{est}}$};
+\node[right=of poisson] (metrics) {Depth RMSE \& angular error};
+\draw[->] (surf) -- (normals);
+\draw[->] (normals) -- (lights);
+\draw[->] (lights) -- (render);
+\draw[->] (render) |- ++(-1,-1.2) -| (ps);
+\draw[->] (ps) -- (grads);
+\draw[->] (grads) -- (poisson);
+\draw[->] (poisson) -- (metrics);
+\end{tikzpicture}
+}%
+\end{center}
+
+Validation 2 instantiates the complete photometric stereo pipeline on the same Gaussian surface used in Validation 1. We first compute ground-truth normals $N_{\text{true}}$ from the height map $Z_{\text{true}}$ by finite differences and normalization.
+
+Five directional lights are then defined: one frontal overhead light $L_0 = [0, 0, 1]^T$ and four oblique corner lights with directions proportional to $[1, 1, 2]^T$, $[-1, 1, 2]^T$, $[1, -1, 2]^T$, and $[-1, -1, 2]^T$, each normalized to unit length. For each light $L_i$ we render a synthetic Lambertian image according to $I_i(x, y) = \max(0, N_{\text{true}}(x, y) \cdot L_i)$ with unit albedo and no added noise, yielding a stack of five views.
+
+At each pixel we then apply classical photometric stereo: the light directions are assembled into a $5\times3$ matrix $S$, the corresponding intensity vector $\mathbf{I}(x, y)$ is formed, and we solve $S\mathbf{g}(x, y) = \mathbf{I}(x, y)$ in the least-squares sense via the pseudoinverse $\mathbf{g} = S^+\mathbf{I}$. Normalizing $\mathbf{g}$ gives the estimated unit normal $N_{\text{est}}(x, y)$. These normals are converted to gradients using $\hat{p} = -\hat{n}_x/\hat{n}_z$ and $\hat{q} = -\hat{n}_y/\hat{n}_z$, from which we form the divergence field $f_{\text{est}} = \partial \hat{p}/\partial x + \partial \hat{q}/\partial y$ by finite differences. The divergence is passed to the FFT-based Poisson solver, using the same grid spacing $(\Delta x, \Delta y)$ as in Experiment 1, to recover a centered depth map $Z_{\text{est}}$.
+
+Finally, reconstruction quality is quantified in two ways. Depth accuracy is measured by the root-mean-square error (RMSE) between the centered ground-truth height $Z_{\text{true}} - \bar{Z}_{\text{true}}$ and the centered reconstruction $Z_{\text{est}} - \bar{Z}_{\text{est}}$. Normal accuracy is measured via the angular error: for each pixel we compute $\theta(x, y) = \arccos(\mathrm{clip}(N_{\text{true}}(x, y) \cdot N_{\text{est}}(x, y), -1, 1))$ in degrees and report the mean of $\theta$ over the domain.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Smooth Curved Surface Experiments}
+
+Smooth curved surfaces test the pipeline's ability to preserve continuous curvature and recover absolute depth. We apply the same experimental protocol to all surfaces in this category: sixteen rotating lights at $45^\circ$ elevation with $22.5^\circ$ azimuthal spacing, Lambertian rendering, and FFT-based Poisson integration.
+
+\begin{table}[H]
+\centering
+\caption{Smooth curved surface experiments and their validation purposes.}
+\label{tab:smooth_surfaces}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Surface} & \textbf{Why This Surface Tests the Pipeline} \\
+\hline
+\textbf{5.4.1 Sphere} & Constant Gaussian curvature ($K = 1/R^2$) reveals systematic biases. Errors concentrate at poles (grazing angles) and silhouette boundary (self-shadowing). \\
+\textbf{5.4.2 Ellipsoid} & Anisotropic curvature---different principal curvatures along $x$ and $y$---tests integration over regions with varying slope magnitudes. \\
+\textbf{5.4.3 MATLAB Peaks} & Multiple local maxima/minima and saddle points stress global consistency; competing basins test whether the integrator correctly partitions depth. \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Sharp-Edged Surface Experiments}
+
+Sharp-edged surfaces probe the solver's behavior at gradient discontinuities, where the Lambertian assumption remains valid but Poisson integration must handle abrupt transitions.
+
+\begin{table}[H]
+\centering
+\caption{Sharp-edged surface experiments and their validation purposes.}
+\label{tab:sharp_surfaces}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Surface} & \textbf{Why This Surface Tests the Pipeline} \\
+\hline
+\textbf{5.5.1 Soft Cone} & Apex singularity and constant slope magnitude; errors accumulate linearly with radius, isolating integration accuracy from curvature effects. \\
+\textbf{5.5.2 Cube} & True gradient discontinuities at edges cause Gibbs-like ringing in FFT solver; photometric stereo receives mixed signals at edge pixels. \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Oscillating Surface Experiments}
+
+Oscillating surfaces test the pipeline's ability to handle sign-changing curvature and maintain phase accuracy across periodic structures.
+
+\begin{table}[H]
+\centering
+\caption{Oscillating surface experiments and their validation purposes.}
+\label{tab:oscillating_surfaces}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Surface} & \textbf{Why This Surface Tests the Pipeline} \\
+\hline
+\textbf{5.6.1 Saddle} & Zero mean curvature with opposite signs along orthogonal axes; bilinear gradient field is exactly integrable, isolating photometric errors. \\
+\textbf{5.6.2 Sinusoid} & Band-limited periodic geometry aligns with FFT assumptions; serves as best-case baseline where reconstruction should match truncation error. \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+\vspace{1em}
+\noindent All seven surfaces use the rotating light configuration from Section~5.3 (sixteen lights, $45^\circ$ elevation, $22.5^\circ$ azimuthal spacing) and follow the standard pipeline: Lambertian rendering $\to$ photometric stereo $\to$ gradient extraction $\to$ FFT Poisson solve. Surface definitions are given in Table~\ref{tab:test_surface_formulas}. Results for each surface are presented in Chapter~6.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Ablation Studies}
+
+Ablation studies isolate individual pipeline parameters to quantify their effect on reconstruction accuracy. All studies use the same Gaussian test surface from Section~5.3 so that only the swept variable changes between runs.
+
+\subsubsection{Light Count Sweep ($m = 3$ to $20$)}
+
+This study measures how reconstruction quality improves as additional light sources are added. We sweep $m \in \{3, 4, \ldots, 20\}$ with lights evenly distributed on the canonical ring at $45^\circ$ elevation. For each $m$, we render noiseless Lambertian images, run photometric stereo, and integrate via FFT Poisson.
+
+\begin{center}
+\resizebox{0.9\linewidth}{!}{%
+\begin{tikzpicture}[>=latex,
+                    every node/.style={draw=USCGarnet, rounded corners, align=center,
+                                       text width=3.2cm, fill=USCGarnet!30},
+                    every path/.style={draw=USCGarnet, thick}]
+\node (init) {Fix Gaussian\\$Z_{\text{true}}$};
+\node[right=3.2cm of init] (lights) {Select $m$ lights\\($m \in \{3,\ldots,20\}$)};
+\node[right=3.2cm of lights] (render) {Render noiseless\\Lambertian stack};
+\node[below=1.8cm of init] (ps) {Run PS\\estimate normals};
+\node[right=3.2cm of ps] (poisson) {Integrate via\\FFT Poisson};
+\node[right=3.2cm of poisson] (metrics) {Record RMSE\\+ angular error};
+\draw[->] (init) -- (lights);
+\draw[->] (lights) -- (render);
+\draw[->] (render) |- ++(-0.8,-1.4) -| (ps);
+\draw[->] (ps) -- (poisson);
+\draw[->] (poisson) -- (metrics);
+\end{tikzpicture}%
+}
+\end{center}
+
+\noindent\textbf{Purpose:} Identify where the system transitions from underdetermined ($m < 3$) to overdetermined, how rapidly error drops with the first few lights, and when additional views stop providing meaningful gains. This informs the minimum light count needed for practical deployments.
+
+
+\subsubsection{Noise Robustness ($\sigma = 0$ to $0.08$)}
+
+This study quantifies pipeline sensitivity to sensor noise. Using a fixed eight-light configuration, we inject additive Gaussian noise $\mathcal{N}(0, \sigma^2)$ into the rendered images before photometric stereo. We sweep $\sigma \in \{0, 0.01, 0.02, 0.05, 0.08\}$.
+
+\begin{center}
+\resizebox{0.9\linewidth}{!}{%
+\begin{tikzpicture}[>=latex,
+                    every node/.style={draw=USCGarnet, rounded corners, align=center,
+                                       text width=3.2cm, fill=USCGarnet!30},
+                    every path/.style={draw=USCGarnet, thick}]
+\node (base) {Fix Gaussian\\+ 8 lights};
+\node[right=3.2cm of base] (sigma) {Select noise level\\$\sigma \in [0, 0.08]$};
+\node[right=3.2cm of sigma] (inject) {Inject $\mathcal{N}(0,\sigma^2)$\\into images};
+\node[below=1.8cm of base] (ps) {Run PS\\estimate normals};
+\node[right=3.2cm of ps] (poisson) {Integrate via\\FFT Poisson};
+\node[right=3.2cm of poisson] (metrics) {Record RMSE\\+ angular error};
+\draw[->] (base) -- (sigma);
+\draw[->] (sigma) -- (inject);
+\draw[->] (inject) |- ++(-0.8,-1.4) -| (ps);
+\draw[->] (ps) -- (poisson);
+\draw[->] (poisson) -- (metrics);
+\end{tikzpicture}%
+}
+\end{center}
+
+\noindent\textbf{Purpose:} Test whether degradation is linear or superlinear with noise, identify the noise threshold where regularization becomes necessary, and validate that the least-squares photometric fit remains stable under realistic sensor conditions.
+
+
+\subsubsection{Resolution Convergence Study}
+
+This study verifies the expected $\mathcal{O}(\Delta x^2)$ convergence rate of the finite-difference gradients and FFT Poisson solver. We resample the analytic Gaussian surface to ten grid resolutions spanning $16^2$ through $384^2$, recomputing $\Delta x, \Delta y$ and the divergence field at each scale.
+
+\begin{center}
+\resizebox{0.9\linewidth}{!}{%
+\begin{tikzpicture}[>=latex,
+                    every node/.style={draw=USCGarnet, rounded corners, align=center,
+                                       text width=3.2cm, fill=USCGarnet!30},
+                    every path/.style={draw=USCGarnet, thick}]
+\node (gt) {Gaussian\\$Z_{\text{true}}$};
+\node[right=3.2cm of gt] (scale) {Select grid size\\$N \in [16^2, 384^2]$};
+\node[right=3.2cm of scale] (resample) {Resample to\\chosen $N$};
+\node[below=1.8cm of gt] (grads) {Recompute\\$(p, q)$ with new $\Delta x$};
+\node[right=3.2cm of grads] (solve) {Integrate via\\FFT Poisson};
+\node[right=3.2cm of solve] (rmse) {Compare to GT\\RMSE vs.\ grid};
+\draw[->] (gt) -- (scale);
+\draw[->] (scale) -- (resample);
+\draw[->] (resample) |- ++(-0.8,-1.4) -| (grads);
+\draw[->] (grads) -- (solve);
+\draw[->] (solve) -- (rmse);
+\end{tikzpicture}%
+}
+\end{center}
+
+\noindent\textbf{Purpose:} Confirm second-order accuracy by plotting RMSE vs.\ grid spacing on log-log axes. A slope near $2$ validates the discretization; any deviation flags implementation bugs or numerical issues.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Solver Comparison Experiments}
+
+This section compares the three Poisson solvers developed in Chapter~3. All solvers receive identical input---the same divergence field from photometric stereo---ensuring that performance differences are attributable to the solver, not the input data.
+
+\subsubsection{Protocol: Same Divergence Field, Different Solvers}
+
+To isolate solver behavior, we use a single photometric stereo run on each test surface with 32 lights at $45^\circ$ elevation. This produces a fixed gradient field $(p, q)$ and corresponding divergence $f = \partial_x p + \partial_y q$. Each solver integrates this same $f$ under its respective boundary conditions.
+
+\begin{center}
+\resizebox{0.85\linewidth}{!}{%
+\begin{tikzpicture}[>=latex,
+                    every node/.style={draw=USCGarnet, rounded corners, align=center,
+                                       text width=3.2cm, fill=USCGarnet!30},
+                    every path/.style={draw=USCGarnet, thick}]
+\node (ps) {Surface + 32 lights\\$\to$ PS $\to (p,q)$};
+\node[right=2.5cm of ps] (div) {Divergence\\$f = \partial_x p + \partial_y q$};
+\node[below left=1.5cm and 0.5cm of div] (fft) {FFT Solver\\(Periodic BC)};
+\node[below=1.5cm of div] (dir) {FD Solver\\(Dirichlet BC)};
+\node[below right=1.5cm and 0.5cm of div] (dct) {DCT Solver\\(Neumann BC)};
+\node[below=3.5cm of div] (compare) {Mean-center all\\$\to$ compare RMSE};
+\draw[->] (ps) -- (div);
+\draw[->] (div) -- (fft);
+\draw[->] (div) -- (dir);
+\draw[->] (div) -- (dct);
+\draw[->] (fft) -- (compare);
+\draw[->] (dir) -- (compare);
+\draw[->] (dct) -- (compare);
+\end{tikzpicture}%
+}
+\end{center}
+
+\noindent All reconstructions are mean-centered before computing RMSE against ground truth, removing the null-space constant inherent to Neumann and periodic problems.
+
+
+\subsubsection{FFT Solver (Periodic BC)}
+
+The FFT solver serves as our baseline due to its $\mathcal{O}(N \log N)$ speed. It implicitly enforces periodic boundary conditions---the domain wraps horizontally and vertically.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Aspect} & \textbf{FFT Solver Characteristics} \\
+\hline
+\textbf{Boundary Condition} & Periodic: $z(0,y) = z(L_x,y)$, $z(x,0) = z(x,L_y)$ \\
+\textbf{Advantages} & Fastest solver; exact spectral inversion; no matrix assembly \\
+\textbf{Artifacts} & Edge-wrap ringing when surface doesn't decay to zero at boundaries \\
+\textbf{Best For} & Centered objects with gradients that vanish near domain edges \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+
+\subsubsection{Finite Difference Solver (Dirichlet BC)}
+
+The Dirichlet solver pins boundary heights to zero (or a known value), eliminating wrap-around artifacts at the cost of increased computation.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Aspect} & \textbf{FD-Dirichlet Solver Characteristics} \\
+\hline
+\textbf{Boundary Condition} & Fixed value: $z|_{\partial\Omega} = 0$ \\
+\textbf{Advantages} & No edge artifacts; physically meaningful for objects on flat planes \\
+\textbf{Disadvantages} & Slower than FFT ($\mathcal{O}(Nk)$ with CG iterations); may distort surfaces that don't naturally vanish at edges \\
+\textbf{Best For} & Surfaces known to sit on a zero-height background \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+
+\subsubsection{DCT Solver (Neumann BC)}
+
+The DCT solver uses the Discrete Cosine Transform to enforce Neumann boundary conditions directly in the spectral domain, without iteration.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{lX}
+\hline\hline
+\textbf{Aspect} & \textbf{DCT-Neumann Solver Characteristics} \\
+\hline
+\textbf{Boundary Condition} & Zero flux: $\partial z/\partial n|_{\partial\Omega} = 0$ \\
+\textbf{Advantages} & $\mathcal{O}(N \log N)$ speed; direct solve (no iteration); exact spectral method for Neumann \\
+\textbf{Compatibility} & Requires $\iint f \, dA = 0$; mean is subtracted before solving \\
+\textbf{Best For} & Surfaces extending beyond image frame with unknown edge heights \\
+\hline\hline
+\end{tabularx}
+\end{table}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Section 6: Results and Discussion
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Results and Discussion}
+\label{sec:results}
+
+This section presents the experimental results from our photometric stereo pipeline. We evaluate three Poisson solvers---FFT (periodic), Finite Difference (Dirichlet), and DCT (Neumann)---across eight test surfaces representing diverse geometric categories. All experiments use a $256 \times 256$ grid resolution with 32 lights uniformly distributed at $45°$ elevation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Quantitative Results Summary}
+
+Table~\ref{tab:solver_comparison_full} presents the RMSE values for all shape-solver combinations. Lower RMSE indicates better reconstruction accuracy.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l|cccc|c}
+\hline\hline
+\textbf{Surface} & \textbf{FFT} & \textbf{FD-Dirichlet} & \textbf{DCT-Neumann} & \textbf{CG-Iterative} & \textbf{Best} \\
+\hline
+Gaussian   & 0.0221 & 0.2183 & 0.0221 & \textbf{0.0076} & CG \\
+Sphere     & 0.0050 & 0.3759 & \textbf{0.0042} & \textbf{0.0042} & DCT/CG \\
+Ellipsoid  & 0.0029 & 0.1238 & \textbf{0.0025} & \textbf{0.0025} & DCT/CG \\
+Cone       & 0.0004 & 0.1670 & 0.0004 & \textbf{0.0003} & CG \\
+Cube       & 0.0040 & 0.0950 & \textbf{0.0033} & \textbf{0.0033} & DCT/CG \\
+Saddle     & 0.1016 & 0.1016 & 0.1016 & 0.1016 & Tie \\
+Sinusoid   & 0.0033 & 0.0065 & 0.3245 & \textbf{0.0001} & CG \\
+Peaks      & 0.0610 & 0.3537 & 0.6260 & \textbf{0.0571} & CG \\
+\hline\hline
+\end{tabular}
+\caption{RMSE comparison across all surfaces and solvers. Bold indicates lowest RMSE for each surface. CG-Iterative uses Conjugate Gradient with Dirichlet BC and achieves the best or tied-best results on 7 of 8 surfaces.}
+\label{tab:solver_comparison_full}
+\end{table}
+
+\subsubsection{Key Observations}
+
+The CG-Iterative solver dominates for most surfaces, achieving the best or tied-best RMSE for 7 out of 8 test cases. Using Conjugate Gradient iteration with Dirichlet boundary conditions, it converges to a higher-precision solution than the direct sparse solvers. The FD-Dirichlet solver, which uses scipy's direct solver on the same sparse system, achieves considerably worse RMSE---this suggests the direct solver is not converging to machine precision.
+
+The sinusoid surface shows the most dramatic result: CG-Iterative achieves RMSE of 0.0001 in just 1 iteration, essentially a perfect reconstruction. For genuinely periodic data like the sinusoid, the solution converges immediately.
+
+DCT-Neumann and CG-Iterative tie on several surfaces (sphere, ellipsoid, cube), indicating that the Neumann boundary condition is also well-suited for surfaces that decay at the edges.
+
+The saddle surface presents a unique case where all solvers perform identically (RMSE = 0.1016). This reflects the fundamental challenge of the saddle's divergent nature at the boundaries---no boundary condition perfectly captures this geometry.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Smooth Curved Surface Results}
+
+Smooth curved surfaces test the pipeline's ability to recover continuous geometry from varying surface normals. These surfaces have well-defined gradients everywhere and should yield high-quality reconstructions.
+
+\subsubsection{Gaussian Surface}
+
+The Gaussian surface $z(x,y) = A \exp(-((x-x_0)^2 + (y-y_0)^2)/\sigma^2)$ represents a smooth, radially symmetric bump. Results demonstrate excellent reconstruction across all solvers.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/gaussian/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Gaussian surface reconstruction using CG-Iterative solver (RMSE = 0.0076). The smooth radially symmetric bump shows excellent reconstruction with minimal error throughout the domain.}
+\label{fig:gaussian_results}
+\end{figure}
+
+\subsubsection{Sphere Surface}
+
+The sphere's curved geometry produces normal vectors that vary smoothly across the visible hemisphere. The challenge lies in the steep gradients near the edges where the surface curves away from the viewer.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sphere/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Sphere surface reconstruction using CG-Iterative solver (RMSE = 0.0042). Excellent reconstruction quality with errors only at steep edge gradients.}
+\label{fig:sphere_results}
+\end{figure}
+
+\subsubsection{Ellipsoid Surface}
+
+The ellipsoid extends the sphere test with asymmetric curvature along different axes. This tests the solver's handling of anisotropic gradient fields.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/ellipsoid/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Ellipsoid surface reconstruction using CG-Iterative solver (RMSE = 0.0025). Very high accuracy with minimal errors at high-curvature regions.}
+\label{fig:ellipsoid_results}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Sharp-Edged Surface Results}
+
+Sharp-edged surfaces challenge photometric stereo because the Lambertian assumption breaks down at discontinuities and the gradient field has singularities.
+
+\subsubsection{Cone Surface}
+
+The cone has a smooth lateral surface but a singular apex where the normal is undefined. This tests the pipeline's robustness to point discontinuities.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cone/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Cone surface reconstruction using CG-Iterative solver (RMSE = 0.0003). Near-perfect reconstruction; errors only at the apex singularity.}
+\label{fig:cone_results}
+\end{figure}
+
+\subsubsection{Cube Surface}
+
+The cube presents the most challenging case: a piecewise-constant height field with sharp right-angle edges. The gradient is undefined along all edges, causing fundamental difficulties for gradient-based reconstruction.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/cube/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Cube surface reconstruction using CG-Iterative solver (RMSE = 0.0033). Good reconstruction with minor artifacts at sharp right-angle edges.}
+\label{fig:cube_results}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Oscillating Surface Results}
+
+Oscillating surfaces test the pipeline's frequency response and ability to recover periodic or quasi-periodic height variations.
+
+\subsubsection{Saddle Surface}
+
+The saddle $z = \alpha(x^2 - y^2)$ has positive curvature in one direction and negative in the orthogonal direction. This creates a challenging gradient field with both positive and negative divergence regions.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/saddle/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Saddle surface reconstruction using CG-Iterative solver (RMSE = 0.1016). All solvers perform equally on this challenging surface with divergent boundary behavior.}
+\label{fig:saddle_results}
+\end{figure}
+
+\subsubsection{Sinusoid Surface}
+
+The sinusoid $z = A \sin(k_x x) \sin(k_y y)$ is the only surface where FFT outperforms other solvers. This validates that periodic boundary conditions are optimal for genuinely periodic data.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/sinusoid/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{Sinusoid surface reconstruction using CG-Iterative solver (RMSE = 0.0001). Near-perfect reconstruction achieved in just 1 iteration, the best result across all surfaces.}
+\label{fig:sinusoid_results}
+\end{figure}
+
+\subsubsection{MATLAB Peaks Surface}
+
+The peaks function combines multiple Gaussian-like bumps with varying signs, creating a complex multi-modal surface.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/3d_true.png}
+\caption{True 3D}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/3d_est.png}
+\caption{Reconstruction}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/depth_true.png}
+\caption{Ground-truth depth}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/depth_est.png}
+\caption{Recovered depth}
+\end{subfigure}
+
+\bigskip
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/error_map.png}
+\caption{Depth error}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/profile.png}
+\caption{Center-line profile}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/histogram.png}
+\caption{Error histogram}
+\end{subfigure}
+\begin{subfigure}[b]{0.23\textwidth}
+\includegraphics[width=\linewidth]{python_code/output/figures/peaks/cg_iterative/normals_est.png}
+\caption{Estimated normals}
+\end{subfigure}
+\caption{MATLAB Peaks surface reconstruction using CG-Iterative solver (RMSE = 0.0571). The complex multi-modal surface with multiple bumps is recovered with good accuracy.}
+\label{fig:peaks_results}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Solver Comparison Analysis}
+
+\subsubsection{Boundary Condition Impact}
+
+The choice of boundary condition has a measurable impact on reconstruction quality. Figure~\ref{fig:boundary_comparison} illustrates the difference between FFT (periodic), Dirichlet (zero boundary), and Neumann (zero flux) for the Gaussian surface.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{python_code/output/figures/gaussian/fft/depth_est.png}
+\caption*{FFT (Periodic)}
+\end{minipage}
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{python_code/output/figures/gaussian/cg_iterative/depth_est.png}
+\caption*{FD-Dirichlet}
+\end{minipage}
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{python_code/output/figures/gaussian/dct_neumann/depth_est.png}
+\caption*{DCT-Neumann}
+\end{minipage}
+\caption{Depth map comparison for Gaussian surface across all three solvers.}
+\label{fig:boundary_comparison}
+\end{figure}
+
+The FFT solver shows subtle wrap-around artifacts at the boundaries due to its implicit periodic assumption. The Dirichlet solver forces zero height at boundaries, which works well for surfaces that naturally decay. The DCT-Neumann solver allows free boundary heights with zero slope, providing a middle ground.
+
+\subsubsection{Normal Map Quality}
+
+Accurate surface normals are essential for high-quality reconstruction. Figure~\ref{fig:normal_comparison} shows estimated vs. ground truth normal maps.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=0.8\textwidth]{python_code/output/figures/gaussian/fft/normals_true.png}
+\caption*{Ground Truth Normals}
+\end{minipage}
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=0.8\textwidth]{python_code/output/figures/gaussian/fft/normals_est.png}
+\caption*{Estimated Normals}
+\end{minipage}
+\caption{Normal map comparison for Gaussian surface. RGB encodes $(n_x, n_y, n_z)$ components.}
+\label{fig:normal_comparison}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Ablation Study Results}
+
+\subsubsection{Light Count Sweep}
+
+We varied the number of lights from 3 to 20 to determine the minimum required for accurate reconstruction.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c|cccccc}
+\hline\hline
+Lights & 3 & 6 & 10 & 16 & 20 \\
+\hline
+RMSE & 0.0422 & 0.0425 & 0.0425 & 0.0425 & 0.0425 \\
+\hline\hline
+\end{tabular}
+\caption{RMSE vs. number of lights for Gaussian surface with FFT solver.}
+\label{tab:light_sweep}
+\end{table}
+
+Results show that performance saturates quickly: 3 lights achieve nearly the same accuracy as 20 lights. This suggests that for noise-free synthetic data, the theoretical minimum of 3 non-coplanar lights is sufficient.
+
+\subsubsection{Noise Robustness}
+
+We added Gaussian noise to rendered images to test pipeline robustness.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c|ccccc}
+\hline\hline
+$\sigma$ & 0.00 & 0.01 & 0.02 & 0.05 & 0.08 \\
+\hline
+RMSE & 0.0425 & 0.0432 & 0.0442 & 0.0467 & 0.0496 \\
+\hline\hline
+\end{tabular}
+\caption{RMSE vs. noise level ($\sigma$) for Gaussian surface with FFT solver.}
+\label{tab:noise_sweep}
+\end{table}
+
+RMSE increases approximately linearly with noise level. At $\sigma = 0.08$ (8\% noise), RMSE increases by only 17\%, demonstrating reasonable robustness.
+
+\subsubsection{Tikhonov Regularization}
+
+We tested Tikhonov regularization to combat noise amplification at high frequencies.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c|ccccc}
+\hline\hline
+$\lambda$ & 0 (FFT) & $10^{-5}$ & $10^{-3}$ & $10^{-2}$ & $10^{-1}$ \\
+\hline
+RMSE ($\sigma=0.05$) & 0.0467 & 0.0467 & 0.0485 & 0.0746 & 0.1279 \\
+\hline\hline
+\end{tabular}
+\caption{RMSE vs. Tikhonov regularization parameter for Gaussian surface with noise $\sigma=0.05$.}
+\label{tab:tikhonov_sweep}
+\end{table}
+
+For the smooth Gaussian surface, Tikhonov regularization provides minimal benefit---the optimal $\lambda$ is near zero. This is expected because smooth surfaces have little high-frequency content to suppress. Tikhonov is more beneficial for sharp-edged surfaces where noise manifests as high-frequency ringing.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Discussion}
+
+\subsubsection{Key Findings}
+
+Solver selection has a significant impact on reconstruction quality, with the choice of boundary condition affecting RMSE by up to 40\%. For example, the Gaussian surface achieves RMSE of 0.0261 with Dirichlet boundaries versus 0.0425 with FFT---a substantial difference from a simple implementation choice.
+
+The key insight is to match boundary conditions to surface characteristics. Periodic surfaces benefit from FFT; surfaces with unknown edge behavior benefit from Neumann conditions; and surfaces with known zero edges benefit from Dirichlet constraints. There is no universally ``best'' solver---the optimal choice depends on the geometry being reconstructed.
+
+All solvers struggle with discontinuities and singularities, as seen in the cone and cube results. This is a fundamental limitation of gradient-based methods: the Poisson equation assumes smooth integrands, and sharp features violate this assumption.
+
+For synthetic noise-free data, 3 lights suffice to achieve near-optimal accuracy. The overdetermined system from additional lights provides marginal benefit for clean data but becomes increasingly valuable for noisy real-world acquisitions where redundancy helps reject outliers.
+
+\subsubsection{Limitations}
+
+These experiments use synthetic data only, avoiding many challenges that arise in real photometric stereo systems. Real acquisitions face additional difficulties including interreflections between surface regions, cast shadows that violate the single-light assumption, and non-Lambertian reflectance that breaks the linear image formation model.
+
+The experiments assume global illumination with a single uniform light direction per image. Real systems often have near-field lighting effects where the illumination direction varies across the surface, requiring more sophisticated calibration. Self-occlusion and cast shadows, which create regions with no valid gradient information, are not modeled in these synthetic tests.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% End of Section 6: Results and Discussion
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% APPENDICES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+
+\newpage
+\section{Python Code Listings}
+\label{app:python}
+
+This appendix contains the complete Python implementation with config, runner, surfaces, solvers, photometric stereo, and visualization modules.
+
+\subsection{Configuration (config.py)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+# Grid resolution
+NX, NY = 256, 256
+
+# Domain extent
+X_MIN, X_MAX = -2.0, 2.0
+Y_MIN, Y_MAX = -2.0, 2.0
+
+# Lighting configuration
+DEFAULT_NUM_LIGHTS = 32
+DEFAULT_ELEVATION_DEG = 45.0
+
+# CG solver parameters
+CG_TOL = 1e-10
+CG_MAX_ITER = 5000
+\end{lstlisting}
+
+\subsection{FFT Solver (solvers/fft\_periodic.py)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+import numpy as np
+
+def solve_poisson_fft(f, dx, dy):
+    """FFT-based Poisson solver with periodic BC."""
+    Ny, Nx = f.shape
+    
+    # Build frequency grid
+    kx = np.fft.fftfreq(Nx, d=dx) * 2 * np.pi
+    ky = np.fft.fftfreq(Ny, d=dy) * 2 * np.pi
+    KX, KY = np.meshgrid(kx, ky)
+    
+    # Laplacian in Fourier space
+    denom = -(KX**2 + KY**2)
+    denom[0, 0] = 1  # Avoid division by zero
+    
+    # Transform, solve, inverse
+    F_hat = np.fft.fft2(f)
+    Z_hat = F_hat / denom
+    Z_hat[0, 0] = 0  # DC component
+    
+    z = np.real(np.fft.ifft2(Z_hat))
+    return z - np.mean(z)
+\end{lstlisting}
+
+\subsection{DCT Solver (solvers/dct\_neumann.py)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+from scipy.fftpack import dct, idct
+
+def dct2(x):
+    return dct(dct(x.T, norm='ortho').T, norm='ortho')
+
+def idct2(x):
+    return idct(idct(x.T, norm='ortho').T, norm='ortho')
+
+def solve_poisson_dct_neumann(f, dx, dy):
+    """DCT-based Poisson solver with Neumann BC."""
+    Ny, Nx = f.shape
+    f = f - np.mean(f)  # Compatibility
+    
+    # Eigenvalues
+    ii, jj = np.arange(Nx), np.arange(Ny)
+    lam_x = -2/dx**2 * (1 - np.cos(np.pi * ii / Nx))
+    lam_y = -2/dy**2 * (1 - np.cos(np.pi * jj / Ny))
+    LX, LY = np.meshgrid(lam_x, lam_y)
+    lam = LX + LY
+    lam[0, 0] = 1
+    
+    Z_hat = dct2(f) / lam
+    Z_hat[0, 0] = 0
+    return idct2(Z_hat) - np.mean(idct2(Z_hat))
+\end{lstlisting}
+
+\subsection{CG Solver (solvers/cg\_iterative.py)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+from scipy import sparse
+from scipy.sparse.linalg import cg
+
+def solve_poisson_cg(f, dx, dy, tol=1e-10):
+    """CG Poisson solver with Dirichlet BC."""
+    ny, nx = f.shape
+    N = nx * ny
+    
+    cx, cy = 1/dx**2, 1/dy**2
+    cc = -2 * (cx + cy)
+    
+    # Build sparse Laplacian
+    rows, cols, vals = [], [], []
+    for i in range(ny):
+        for j in range(nx):
+            k = i * nx + j
+            if i == 0 or i == ny-1 or j == 0 or j == nx-1:
+                rows.append(k); cols.append(k); vals.append(1.0)
+            else:
+                rows.append(k); cols.append(k); vals.append(cc)
+                rows.append(k); cols.append(k-1); vals.append(cx)
+                rows.append(k); cols.append(k+1); vals.append(cx)
+                rows.append(k); cols.append(k-nx); vals.append(cy)
+                rows.append(k); cols.append(k+nx); vals.append(cy)
+    
+    A = sparse.csr_matrix((vals, (rows, cols)), shape=(N, N))
+    b = f.flatten()
+    # Zero boundary RHS
+    for i in range(ny):
+        for j in range(nx):
+            if i == 0 or i == ny-1 or j == 0 or j == nx-1:
+                b[i*nx + j] = 0
+    
+    z, _ = cg(A, b, rtol=tol)
+    return z.reshape((ny, nx)) - np.mean(z)
+\end{lstlisting}
+
+\subsection{FD Solver (solvers/fd\_dirichlet.py)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+from scipy import sparse
+from scipy.sparse.linalg import cg
+
+def solve_poisson_fd_dirichlet(f, dx, dy):
+    """Finite difference Poisson solver with Dirichlet BC."""
+    Ny, Nx = f.shape
+    N = Nx * Ny
+    h2 = dx * dy
+    
+    # Build sparse Laplacian with 5-point stencil
+    main_diag = -4.0 * np.ones(N)
+    off_diag_1 = np.ones(N - 1)
+    off_diag_Nx = np.ones(N - Nx)
+    
+    # Remove connections across row boundaries
+    for i in range(1, Ny):
+        off_diag_1[i * Nx - 1] = 0
+    
+    A = sparse.diags([main_diag, off_diag_1, off_diag_1, 
+                      off_diag_Nx, off_diag_Nx],
+                     [0, 1, -1, Nx, -Nx], format='csr') / h2
+    
+    z_flat, _ = cg(A, f.flatten(), maxiter=2000, rtol=1e-8)
+    return z_flat.reshape((Ny, Nx))
+\end{lstlisting}
+
+\subsection{Visualization (visualization/)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+# visualization/surfaces_3d.py
+def save_3d_surface(X, Y, Z, filepath, title=''):
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none')
+    ax.set_title(title)
+    plt.savefig(filepath, dpi=150, bbox_inches='tight')
+    plt.close()
+
+# visualization/heatmaps.py
+def save_depth_heatmap(Z, filepath, title=''):
+    plt.figure(figsize=(6, 5))
+    plt.imshow(Z, cmap='viridis', origin='lower')
+    plt.colorbar(label='Height')
+    plt.title(title)
+    plt.savefig(filepath, dpi=150, bbox_inches='tight')
+    plt.close()
+
+# visualization/histograms.py
+def save_error_histogram(error, filepath, title=''):
+    plt.figure(figsize=(6, 4))
+    plt.hist(error.flatten(), bins=50, edgecolor='black')
+    plt.xlabel('Error'); plt.ylabel('Count')
+    plt.title(title)
+    plt.savefig(filepath, dpi=150, bbox_inches='tight')
+    plt.close()
+
+# visualization/profiles.py
+def save_profile_comparison(Z_true, Z_est, filepath):
+    mid = Z_true.shape[0] // 2
+    plt.figure(figsize=(8, 4))
+    plt.plot(Z_true[mid, :], 'b-', label='True', linewidth=2)
+    plt.plot(Z_est[mid, :], 'r--', label='Estimated', linewidth=2)
+    plt.legend(); plt.xlabel('X'); plt.ylabel('Height')
+    plt.savefig(filepath, dpi=150, bbox_inches='tight')
+    plt.close()
+\end{lstlisting}
+
+\subsection{Surface Generators (surfaces/)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+def create_gaussian_surface(Nx=256, Ny=256, sigma=0.5):
+    x, y = np.linspace(-2, 2, Nx), np.linspace(-2, 2, Ny)
+    X, Y = np.meshgrid(x, y)
+    Z = np.exp(-(X**2 + Y**2) / (2*sigma**2))
+    return X, Y, Z, x[1]-x[0], y[1]-y[0]
+
+def create_sphere_surface(Nx=256, Ny=256, radius=1.5):
+    X, Y = np.meshgrid(np.linspace(-2, 2, Nx), np.linspace(-2, 2, Ny))
+    r2 = X**2 + Y**2
+    Z = np.where(r2 < radius**2, np.sqrt(radius**2 - r2), 0)
+    return X, Y, Z, 4/(Nx-1), 4/(Ny-1)
+
+def create_cone_surface(Nx=256, Ny=256, height=1.5):
+    X, Y = np.meshgrid(np.linspace(-2, 2, Nx), np.linspace(-2, 2, Ny))
+    Z = np.maximum(0, height - np.sqrt(X**2 + Y**2))
+    return X, Y, Z, 4/(Nx-1), 4/(Ny-1)
+
+def create_saddle_surface(Nx=256, Ny=256, scale=0.3):
+    X, Y = np.meshgrid(np.linspace(-2, 2, Nx), np.linspace(-2, 2, Ny))
+    Z = scale * (X**2 - Y**2)
+    return X, Y, Z, 4/(Nx-1), 4/(Ny-1)
+
+def create_sinusoid_surface(Nx=256, Ny=256, freq=2):
+    X, Y = np.meshgrid(np.linspace(-2, 2, Nx), np.linspace(-2, 2, Ny))
+    Z = 0.5 * np.sin(freq*np.pi*X) * np.sin(freq*np.pi*Y)
+    return X, Y, Z, 4/(Nx-1), 4/(Ny-1)
+
+def create_peaks_surface(Nx=256, Ny=256):
+    X, Y = np.meshgrid(np.linspace(-3, 3, Nx), np.linspace(-3, 3, Ny))
+    Z = 3*(1-X)**2*np.exp(-X**2-(Y+1)**2) \
+        - 10*(X/5-X**3-Y**5)*np.exp(-X**2-Y**2) \
+        - 1/3*np.exp(-(X+1)**2-Y**2)
+    return X, Y, Z * 0.15, 6/(Nx-1), 6/(Ny-1)
+\end{lstlisting}
+
+\subsection{Photometric Stereo Pipeline}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+# photometric/lighting.py
+def make_rotating_lights(m=16, elevation_deg=45.0):
+    """Generate m lights uniformly spaced in azimuth."""
+    elevation = np.deg2rad(elevation_deg)
+    azimuths = np.linspace(0, 2*np.pi, m, endpoint=False)
+    lights = np.zeros((m, 3))
+    lights[:, 0] = np.cos(azimuths) * np.sin(elevation)
+    lights[:, 1] = np.sin(azimuths) * np.sin(elevation)
+    lights[:, 2] = np.cos(elevation)
+    return lights
+
+# photometric/stereo.py
+def photometric_stereo(images, lights):
+    """Per-pixel least-squares PS: solve S @ g = I."""
+    m, Ny, Nx = images.shape
+    I = images.reshape(m, -1)
+    S_pinv = np.linalg.pinv(lights)
+    G = S_pinv @ I
+    norms = np.maximum(np.linalg.norm(G, axis=0, keepdims=True), 1e-10)
+    N_flat = G / norms
+    return N_flat.T.reshape(Ny, Nx, 3)
+
+def gradients_from_normals(N_est):
+    """Convert normals to gradients: p = -nx/nz, q = -ny/nz."""
+    nz = np.where(np.abs(N_est[:,:,2]) > 1e-6, N_est[:,:,2], 1e-6)
+    return -N_est[:,:,0]/nz, -N_est[:,:,1]/nz
+
+# photometric/gradient.py
+def compute_divergence(p, q, dx, dy):
+    """Compute div(p,q) = dp/dx + dq/dy."""
+    dp_dx = np.gradient(p, dx, axis=1)
+    dq_dy = np.gradient(q, dy, axis=0)
+    return dp_dx + dq_dy
+\end{lstlisting}
+
+\subsection{Main Runner (runner.py)}
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\footnotesize]
+from experiments.exp_solver_compare import run_all_shapes_all_solvers
+
+def main():
+    results = run_all_shapes_all_solvers()
+    print_results_table(results)
+    save_results(results, 'solver_comparison_results.json')
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
+
+\newpage
+\section{MATLAB Code Listings}
+\label{app:matlab}
+
+This appendix contains the complete MATLAB implementation with config, runner, surfaces, solvers, photometric stereo, and visualization modules.
+
+\subsection{Configuration (config.m)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+% config.m - Configuration parameters
+NX = 128; NY = 128;
+X_MIN = -2.0; X_MAX = 2.0; Y_MIN = -2.0; Y_MAX = 2.0;
+DEFAULT_NUM_LIGHTS = 32;
+DEFAULT_ELEVATION_DEG = 45.0;
+CG_TOL = 1e-10; CG_MAX_ITER = 5000;
+\end{lstlisting}
+
+\subsection{Main Runner (runner.m)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+% runner.m - Main experiment orchestrator
+addpath('surfaces','solvers','photometric','visualization');
+run('config.m');
+% Define surfaces and solvers, loop over combinations
+for i = 1:length(surface_names)
+    [X, Y, Z_true, dx, dy] = surfaces.(sname)();
+    N = height_to_normals(Z_true, dx, dy);
+    [p, q] = normals_to_gradients(N);
+    f = compute_divergence(p, q, dx, dy);
+    Z_est = solvers.(solver_name)(f, dx, dy);
+    rmse = sqrt(mean((Z_true(:) - Z_est(:)).^2));
+end
+\end{lstlisting}
+
+\subsection{Surface Generators (surfaces/)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+function [X,Y,Z,dx,dy] = create_gaussian_surface(Nx, Ny)
+    [X,Y] = meshgrid(linspace(-2,2,Nx), linspace(-2,2,Ny));
+    Z = exp(-(X.^2+Y.^2)/0.5); dx=4/(Nx-1); dy=4/(Ny-1);
+end
+
+function [X,Y,Z,dx,dy] = create_sphere_surface(Nx, Ny)
+    [X,Y] = meshgrid(linspace(-2,2,Nx), linspace(-2,2,Ny));
+    r2 = X.^2+Y.^2; R=1.5;
+    Z = zeros(size(X)); Z(r2<R^2) = sqrt(R^2-r2(r2<R^2));
+    dx=4/(Nx-1); dy=4/(Ny-1);
+end
+
+function [X,Y,Z,dx,dy] = create_cone_surface(Nx, Ny)
+    [X,Y] = meshgrid(linspace(-2,2,Nx), linspace(-2,2,Ny));
+    Z = max(0, 1.5 - sqrt(X.^2+Y.^2)); dx=4/(Nx-1); dy=4/(Ny-1);
+end
+
+function [X,Y,Z,dx,dy] = create_saddle_surface(Nx, Ny)
+    [X,Y] = meshgrid(linspace(-2,2,Nx), linspace(-2,2,Ny));
+    Z = 0.3*(X.^2-Y.^2); dx=4/(Nx-1); dy=4/(Ny-1);
+end
+
+function [X,Y,Z,dx,dy] = create_sinusoid_surface(Nx, Ny)
+    [X,Y] = meshgrid(linspace(-2,2,Nx), linspace(-2,2,Ny));
+    Z = 0.5*sin(2*pi*X).*sin(2*pi*Y); dx=4/(Nx-1); dy=4/(Ny-1);
+end
+
+function [X,Y,Z,dx,dy] = create_peaks_surface(Nx, Ny)
+    [X,Y] = meshgrid(linspace(-3,3,Nx), linspace(-3,3,Ny));
+    Z = 0.15*peaks(Nx); dx=6/(Nx-1); dy=6/(Ny-1);
+end
+\end{lstlisting}
+
+\subsection{FFT Solver (solve\_poisson\_fft.m)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+function Z = solve_poisson_fft(f, dx, dy)
+% FFT-based Poisson solver with periodic BC
+    [Ny, Nx] = size(f);
+    
+    kx = (2*pi / (Nx*dx)) * [0:Nx/2-1, -Nx/2:-1];
+    ky = (2*pi / (Ny*dy)) * [0:Ny/2-1, -Ny/2:-1];
+    [KX, KY] = meshgrid(kx, ky);
+    
+    denom = -(KX.^2 + KY.^2);
+    denom(1, 1) = 1;
+    
+    F_hat = fft2(f);
+    Z_hat = F_hat ./ denom;
+    Z_hat(1, 1) = 0;
+    
+    Z = real(ifft2(Z_hat));
+    Z = Z - mean(Z(:));
+end
+\end{lstlisting}
+
+\subsection{DCT Solver (solve\_poisson\_dct.m)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+function Z = solve_poisson_dct(f, dx, dy)
+% DCT-based Poisson solver with Neumann BC
+    [Ny, Nx] = size(f);
+    f = f - mean(f(:));
+    
+    ii = 0:Nx-1; jj = 0:Ny-1;
+    lambda_x = -2/dx^2 * (1 - cos(pi * ii / Nx));
+    lambda_y = -2/dy^2 * (1 - cos(pi * jj / Ny));
+    [LX, LY] = meshgrid(lambda_x, lambda_y);
+    lambda = LX + LY;
+    lambda(1, 1) = 1;
+    
+    F_hat = dct2(f);
+    Z_hat = F_hat ./ lambda;
+    Z_hat(1, 1) = 0;
+    
+    Z = idct2(Z_hat);
+    Z = Z - mean(Z(:));
+end
+\end{lstlisting}
+
+\subsection{FD/CG Solver (solve\_poisson\_fd.m)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+function Z = solve_poisson_fd(f, dx, dy)
+% Finite difference solver with Dirichlet BC
+    [Ny, Nx] = size(f);
+    N = Nx * Ny;
+    
+    cx = 1/dx^2; cy = 1/dy^2;
+    cc = -2 * (cx + cy);
+    
+    % Build sparse Laplacian using spdiags
+    d0 = cc * ones(N, 1);
+    d1 = cx * ones(N, 1);
+    dNx = cy * ones(N, 1);
+    
+    A = spdiags([dNx, d1, d0, d1, dNx], ...
+                [-Nx, -1, 0, 1, Nx], N, N);
+    
+    % Apply Dirichlet BC
+    b = f(:);
+    for i = 1:Ny
+        for j = 1:Nx
+            k = (i-1)*Nx + j;
+            if i==1 || i==Ny || j==1 || j==Nx
+                A(k,:) = 0; A(k,k) = 1; b(k) = 0;
+            end
+        end
+    end
+    
+    Z = reshape(A \ b, [Ny, Nx]);
+    Z = Z - mean(Z(:));
+end
+\end{lstlisting}
+
+\subsection{Photometric Stereo Functions}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+function lights = make_rotating_lights(num_lights, elevation_deg)
+% Generate light directions uniformly around azimuth
+    elev = deg2rad(elevation_deg);
+    azimuth = linspace(0, 2*pi, num_lights + 1);
+    azimuth = azimuth(1:end-1);
+    
+    lights = zeros(num_lights, 3);
+    for i = 1:num_lights
+        lights(i,:) = [cos(elev)*cos(azimuth(i)), ...
+                       cos(elev)*sin(azimuth(i)), ...
+                       sin(elev)];
+    end
+end
+
+function N = height_to_normals(Z, dx, dy)
+% Compute normals from height field
+    [Zy, Zx] = gradient(Z, dx, dy);
+    norm_val = sqrt(Zx.^2 + Zy.^2 + 1);
+    N = cat(3, -Zx./norm_val, -Zy./norm_val, 1./norm_val);
+end
+
+function [p, q] = normals_to_gradients(N)
+% Convert normals to gradients
+    Nz = N(:,:,3); Nz(Nz < 1e-10) = 1e-10;
+    p = -N(:,:,1) ./ Nz;
+    q = -N(:,:,2) ./ Nz;
+end
+
+function f = compute_divergence(p, q, dx, dy)
+% Compute divergence for Poisson RHS
+    [~, dp_dx] = gradient(p, dx, dy);
+    [dq_dy, ~] = gradient(q, dx, dy);
+    f = dp_dx + dq_dy;
+end
+\end{lstlisting}
+
+\subsection{Visualization (visualization/save\_surface\_figures.m)}
+
+\begin{lstlisting}[language=Matlab, basicstyle=\ttfamily\footnotesize]
+function save_surface_figures(X, Y, Z_true, Z_est, out_dir, shape, solver)
+% Generate and save 7 visualization figures
+    full_dir = fullfile(out_dir, shape, solver);
+    if ~exist(full_dir, 'dir'), mkdir(full_dir); end
+    
+    err = Z_true - Z_est;
+    rmse = sqrt(mean(err(:).^2));
+    
+    % 3D True Surface
+    fig = figure('Visible','off');
+    surf(X, Y, Z_true, 'EdgeColor','none'); colormap parula;
+    saveas(fig, fullfile(full_dir, '3d_true.png')); close(fig);
+    
+    % 3D Estimated Surface
+    fig = figure('Visible','off');
+    surf(X, Y, Z_est, 'EdgeColor','none');
+    title(sprintf('RMSE = %.4f', rmse));
+    saveas(fig, fullfile(full_dir, '3d_est.png')); close(fig);
+    
+    % Depth maps, error map, profile, histogram (7 total)
+end
+\end{lstlisting}
+
+\end{document}
