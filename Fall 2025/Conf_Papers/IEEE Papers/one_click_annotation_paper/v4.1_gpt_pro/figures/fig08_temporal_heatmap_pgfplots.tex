@@ -1,0 +1,80 @@
+% Fig. 08 (PGFPlots): Temporal collection intensity heatmap from CSV.
+% Data inputs expected (relative to this file):
+%   ../temporal_csv/heatmap_counts_long.csv
+%   ../temporal_csv/daily_counts_cumulative.csv (used for start/end date ticks)
+\documentclass[border=2pt]{standalone}
+
+\usepackage{xcolor}
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{Gray70}{gray}{0.70}
+
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{dateplot}
+
+\pgfplotsset{
+  every axis/.style={
+    axis line style={draw=black, line width=0.6pt},
+    tick style={draw=black, line width=0.6pt},
+    tick label style={font=\footnotesize\color{black}},
+    label style={font=\small\color{black}},
+    grid=both,
+    grid style={draw=Gray70, line width=0.4pt},
+    legend style={draw=none, font=\footnotesize\color{black}, fill=white},
+  }
+}
+
+\pgfplotsset{
+  colormap={garnetwhite}{color(0cm)=(white); color(1cm)=(Garnet)}
+}
+
+\begin{document}
+
+\def\TemporalCsvDir{../temporal_csv}
+
+% Get first/last date for sparse y-ticks.
+\pgfplotstableread[col sep=comma]{\TemporalCsvDir/daily_counts_cumulative.csv}\dailytable
+\pgfplotstablegetrowsof{\dailytable}
+\edef\NumDates{\pgfplotsretval}
+\pgfmathtruncatemacro{\lastrow}{\pgfplotsretval-1}
+\pgfplotstablegetelem{0}{date}\of{\dailytable}\edef\FirstDate{\pgfplotsretval}
+\pgfplotstablegetelem{\lastrow}{date}\of{\dailytable}\edef\LastDate{\pgfplotsretval}
+
+\begin{tikzpicture}
+\begin{axis}[
+  width=15cm,
+  height=8cm,
+  xlabel={Hour of day},
+  ylabel={},
+  xmin=-0.5, xmax=23.5,
+  xtick={0,4,8,12,16,20,23},
+  date coordinates in=y,
+  ytick={2025-08-01,2025-09-01,2025-10-01,2025-11-01},
+  yticklabels={Aug.,Sep.,Oct.,Nov.},
+  yticklabel style={font=\footnotesize},
+  point meta min=0,
+  colorbar,
+  colorbar style={
+    yticklabel style={font=\footnotesize\color{black}},
+    label style={font=\small\color{black}},
+    ylabel={Frame count},
+    draw=black,
+    tick style={draw=black, line width=0.6pt},
+  },
+]
+\addplot[
+  matrix plot*,
+  mesh/rows=\NumDates,
+  mesh/cols=24,
+  point meta=explicit,
+] table[
+  col sep=comma,
+  x=hour,
+  y=date,
+  meta=count
+]{\TemporalCsvDir/heatmap_counts_long.csv};
+\end{axis}
+\end{tikzpicture}
+
+\end{document}

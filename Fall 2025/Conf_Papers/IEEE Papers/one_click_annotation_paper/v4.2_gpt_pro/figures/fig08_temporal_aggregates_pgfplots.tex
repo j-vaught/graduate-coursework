@@ -1,0 +1,152 @@
+% Fig. 08 (PGFPlots): Temporal distribution aggregates from CSV.
+% Data inputs expected (relative to this file):
+%   ../temporal_csv/hourly_counts.csv
+%   ../temporal_csv/day_of_week_counts.csv
+%   ../temporal_csv/daily_counts_cumulative.csv
+%   ../temporal_csv/weekday_vs_weekend_by_hour.csv
+\documentclass[border=2pt]{standalone}
+
+\usepackage{xcolor}
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{Gray30}{gray}{0.30}
+\definecolor{Gray50}{gray}{0.50}
+\definecolor{Gray70}{gray}{0.70}
+
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\usepgfplotslibrary{dateplot}
+
+\pgfplotsset{
+  every axis/.style={
+    axis line style={draw=black, line width=0.6pt},
+    tick style={draw=black, line width=0.6pt},
+    tick label style={font=\footnotesize\color{black}},
+    label style={font=\small\color{black}},
+    grid=both,
+    grid style={draw=Gray70, line width=0.4pt},
+    legend style={draw=none, font=\footnotesize\color{black}, fill=white},
+  },
+  bargray/.style={
+    ybar,
+    bar width=5pt,
+    mark=none,
+    draw=black,
+    fill=Gray50,
+    fill opacity=0.6
+  }
+}
+
+\begin{document}
+
+\def\TemporalCsvDir{../temporal_csv}
+
+% Heatmap metadata (number of date rows + sparse tick labels).
+\pgfplotstableread[col sep=comma]{\TemporalCsvDir/daily_counts_cumulative.csv}\dailytable
+\pgfplotstablegetrowsof{\dailytable}
+\edef\NumDates{\pgfplotsretval}
+\pgfmathtruncatemacro{\lastrow}{\pgfplotsretval-1}
+\pgfplotstablegetelem{0}{date}\of{\dailytable}\edef\FirstDate{\pgfplotsretval}
+\pgfplotstablegetelem{\lastrow}{date}\of{\dailytable}\edef\LastDate{\pgfplotsretval}
+
+\pgfplotsset{
+  colormap={garnetwhite}{color(0cm)=(white); color(1cm)=(Garnet)}
+}
+
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={
+    group size=2 by 2,
+    horizontal sep=1.2cm,
+    vertical sep=1.2cm
+  },
+  width=8.0cm,
+  height=6.0cm,
+]
+
+% 1) Frames by hour of day (bar)
+\nextgroupplot[
+  xlabel={Hour of day},
+  ylabel={Frames},
+  xmin=-0.5, xmax=23.5,
+  xtick={0,4,8,12,16,20,23},
+]
+\addplot+[bargray] table[
+  col sep=comma,
+  x=hour,
+  y=count
+]{\TemporalCsvDir/hourly_counts.csv};
+
+% 2) Frames by day of week (bar)
+\nextgroupplot[
+  xlabel={Day of week},
+  ylabel={Frames},
+  symbolic x coords={Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday},
+  xtick=data,
+  xticklabels={Mon,Tue,Wed,Thu,Fri,Sat,Sun},
+  x tick label style={rotate=0, anchor=north},
+]
+\addplot+[bargray] table[
+  col sep=comma,
+  x=day_name,
+  y=count
+]{\TemporalCsvDir/day_of_week_counts.csv};
+
+% 3) Cumulative frames by date (line)
+\nextgroupplot[
+  xlabel={Date},
+  ylabel={Cumulative frames},
+  date coordinates in=x,
+  xtick={2025-08-01,2025-09-01,2025-10-01,2025-11-01},
+  xticklabels={Aug.,Sep.,Oct.,Nov.},
+  x tick label style={rotate=0, anchor=north},
+]
+\addplot[
+  draw=Garnet,
+  line width=0.8pt,
+  mark=*,
+  mark size=1.3pt,
+  mark options={draw=black, fill=Garnet, fill opacity=0.6}
+] table[
+  col sep=comma,
+  x=date,
+  y=cumulative_count
+]{\TemporalCsvDir/daily_counts_cumulative.csv};
+
+% 4) Heatmap: date vs hour
+\nextgroupplot[
+  xlabel={Hour of day},
+  ylabel={},
+  xmin=-0.5, xmax=23.5,
+  xtick={0,4,8,12,16,20,23},
+  date coordinates in=y,
+  ytick={2025-08-01,2025-09-01,2025-10-01,2025-11-01},
+  yticklabels={Aug.,Sep.,Oct.,Nov.},
+  yticklabel style={font=\footnotesize},
+  point meta min=0,
+  colorbar,
+  colorbar style={
+    yticklabel style={font=\footnotesize\color{black}},
+    label style={font=\small\color{black}},
+    ylabel={Frames},
+    draw=black,
+    tick style={draw=black, line width=0.6pt},
+  },
+]
+\addplot[
+  matrix plot*,
+  mesh/rows=\NumDates,
+  mesh/cols=24,
+  point meta=explicit,
+] table[
+  col sep=comma,
+  x=hour,
+  y=date,
+  meta=count
+]{\TemporalCsvDir/heatmap_counts_long.csv};
+
+\end{groupplot}
+\end{tikzpicture}
+
+\end{document}

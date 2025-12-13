@@ -1,0 +1,73 @@
+% Fig. 01: Shore-mounted radar installation schematic (LaTeX-native).
+% Design based on provided TikZ draft, adjusted to match FIGURE_STYLE_GUIDE.md.
+% Requires in main preamble: \usepackage{tikz,xcolor}, \definecolor{Garnet}{HTML}{73000A},
+% and \usetikzlibrary{decorations.pathmorphing,patterns} if using the jagged bank/texture.
+\begin{tikzpicture}[scale=1.5,line cap=butt,line join=miter,font=\small,text=black]
+
+  % --- Definitions ---
+  \def\waterlevel{-1.5}
+  \def\bankedge{3}
+
+  % --- Water (Plotted First) ---
+  \shade[top color=black!5, bottom color=black!20]
+      (\bankedge-0.5, \waterlevel+0.1)
+      -- (\bankedge+5, \waterlevel+0.1)
+      -- (\bankedge+5, -3.5)
+      -- (\bankedge-0.5, -3.5) -- cycle;
+
+  % Smooth sine wave surface for the water
+  \draw[black, line width=0.7pt]
+    plot [domain=\bankedge-0.2:\bankedge+5, samples=50]
+      (\x, {\waterlevel+0.1 + 0.05*sin(deg(\x*5))});
+
+  \node[font=\small,text=black] at (\bankedge+3.5, \waterlevel-0.5) {\textit{Water}};
+
+  % --- Ground and Bank (Plotted Second) ---
+  \def\groundpath{
+      (-2, -3.5) -- (-2, -0.5)
+      decorate [decoration={random steps, segment length=4mm, amplitude=0.5pt}] {
+          -- (\bankedge-0.5, -0.5)
+          to[out=0, in=145] (\bankedge+1.5, \waterlevel-0.5)
+          -- (\bankedge+5, \waterlevel-1.2)
+      }
+      -- (\bankedge+5, -3.5) -- cycle
+  }
+
+  \shade[top color=black!20, bottom color=black!5, draw=black, line width=0.8pt] \groundpath;
+  \fill[pattern=north east lines, pattern color=black, opacity=0.08] \groundpath;
+
+  % Label: Bank
+  \node[font=\small, align=center, text=black] at (\bankedge-0.5, -1.2) {Bank /\\Terrain};
+
+  % --- Radar Station ---
+  % Tripod legs
+  \draw[line width=1.2pt, black!70] (-0.2, -0.5) -- (0.25, 2);
+  \draw[line width=1.2pt, black!70] (1.2, -0.5) -- (0.75, 2);
+
+  % Radar Head (Square Box)
+  \filldraw[fill=black!10, draw=black, line width=0.8pt] (-0.2, 2) rectangle (1.2, 2.5);
+  \node[font=\small,text=black] at (0.5, 2.25) {RADAR};
+
+  % --- Control Unit (Pi 5) ---
+  \filldraw[fill=white, draw=black, line width=0.8pt] (-1.8, -0.5) rectangle (-0.8, 0.3);
+  \node[font=\small,text=black] at (-1.3, 0.1) {Pi 5.};
+  % Buttons (grays + garnet only)
+  \fill[black!50] (-1.6, -0.3) circle (1pt);
+  \fill[black!50] (-1.4, -0.3) circle (1pt);
+  \fill[Garnet]   (-1.0, -0.3) circle (1pt);
+
+  % Label: Control Unit (no bold, black text)
+  \node[align=center, font=\small, text=black] (culabel) at (-1.3, 1.5) {Control\\Unit};
+  \draw[->, black, line width=0.6pt, shorten >=2pt] (culabel) -- (-1.3, 0.3);
+
+  % --- Cables (orthogonal, no curves; exit from radar side) ---
+  \draw[line width=1.0pt, black!70]
+    (-0.8, 0) -- (-0.5, 0) -- (-0.5, 2.25) -- (-0.2, 2.25);
+
+  % --- Radar Waves ---
+  \foreach \r/\opacity in {0.6/1.0, 1.0/0.8, 1.4/0.6, 1.8/0.4, 2.2/0.2} {
+      \draw[Garnet, line width=1.0pt, opacity=\opacity]
+        (1.2, 2.25) +(-12:\r) arc (-12:12:\r);
+  }
+
+\end{tikzpicture}
