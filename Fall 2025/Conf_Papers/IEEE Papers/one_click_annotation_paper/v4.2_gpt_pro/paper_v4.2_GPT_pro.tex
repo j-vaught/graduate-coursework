@@ -98,6 +98,14 @@ The currently labeled subset contains $96$ frames with a total of $637$ annotate
 
 The unlabeled portion of the dataset currently contains $24\,988$ frames. These frames share the same acquisition hardware and environmental diversity as the labeled subset but have not yet been manually annotated. They are intended for self-supervised and semi-supervised learning experiments, as well as for scaling models when annotation resources permit. For this paper, the unlabeled frames are used implicitly via echo-trail generation when temporal context spans multiple sweeps, but no explicit pseudo-labeling is performed.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth, trim=7mm 1.8mm 0 0, clip]{figures/fig08_temporal_aggregates_pgfplots.pdf}
+\caption{Temporal distribution of the $24,988$ unlabeled frames. Frames by hour of day and cumulative frames over time.}
+\label{fig:temporal_coverage}
+\end{figure*}
+
+
 To make the structure of the datasets concrete, Table~\ref{tab:datasets} summarizes the key properties of RADAR3000 and the USC canal dataset, including frame counts, labeled object counts, number of classes, and intended usage. Entries marked with placeholders can be updated once final splits and statistics are computed.
 
 \begin{table}[t]
@@ -118,29 +126,9 @@ Pohang-Subset & $N_{\text{P}}^\ast$ & $M_{\text{P}}^\ast$ & $C_{\text{P}}^\ast$ 
 }
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/fig06_dataset_comparison.png}
-\caption{Dataset comparison showing visual differences between RADAR3000 (left, cleaner with less clutter) and USC Canal (right, more cluttered inland environment). This distribution shift motivates the use of pretraining and fine-tuning rather than training only on the small canal dataset.}
-\label{fig:dataset_comparison}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/fig08_temporal_aggregates_pgfplots.pdf}
-\caption{Temporal distribution of the $24\,988$ unlabeled frames. Top-left: frames by hour of day. Top-right: frames by day of week. Bottom-left: cumulative frames over time (month ticks). Bottom-right: collection intensity heatmap by hour and month (warmer colors indicate higher frame density).}
-\label{fig:temporal_coverage}
-\end{figure}
-
 \subsection{Pohang Canal Dataset for Qualitative Generalization}
 The Pohang Canal radar dataset~\cite{chung2023pohang_canal_dataset} is an external dataset collected in a Korean canal environment and has been used in prior maritime perception work. In this paper, we do not use Pohang images for training or validation. Instead, a small subset is reserved for generating qualitative figures that illustrate how models trained on RADAR3000 and the USC canal dataset behave under distribution shift. The experimental protocol is simple: detectors trained on our training sets are applied to Pohang Canal radar frames without further fine-tuning, and their predictions are visualized alongside any available annotations. This provides an intuitive sense of cross-dataset generalization without affecting the main quantitative conclusions.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/fig09_pohang_preview.png}
-\caption{Preview of the Pohang Canal dataset, showing samples from a Korean canal environment with different radar hardware and traffic patterns. Used for qualitative cross-dataset generalization testing without retraining.}
-\label{fig:pohang_preview}
-\end{figure}
 
 \section{Radar Acquisition and Preprocessing}
 \label{sec:acq}
@@ -154,6 +142,13 @@ The radar antenna rotates at rates between $24$ and $48$ revolutions per minute,
 \subsection{Raw Range--Azimuth Format and Quantization}
 The raw data from the Furuno radar are stored as range--azimuth samples per sweep. For each antenna angle, the sensor reports a fixed number of range bins. In the current configuration, each sweep contains $868$ range bins per azimuth angle and between $600$ and $1000$ distinct azimuth angles (or pulses) per rotation, depending on rotational speed and vendor settings. This yields a polar grid of complex-valued or magnitude-only radar returns.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig09.pdf}
+\caption{Conversion pipeline from raw polar range--azimuth data to training-ready PNG images. Four stages: (1) raw Furuno sweep, (2) polar-to-Cartesian interpolation, (3) quantization and intensity mapping, (4) normalized PNG output with metadata recording.}
+\label{fig:conversion_pipeline}
+\end{figure*}
+
 Although vendor documentation advertises $8$~bit amplitude resolution, direct inspection of the raw data reveals an effective $4$~bit quantization with an additional zero level. Intensities are therefore represented with $16$ distinct non-zero levels plus a background level, which has implications for dynamic range and noise modeling. In this work, we operate on magnitude values and defer more sophisticated complex-valued processing and calibration to future signal-processing papers.
 	
 \subsection{Conversion to PNG Images}
@@ -161,12 +156,7 @@ To make the data compatible with common deep-learning frameworks, each polar swe
 
 The conversion process consists of three steps. First, the polar range--azimuth grid is interpolated onto a Cartesian $x$--$y$ grid centered at the radar location using a simple nearest-neighbor or bilinear scheme. Second, the $4$~bit quantized magnitudes are mapped into an 8-bit grayscale intensity range, with optional contrast stretching to emphasize relevant returns. Third, the resulting grayscale image is optionally color-mapped using standard colormaps for visualization but stored internally as a single-channel PNG for training.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/fig13_conversion_pipeline.png}
-\caption{Conversion pipeline from raw polar range--azimuth data to training-ready PNG images. Four stages: (1) raw Furuno sweep, (2) polar-to-Cartesian interpolation, (3) quantization and intensity mapping, (4) normalized 1735×1735 PNG output with metadata recording.}
-\label{fig:conversion_pipeline}
-\end{figure}
+
 
 \begin{figure}[t]
 \centering
@@ -200,48 +190,29 @@ The basic algorithm for echo-trail generation can be expressed succinctly as fol
 
 In practice, the opacity schedule can be chosen as a simple linear ramp or an exponential decay. For example, a linear schedule might set $\alpha_{k} = k/T$, while an exponential schedule might use $\alpha_{k} = \beta^{T-k}$ for some $\beta \in (0,1)$. The generator is applied on-the-fly during training so that a single labeled frame can yield multiple augmented inputs with different trail lengths and opacity schedules. This effectively increases the apparent dataset size and allows the detector to exploit motion cues without explicit tracking.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig15_echo_trail_generation.png}
-\caption{Echo-trail generation process: (top row) four individual frames (T, T-1, T-2, T-3) with boat in different positions, (middle row) same frames with decreasing opacity, (bottom left) final composite echo-trail image (T=4) showing ghosted boat trajectory, (bottom right) pseudocode for the echo-trail algorithm.}
+\includegraphics[width=\linewidth]{figures/fig10.pdf}
+\caption{Echo-trail generation process: (top row) four individual frames (T, T-1, T-2, T-3) with boat in different positions, (middle row) same frames with decreasing opacity, (Right) final composite echo-trail image (T=4) showing ghosted boat trajectory.}
 \label{fig:echo_trail_generation}
-\end{figure}
+\end{figure*}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig16_echo_trail_variants.png}
-\caption{Echo-trail length variants: T=1 (baseline, single frame) vs.\ T=4, T=8, T=16. Longer trails provide more temporal context but introduce ghosting and blur. Optimal trail length balances motion perception against computational cost.}
+\includegraphics[width=\linewidth]{figures/fig11.pdf}
+\caption{Echo-trail length variants: T=4, T=8, T=16. Longer trails provide more temporal context but introduce ghosting and blur. Optimal trail length balances motion perception against computational cost.}
 \label{fig:echo_trail_variants}
 \end{figure}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig17_motion_visualization.png}
+\includegraphics[width=\linewidth]{figures/fig12.pdf}
 \caption{Motion visualization: (left) individual frames showing boat trajectory with position markers, (right) echo-trail composite with full trajectory overlay and velocity vector. Motion cues emerge naturally from layered sweeps without explicit velocity estimation.}
 \label{fig:motion_visualization}
 \end{figure}
 
 Figure~\ref{fig:pipeline} illustrates the end-to-end processing pipeline from raw data to detector input, including echo-trail generation.
 
-\begin{figure}[t]
-\centering
-\resizebox{\columnwidth}{!}{%
-\begin{tikzpicture}[node distance=1.2cm, >=Latex]
-\node[draw, rectangle, rounded corners, align=center, font=\small] (raw) {Raw\\Range--Azimuth};
-\node[draw, rectangle, rounded corners, right=of raw, align=center, font=\small] (cart) {Polar-to-\\Cartesian};
-\node[draw, rectangle, rounded corners, right=of cart, align=center, font=\small] (png) {$1735{\times}1735$\\PNG};
-\node[draw, rectangle, rounded corners, right=of png, align=center, font=\small] (trail) {Echo-Trail\\Generator};
-\node[draw, rectangle, rounded corners, right=of trail, align=center, font=\small] (det) {Detector\\Input};
-
-\draw[->] (raw) -- (cart);
-\draw[->] (cart) -- (png);
-\draw[->] (png) -- (trail);
-\draw[->] (trail) -- (det);
-\end{tikzpicture}%
-}
-\caption{Processing pipeline from raw range--azimuth radar data to detector input, including synthetic echo-trail generation.}
-\label{fig:pipeline}
-\end{figure}
 
 \section{Detectors and Training Protocols}
 \label{sec:models}
@@ -252,7 +223,7 @@ We benchmark several detector and segmentation architectures. On the detection s
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig20_anchor_box_analysis.png}
+\includegraphics[width=\linewidth]{figures/fig13.pdf}
 \caption{Anchor box analysis for boat detection: (top left) width vs.\ height scatter plot showing dynamic (lime) and static (orange) object distributions, (top middle) aspect ratio histograms, (top right) bounding box area distributions. (Bottom) recommended 9-anchor-box templates and matching/regression strategy.}
 \label{fig:anchor_box_analysis}
 \end{figure}
@@ -296,13 +267,6 @@ Detectors are trained using stochastic gradient descent or AdamW with standard s
 
 All models are trained on a modern GPU (for example, an NVIDIA RTX-class card), and training times remain modest due to the small size of the canal dataset. Pretraining on RADAR3000 dominates overall training cost. Detailed hyperparameters are left as placeholders in this draft and can be specified once final experiments are completed.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/fig21_training_curves.png}
-\caption{Training curves showing loss evolution during pretraining on RADAR3000 (left) and fine-tuning on the USC canal dataset (middle). Right plot shows the full timeline. Bottom panels decompose total loss into classification and localization components. Fine-tuning starts from lower loss due to pretraining initialization.}
-\label{fig:training_curves}
-\end{figure}
-
 \section{Open-Source Toolchain}
 \label{sec:toolchain}
 A central contribution of this work is a set of software tools that make it practical for other groups to collect, process, and annotate marine radar data from inexpensive commercial units. This section describes three primary components: an annotator, a raw-to-PNG converter, and the echo-trail generator.
@@ -315,7 +279,7 @@ To accommodate the peculiarities of radar imagery, the annotator provides bright
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/fig23_annotator_gui.png}
-\caption{Radar image annotator GUI showing a loaded radar frame with example bounding boxes. Left panel contains brightness/contrast sliders, class selector (dynamic/static), frame navigation, and export button. Center canvas displays the radar image with annotations overlaid (lime boxes = dynamic, orange = static).}
+\caption{Radar image annotator GUI showing a loaded radar frame with example bounding boxes. Left panel contains annotation selection and class selector (dynamic/static). Top panel contains File, View, Tools, Save and Navigation buttons. Center canvas displays the radar image with annotations overlaid.}
 \label{fig:annotator_gui}
 \end{figure}
 
@@ -329,12 +293,12 @@ The echo-trail generator is implemented as a small library that operates either 
 
 Table~\ref{tab:tools} summarizes the three main tools, their inputs and outputs, and their intended purposes. All tools are planned for release under a permissive open-source license, while the datasets themselves remain hosted on institutional servers due to access and storage constraints.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig27_toolchain_integration.png}
+\includegraphics[width=\linewidth]{figures/fig16.pdf}
 \caption{Complete toolchain integration diagram showing the full pipeline from radar acquisition through trained model. Furuno hardware → Radar2PNG converter → Annotator GUI → EchoTrail generator → Training pipeline → Deployed detector. Data flow annotations at each stage summarize processing parameters and output characteristics.}
 \label{fig:toolchain_integration}
-\end{figure}
+\end{figure*}
 
 \begin{table}[t]
 \centering
@@ -374,7 +338,7 @@ Because the label budget is extremely small, confidence calibration and robust t
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/fig30_metadata_distribution.png}
+\includegraphics[width=\linewidth]{figures/fig16a.pdf}
 \caption{Metadata distribution across the 96 labeled frames showing diversity in collection parameters. Range settings (0.5–3 nm), time of day (day/dusk/night), weather conditions (clear to heavy rain), collection sites (6 inland/coastal locations), and antenna rotation speeds (24–48 rpm). This diversity demonstrates the dataset's robustness to operational variability.}
 \label{fig:metadata_distribution}
 \end{figure}

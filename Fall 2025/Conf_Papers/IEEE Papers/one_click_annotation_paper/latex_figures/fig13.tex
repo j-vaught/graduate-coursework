@@ -1,0 +1,124 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepgfplotslibrary{groupplots}
+
+\pgfplotsset{compat=1.18}
+
+% Style Guide Colors
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{Gray10}{gray}{0.10}
+\definecolor{Gray30}{gray}{0.30}
+\definecolor{Gray50}{gray}{0.50}
+\definecolor{Gray70}{gray}{0.70}
+\definecolor{Gray90}{gray}{0.90}
+
+% Global PGFPlots Style
+\pgfplotsset{
+  every axis/.style={
+    axis line style={draw=black, line width=0.6pt},
+    tick style={draw=black, line width=0.6pt},
+    tick label style={font=\footnotesize\color{black}},
+    label style={font=\small\color{black}},
+    grid=both,
+    grid style={draw=Gray70, line width=0.4pt},
+    legend style={
+      draw=none,
+      font=\footnotesize\color{black},
+      fill=white,
+    },
+    title style={font=\small\color{black}},
+  }
+}
+
+\begin{document}
+
+\begin{tikzpicture}
+    \begin{groupplot}[
+        group style={
+            group size=3 by 1,
+            horizontal sep=1.8cm,
+            vertical sep=1.5cm,
+        },
+        width=5.5cm,
+        height=5cm,
+        tick label style={font=\footnotesize},
+        label style={font=\small},
+    ]
+
+    % --- Plot 1: Spatial Heatmap ---
+    \nextgroupplot[
+        % title={Spatial Distribution}, % Removed per style guide
+        xlabel={Center X (px)},
+        ylabel={Center Y (px)},
+        view={0}{90}, % Top-down view
+        colormap={garnetmap}{color(0cm)=(white); color(1cm)=(Garnet)},
+        colorbar,
+        colorbar style={
+            width=0.2cm, 
+            title={}, 
+            title style={font=\tiny\color{black}, rotate=90},
+            draw=black,
+            axis line style={draw=black, line width=0.6pt},
+            tick style={draw=black, line width=0.6pt},
+            yticklabel style={font=\tiny\color{black}}}
+        ,
+        enlargelimits=false,
+        axis on top,
+        y dir=reverse, % Image coordinates
+    ]
+    \addplot3[
+        surf,
+        shader=interp,
+        mesh/rows=25, % Must match bins in python
+        mesh/cols=25,
+    ] table[col sep=comma, x=x, y=y, z=c] {../tikz_data/heatmap_matrix.csv};
+
+    % --- Plot 2: Scale Distribution (Sqrt Area) ---
+    \nextgroupplot[
+        % title={Object Scale}, % Removed per style guide
+        xlabel={$\sqrt{\text{Area}}$ (px)},
+        ylabel={},
+        ybar,
+        bar width=2pt,
+        ymin=0,
+        % Grid handled by global style
+    ]
+    \addplot[
+        draw=black,
+        fill=Garnet,
+        fill opacity=0.6,
+    ] table[col sep=comma, x=x, y=y] {../tikz_data/hist_scale.csv};
+
+    % --- Plot 3: K-Means Anchors ---
+    \nextgroupplot[
+        % title={Optimal Anchors}, % Removed per style guide
+        xlabel={Width (px)},
+        ylabel={Height (px)},
+        % Grid handled by global style
+        legend style={at={(0.95,0.05)}, anchor=south east, font=\tiny\color{black}},
+    ]
+    % Background scatter
+    \addplot[
+        only marks,
+        mark=*, 
+        mark size=0.5pt,
+        color=Gray50,
+        opacity=0.3
+    ] table[col sep=comma, x=w, y=h] {../tikz_data/scatter_downsampled.csv};
+    
+    % Anchors
+    \addplot[
+        only marks,
+        mark=square*,
+        mark size=3pt,
+        draw=black,
+        fill=Garnet,
+    ] table[col sep=comma, x=w, y=h] {../tikz_data/anchors_centroids.csv};
+    
+    \end{groupplot}
+\end{tikzpicture}
+
+\end{document}
