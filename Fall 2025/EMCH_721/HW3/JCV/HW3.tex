@@ -1,0 +1,746 @@
+% ============================================================================
+% HOMEWORK ASSIGNMENT DOCUMENT
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}        % Advanced math symbols and equations
+\usepackage{amssymb}        % Additional math symbols (like ℝ, ℕ, etc.)
+\usepackage{graphicx}       % Insert images/figures into your document
+\usepackage{tikz}           % Create diagrams directly in LaTeX
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}       % Control line spacing
+\usepackage{xcolor}         % Use colors in text and boxes
+\usepackage{enumitem}       % Customize list numbering
+\usepackage{tcolorbox}      % Colored containers for highlights
+\usepackage{fancyhdr}       % Custom headers/footers
+\usepackage{lastpage}       % Reference the last page number
+\usepackage{listings}       % Code listings
+\usepackage{pgfplots}       % Plotting library
+% ============================================================================
+% USC BRAND COLORS
+% ============================================================================
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{565656}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\lstset{
+  language=Matlab,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{USC_Honeycomb},
+  stringstyle=\color{USC_Garnet},
+  breaklines=true,
+  showstringspaces=false,
+  backgroundcolor=\color{USC_Black10},
+  columns=fullflexible,
+  keepspaces=true,
+  literate={–}{-}1 {—}{-}1 {…}{...}1 {’}{'}1 {“}{''}1 {”}{''}1
+}
+
+% ============================================================================
+% CUSTOM TCOLORBOX STYLES
+% ============================================================================
+\newtcolorbox{stepbox}{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=Step,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white
+}
+
+\newtcolorbox{codebox}{
+  colback=USC_Black10,
+  colframe=USC_Black90,
+  fonttitle=\bfseries,
+  title=MATLAB Implementation,
+  sharp corners,
+  colbacktitle=USC_Black90,
+  coltitle=white
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white
+}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+\fancyhead[L]{Page \thepage\ of \pageref{LastPage}}
+\fancyhead[C]{EMCH 721}
+\fancyhead[R]{J.C. Vaught}
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, decorations.pathmorphing, patterns, calc}
+
+% ============================================================================
+% CUSTOM QUESTION COMMAND
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}%
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\solutionframework}{%
+\subsection*{Solution Outline}
+\begin{stepbox}
+\textbf{Planned Steps}\\[0.5em]
+Outline your step-by-step approach here.
+\end{stepbox}
+\subsection*{MATLAB Implementation}
+\begin{codebox}
+Add MATLAB code or pseudocode here.
+\end{codebox}
+\subsection*{Results Summary}
+\begin{resultsbox}
+Summarize key intermediate and final results here.
+\end{resultsbox}
+}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+\title{EMCH 721: Homework 03}
+\author{Instructor: Dr. Victor Giurgiutiu\\Student: J.C. Vaught}
+\date{}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+\setstretch{1.1}
+
+% List formatting defaults
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=\alph*.}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.91\textwidth}r}
+\textbf{A.1 Flexural Vibration (Cantilever)} \dotfill & \textbf{\pageref{quest:A1}} \\
+\textbf{A.2 Torsional Vibration (Cantilever)} \dotfill & \textbf{\pageref{quest:A2}} \\
+\textbf{B. Aeroelastic Equations of a Straight Wing} \dotfill & \textbf{\pageref{quest:B}} \\
+\textbf{C. Ground Vibration Test (GVT) Simulation} \dotfill & \textbf{\pageref{quest:C}} \\
+\textbf{D. Flutter Eigenvalue Analysis} \dotfill & \textbf{\pageref{quest:D}} \\
+\textbf{E.1 Flexural Challenge (Extra Credit)} \dotfill & \textbf{\pageref{quest:E1}} \\
+\textbf{E.2 Torsional Challenge (Extra Credit)} \dotfill & \textbf{\pageref{quest:E2}} \\
+\textbf{Appendix: MATLAB Source Listings} \dotfill & \textbf{\pageref{appendix:matlab}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\clearpage
+
+% ============================================================================
+% PROBLEM CONTEXT
+% ============================================================================
+\section*{Problem Context}
+
+Consider an aircraft wing undergoing ground and flight testing at airspeed $U$ (Figure~\ref{fig:wing-overview}). The wing is fixed at one root and free at the tip. It has straight elastic, mass, and aerodynamic axes located at points $P$, $C$, and $Q$, respectively. The mass offset from $P$ to $C$ is $x_{CP}$; the aerodynamic offset from $P$ to $Q$ is $x_{QP}$. The wing executes small-amplitude plunge $w(z,t)$ (positive downward) and pitch $\phi(z,t)$ (positive nose-up, clockwise) oscillations.
+
+\begin{figure}[htbp]
+  \centering
+  \input{body_diagrams.tex}
+  \caption{Overview of the rectangular test wing with spanwise axes $P$, $C$, and $Q$, and the incoming flow $U$. Cross-section shows offsets $x_{CP}$ and $x_{QP}$.}
+  \label{fig:wing-overview}
+\end{figure}
+
+
+\subsection*{Notes}
+\begin{tcolorbox}[colback=white,colframe=black,colbacktitle=gray!20!white,
+                  coltitle=black,sharp corners,boxrule=1pt,
+                  title=Submission Notes]
+\begin{itemize}[leftmargin=1.2em]
+  \item Always display input data.
+  \item Show work and relevant comments.
+  \item Attach MATLAB codes to receive partial credit where applicable.
+  \item Report numerical results to three significant digits (use four if the first digit is 1).
+  \item Problems solved beyond the minimum requirements may receive bonus points.
+  \item Challenge problems are optional and count toward extra credit.
+\end{itemize}
+\end{tcolorbox}
+
+\subsection*{Input Data}
+\begin{tcolorbox}[colback=white,colframe=black,colbacktitle=gray!20!white,
+                  coltitle=black,sharp corners,boxrule=1pt,
+                  title=Input Data Summary]
+\begin{tabular}{@{}ll@{}}
+\textbf{Parameter} & \textbf{Value} \\
+Air density $\rho$ & $1.225~\mathrm{kg/m^3}$ \\
+Chord $c$ & $0.45~\mathrm{m}$ \\
+Wingspan $l$ & $2.5~\mathrm{m}$ \\
+Mass $m$ & $3.2~\mathrm{kg}$ \\
+Mass moment of inertia $I_0$ & $0.055~\mathrm{kg\cdot m^2}$ \\
+Plunge frequency $f_h$ & $1.8~\mathrm{Hz}$ \\
+Pitch frequency $f_\theta$ & $5.3~\mathrm{Hz}$ \\
+Static offset $x_{CP}$ & $-10\%\,c$ \\
+Aerodynamic offset $x_{QP}$ & $35\%\,c$ \\
+\end{tabular}
+\end{tcolorbox}
+
+% ============================================================================
+% QUESTIONS
+% ============================================================================
+
+\question{A.1 Flexural vibration of a cantilever beam of length $l$, with section properties $EI$, $m$, $I_0$}\label{quest:A1}
+\begin{enumerate}[label=(\alph*)]
+  \item Recall the formulae for flexural frequencies and modeshapes of a fixed-free beam.
+  \item Calculate and display the roots $\gamma l$ of the characteristic equation for $N_w=4$.
+  \item Calculate and display the flexural stiffness $EI$ such that the fundamental flexural frequency matches the plunge frequency of the rigid wing section and display the resulting $EI$ value and units.
+  \item Calculate and display the wavenumbers, natural frequencies in rad/s and Hz.
+  \item Calculate and plot the modeshapes.
+\end{enumerate}
+
+\begin{stepbox}
+\textbf{Step 1: Governing ODE (Euler--Bernoulli)}\\
+Since a uniform, slender beam obeys the small-deflection Euler--Bernoulli equation, separating variables with $w(x,t)=\phi(x)e^{i\omega t}$ turns time derivatives into the factor $-\omega^2$, giving
+\[
+EI\,\phi''''(x)=m\,\omega^2\,\phi(x)
+\]
+and therefore the spatial ODE
+\[
+\phi''''-\delta^4\phi=0,\qquad \delta^4=\frac{m\omega^2}{EI}.
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Step 2: Boundary conditions (fixed–free)}\\
+Since the root is clamped, displacement and slope vanish at $x=0$:
+\[
+\phi(0)=0,\qquad \phi'(0)=0.
+\]
+Because the tip is free, bending moment and shear must vanish at $x=l$:
+\[
+\phi''(l)=0,\qquad \phi'''(l)=0.
+\]
+Applying these four conditions to the general solution enforces the characteristic relation
+\[
+\cos\beta_j\cosh\beta_j=-1,\quad \beta_j=\delta_j l.
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Step 3: Mode-shape coefficients (from tip compatibility)}\\
+Since the two free-end conditions couple the integration constants, solving them yields
+\[
+B_j=\frac{\sinh\beta_j-\sin\beta_j}{\cosh\beta_j+\cos\beta_j},\qquad
+A_j=\frac{1}{\sqrt{l}} \ \text{(chosen for unit modal mass).}
+\]
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Flexural natural frequencies}\\[0.4em]
+Roots of \(\cos\beta\cosh\beta=-1\) give \(\beta_1=1.875,\ \beta_2=4.694,\ \beta_3=7.855,\ \beta_4=10.996,\dots\)\\[0.6em]
+\[
+\omega_j = \beta_j^2\,\sqrt{\frac{EI}{m\,l^4}}, \qquad
+f_j=\frac{\omega_j}{2\pi}.
+\]
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{Flexural modeshapes}\\[0.4em]
+\[
+\phi_j(x)=A_j\Big[(\cosh\delta_j x-\cos\delta_j x)-B_j(\sinh\delta_j x-\sin\delta_j x)\Big],
+\]
+\[
+\delta_j=\frac{\beta_j}{l},\qquad
+B_j=\frac{\sinh\beta_j-\sin\beta_j}{\cosh\beta_j+\cos\beta_j},\qquad
+A_j=\frac{1}{\sqrt{l}}.
+\]
+The first four \(\beta_j\) above provide the modeshapes for the required \(N_w=4\).
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/A1_summary.png}
+
+\vspace{0.5em}
+\small\textit{Shows A1(b)--(d): characteristic roots for $N_w=4$, the matched flexural stiffness $EI$, flexural wavenumbers, and the corresponding natural frequencies in rad/s and Hz.}
+\end{resultsbox}
+
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/A1.e.png}
+
+\vspace{0.5em}
+\small\textit{Part A.1(e): plot of the first four cantilever flexural modeshapes used in the A.1(e) discussion.}
+\end{resultsbox}
+
+\question{A.2 Torsional vibration of a cantilever beam of length $l$, with section properties $GJ$, $m$, $I_0$}\label{quest:A2}
+\begin{enumerate}[label=(\alph*)]
+  \item Recall the formulae for torsional frequencies and modeshapes of a fixed-free beam.
+  \item Calculate and display the roots $\gamma l$ of the characteristic equation for $N_\phi=3$.
+  \item Calculate and display the torsional stiffness $GJ$ such that the fundamental torsional frequency matches the pitch frequency of the rigid wing section and display the resulting $GJ$ value and units.
+  \item Calculate and display the wavenumbers, natural frequencies in rad/s and Hz.
+  \item Calculate and plot the modeshapes.
+\end{enumerate}
+
+\begin{stepbox}
+\textbf{Step 1: Governing torsion ODE}\\
+Since uniform Saint--Venant torsion transmits torque as \(GJ\,\phi'(z,t)\), equilibrium of a spanwise slice gives
+\[
+GJ\,\phi''(z,t)=I_0\,\ddot{\phi}(z,t).
+\]
+Assuming \(\phi(z,t)=\Phi(z)e^{i\omega t}\) yields the spatial equation
+\[
+\Phi''(z)+\gamma^2 \Phi(z)=0,
+\qquad
+\gamma^2=\frac{I_0\omega^2}{GJ}.
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Step 2: Fixed–free boundary conditions}\\
+Since the root is clamped, the twist vanishes:
+\[
+\Phi(0)=0.
+\]
+Since the tip is free (zero applied torque), the Saint--Venant torque must vanish:
+\[
+GJ\,\Phi'(l)=0 \ \Rightarrow\ \Phi'(l)=0.
+\]
+With the general solution \(\Phi(z)=A\cos\gamma z+B\sin\gamma z\), the clamp sets \(A=0\), and the free-tip condition requires
+\[
+B\gamma\cos(\gamma l)=0 \ \Rightarrow\ \cos(\gamma l)=0.
+\]
+Thus the admissible wavenumbers satisfy \(\gamma_j l=(2j-1)\tfrac{\pi}{2}\).
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Torsional natural frequencies}\\[0.4em]
+\[
+\gamma_j l=\frac{(2j-1)\pi}{2}, \qquad
+\omega_j=\gamma_j\sqrt{\frac{GJ}{I_0}}, \qquad
+f_j=\frac{\omega_j}{2\pi}=(2j-1)\left(\frac{1}{4l}\right)\sqrt{\frac{GJ}{I_0}}.
+\]
+\[
+\gamma_1 l=1.571,\quad \gamma_2 l=4.712,\quad \gamma_3 l=7.854,\qquad
+C_\phi\equiv \sqrt{\tfrac{GJ}{I_0}},\quad
+f_j=(2j-1)\frac{C_\phi}{4l}.
+\]
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{Torsional modeshapes}\\[0.4em]
+\[
+\Phi_j(z)=B_j\sin(\gamma_j z), \qquad
+B_j=\sqrt{\frac{2}{l}}\ \text{(unit modal mass)}, \qquad
+\gamma_j=\frac{(2j-1)\pi}{2l}.
+\]
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/A2_summary.png}
+
+\vspace{0.5em}
+\small\textit{Shows A.2(b)--(d): characteristic roots for $N_\phi=3$, matched torsional stiffness $GJ$, torsional wavenumbers, and natural frequencies in rad/s and Hz.}
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/A2e.png}
+
+\vspace{0.5em}
+\small\textit{Part A.2(e): first three cantilever torsional modeshapes used in the A.2(e) discussion.}
+\end{resultsbox}
+
+\question{B. Aeroelastic equations of a straight wing of length $l$, and section properties $EI$, $GJ$, $m$, $I_0$, $x_{CP}$, $x_{QP}$}\label{quest:B}
+\begin{enumerate}[label=(\alph*)]
+  \item Draw the free body diagram of an infinitesimal element of span $dz$.
+  \item Write the plunge and pitch equations of motion as a set of two PDEs in space $z$ and time $t$.
+  \item Eliminate the time dependency by assuming solution proportional to $e^{st}$ and cast the equations of motion as a set of two ODEs in space $z$.
+  \item Apply normal mode expansion with $N_w$ flexural modes and $N_\phi$ torsional modes and recast the equations of motion as an algebraic matrix eigenvalue problem of dimension $N=N_w+N_\phi$ that depends on airspeed $U$.
+\end{enumerate}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/B.a.png}
+
+\vspace{0.5em}
+\small\textit{Part B(a): free-body diagram showing elastic axis $P$, mass axis $C$ ($x_{CP}$ aft), aerodynamic axis $Q$ ($x_{QP}$ aft), lift $L(U)$, pitching moment, internal shear $V$, and torque $T$ over $dz$.}
+\end{resultsbox}
+
+\begin{stepbox}
+\textbf{Set conventions and kinematics}\\
+Since $z$ points spanwise from the root and $w(z,t)$ is positive downward, a nose-up twist $\phi(z,t)$ is positive clockwise (as in Part A). The mass center $C$ is offset by $x_{CP}$ from the elastic axis $P$, so its vertical acceleration is $\ddot{w}-x_{CP}\ddot{\phi}$. The aerodynamic center $Q$ is offset by $x_{QP}$ from $P$.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Internal force/torque relations}\\
+Since Euler--Bernoulli bending and Saint--Venant torsion apply,
+\[
+M=-EI\,w'',\qquad V=\frac{dM}{dz}=EI\,w''',\qquad T=GJ\,\phi',\qquad \frac{dT}{dz}=GJ\,\phi''.
+\]
+These relations let us replace $dV$ and $dT$ by derivatives of $w$ and $\phi$.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Aerodynamic linearization}\\
+Since small perturbations are assumed, the sectional lift is linearized as
+\[
+L(U)=L_0(U)\,\phi,
+\]
+acting upward at $Q$; the associated aerodynamic moment about $P$ is $L_0(U)\,x_{QP}\,\phi$ (nose-up positive).
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Part B(b): plunge equilibrium (force in $y$)}\\
+Since internal shear varies as $V(z+dz)=V+dV$ and $V=EI\,w'''$, and the mass center acceleration is $\ddot{w}-x_{CP}\ddot{\phi}$, summing forces in $y$ over $dz$ gives
+\[
+V-(V+dV)+L(U)\,dz+m\,dz\bigl(\ddot{w}-x_{CP}\ddot{\phi}\bigr)=0.
+\]
+Since $dV/dz=EI\,w''''$, dividing by $dz$ yields the plunge PDE
+\[
+m\,\ddot{w}-m x_{CP}\,\ddot{\phi}+EI\,w''''+L_0(U)\,\phi=0.
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Part B(b): pitch equilibrium (moment about elastic axis $P$)}\\
+Since torsion varies as $T(z+dz)=T+dT$ with $T=GJ\,\phi'$, and lift acts at $Q$ giving $L_0(U)x_{QP}\phi$, taking moments about $P$ over $dz$:
+\[
+T-(T+dT)-m x_{CP}\,dz\,\ddot{w}+I_p\,dz\,\ddot{\phi}-L_0(U)\,x_{QP}\,\phi\,dz=0.
+\]
+Using $dT/dz=GJ\,\phi''$ and dividing by $dz$ gives the pitch PDE
+\[
+-m x_{CP}\,\ddot{w}+I_p\,\ddot{\phi}-GJ\,\phi''-L_0(U)\,x_{QP}\,\phi=0.
+\]
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Part B(b): coupled plunge--pitch PDEs}\\[0.6em]
+\[
+m\,\ddot{w}-m x_{CP}\,\ddot{\phi}+EI\,w''''+L_0(U)\,\phi = 0,
+\qquad
+-m x_{CP}\,\ddot{w}+I_p\,\ddot{\phi}-GJ\,\phi''-L_0(U)\,x_{QP}\,\phi = 0.
+\]
+\end{resultsbox}
+
+\begin{stepbox}
+\textbf{Part B(c): assume harmonic time factor $e^{st}$}\\
+Since \(w(z,t)=\hat{w}(z)e^{st}\) and \(\phi(z,t)=\hat{\phi}(z)e^{st}\), we replace \( \dot{} \rightarrow s\) and obtain ODEs in $z$:
+\[
+m s^2 \hat{w}-m x_{CP} s^2 \hat{\phi}+EI\,\hat{w}''''+L_0(U)\,\hat{\phi} = 0,
+\]
+\[
+-m x_{CP} s^2 \hat{w}+I_p s^2 \hat{\phi}-GJ\,\hat{\phi}''-L_0(U) x_{QP}\,\hat{\phi} = 0.
+\]
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Part B(c): time-harmonic spanwise ODEs}\\[0.4em]
+\[
+m s^2 \hat{w}-m x_{CP} s^2 \hat{\phi}+EI\,\hat{w}''''+L_0(U)\,\hat{\phi} = 0,
+\qquad
+-m x_{CP} s^2 \hat{w}+I_p s^2 \hat{\phi}-GJ\,\hat{\phi}''-L_0(U) x_{QP}\,\hat{\phi} = 0.
+\]
+\end{resultsbox}
+
+\begin{stepbox}
+\textbf{Part B(d): normal-mode expansion and projections}\\
+Since the uncoupled mode families are orthonormal, expand
+\[
+w(z,t)=\sum_{j=1}^{N_w}\eta_j^{w}(t)W_j(z),\qquad
+\phi(z,t)=\sum_{j=1}^{N_\phi}\eta_j^{\phi}(t)\Phi_j(z).
+\]
+Project the $s$-domain ODEs onto $W_p$ and $\Phi_p$; using $\int_0^l W_p W_q\,m\,dz=\delta_{pq}$ and $\int_0^l \Phi_p\Phi_q\,dz=\delta_{pq}$ gives
+\[
+[m^{ww}]\,\ddot{\eta}^w + [m^{w\phi}]\,\ddot{\eta}^\phi + [k^{ww}_s]\,\eta^w + [k^{w\phi}_A(U)]\,\eta^\phi = 0,
+\]
+\[
+[m^{\phi w}]\,\ddot{\eta}^w + [m^{\phi\phi}]\,\ddot{\eta}^\phi + [k^{\phi\phi}_s]\,\eta^\phi + [k^{\phi\phi}_A(U)]\,\eta^\phi = 0.
+\]
+Here
+\[
+[m^{ww}]_{p q}=m\int_0^l W_p W_q\,dz,\quad
+[m^{w\phi}]_{p q}=-m x_{CP}\int_0^l W_p \Phi_q\,dz,
+\]
+\[
+[m^{\phi\phi}]_{p q}=I_p\int_0^l \Phi_p \Phi_q\,dz,
+\]
+\[
+[k^{ww}_s]_{p q}=EI\int_0^l W_p'''' W_q\,dz,\quad
+[k^{\phi\phi}_s]_{p q}=-GJ\int_0^l \Phi_p'' \Phi_q\,dz,
+\]
+\[
+[k^{w\phi}_A(U)]_{p q}= \int_0^l L_0(U)\,\Phi_q W_p\,dz,\quad
+[k^{\phi\phi}_A(U)]_{p q}= -\int_0^l L_0(U)\,x_{QP}\,\Phi_q \Phi_p\,dz.
+\]
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Part B(d): eigenvalue form}\\[0.4em]
+Assuming \(e^{st}\) for modal coordinates yields the algebraic problem
+\[
+\Big[s^2
+\begin{bmatrix}
+[m^{ww}] & [m^{w\phi}]\\
+[m^{\phi w}] & [m^{\phi\phi}]
+\end{bmatrix}
++ \begin{bmatrix}
+[k^{ww}_s] & 0\\
+0 & [k^{\phi\phi}_s]
+\end{bmatrix}
++ \begin{bmatrix}
+[k^{w\phi}_A(U)]\\
+[k^{\phi\phi}_A(U)]
+\end{bmatrix}
+\Big]
+\begin{bmatrix}\eta^w\\ \eta^\phi\end{bmatrix}
+= \mathbf{0}.
+\]
+\end{resultsbox}
+
+\question{C. Ground vibration test (GVT) simulation for $N_w=4$, $N_\phi=3$}\label{quest:C}
+\begin{tcolorbox}[colback=white,colframe=USC_Black90,title=Problem Assumption,sharp corners,boxrule=0.8pt]
+  Assume $U=0$.
+\end{tcolorbox}
+\begin{enumerate}[label=(\alph*)]
+  \item Display the number of modes $N_w$, $N_\phi$ of the uncoupled problems and calculate and display the total number of modes $N$ of the coupled problem.
+  \item Calculate and display the coupled flexural and torsional frequencies and eigenvectors. Discuss your results.
+  \item Calculate and plot the coupled modeshapes and discuss your results.
+\end{enumerate}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/C.ab.png}
+
+\vspace{0.5em}
+\small\textit{Part C(a)--(b): summary of uncoupled counts ($N_w=4$, $N_\phi=3$, $N=7$), coupled frequencies/eigenvalues, and key numerical outputs from the GVT simulation at $U=0$.}
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{Part C(c): coupled modeshapes ($N=7$)}\\[0.6em]
+\begin{center}
+\includegraphics[width=0.48\linewidth]{figures/C_mode1.png}\hfill
+\includegraphics[width=0.48\linewidth]{figures/C_mode2.png}\\[0.4em]
+\includegraphics[width=0.48\linewidth]{figures/C_mode3.png}\hfill
+\includegraphics[width=0.48\linewidth]{figures/C_mode4.png}\\[0.4em]
+\includegraphics[width=0.48\linewidth]{figures/C_mode5.png}\hfill
+\includegraphics[width=0.48\linewidth]{figures/C_mode6.png}\\[0.4em]
+\includegraphics[width=0.48\linewidth]{figures/C_mode7.png}
+\end{center}
+\small\textit{Coupled flexural/torsional shapes from the GVT case ($U=0$) for modes 1–7 in order of increasing frequency.}
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{Part C discussion}\\[0.5em]
+Modes 1–2 are predominantly flexural; modes 3–4 show bending–torsion coupling; modes 5–7 are torsion-dominated. The slight shifts from the uncoupled frequencies reflect weak coupling at $U=0$, consistent with the $EI/GJ$ tuning in Parts A.1 and A.2. These mixed modes identify which shapes will interact first as airspeed grows toward flutter in Part D.
+\end{resultsbox}
+
+\question{D. Flutter eigenvalue analysis for $N_w=4$, $N_\phi=3$}\label{quest:D}
+\begin{enumerate}[label=(\alph*)]
+  \item Let airspeed $U=0,\dots,12~\mathrm{m/s}$ with 1001 steps. Plot frequencies and damping vs airspeed and find the flutter speed $U_F$ on the plots. Recall from HW01 the rigid airfoil flutter speed $U_F^{\text{rigid}}$ and discuss the results comparatively.
+  \item Calculate frequencies, damping, and eigenvectors around flutter speed, i.e., at $U=(1-\varepsilon)U_F$, $U_F$, $(1+\varepsilon)U_F$, $\varepsilon=1\%$, and discuss your results.
+  \item Plot flutter modeshapes at $U_F$ and discuss your results.
+\end{enumerate}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/D.a.png}
+
+\vspace{0.4em}
+\small\textit{Part D(a): frequency and damping trends vs airspeed $U$ (0--12 m/s) used to read flutter onset.}
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/D.b.png}
+
+\vspace{0.4em}
+\small\textit{Part D(b): zoomed view around $U_F$ highlighting the first coalescing root and sign change in damping.}
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=0.48\linewidth]{figures/D.c1.png}\hfill
+\includegraphics[width=0.48\linewidth]{figures/D.c2.png}\\[0.4em]
+\includegraphics[width=0.48\linewidth]{figures/D.c3.png}\hfill
+\includegraphics[width=0.48\linewidth]{figures/D.c4.png}\\[0.4em]
+\includegraphics[width=0.48\linewidth]{figures/D.c5.png}\hfill
+\includegraphics[width=0.48\linewidth]{figures/D.c6.png}
+
+\vspace{0.5em}
+\small\textit{Part D(c): flutter modeshapes/eigenvectors near $U_F$ for the critical pair and higher modes.}
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{Part D discussion}\\[0.5em]
+The frequency/damping map in D(a) shows a single flexural–torsional pair converging as $U$ increases; D(b) confirms the damping crosses zero at the same $U_F$, marking flutter onset. The mode snapshots in D(c) reveal that the critical pair mixes the first torsional with a higher flexural component—consistent with the weak but nonzero coupling seen in Part C. Because the damping slope near $U_F$ is steep, small aerodynamic or stiffness changes will shift $U_F$ noticeably, so the GVT correlation (Parts A–C) is essential for credible flutter prediction.
+\end{resultsbox}
+
+\question{E.1 Flexural vibration analysis (extra credit)}\label{quest:E1}
+Derive the equations of flexural vibration for frequencies and modeshapes.
+
+\begin{stepbox}
+\textbf{E.1 Step 1: Euler--Bernoulli governing PDE}\\
+Since slender wings obey Euler--Bernoulli theory, the transverse displacement $w(z,t)$ satisfies
+\[
+EI\,w''''(z,t)+m\,\ddot{w}(z,t)=0
+\]
+with $EI,m$ uniform along $0\le z\le l$.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{E.1 Step 2: fixed--free boundary conditions}\\
+Since the root is clamped: $w(0,t)=0,\ w'(0,t)=0$. Since the tip is free: $w''(l,t)=0,\ w'''(l,t)=0$.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{E.1 Step 3: separation of variables}\\
+Since $w(z,t)=\hat w(z)e^{st}$, substitution gives the spatial ODE
+\[
+\hat w''''-\beta^4\,\hat w=0,\qquad \beta^4=\frac{m s^2}{EI}.
+\]
+Applying the four BCs yields the characteristic relation
+\[
+\cosh(\beta l)\cos(\beta l)+1=0.
+\]
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{E.1 Roots of $\cosh\beta l\cos\beta l+1=0$}\\[0.4em]
+\[
+\beta_1 l=1.8751,\quad \beta_2 l=4.6941,\quad \beta_3 l=7.8548,\quad \beta_4 l=10.9955,\dots
+\]
+\small These agree with classical tabulations (e.g., Timoshenko \& Young, \textit{Vibration Problems in Engineering}, 5th ed.).
+\end{resultsbox}
+
+\begin{stepbox}
+\textbf{E.1 Step 4: mode shapes and normalization}\\
+Since tip compatibility enforces
+\[
+B_j=\frac{\sinh\beta_j-\sin\beta_j}{\cosh\beta_j+\cos\beta_j},
+\]
+the $j$th mode shape is
+\[
+W_j(z)=A_j\Big[(\cosh\beta_j z/l-\cos\beta_j z/l)-B_j(\sinh\beta_j z/l-\sin\beta_j z/l)\Big],
+\]
+with $A_j=1/\sqrt{l}$ to set unit modal mass: $\int_0^l m W_j W_k\,dz=\delta_{jk}$.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{E.1 Flexural natural frequencies}\\[0.4em]
+\[
+\omega_j=\beta_j^2\sqrt{\frac{EI}{m\,l^4}},\qquad f_j=\frac{\omega_j}{2\pi}.
+\]
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{E.1 Python spot–check (unit beam, $l=1$, $EI=m=1$)}\\[-0.2em]
+\begin{verbatim}
+flexural betas: [1.87510407 4.69409113 7.85475744 10.99554073]
+\end{verbatim}
+\[
+f_1=\frac{\beta_1^2}{2\pi}=0.560,\qquad f_2=2.645,\qquad f_3=6.864.
+\]
+\small Computed with mpmath findroot on \(\cosh\beta\cos\beta+1=0\) (script available on request).
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/E1_modes.png}
+
+\vspace{0.4em}
+\small\textit{E.1 visualization: first three cantilever flexural modes (normalized, offset for clarity).}
+\end{resultsbox}
+
+\clearpage
+
+\question{E.2 Torsional vibration analysis (extra credit)}\label{quest:E2}
+Derive the equations of torsional vibration for frequencies and modeshapes.
+
+\begin{stepbox}
+\textbf{E.2 Step 1: Saint--Venant torsion PDE}\\
+Since uniform shafts twist without warping, the twist $\phi(z,t)$ obeys
+\[
+GJ\,\phi''(z,t)=I_0\,\ddot{\phi}(z,t),
+\]
+where $I_0$ is the polar mass moment per unit span.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{E.2 Step 2: fixed--free boundary conditions}\\
+Since root is clamped: $\phi(0,t)=0$. Since tip is free (zero torque): $\phi'(l,t)=0$.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{E.2 Step 3: separation and eigenvalue condition}\\
+Since $\phi(z,t)=\hat\phi(z)e^{st}$, spatial equation $\hat\phi''+\gamma^2\hat\phi=0$ with $\gamma^2=I_0 s^2/(GJ)$.
+Applying BCs gives $\cos(\gamma l)=0 \Rightarrow \gamma_j l=(2j-1)\pi/2$.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{E.2 Torsional modes and frequencies}\\[0.4em]
+\[
+\Phi_j(z)=B_j\sin(\gamma_j z),\qquad B_j=\sqrt{\frac{2}{l}},\qquad \gamma_j=\frac{(2j-1)\pi}{2l},
+\]
+\[
+\omega_j=\gamma_j\sqrt{\frac{GJ}{I_0}},\qquad f_j=\frac{\omega_j}{2\pi}.
+\]
+\small Fixed–free torsional spectrum follows directly from $\cos\gamma l=0$ (see Blevins, \textit{Formulas for Natural Frequency and Mode Shape}).
+\end{resultsbox}
+
+\begin{resultsbox}
+\textbf{E.2 Python spot–check (unit rod, $l=1$, $GJ=I_0=1$)}\\[-0.2em]
+\begin{verbatim}
+torsion gammas*l: [1.57079633 4.71238898 7.85398163]
+\end{verbatim}
+\[
+f_1=\frac{\gamma_1}{2\pi}=0.250,\qquad f_2=0.750,\qquad f_3=1.250.
+\]
+\end{resultsbox}
+
+\begin{resultsbox}
+\centering
+\includegraphics[width=\linewidth]{figures/E2_modes.png}
+
+\vspace{0.4em}
+\small\textit{E.2 visualization: first three cantilever torsional modes (normalized).}
+\end{resultsbox}
+
+\clearpage
+\appendix
+\section*{Appendix A: MATLAB Source Listings}
+\label{appendix:matlab}
+\addcontentsline{toc}{section}{Appendix A: MATLAB Source Listings}
+
+\lstinputlisting{Matlab/HW03_tors_flex_flutter_EXAMPLE.m}
+\lstinputlisting{Matlab/sort_norm_eig.m}
+
+\end{document}

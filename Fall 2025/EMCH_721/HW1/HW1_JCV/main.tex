@@ -1,0 +1,2304 @@
+\documentclass{article}
+
+%======================================================================
+% 1. PAGE LAYOUT & CORE PACKAGES
+%======================================================================
+\usepackage[a4paper, margin=1in]{geometry} % Manages page margins and layout
+\usepackage{fancyhdr}                      % For custom headers and footers
+\usepackage{titlesec}                      % For customizing section titles
+\usepackage{array}                         % Extends array and tabular environments
+\usepackage{booktabs}                      % For professional-quality tables
+\usepackage{lastpage}
+\usepackage{enumitem}                      % For customizing lists (itemize, enumerate)
+
+%======================================================================
+% 2. MATH, PHYSICS & CHEMISTRY
+%======================================================================
+\usepackage{amsmath}                       % Essential for advanced math environments
+\usepackage{amssymb}                       % Provides extra math symbols
+\usepackage{bm}                            % For bold math symbols (\bm)
+\usepackage{siunitx}                       % For typesetting SI units
+\usepackage[version=4]{mhchem}             % For chemical formulas (e.g., \ce{H2O})
+\usepackage{chemfig}                       % For drawing chemical structures
+
+%======================================================================
+% 3. GRAPHICS, FIGURES & DIAGRAMS
+%======================================================================
+\usepackage{graphicx}                      % For including external images (\includegraphics)
+\usepackage{xcolor}                        % For defining and using colors
+\usepackage{float}                         % Provides the [H] option for figure placement
+\usepackage{caption}                       % For customizing figure and table captions
+\usepackage{subcaption}                    % For creating subfigures and subtables
+
+% --- TikZ and related diagramming packages ---
+\usepackage{tikz}                          % The core package for creating diagrams
+\usepackage{pgfplots}                      % For creating plots and charts within LaTeX
+\pgfplotsset{compat=1.18}                   % Sets compatibility for pgfplots
+\usepackage{tikz-3dplot}                   % For 3D diagrams
+\usepackage[american]{circuitikz}          % For drawing electrical circuits
+
+% --- TikZ Libraries (consolidated into one command) ---
+\usetikzlibrary{
+    arrows,
+    automata,
+    positioning,
+    shapes,
+    calc,
+    decorations.pathreplacing, % User's original library
+    decorations.pathmorphing,  % Needed for spring/damper effects
+    patterns                   % Needed for hatched patterns
+}
+
+%======================================================================
+% 4. CODE LISTINGS
+%======================================================================
+\usepackage{listings}                      % For typesetting code blocks
+\usepackage{courier}                       % Sets the font for listings
+
+% --- MATLAB code listing setup ---
+\lstset{
+    language=Matlab,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    captionpos=b,
+    numbers=left,
+    xleftmargin=2em,
+    framexleftmargin=1.5em
+}
+
+%======================================================================
+% 5. HYPERLINKS & FINAL SETUP
+%======================================================================
+\usepackage{hyperref}                      % For clickable links (ToC, references)
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=green!50!black
+}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyhead[L]{EMCH 721}
+\fancyhead[C]{\thepage\ out of \pageref{LastPage}}
+\fancyhead[R]{JC Vaught}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Caption setup (placed after other relevant packages) ---
+\captionsetup{font=small, labelfont=bf}
+
+%======================================================================
+% DOCUMENT METADATA
+%======================================================================
+\title{Homework 1 --- EMCH 721; Aeroelasticity}
+\author{J.C. Vaught}
+\date{Date: September 22nd, 2025 (at the last minute)}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+% ======================================================================
+% PROBLEM A: Derivation of Equations of Motion
+% ======================================================================
+\section{Problem A}
+\subsection{a. Equations of Motion}
+
+Using Newton's second law for translation, the sum of forces in the $y$-direction is given by $\sum F_y = m \ddot{u}_y$, where $\ddot{u}_y$ represents the acceleration in the $y$-direction. For rotational motion, the sum of moments about point $P$ is $\sum M_P = I_o \ddot{\theta} + m \ddot{u}_y d$, where $I_o$ is the moment of inertia about the center of mass, $\ddot{\theta}$ is the angular acceleration, and $d$ is the perpendicular distance from the center of mass to point $P$.
+
+\begin{figure}[htbp]
+    \centering
+    \input{figures/body_diagrams.tex}
+    \caption{Force and Moment Diagrams}
+    \label{fig:diagrams}
+\end{figure}
+% Note: Body diagram figure placeholder - original figure file not found
+
+
+\noindent The key equations are derived as follows:
+
+\begin{align}
+    \sum F_y &= -L - K_h h                           && \text{(Sum of vertical forces)} \label{eq:force_sum} \\
+    m \ddot{u}_y &= m (\ddot{h} - x_{cp} \ddot{\theta})  && \text{(Substitution for } m \ddot{u}_y\text{)} \label{eq:accel_sub} \\
+    L + K_h h &= -m \ddot{h} + m x_{cp} \ddot{\theta}    && \text{(Combined)} \label{eq:combined} \\
+    L + K_h h + m \ddot{h} - m x_{cp} \ddot{\theta} &= 0 && \text{(Equation of Motion -- Plunge)} \label{eq:plunge_motion}%%TODO - Color Blue
+\end{align}
+
+\begin{align}
+    \sum M_P &= L x_{qp} - K_{\theta} (\theta) && \text{(Sum of moments about } P\text{)} \label{eq:moment_sum} \\
+    I_o \ddot{\theta} - m \ddot{u}_y d &= I_o \ddot{\theta} - m (\ddot{h} - x_{cp} \ddot{\theta}) x_{cp} && \text{(Moment of inertia relation)} \label{eq:inertia_rel} \\
+    L x_{qp} - K_{\theta} (\theta) &= I_o \ddot{\theta} - m (\ddot{h} - x_{cp} \ddot{\theta}) x_{cp} && \text{(Combined moment equation)} \label{eq:moment_combined} \\
+    L x_{qp} - K_{\theta} (\theta) &= I_o \ddot{\theta} - m \ddot{h} x_{cp} + m x_{cp}^2 \ddot{\theta} && \text{(Distribute the term } -m x_{cp}\text{)} \label{eq:moment_distribute} \\
+    L x_{qp} - K_{\theta} (\theta) &= (I_o + m x_{cp}^2) \ddot{\theta} - m \ddot{h} x_{cp} && \text{(Group terms containing } \ddot{\theta}\text{)} \label{eq:moment_group} \\
+    L x_{qp} - K_{\theta} (\theta) &= I_p \ddot{\theta} - m \ddot{h} x_{cp} && \text{(Apply parallel axis theorem: } I_p = I_o + m x_{cp}^2\text{)} \label{eq:pitch_motion_na} \\
+    0 &= -L x_{qp} + K_{\theta} (\theta) + I_p \ddot{\theta} - m \ddot{h} x_{cp} && \text{(Equation of Motion -- Pitch)} \label{eq:pitch_motion} %%TODO - Color Blue
+\end{align}
+
+\newpage
+\subsection{b. Linearity of Lift, $L(U, \theta) = L_0(U) \cdot \theta$}
+
+Given the expressions (proof \& \textbf{\textit{assumptions}} in APPENDIX B):
+\begin{itemize}[noitemsep]
+    \item $L = q \cdot C_L$, where $q$ is the dynamic pressure.
+    \item $C_L = a_1 \theta$.
+\end{itemize}
+
+\noindent Substitute to obtain:
+\begin{equation}
+L(U, \theta) = q \cdot a_1 \cdot \theta = \frac{1}{2} \rho U^2 \cdot a_1 \cdot \theta
+\label{eq:lift_basic}
+\end{equation}
+
+\noindent Assuming $U$ and $a_1$ are constants, define the lift per unit angle of attack as $L_0(U) = \frac{1}{2} \rho U^2 \cdot a_1$. Thus:
+\begin{equation}
+L(U, \theta) = L_0(U) \cdot \theta
+\label{eq:lift_linear_form}
+\end{equation}
+Applying the linear relationship for lift, $L(U, \theta) = L_0(U) \cdot \theta$, to the equations of motion results in a system of two linear ordinary differential equations.
+
+\begin{align}
+    L + K_h h + m \ddot{h} - m x_{cp} \ddot{\theta} &= 0 && \text{(Original vertical force equation)} \label{eq:vertical_original} \\
+    L_0(U) \theta + K_h h + m \ddot{h} - m x_{cp} \ddot{\theta} &= 0 && \text{(Substitute } L = L_0(U) \cdot \theta\text{)} \label{eq:vertical_linear}%%TODO - Color Blue
+\end{align}
+
+\noindent Then, solving likewise for Pitch:
+
+\begin{align}
+    -L x_{qp} + K_{\theta} \theta + I_p \ddot{\theta} - m \ddot{h} x_{cp} &= 0      && \text{(Original moment equation)} \label{eq:moment_original} \\
+    -L_0(U) \theta x_{qp} + K_{\theta} \theta + I_p \ddot{\theta} - m \ddot{h} x_{cp} &= 0 && \text{(Substitute } L = L_0(U) \cdot \theta\text{)} \label{eq:moment_linear}%%TODO - Color Blue
+\end{align}
+
+\newpage
+\subsection{c. Equations of Motion in Terms of Natural Frequencies}
+
+From Appendix A, 
+\begin{equation}
+\omega_h^2 = \frac{K_h}{m} \quad \text{and} \quad \omega_\theta^2 = \frac{K_\theta}{I_o}
+\label{eq:natural_frequencies}
+\end{equation}
+
+\noindent The derivation begins with the rearranged vertical force (plunge) equation.
+\begin{align}
+    m \ddot{h} - m x_{cp} \ddot{\theta} + K_h h + L_0(U) \theta &= 0                      && \text{(Rearranged from original)} \label{eq:plunge_rearranged} \\
+    \frac{m \ddot{h}}{m} - \frac{m x_{cp} \ddot{\theta}}{m} + \frac{K_h}{m} h + \frac{L_0(U)}{m} \theta &= 0 && \text{(Divide by } m\text{)} \label{eq:plunge_divided} \\
+    \ddot{h} - x_{cp} \ddot{\theta} + \left(\frac{K_h}{m}\right) h + \frac{L_0(U)}{m} \theta &= 0         && \text{(Simplify)} \label{eq:plunge_simplified} \\
+    \ddot{h} - x_{cp} \ddot{\theta} + \omega_h^2 h + \frac{L_0(U)}{m} \theta &= 0         && \text{(Substitute } \omega_h^2 = K_h/m\text{)} \label{eq:plunge_frequency_form}%%TODO - Color Blue
+\end{align}
+
+\noindent The same procedure is applied to the rearranged moment (pitch) equation.
+\begin{align}
+    I_P \ddot{\theta} - m x_{cp} \ddot{h} + K_{\theta} \theta - L_0(U) x_{qp} \theta &= 0                      && \text{(Rearranged from original)} \label{eq:pitch_rearranged} \\
+    \frac{I_P \ddot{\theta}}{I_o} - \frac{m x_{cp}}{I_o} \ddot{h} + \frac{K_{\theta}}{I_o} \theta - \frac{L_0(U) x_{qp}}{I_o} \theta &= 0 && \text{(Divide by } I_o\text{)} \label{eq:pitch_divided} \\
+    \frac{I_P \ddot{\theta}}{I_o} - \frac{m x_{cp}}{I_o} \ddot{h} + \left(\frac{K_{\theta}}{I_o}\right) \theta - \frac{L_0(U) x_{qp}}{I_o} \theta &= 0 && \text{(Simplify)} \label{eq:pitch_simplified} \\
+    \frac{I_P \ddot{\theta}}{I_o} - \frac{m x_{cp} \ddot{h}}{I_o}  + \omega_\theta^2 \theta - \frac{L_0(U) x_{qp}}{I_o} \theta &= 0         && \text{(Substitute } \omega_\theta^2 = K_\theta/I_o\text{)} \label{eq:pitch_frequency_form}%%TODO - Color Blue
+\end{align}
+
+
+
+
+\newpage
+\newpage
+\subsection{d. EigenValue Matrices}
+For a linear, homogeneous system of differential equations with constant coefficients, solutions can be expressed as linear combinations of exponential functions. This is a fundamental result from the theory of linear ordinary differential equations. For our 2-DOF system, we seek solutions of the form:
+
+\begin{equation}
+h(t) = \hat{h} e^{st} \quad \text{and} \quad \theta(t) = \hat{\theta} e^{st}
+\label{eq:exponential_solutions}
+\end{equation}
+
+
+Given the exponential form of our assumed solutions, we can compute the required time derivatives using the chain rule. The detailed mathematical justification is provided in Appendix C.
+\newline\newline
+For $h(t) = \hat{h} e^{st}$:
+\begin{align}
+\dot{h}(t) &= s \hat{h} e^{st} = s \cdot h(t) \\
+\ddot{h}(t) &= s^2 \hat{h} e^{st} = s^2 \cdot h(t)
+\end{align}
+
+\noindent Similarly, for $\theta(t) = \hat{\theta} e^{st}$:
+\begin{align}
+\dot{\theta}(t) &= s \hat{\theta} e^{st} = s \cdot \theta(t) \\
+\ddot{\theta}(t) &= s^2 \hat{\theta} e^{st} = s^2 \cdot \theta(t)
+\end{align}
+
+\noindent\textbf{Therefore:} $\ddot{h} = s^2 h$ and $\ddot{\theta} = s^2 \theta$
+
+\subsubsection{Application to System Equations}
+
+We start with the normalized equations of motion derived previously: 
+\begin{align}
+\ddot{h} - x_{cp} \ddot{\theta} + \omega_h^2 h + \frac{L_0(U)}{m} \theta &= 0 \label{eq:system_plunge} \\
+\frac{I_P}{I_o} \ddot{\theta} - \frac{m x_{cp}}{I_o} \ddot{h} + \omega_\theta^2 \theta - \frac{L_0(U) x_{qp}}{I_o} \theta &= 0 \label{eq:system_pitch}
+\end{align}
+Converting into S-Domain, we get:
+\begin{align}
+s^2 h - x_{cp} s^2 \theta + \omega_h^2 h + \frac{L_0(U)}{m} \theta &= 0 \label{eq:system_plunge} \\%%TODO - Color Blue
+\frac{I_P}{I_o} s^2 \theta - \frac{m x_{cp}}{I_o} s^2 h + \omega_\theta^2 \theta - \frac{L_0(U) x_{qp}}{I_o} \theta &= 0 \label{eq:system_pitch}%%TODO - Color Blue
+\end{align}
+Substituting the exponential solutions into these equations gives:
+\begin{align}
+s^2 \hat{h}e^{st} - x_{cp} s^2 \hat{\theta}e^{st} + \omega_h^2 \hat{h}e^{st} + \frac{L_0(U)}{m} \hat{\theta}e^{st} &= 0 \label{eq:substitution_plunge} \\
+\frac{I_P}{I_o} s^2 \hat{\theta}e^{st} - \frac{m x_{cp}}{I_o} s^2 \hat{h}e^{st} + \omega_\theta^2 \hat{\theta}e^{st} - \frac{L_0(U) x_{qp}}{I_o} \hat{\theta}e^{st} &= 0 \label{eq:substitution_pitch} \\
+(s^2 + \omega_h^2)\hat{h} + (-x_{cp}s^2 + \frac{L_0(U)}{m})\hat{\theta} &= 0 \label{eq:coefficient_plunge} \\
+(-\frac{m x_{cp}}{I_o}s^2)\hat{h} + (\frac{I_P}{I_o}s^2 + \omega_\theta^2 - \frac{L_0(U)x_{qp}}{I_o})\hat{\theta} &= 0 \label{eq:coefficient_pitch}
+\end{align}
+This system can be expressed in a single matrix equation:
+\begin{equation}
+\begin{bmatrix}
+s^2 + \omega_h^2 & -x_{cp}s^2 + \frac{L_0(U)}{m} \\
+-\frac{m x_{cp}}{I_o}s^2 & \frac{I_P}{I_o}s^2 + \omega_\theta^2 - \frac{L_0(U)x_{qp}}{I_o}
+\end{bmatrix}
+\begin{bmatrix} \hat{h} \\ \hat{\theta} \end{bmatrix} =
+\begin{Bmatrix} 0 \\ 0 \end{Bmatrix}
+\label{eq:matrix_system}
+\end{equation}
+The key step is to decompose this combined matrix into a sum of matrices representing the distinct physical effects: structural inertia ($s^2 \mathbf{M}_S$), structural stiffness ($\mathbf{K}_S$), and aerodynamic stiffness ($\mathbf{K}_A(U)$).
+\begin{equation}
+\left( s^2 \begin{bmatrix} 1 & -x_{cp} \\ -\frac{m x_{cp}}{I_o} & \frac{I_P}{I_o} \end{bmatrix} + \begin{bmatrix} \omega_h^2 & 0 \\ 0 & \omega_\theta^2 \end{bmatrix} + \begin{bmatrix} 0 & \frac{L_0(U)}{m} \\ 0 & -\frac{L_0(U) x_{qp}}{I_o} \end{bmatrix} \right) \begin{bmatrix} \hat{h} \\ \hat{\theta} \end{bmatrix} = \begin{Bmatrix} 0 \\ 0 \end{Bmatrix}
+\label{eq:matrix_decomposition}
+\end{equation}
+This leads to the final form $(s^2 \mathbf{M}_S + \mathbf{K}_S + \mathbf{K}_A(U)) \mathbf{x} = \mathbf{0}$, where the state vector is $\mathbf{x} = [\hat{h}, \hat{\theta}]^T$ and the component matrices are defined as follows.
+
+\begin{align}
+    \mathbf{M}_S &= \begin{bmatrix} 1 & -x_{cp} \\ -\frac{m x_{cp}}{I_o} & \frac{I_P}{I_o} \end{bmatrix} && \text{(Inertia matrix)} \label{eq:mass_structural} \\
+    \mathbf{K}_S &= \begin{bmatrix} \omega_h^2 & 0 \\ 0 & \omega_\theta^2 \end{bmatrix} && \text{(Structural stiffness matrix)} \label{eq:stiffness_structural} \\
+    \mathbf{K}_A(U) &= \begin{bmatrix} 0 & \frac{L_0(U)}{m} \\ 0 & -\frac{L_0(U) x_{qp}}{I_o} \end{bmatrix} && \text{(Aerodynamic stiffness matrix)} \label{eq:stiffness_aero} \\
+    \mathbf{M}_A &= \begin{bmatrix} 0 & 0 \\ 0 & 0 \end{bmatrix} && \text{(Aerodynamic mass matrix)} \label{eq:mass_aero}
+\end{align}
+Further Simplifed:
+\begin{equation}
+(s^2 \mathbf{M} + \mathbf{K}(U)) \mathbf{x} = 0
+\label{eq:eigenvalue_problem}
+\end{equation}
+
+\begin{align}
+    \mathbf{M} &= \mathbf{M}_S + \mathbf{M}_A && \text{(System mass matrix)} \label{eq:system_mass} \\
+    \mathbf{K}(U) &= \mathbf{K}_S + \mathbf{K}_A(U) && \text{(System stiffness matrix)} \label{eq:system_stiffness}
+\end{align}
+
+\newpage
+% ======================================================================
+% PROBLEM B: Parametric Analysis with Variable x_CP Values
+% ======================================================================
+\section{Problem B}
+
+
+\subsection{a. Input Data}
+
+The computational analysis considers a 2-DOF airfoil system with plunge ($h$) and pitch ($\alpha$) degrees of freedom. The updated system parameters are:
+
+\begin{table}[H]
+\centering
+\caption{Updated System Input Parameters}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+Air density & $\rho$ & 1.225000 kg/m$^3$ \\
+Mass & $m$ & 3.200000 kg \\
+Moment of inertia about CM & $I_0$ & 0.05500000 kg$\cdot$m$^2$ \\
+Chord length & $c$ & 0.450000 m \\
+Uncoupled plunge frequency & $f_h$ & 1.800000 Hz \\
+Uncoupled pitch frequency & $f_t$ & 5.300000 Hz \\
+Static offset reference & $x_{CP}$ & -10.0\% of $c$ \\
+Aerodynamic offset reference & $x_{QP}$ & 35.0\% of $c$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{b. Spring Stiffness}
+
+From the uncoupled frequencies, the system stiffnesses are calculated:
+
+\begin{align}
+\omega_h &= 2\pi f_h = 11.30973355 \text{ rad/s} \\
+\omega_t &= 2\pi f_t = 33.30088213 \text{ rad/s} \\
+K_h &= m \omega_h^2 = 409.312234 \text{ N/m} \\
+K_t &= I_0 \omega_t^2 = 60.992181 \text{ N}\cdot\text{m/rad}
+\end{align}
+% insert image here(matlab terminal showing same data) - B.b.png
+
+\subsection{c. Solving for $x_{CP} = -10\%$}
+\subsubsection{i. Moment of Inertia and $x_{CP}$}
+\begin{align}
+x_{CP} &= -0.04500000 \text{ m} \\
+I_p &= I_0 + m x_{CP}^2 = 0.06148000 \text{ kg}\cdot\text{m}^2
+\end{align}
+
+    \subsubsection{ii. Matrices}
+\begin{equation}
+\mathbf{M}_s = \begin{bmatrix}
+1.0000 & 0.0450 \\
+2.6182 & 1.1178
+\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+\mathbf{K}_s = \begin{bmatrix}
+127.9137 & 0 \\
+0 & 1108.9487
+\end{bmatrix}
+\end{equation}
+
+\subsubsection{iii. EigenValues and EigenVectors}
+
+\begin{align}
+s_1^2 &= 125.9786661832 \\
+s_2^2 &= 1125.9502896029
+\end{align}
+Corresponding to:
+\begin{align}
+s_{1,2} &= \pm i \cdot 11.22402184 \\
+s_{3,4} &= \pm i \cdot 33.55518275
+\end{align}
+
+\subsubsection{iv. Frequencies}
+\begin{align}
+f_I &= 1.78635856 \text{ Hz} \\
+f_{II} &= 5.34047320 \text{ Hz}
+\end{align}
+With percentage differences from uncoupled values:
+\begin{align}
+\text{Plunge difference} &= 0.757858\% \\
+\text{Pitch difference} &= 0.763645\%
+\end{align}
+
+\subsubsection{v. Mode Shapes}
+\begin{align}
+\mathbf{V}_I &= \begin{bmatrix} -1.00000000 \\ -0.34069381 \end{bmatrix} \text{ (Mode I - Plunge-dominant)} \\
+\mathbf{V}_{II} &= \begin{bmatrix} -0.05076726 \\ 1.00000000 \end{bmatrix} \text{ (Mode II - Pitch-dominant)}
+\end{align}
+% insert image here(matlab terminal showing same data) - B.c.png
+
+\subsection{d. Variable $x_{CP}$ Values}
+
+\begin{table}[H]
+\centering
+\caption{MATLAB Parametric Analysis Results}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$x_{CP}$ (\%) & $x_{CP}$ (m) & $I_p$ (kg$\cdot$m$^2$) & $s_1^2$ & $s_2^2$ & $f_I$ (Hz) & $f_{II}$ (Hz) \\
+\midrule
+-20 & -0.09000000 & 0.08092000 & 120.5574516950 & 1176.5819008159 & 1.74749991 & 5.45922776 \\
+-10 & -0.04500000 & 0.06148000 & 125.9786661832 & 1125.9502896029 & 1.78635856 & 5.34047320 \\
+-1  & -0.00450000 & 0.05506480 & 127.8904276652 & 1109.1190972017 & 1.79986177 & 5.30040705 \\
+0   & 0.00000000  & 0.05500000 & 127.9100730381 & 1108.9487505064 & 1.80000000 & 5.30000000 \\
+1   & 0.00450000  & 0.05506480 & 127.8904276652 & 1109.1190972017 & 1.79986177 & 5.30040705 \\
+10  & 0.04500000  & 0.06148000 & 125.9786661832 & 1125.9502896029 & 1.78635856 & 5.34047320 \\
+20  & 0.09000000  & 0.08092000 & 120.5574516950 & 1176.5819008159 & 1.74749991 & 5.45922776 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Frequency Differences and Mode Shape Components}
+% \resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$x_{CP}$ (\%) & Diff$_h$ (\%) & Diff$_t$ (\%) & Mode I$_h$ & Mode I$_t$ & Mode II$_h$ & Mode II$_t$ \\
+\midrule
+-20 & 2.916672 & 3.004297 & -1.000000 & -0.677650 & -0.100978 & 1.000000 \\
+-10 & 0.757858 & 0.763645 & -1.000000 & -0.340694 & -0.050767 & 1.000000 \\
+-1  & 0.007680 & 0.007680 & -1.000000 & -0.034136 & -0.005087 & 1.000000 \\
+0   & 0.000000 & 0.000000 & 1.000000  & 0.000000  & 0.000000  & 1.000000 \\
+1   & 0.007680 & 0.007680 & -1.000000 & 0.034136  & 0.005087  & 1.000000 \\
+10  & 0.757858 & 0.763645 & -1.000000 & 0.340694  & 0.050767  & 1.000000 \\
+20  & 2.916672 & 3.004297 & -1.000000 & 0.677650  & 0.100978  & 1.000000 \\
+\bottomrule
+\end{tabular}
+%  }
+\end{table}
+% insert image here(matlab terminal showing same data) - B.d.png
+
+\subsection{e. Analysis Conclusions}
+
+The parametric study reveals that the airfoil's modal characteristics are critically sensitive to the location of its center of mass relative to the elastic axis. As this offset, denoted by $x_{CP}$, increases, the inertial coupling between the plunge and pitch degrees of freedom intensifies, causing the natural frequencies to deviate by nearly 3\% from their uncoupled values at the tested extremes. The results demonstrate perfect symmetry in this behavior, as identical frequency shifts are observed for equal and opposite values of $x_{CP}$. This finding provides a clear validation of the theoretical model, which shows the structural coupling terms are dependent on $x_{CP}^2$.
+
+Despite these significant coupling effects and the resulting frequency shifts, the fundamental nature of the vibration modes remains robust. Across the entire range of parameter variations, the first mode consistently maintains its plunge-dominant character, while the second mode retains its pitch-dominant behavior. This modal integrity suggests that while the static mass imbalance strongly influences the system's natural frequencies, it does not fundamentally alter the primary form of its dynamic response.
+
+\newpage
+% ======================================================================
+% PROBLEM C.1: Matrix Equations of Motion
+% ======================================================================
+\section{Problem C.1}
+
+\subsection{Derivation of Matrix Equations of Motion}
+
+From the previous analysis, we have established the coupled equations of motion for the 2-DOF airfoil system. Let us systematically derive the matrix form of these equations to facilitate eigenvalue analysis.
+
+\subsubsection{Starting Point: Coupled Differential Equations}
+
+From Newton's second law applied to the plunge and pitch motions, with aerodynamic coupling, we obtain:
+
+\begin{align}
+m\ddot h \;-\; m x_{CP}\ddot\theta \;+\; K_h h \;+\; L_0(U)\,\theta &= 0, \label{eq:plunge}\\
+-\,m x_{CP}\ddot h \;+\; I_P \ddot \theta \;+\; K_\theta \theta \;-\; L_0(U)\,x_{QP}\,\theta &= 0, \label{eq:pitch}
+\end{align}
+
+These equations represent the Force equilibrium in the plunge direction and the Moment equilibrium about point $P$
+
+\subsubsection{Matrix Assembly Process}
+
+To convert these coupled differential equations into matrix form, we define the state vector:
+\begin{equation}
+\bm{x}(t) = \begin{bmatrix} h(t) \\ \theta(t) \end{bmatrix}
+\label{eq:state_vector}
+\end{equation}
+
+The acceleration vector is then:
+\begin{equation}
+\ddot{\bm{x}}(t) = \begin{bmatrix} \ddot{h}(t) \\ \ddot{\theta}(t) \end{bmatrix}
+\label{eq:acceleration_vector}
+\end{equation}
+
+\textbf{Step 1: Identify Mass Matrix Terms}
+
+From equations \eqref{eq:plunge} and \eqref{eq:pitch}, we extract the coefficients of the acceleration terms:
+
+\begin{align}
+\text{Plunge equation:} \quad &m\ddot{h} - m x_{CP}\ddot{\theta} + \text{(other terms)} = 0 \\
+\text{Pitch equation:} \quad &(-m x_{CP})\ddot{h} + I_P\ddot{\theta} + \text{(other terms)} = 0
+\end{align}
+
+These coefficients form the mass matrix $\mathbf{M}$:
+\begin{equation}
+\mathbf{M} \ddot{\bm{x}} = \begin{bmatrix}
+m & -m x_{CP} \\
+-m x_{CP} & I_P
+\end{bmatrix}
+\begin{bmatrix} \ddot{h} \\ \ddot{\theta} \end{bmatrix}
+\label{eq:mass_matrix_form}
+\end{equation}
+
+\textbf{Step 2: Identify Stiffness Matrix Terms}
+
+Similarly, we extract the coefficients of the displacement terms. These are separated into structural and aerodynamic contributions:
+
+\textit{Structural stiffness terms:}
+\begin{align}
+\text{From plunge equation:} \quad &K_h h + 0 \cdot \theta \\
+\text{From pitch equation:} \quad &0 \cdot h + K_\theta \theta
+\end{align}
+
+\textit{Aerodynamic stiffness terms:}
+\begin{align}
+\text{From plunge equation:} \quad &0 \cdot h + L_0(U) \cdot \theta \\
+\text{From pitch equation:} \quad &0 \cdot h + (-L_0(U) x_{QP}) \cdot \theta
+\end{align}
+
+\textbf{Step 3: Matrix Decomposition}
+
+Following standard practice in aeroelasticity, we decompose the system matrices into structural and aerodynamic components:
+
+\noindent Collecting into matrix form \(\mathbf{M}\ddot{\bm{x}}+\mathbf{K}(U)\bm{x}=\bm{0}\) with \(\bm{x}=[\,h\ \ \theta\,]^T\):
+\begin{equation}
+\mathbf{M}_S=
+\begin{bmatrix}
+m & -m x_{CP}\\[2pt]
+- m x_{CP} & I_P
+\end{bmatrix},\quad
+\mathbf{M}_A=
+\begin{bmatrix}
+0&0\\[2pt]0&0
+\end{bmatrix}
+\label{eq:mass_matrices}
+\end{equation}
+\begin{equation}
+\mathbf{K}_S=
+\begin{bmatrix}
+K_h & 0\\[2pt]
+0 & K_\theta
+\end{bmatrix},\quad
+\mathbf{K}_A(U)=
+\begin{bmatrix}
+0 & L_0(U)\\[2pt]
+0 & -\,L_0(U)\,x_{QP}
+\end{bmatrix}
+\label{eq:stiffness_matrices}
+\end{equation}
+\noindent Hence
+\begin{equation}
+\mathbf{M}=\mathbf{M}_S+\mathbf{M}_A=
+\begin{bmatrix}
+m & -m x_{CP}\\
+- m x_{CP} & I_P
+\end{bmatrix},\qquad
+\mathbf{K}(U)=\mathbf{K}_S+\mathbf{K}_A(U)=
+\begin{bmatrix}
+K_h & L_0(U)\\
+0 & K_\theta - L_0(U)\,x_{QP}
+\end{bmatrix}
+\label{eq:combined_matrices}
+\end{equation}
+
+\noindent Assume \(\bm{x}(t)=\hat{\bm{x}}\,e^{st}\), so \(\ddot{\bm{x}}=s^2\bm{x}\).
+Then
+\begin{equation}
+(s^2\mathbf{M}+\mathbf{K}(U))\,\hat{\bm{x}}=\bm{0} \quad\Longrightarrow\quad
+\det\!\big(s^2\mathbf{M}+\mathbf{K}(U)\big)=0
+\label{eq:eigenvalue_determinant}
+\end{equation}
+\noindent This is a degree-2 polynomial eigenvalue problem in \(s\) (with \(U\) as a parameter).
+
+
+\noindent Define \(\omega_h^2=K_h/m,\ \omega_\theta^2=K_\theta/I_0\) and divide \eqref{eq:plunge} by \(m\), \eqref{eq:pitch} by \(I_0\):
+\begin{equation}
+\left(
+s^2
+\underbrace{\begin{bmatrix}
+1 & -x_{CP}\\[2pt]
+-\dfrac{m x_{CP}}{I_0} & \dfrac{I_P}{I_0}
+\end{bmatrix}}_{\displaystyle \mathbf{M}_S^{(\mathrm{norm})}}
++
+\underbrace{\begin{bmatrix}
+\omega_h^2 & 0\\[2pt]
+0 & \omega_\theta^2
+\end{bmatrix}}_{\displaystyle \mathbf{K}_S^{(\mathrm{norm})}}
++
+\underbrace{\begin{bmatrix}
+0 & \dfrac{L_0(U)}{m}\\[8pt]
+0 & -\,\dfrac{L_0(U)\,x_{QP}}{I_0}
+\end{bmatrix}}_{\displaystyle \mathbf{K}_A^{(\mathrm{norm})}(U)}
+\right)\hat{\bm{x}}=\bm{0}
+\label{eq:normalized_system}
+\end{equation}
+\noindent In this normalized form, \(\mathbf{M}_A^{(\mathrm{norm})}=\mathbf{0}\) under the quasi-steady model.
+
+
+\newpage
+% ======================================================================
+% PROBLEM C.2: Flutter Analysis
+% ======================================================================
+\section{Problem C.2}
+
+\subsection{a. Input Data}
+The following input data was used for the flutter analysis, as specified in the \texttt{HW01\_eigen-\\Analysis\_EXAMPLE.m} script:
+
+\begin{table}[H]
+\centering
+\caption{Flutter Analysis Input Parameters}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+Air density & $\rho$ & 1.225 kg/m$^3$ \\
+Airfoil chord & $c$ & 0.45 m \\
+Mass & $m$ & 3.2 kg \\
+Moment of inertia about CM & $I_0$ & 0.055 kg$\cdot$m$^2$ \\
+Plunge frequency & $f_h$ & 1.8 Hz \\
+Pitch frequency & $f_t$ & 5.3 Hz \\
+Static offset & $x_{CP}$ & -10\% of $c$ \\
+Aerodynamic offset & $x_{QP}$ & 35\% of $c$ \\
+Airspeed range & $U$ & 0 to 14 m/s in 1001 steps \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% insert image here(matlab terminal showing same data) - C2a.png
+
+\subsection{b. Flutter Analysis}
+The flutter analysis was performed by running the \texttt{HW01\_eigenAnalysis\_EXAMPLE.m} MATLAB script. The script calculates the eigenvalues of the system for a range of airspeeds and then plots the frequency and damping of the system's modes as a function of airspeed.
+
+The flutter speed, $U_F$, is the airspeed at which one of the system's modes becomes unstable. This is identified on the plots where the damping of a mode crosses zero and becomes positive.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/c2b.png}
+    \caption{Frequency vs. Airspeed. The flutter condition is where two modes coalesce. Damping vs. Airspeed. The flutter speed $U_F$ is found where the damping of one of the modes becomes positive.}
+\end{figure}
+
+\subsection{c. Results}
+Based on the analysis of the provided MATLAB code and supporting documents, the flutter speed is found to be approximately:
+
+$U_F \approx 10.654$ m/s
+
+To convert this to knots, we use the conversion factor 1 m/s = 1.94384 knots:
+
+$U_F \approx 10.654 \text{ m/s} \times 1.94384 \frac{\text{knots}}{\text{m/s}} \approx 20.712$ knots
+
+\newpage
+% ======================================================================
+% PROBLEM C.3: Frequencies and Modeshapes near Flutter Speed
+% ======================================================================
+\section{Problem C.3}
+
+\subsection{a. Frequencies and Modeshapes at Various Airspeeds}
+The following results show the evolution of the system's natural frequencies and corresponding mode shapes as the airspeed $U$ approaches the flutter speed, $U_F = 10.654$ m/s.
+
+\noindent\textbf{Airspeed U = 0 m/s}
+
+\noindent Frequencies: $f_1 = f_2 = 1.7864$ Hz, $f_3 = f_4 = 5.3405$ Hz.
+\begin{align*}
+\mathbf{v}_1, \mathbf{v}_2 &= \begin{bmatrix} 1.0000 \\ 0.3407 \end{bmatrix} &
+\mathbf{v}_3, \mathbf{v}_4 &= \begin{bmatrix} -0.0508 \\ 1.0000 \end{bmatrix}
+\end{align*}
+
+\noindent\textbf{Airspeed U = 6 m/s}
+
+\noindent Frequencies: $f_1 = f_2 = 1.8420$ Hz, $f_3 = f_4 = 4.7439$ Hz.
+\begin{align*}
+\mathbf{v}_1, \mathbf{v}_2 &= \begin{bmatrix} 1.0000 \\ 0.4492 \end{bmatrix} &
+\mathbf{v}_3, \mathbf{v}_4 &= \begin{bmatrix} -0.0270 \\ 1.0000 \end{bmatrix}
+\end{align*}
+
+\noindent\textbf{Airspeed U = 10.5475 m/s (Approaching Flutter)}
+
+\noindent Frequencies: $f_1 = f_2 = 2.3772$ Hz, $f_3 = f_4 = 2.8448$ Hz.
+\begin{align*}
+\mathbf{v}_1, \mathbf{v}_2 &= \begin{bmatrix} 0.5271 \\ 1.0000 \end{bmatrix} &
+\mathbf{v}_3, \mathbf{v}_4 &= \begin{bmatrix} 0.2392 \\ 1.0000 \end{bmatrix}
+\end{align*}
+
+\noindent\textbf{Airspeed U = 10.654 m/s (Flutter Speed)}
+
+\noindent Frequencies (Coalesced): $f_1 = f_2 = f_3 = f_4 = 2.5869$ Hz.
+\begin{align*}
+\mathbf{v}_1, \mathbf{v}_3 &= \begin{bmatrix} 0.3616 - 0.0297i \\ 1.0000 \end{bmatrix} &
+\mathbf{v}_2, \mathbf{v}_4 &= \begin{bmatrix} 0.3616 + 0.0297i \\ 1.0000 \end{bmatrix}
+\end{align*}
+
+\noindent\textbf{Airspeed U = 10.7605 m/s (Post-Flutter)}
+
+\noindent Frequencies: $f_1 = f_2 = f_3 = f_4 = 2.5622$ Hz.
+\begin{align*}
+\mathbf{v}_1, \mathbf{v}_3 &= \begin{bmatrix} 0.3399 - 0.1475i \\ 1.0000 \end{bmatrix} &
+\mathbf{v}_2, \mathbf{v}_4 &= \begin{bmatrix} 0.3399 + 0.1475i \\ 1.0000 \end{bmatrix}
+\end{align*}
+
+% insert image here(matlab terminal showing same data) - C3a.png
+
+\subsection{b. Discussion}
+The analysis of the eigenvalues and eigenvectors reveals the classic mechanism of coalescence flutter.
+
+In the pre-flutter regime, at airspeeds \textbf{below the flutter speed ($U < U_F$)}, the system exhibits two distinct and well-separated modes. As the airspeed increases, the frequencies of these modes begin to converge, a trend visible in the results at various speeds. Throughout this stable stage, the mode shapes remain real, which indicates oscillations that are either perfectly in-phase or 180 degrees out-of-phase.
+
+The critical point is reached precisely \textbf{at the flutter speed of $U_F = 10.654$ m/s.} Here, the two distinct modal frequencies coalesce into a single frequency of $2.5869$ Hz. Most importantly, the corresponding mode shapes become complex conjugates. This mathematical shift signifies the physical onset of flutter, a condition where the plunge and pitch motions couple and develop a destructive phase lag. This specific phasing allows the structure to continuously extract energy from the airflow, driving the instability.
+
+In the \textbf{post-flutter condition ($U > U_F$),} the system is dynamically unstable. It is characterized by one stable (decaying) mode and one unstable (amplifying) mode. The mode shapes remain complex conjugates, but the imaginary component of the unstable eigenvector grows, indicating an oscillation that increases in amplitude with every cycle. Left unchecked, this amplifying motion would lead to the catastrophic structural failure of the airfoil. This progression clearly demonstrates the transition from a stable system to an unstable one as aerodynamic forces cause the structural modes to couple and coalesce.
+
+
+
+\newpage
+% ======================================================================
+% PROBLEM C.4: STATIC OFFSET EFFECT ON FLUTTER SPEED
+% ======================================================================
+\section{Problem C.4}
+This section investigates the effect of the static offset, $x_{CP}$ (the position of the center of mass relative to the elastic axis), on the flutter speed, $U_F$. The aerodynamic center, $x_{QP}$, is held constant at 35\% of the chord length.
+
+\subsection{a. Input Data for Negative $x_{CP}$}
+The analysis was first performed for cases where the center of mass is located ahead of the elastic axis (negative $x_{CP}$).
+
+\begin{table}[H]
+\centering
+\caption{Input Parameters for Negative $x_{CP}$ Analysis}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+Airspeed Range & $U$ & 8 to 16 m/s \\
+Aerodynamic Offset & $x_{QP}$ & 35\% of $c$ \\
+Static Offset Range & $x_{CP}$ & -20\% to -0.1\% of $c$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/C4a.png}
+    \caption{Input data}
+\end{figure}
+
+\newpage
+\subsection{b. Overlapped Plots and Flutter Speeds (Negative $x_{CP}$)}
+The frequency and damping plots for each negative $x_{CP}$ value were overlapped to compare their flutter characteristics. The resulting flutter speeds are summarized in Table \ref{tab:neg_xcp_flutter}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/C4b.png}
+    \caption{Overlapped frequency and damping plots for various negative $x_{CP}$ values.}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Flutter Speed vs. Negative Static Offset ($x_{CP}$)}
+\label{tab:neg_xcp_flutter}
+\begin{tabular}{@{}rr@{}}
+\toprule
+\textbf{$x_{CP}$ (\% of chord)} & \textbf{Flutter Speed, $U_F$ (m/s)} \\
+\midrule
+-20.0 & 9.616 \\
+-15.0 & 10.024 \\
+-10.0 & 10.656 \\
+-5.0 & 11.640 \\
+-1.0 & 13.064 \\
+-0.1 & 13.784 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\newpage
+\subsection{c. Flutter Speed Variation with $x_{CP}$}
+The relationship between the static offset and the flutter speed is visualized below.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/C4c.png}
+    \caption{Variation of flutter speed ($U_F$) as a function of static offset ($x_{CP}$).}
+\end{figure}
+
+\subsection{d. Discussion}
+
+The analysis reveals that the location of the center of gravity ($x_{CP}$) relative to the elastic axis is a critical parameter in determining the airfoil's flutter speed. However, a comprehensive understanding of aeroelastic stability requires considering the interplay between the \textbf{center of gravity} ($x_{CP}$), \textbf{elastic axis} (EA), and \textbf{aerodynamic center} ($x_{QP}$).
+
+The results of this parametric study demonstrate the powerful effect of mass distribution on \textbf{flutter}, a dynamic instability. For negative $x_{CP}$ values, where the center of gravity is \textbf{ahead} of the elastic axis, a clear trend is observed: as the CG moves further forward, the flutter speed \textbf{decreases}. This is due to an unfavorable inertial coupling between the plunge and pitch modes, which amplifies oscillations. Conversely, when the CG is moved \textbf{behind} the elastic axis (positive $x_{CP}$), flutter is suppressed entirely within the tested airspeed range. This stabilizing effect, known as \textbf{mass balancing}, occurs because the aft CG creates a favorable inertial moment that counteracts the aerodynamic twisting and actively damps the oscillations.
+
+While this analysis focuses on flutter, a complete stability assessment must also consider the phenomenon of \textbf{static divergence}. This instability is governed by the location of the aerodynamic center ($x_{QP}$) relative to the elastic axis. If the aerodynamic center is ahead of the elastic axis, an aerodynamic torque is created that can twist the wing to the point of structural failure. Consequently, a fundamental design constraint for any wing is to ensure the elastic axis is located aft of the aerodynamic center.
+
+\newpage
+\subsection{e. Positive $x_{CP}$ - Input \& Results}
+The analysis was repeated for cases where the center of mass is at or behind the elastic axis.
+
+\begin{table}[H]
+\centering
+\caption{Input Parameters for Positive $x_{CP}$ Analysis}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+Airspeed Range & $U$ & 8 to 16 m/s \\
+Aerodynamic Offset & $x_{QP}$ & 35\% of $c$ \\
+Static Offset Range & $x_{CP}$ & 0\% to 20\% of $c$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.80\textwidth]{figures/C4ea.png}
+    \caption{Input data for positive $x_{CP}$ values.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/C4e.png}
+    \caption{Frequency and damping plots for positive $x_{CP}$ values.}
+\end{figure}
+
+The results show that for all tested cases where the center of mass was at or behind the elastic axis ($x_{CP} \geq 0$), \textbf{no flutter was observed} within the investigated airspeed range.
+
+
+\newpage
+% ======================================================================
+% PROBLEM C.5: AERODYNAMIC OFFSET EFFECT ON FLUTTER SPEED
+% ======================================================================
+\section{Problem C.5}
+This section isolates the effect of the \textbf{aerodynamic offset}, $x_{QP}$, on the flutter speed. For this analysis, the position of the center of gravity is held constant at $x_{CP} = -10\%$ of the chord length.
+
+\subsection{a. Input Data}
+The analysis was performed for cases where the center of mass is held constant, while the aerodynamic center is varied.
+\begin{table}[H]
+    \centering
+    \caption{Input Parameters for $x_{QP}$ Analysis}
+    \label{tab:c5_inputs}
+    \begin{tabular}{@{}llr@{}}
+        \toprule
+        \textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+        \midrule
+        Airspeed Range & $U$ & 8 to 13 m/s \\
+        Static Offset (Constant) & $x_{CP}$ & -10\% of $c$ \\
+        Aerodynamic Offset Range & $x_{QP}$ & 25\% to 35\% of $c$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/C5a.png}
+    \caption{Input data for various $x_{QP}$ values.}
+    \label{fig:c5a_input}
+\end{figure}
+\newpage
+\subsection{b. Overlapped Plots and Flutter Speeds}
+The frequency and damping plots for each $x_{QP}$ value were overlapped to compare their flutter characteristics. The resulting flutter speeds identified from the plots are summarized in Table \ref{tab:xqp_flutter}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/C5b.png}
+    \caption{Overlapped frequency and damping plots for various $x_{QP}$ values.}
+    \label{fig:c5b_plots}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Flutter Speed vs. Aerodynamic Offset ($x_{QP}$)}
+    \label{tab:xqp_flutter}
+    \begin{tabular}{@{}rr@{}}
+        \toprule
+        \textbf{$x_{QP}$ (\% of chord)} & \textbf{Flutter Speed, $U_F$ (m/s)} \\
+        \midrule
+        25 & 10.650 \\
+        30 & 11.180 \\
+        35 & 11.805 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/C5b1.png}
+    \caption{MATLAB output for Flutter Speed v. Aerodynamic Offset.}
+    \label{fig:c5b1_MATLAB}
+\end{figure}
+
+\newpage
+\subsection{c. Flutter Speed Variation with $x_{QP}$}
+The relationship between the aerodynamic offset and the resulting flutter speed is visualized below.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/C5c.png}
+    \caption{Variation of flutter speed ($U_F$) as a function of aerodynamic offset ($x_{QP}$).}
+    \label{fig:c5c_variation}
+\end{figure}
+
+\subsection{d. Discussion}
+The location of the \textbf{aerodynamic center} ($x_{QP}$) directly influences the magnitude of the pitching moment generated by lift forces about the \textbf{elastic axis}. The results of this analysis show a clear and direct relationship: as the aerodynamic center moves aft (i.e., $x_{QP}$ increases), the \textbf{flutter speed increases}, indicating greater stability.
+
+This occurs because the term for the aerodynamic pitching moment in the equations of motion is proportional to the distance between the aerodynamic center and the elastic axis. By moving the aerodynamic center further aft, we \textbf{reduce the effective lever arm} that the lift force uses to twist the airfoil. A smaller twisting moment for a given amount of lift means that the aerodynamic forces are less effective at driving the pitch-plunge coupling that leads to flutter.
+
+Essentially, a more rearward aerodynamic center provides greater inherent aerodynamic stability against twisting, which translates directly to a higher resistance to flutter. This demonstrates that while mass balancing ($x_{CP}$) is a powerful tool, the inherent aerodynamic characteristics, governed by $x_{QP}$, also play a significant role in the overall aeroelastic stability of the system.
+
+
+\newpage
+% ======================================================================
+% PROBLEM C.6: DIVERGENCE SPEED
+% ======================================================================
+\section{Problem C.6}
+This section investigates the phenomenon of static divergence, focusing on how the divergence speed, $U_D$, is influenced by the location of the aerodynamic center, $x_{QP}$.
+
+\subsection{a. Extended Flutter Diagram for a Fixed Configuration}
+First, an analysis was run for a fixed configuration to identify the divergence speed on an extended flutter diagram.
+\begin{table}[H]
+    \centering
+    \caption{Input Parameters for Divergence Analysis}
+    \label{tab:c6_inputs}
+    \begin{tabular}{@{}llr@{}}
+        \toprule
+        \textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+        \midrule
+        Airspeed Range & $U$ & 0 to 20 m/s \\
+        Static Offset & $x_{CP}$ & -10\% of $c$ \\
+        Aerodynamic Offset & $x_{QP}$ & 35\% of $c$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{figures/C6a1.png}
+    \caption{MATLAB screenshot of input data for the divergence analysis.}
+    \label{fig:c6a_input_screenshot}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/C6a2.png}
+    \caption{Extended flutter diagram showing frequency coalescence (flutter) and one frequency dropping to zero (divergence).}
+    \label{fig:c6a_plot}
+\end{figure}
+
+On the extended plot, static divergence is identified as the airspeed at which one of the system's natural frequencies goes to zero. From the data tip on the plot, the divergence speed for this configuration is found to be $\mathbf{U_D = 14.94}$ \textbf{m/s}.
+
+\subsection{b. Divergence Speed vs. Aerodynamic Offset ($x_{QP}$)}
+Next, a parametric study was performed to determine the effect of the aerodynamic center's location on the divergence speed. The results are summarized in Table \ref{tab:xqp_divergence}.
+\begin{table}[H]
+    \centering
+    \caption{Divergence Speed vs. Aerodynamic Offset}
+    \label{tab:xqp_divergence}
+    \begin{tabular}{@{}rr@{}}
+        \toprule
+        \textbf{$x_{QP}$ (\% of chord)} & \textbf{Divergence Speed, $U_D$ (m/s)} \\
+        \midrule
+        20.0 & 19.7818 \\
+        25.0 & 17.6934 \\
+        30.0 & 16.1518 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/c6b.png}
+    \caption{Variation of divergence speed ($U_D$) as a function of aerodynamic offset ($x_{QP}$).}
+    \label{fig:c6b_plot}
+\end{figure}
+
+\subsection{c. Discussion}
+The analysis confirms the principles of static aeroelastic divergence. \textbf{Static divergence} is an instability where the aerodynamic twisting moment applied at the \textbf{aerodynamic center} ($x_{QP}$) overcomes the elastic restoring moment of the structure at the \textbf{elastic axis}. This causes the wing to twist to failure without oscillation.
+
+The results from part (b) show a clear trend: as the aerodynamic center ($x_{QP}$) moves forward (i.e., its percentage of the chord decreases), the divergence speed ($U_D$) increases significantly. This indicates that the airfoil becomes more resistant to divergence. The physical reason for this is that the twisting moment is proportional to the distance between the aerodynamic center and the elastic axis. By moving $x_{QP}$ forward and closer to the elastic axis, the "lever arm" for the aerodynamic force is shortened. A shorter lever arm results in a smaller twisting moment for a given amount of lift, meaning a higher airspeed is required to generate a moment sufficient to cause divergence.
+
+The result from part (a), where $U_D = 14.94$ m/s for $x_{QP} = 35\%$, is fully consistent with the trend observed in part (b). This value is lower than all the divergence speeds calculated in the parametric study, which is expected since the 35\% location for $x_{QP}$ represents the largest lever arm and is therefore the least stable configuration tested. This confirms that moving the aerodynamic center aft is detrimental to stability against static divergence.
+
+
+\newpage
+% ======================================================================
+% PROBLEM D.1: Damped Flutter Equations of Motion
+% ======================================================================
+\section{Problem D.1}
+This section presents the governing equations of motion for a damped 2-DOF airfoil. First derive the equations in their direct physical form and then show how they relate to the modal parameters often used in analysis.
+
+\subsection{Assumptions}
+The derivation is based on the following standard assumptions for aeroelastic analysis:
+
+\begin{enumerate}
+    \item \textbf{Linear System}: The structural response is linear (spring and damper forces are proportional to displacement and velocity, respectively).
+    \item \textbf{Quasi-Steady Aerodynamics}: The aerodynamic forces are assumed to respond instantly to changes in the angle of attack. The lift is modeled as $L = L_0(U)\theta$.
+    \item \textbf{Ideal Flow}: The airflow is considered incompressible, inviscid, and remains fully attached to the airfoil surface.
+    \item \textbf{Small Angles}: All rotations are small enough that $\sin\theta \approx \theta$ and $\cos\theta \approx 1$.
+\end{enumerate}
+
+\subsection{Derivation from First Principles}
+The equations of motion are derived by applying Newton's Second Law to the airfoil system, summing the forces for plunge (vertical) motion and the moments for pitch (rotational) motion.
+
+\subsubsection{Forces in the Plunge Direction ($\sum F = ma$)}
+The sum of forces includes the inertial force ($m\ddot{h}$), inertial coupling force from pitching ($-mx_{CP}\ddot{\theta}$), the viscous damping force ($-c_h\dot{h}$), the spring restoring force ($-K_h h$), and the external aerodynamic lift ($-L$). Setting the sum equal to zero for dynamic equilibrium gives:
+\begin{equation}
+m\ddot{h} - mx_{CP}\ddot{\theta} + c_h\dot{h} + K_h h + L = 0
+\label{eq:d1_phys_plunge}
+\end{equation}
+
+\subsubsection{Moments about the Elastic Axis ($\sum M = I\alpha$)}
+The sum of moments includes the inertial moment ($I_P\ddot{\theta}$), the inertial coupling moment from plunging ($-mx_{CP}\ddot{h}$), the rotational damping moment ($-c_\theta\dot{\theta}$), the torsional spring restoring moment ($-K_\theta\theta$), and the moment from the lift force acting at the aerodynamic center ($+Lx_{QP}$). Setting the sum equal to zero gives:
+\begin{equation}
+-mx_{CP}\ddot{h} + I_P\ddot{\theta} + c_\theta\dot{\theta} + K_\theta\theta - Lx_{QP} = 0
+\label{eq:d1_phys_pitch}
+\end{equation}
+
+\subsection{Relationship to Modal Form}
+While the equations above are physically direct, they are often rewritten in terms of non-dimensional damping ratios ($\zeta$) and fundamental natural frequencies ($f$) for analysis. This is done using the following standard definitions from vibration theory. \textbf{Stiffness to Frequency} from $K_h = m(2\pi f_h)^2$ and $K_\theta = I_0(2\pi f_\theta)^2$. Additionally, \textbf{Damping Coefficient to Ratio} from $c_h = 2\zeta_h m(2\pi f_h)$ and $c_\theta = 2\zeta_\theta I_0(2\pi f_\theta)$
+
+
+Substituting these into the physical equations and normalizing by mass ($m$) and inertia ($I_0$) respectively yields the Modal Form:
+
+    $$
+    \ddot{h} - x_{CP}\ddot{\theta} + 2\zeta_h (2\pi f_h)\dot{h} + (2\pi f_h)^2 h + \frac{L_0(U)}{m}\theta = 0
+    $$
+    $$
+    -\frac{mx_{CP}}{I_0}\ddot{h} + \frac{I_P}{I_0}\ddot{\theta} + 2\zeta_\theta (2\pi f_\theta)\dot{\theta} + (2\pi f_\theta)^2\theta - \frac{L_0(U)x_{QP}}{I_0}\theta = 0
+    $$
+
+\subsection{Final Equations of Motion (Physical Form)}
+For clarity and direct physical interpretation, we present the final equations of motion using the physical stiffness ($K$) and damping ($c$) coefficients. These are the fundamental governing equations from which all other forms are derived.
+
+\subsubsection{Final Equation of Motion for Plunge with Damping}
+\begin{equation}
+\boxed{
+m\ddot{h} - mx_{CP}\ddot{\theta} + c_h\dot{h} + K_h h + L = 0
+}
+\end{equation}
+
+\subsubsection{Final Equation of Motion for Pitch with Damping}
+\begin{equation}
+\boxed{
+-mx_{CP}\ddot{h} + I_P\ddot{\theta} + c_\theta\dot{\theta} + K_\theta\theta - Lx_{QP} = 0
+}
+\end{equation}
+
+% ======================================================================
+% PROBLEM D.2: Matrix Form of the Damped Equations (Full Derivation)
+% ======================================================================
+\subsection{b. Convert to matrix form}
+The objective is to cast the damped equations of motion into the form of a polynomial eigenvalue problem, $(s^2\mathbf{M} + s\mathbf{C} + \mathbf{K}(U))\mathbf{x} = \mathbf{0}$, and to provide the detailed derivation for each of the component matrices.
+
+\subsubsection{Derivation of the Matrix Form}
+The derivation begins with the physical-form equations of motion from D.1 and transforms them into the s-domain by substituting the assumed exponential solution. This process allows us to rearrange the system into the desired matrix structure.
+
+\textbf{State the Governing Equations and Assumed Solution}
+We start with the two coupled, second-order ordinary differential equations that govern the airfoil's motion:
+\begin{align}
+    m\ddot{h} - mx_{CP}\ddot{\theta} + c_h\dot{h} + K_h h + L_0(U)\theta &= 0 \label{eq:d2_full_plunge} \\
+    -mx_{CP}\ddot{h} + I_P\ddot{\theta} + c_\theta\dot{\theta} + K_\theta\theta - L_0(U)x_{QP}\theta &= 0 \label{eq:d2_full_pitch}
+\end{align}
+To solve this system, we assume a harmonic solution of the form $h(t) = \hat{h}e^{st}$ and $\theta(t) = \hat{\theta}e^{st}$, where $\hat{h}$ and $\hat{\theta}$ are the complex amplitudes. The corresponding time derivatives are:
+\begin{align*}
+    \dot{h} = s\hat{h}e^{st}, \quad \ddot{h} = s^2\hat{h}e^{st} \\
+    \dot{\theta} = s\hat{\theta}e^{st}, \quad \ddot{\theta} = s^2\hat{\theta}e^{st}
+\end{align*}
+
+\subsubsection{Step 2: Substitute Derivatives into the Equations of Motion}
+Next, we substitute these derivatives into the governing equations to eliminate the time dependence.
+
+\noindent\textbf{For the Plunge Equation \eqref{eq:d2_full_plunge}:}
+\begin{align*}
+    m(s^2\hat{h}e^{st}) - mx_{CP}(s^2\hat{\theta}e^{st}) + c_h(s\hat{h}e^{st}) + K_h(\hat{h}e^{st}) + L_0(U)(\hat{\theta}e^{st}) &= 0
+\end{align*}
+Since $e^{st}$ is a common, non-zero factor, we can divide the entire equation by it. We then group the remaining terms by the unknown amplitudes $\hat{h}$ and $\hat{\theta}$:
+\begin{align*}
+    (ms^2\hat{h} + c_h s\hat{h} + K_h\hat{h}) + (-mx_{CP}s^2\hat{\theta} + L_0(U)\hat{\theta}) &= 0 \\
+    \implies (ms^2 + c_h s + K_h)\hat{h} + (-mx_{CP}s^2 + L_0(U))\hat{\theta} &= 0
+\end{align*}
+
+\noindent\textbf{For the Pitch Equation \eqref{eq:d2_full_pitch}:}
+\begin{align*}
+    -mx_{CP}(s^2\hat{h}e^{st}) + I_P(s^2\hat{\theta}e^{st}) + c_\theta(s\hat{\theta}e^{st}) + K_\theta(\hat{\theta}e^{st}) - L_0(U)x_{QP}(\hat{\theta}e^{st}) &= 0
+\end{align*}
+Again, we divide by $e^{st}$ and group the terms by amplitude:
+\begin{align*}
+    (-mx_{CP}s^2\hat{h}) + (I_Ps^2\hat{\theta} + c_\theta s\hat{\theta} + K_\theta\hat{\theta} - L_0(U)x_{QP}\hat{\theta}) &= 0 \\
+    \implies (-mx_{CP}s^2)\hat{h} + (I_Ps^2 + c_\theta s + K_\theta - L_0(U)x_{QP})\hat{\theta} &= 0
+\end{align*}
+
+\subsubsection{Step 3: Assemble and Decompose the System Matrix}
+The two resulting algebraic equations form a homogeneous system. We can express this system as a single matrix equation and then decompose that matrix into the polynomial form $(s^2\mathbf{M} + s\mathbf{C} + \mathbf{K}(U))$.
+\begin{equation*}
+\begin{bmatrix}
+ms^2 + c_h s + K_h & -mx_{CP}s^2 + L_0(U) \\
+-mx_{CP}s^2 & I_Ps^2 + c_\theta s + K_\theta - L_0(U)x_{QP}
+\end{bmatrix}
+\begin{bmatrix} \hat{h} \\ \hat{\theta} \end{bmatrix}
+=
+\begin{Bmatrix} 0 \\ 0 \end{Bmatrix}
+\end{equation*}
+Separating the terms by powers of $s$ allows us to identify each system matrix individually.
+
+\subsection{Expressions for All Matrices}
+This decomposition directly yields the expressions for the Mass, Damping, and Stiffness matrices.
+
+\subsubsection{Mass Matrix ($\mathbf{M} = \mathbf{M}_S + \mathbf{M}_A$)}
+The mass matrix contains the physical inertial coefficients of the $s^2$ terms. There is no aerodynamic mass in this model ($\mathbf{M}_A = \mathbf{0}$).
+\begin{align}
+    \mathbf{M} = \mathbf{M}_S = \begin{bmatrix} m & -mx_{CP} \\ -mx_{CP} & I_P \end{bmatrix}
+\end{align}
+
+\subsubsection{Damping Matrix ($\mathbf{C} = \mathbf{C}_S + \mathbf{C}_A$)}
+The damping matrix contains the physical damping coefficients of the $s$ terms. There is no aerodynamic damping ($\mathbf{C}_A = \mathbf{0}$).
+\begin{align}
+    \mathbf{C} = \mathbf{C}_S = \begin{bmatrix} c_h & 0 \\ 0 & c_\theta \end{bmatrix}
+\end{align}
+
+\subsubsection{Stiffness Matrices ($\mathbf{K}(U) = \mathbf{K}_S + \mathbf{K}_A(U)$)}
+The total stiffness matrix combines the physical structural stiffness ($\mathbf{K}_S$) with normalized aerodynamic stiffness terms ($\mathbf{K}_A(U)$), where the aerodynamic contributions are divided by the lead inertia of their respective rows ($m$ and $I_P$).
+\begin{align}
+    \mathbf{K}_S &= \begin{bmatrix} K_h & 0 \\ 0 & K_\theta \end{bmatrix} \\
+    \mathbf{K}_A(U) &= \begin{bmatrix} 0 & \frac{L_0(U)}{m} \\ 0 & -\frac{L_0(U)x_{QP}}{I_P} \end{bmatrix} \\
+    \mathbf{K}(U) &= \mathbf{K}_S + \mathbf{K}_A(U) = \begin{bmatrix} K_h & \frac{L_0(U)}{m} \\ 0 & K_\theta - \frac{L_0(U)x_{QP}}{I_P} \end{bmatrix}
+\end{align}
+
+\subsubsection{Final Polynomial Eigenvalue Problem}
+Assembling these exact matrices gives the final system equation in the requested form:
+\begin{equation}
+\boxed{
+\left( s^2
+\begin{bmatrix} m & -mx_{CP} \\ -mx_{CP} & I_P \end{bmatrix}
++ s
+\begin{bmatrix} c_h & 0 \\ 0 & c_\theta \end{bmatrix}
++
+\begin{bmatrix} K_h & \frac{L_0(U)}{m} \\ 0 & K_\theta - \frac{L_0(U)x_{QP}}{I_P} \end{bmatrix}
+\right)
+\begin{bmatrix} \hat{h} \\ \hat{\theta} \end{bmatrix}
+=
+\begin{Bmatrix} 0 \\ 0 \end{Bmatrix}
+}
+\end{equation}
+
+
+\newpage
+% ======================================================================
+% PROBLEM D.2: Damped System Input Data
+% ======================================================================
+\section{Problem D.2}
+This section details the input parameters for the damped aeroelastic analysis. The data includes the physical properties of the airfoil, its uncoupled modal characteristics, and the specified structural damping ratios.
+
+\begin{table}[H]
+\centering
+\caption{Input Parameters for Damped Flutter Analysis}
+\label{tab:d2_inputs}
+\begin{tabular}{@{}llr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+Airfoil chord & $c$ & \SI{0.5}{\meter} \\
+Mass per unit span & $m$ & \SI{3.2}{\kilogram\per\meter} \\
+Inertia about CM & $I_0$ & \SI{0.0550}{\kilogram\meter\squared\per\meter} \\
+\addlinespace
+Uncoupled plunge frequency & $f_h$ & \SI{1.8}{\hertz} \\
+Uncoupled pitch frequency & $f_t$ & \SI{5.3}{\hertz} \\
+\addlinespace
+Plunge damping ratio & $\zeta_h$ & 3\% \\
+Pitch damping ratio & $\zeta_t$ & 2\% \\
+\addlinespace
+Static offset (CM from EA) & $x_{CP}$ & -10\% of $c$ (\SI{-0.0450}{\meter}) \\
+Aerodynamic offset (AC from EA) & $x_{QP}$ & 35\% of $c$ (\SI{0.1575}{\meter}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{figures/D2a.png}
+    \caption{MATLAB screenshot of the input data for the damped system.}
+    \label{fig:d2a_input_screenshot}
+\end{figure}
+
+\newpage
+% ======================================================================
+% PROBLEM D.3: Damped Ground Vibration Test (GVT)
+% ======================================================================
+\section{Problem D.3}
+This section presents the results of a damped Ground Vibration Test (GVT) analysis, which calculates the system's modal properties at zero airspeed ($U=0$). The results are compared to the undamped case to isolate the effects of structural damping.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of Damped and Undamped Modal Properties at U=0}
+\label{tab:d3_results}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+\textbf{Property} & \textbf{Mode I (Plunge-Dom.)} & \textbf{Mode II (Pitch-Dom.)} \\
+\midrule
+\textbf{Frequencies (Hz)} & & \\
+\quad Damped ($f_d$) & \SI{1.7856}{\hertz} & \SI{5.3392}{\hertz} \\
+\quad Undamped ($f_n$) & \SI{1.7864}{\hertz} & \SI{5.3405}{\hertz} \\
+\addlinespace
+\textbf{Damping Ratios (\%)} & & \\
+\quad Coupled Damped ($\zeta_{coupled}$) & 2.9381\% & 2.1323\% \\
+\quad Uncoupled Input ($\zeta_{h}, \zeta_{t}$) & 3.0\% & 2.0\% \\
+\addlinespace
+\textbf{Mode Shapes (V)} & & \\
+\quad Damped & $\begin{bmatrix} 1.0000 \\ 0.3403 \pm 0.0177i \end{bmatrix}$ & $\begin{bmatrix} -0.0508 \mp 0.0009i \\ 1.0000 \end{bmatrix}$ \\
+\quad Undamped & $\begin{bmatrix} 1.0000 \\ 0.3407 \end{bmatrix}$ & $\begin{bmatrix} -0.0508 \\ 1.0000 \end{bmatrix}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/D3.png}
+    \caption{MATLAB screenshot of the damped GVT results.}
+    \label{fig:d3_results_screenshot}
+\end{figure}
+
+\subsection{d. Discussion of Damped GVT Results}
+The introduction of structural damping has several distinct effects on the system's modal characteristics at zero airspeed. 
+First, The damped natural frequencies ($f_d$) are slightly lower than their undamped counterparts ($f_n$). This is an expected outcome, as damping is a dissipative force that resists motion, thereby slightly reducing the speed of oscillation. The small magnitude of the reduction confirms that the system is lightly damped.
+
+Second, the resulting modal damping ratios of the coupled system (2.94\% and 2.13\%) are slightly different from the uncoupled input values (3\% and 2\%). This is due to the inertial coupling ($x_{CP} \neq 0$). Since the system modes are linear combinations of both plunge and pitch, the damping associated with each mode is also a mixed combination of the original plunge and pitch damping.
+
+Third, this is the most significant finding. While the undamped modes are purely real (plunge and pitch motions are perfectly in-phase), the damped modes are complex. The presence of an imaginary component signifies a phase lag between the plunge and pitch motions within each mode. This inherent phase shift is a fundamental characteristic of damped vibratory systems and is a precursor to the more complex phase relationships that drive aeroelastic flutter at non-zero airspeeds.
+
+
+\newpage
+% ======================================================================
+% PROBLEM D.4: Damped Flutter Analysis
+% ======================================================================
+\section{Problem D.4}
+This section analyzes the flutter behavior of the damped airfoil system and compares the result to the undamped case to determine the influence of structural damping on the flutter speed, $U_F$.
+
+\subsection{a. Damping vs. Airspeed Plot}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/D4a.png}
+    \caption{Damping of the system modes as a function of airspeed.}
+    \label{fig:d4a_damping_plot}
+\end{figure}
+
+\subsection{b. Damped Flutter Speed ($U_F$)}
+From the plot, the flutter speed for the damped system is identified where the damping of one of the modes crosses zero.
+\begin{itemize}
+    \item $U_F (\text{damped}) = \SI{10.654}{\meter\per\second}$
+    \item $U_F (\text{damped}) = \SI{10.654}{\meter\per\second} \times 1.94384 \approx \SI{20.712}{knots}$
+\end{itemize}
+
+\subsection{c. Comparison with Undamped Flutter Speed}
+The flutter analysis for the undamped system is overlaid with the damped system to provide a direct comparison.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/D4c.png}
+    \caption{Overlapped damping plots for the damped (blue/orange) and undamped (yellow/purple) systems.}
+    \label{fig:d4c_comparison_plot}
+\end{figure}
+\noindent The flutter speed for the undamped system is found to be:
+\begin{itemize}
+    \item $U_F (\text{undamped}) = \SI{10.64}{\meter\per\second}$
+    \item $U_F (\text{undamped}) = \SI{10.64}{\meter\per\second} \times 1.94384 \approx \SI{20.685}{knots}$
+\end{itemize}
+
+\subsection{d. Discussion}
+The analysis reveals a critical concept in aeroelasticity; for coalescence flutter, light structural damping has a negligible effect on the flutter speed. This is shown by the damped flutter speed ($U_F = \SI{10.654}{\meter\per\second}$) being nearly identical to the undamped flutter speed ($U_F = \SI{10.64}{\meter\per\second}$), with a difference of only 0.13\%.
+
+This occurs because coalescence flutter is an instability driven by the powerful interaction between inertial and aerodynamic forces. As the airspeed increases, the aerodynamic forces begin to modify the effective stiffness and damping of the system, driving the natural frequencies of two modes together. At the flutter speed, the phasing between the modes becomes such that the structure begins to extract a large amount of energy from the airflow with each cycle of oscillation.
+
+The small amount of energy dissipated by the 2-3\% structural damping is insignificant compared to the massive energy being fed into the system from the airstream. Therefore, the damping does little to resist the onset of the instability. This finding validates the common engineering practice of neglecting structural damping for preliminary flutter calculations, as it simplifies the analysis without significantly compromising the accuracy of the predicted flutter boundary.
+
+
+Of course. Here is the solution for the GVT modeling problem, formatted as a LaTeX snippet that can be inserted into your document.
+
+
+\newpage
+% ======================================================================
+% PROBLEM E.1: GVT MODELING
+% ======================================================================
+\section{Problem E.1: GVT Modeling}
+This section considers the case of a Ground Vibration Test (GVT), where the airfoil is analyzed under structural-only forces with zero airspeed ($U=0$), which implies the absence of all aerodynamic forces ($L=0$).
+
+\subsection{a. Equations of Motion}
+The equations of motion for the GVT are deduced by simplifying the general aeroelastic equations of motion derived in Section A.a.
+
+\subsubsection{Assumptions}
+The derivation for the GVT case is based on the following assumptions:
+\begin{enumerate}
+    \item \textbf{No Aerodynamic Forces:} The airspeed is zero ($U=0$), so the lift force $L$ and any aerodynamic moments are zero.
+    \item \textbf{Linear Structural System:} The restoring forces from the springs are linearly proportional to the displacement (Hooke's Law), described by stiffness constants $K_h$ and $K_\theta$.
+    \item \textbf{Rigid Body Motion:} The airfoil itself is treated as a rigid body, and its motion is fully described by the two degrees of freedom: plunge ($h$) and pitch ($\theta$).
+    \item \textbf{Small Displacements:} The plunge displacement and pitch angle are assumed to be small, allowing for linearization of the kinematic relationships.
+\end{enumerate}
+
+\subsubsection{Derivation}
+We begin with the full equations of motion, Equations \eqref{eq:plunge_motion} and \eqref{eq:pitch_motion}, and set all aerodynamic terms ($L$) to zero.
+
+\noindent\textbf{Plunge Equation of Motion:}
+Setting $L=0$ in the general plunge equation gives the physical equation of motion for plunge:
+\begin{equation}
+    m \ddot{h} - m x_{CP} \ddot{\theta} + K_h h = 0
+    \label{eq:gvt_plunge_phys}
+\end{equation}
+
+\noindent\textbf{Pitch Equation of Motion:}
+Setting $L=0$ in the general pitch equation gives the physical equation of motion for pitch:
+\begin{equation}
+    - m x_{CP} \ddot{h} + I_p \ddot{\theta} + K_{\theta} \theta = 0
+    \label{eq:gvt_pitch_phys}
+\end{equation}
+
+\subsection{b. Polynomial Eigenvalue Problem}
+To cast the equations into the requested matrix form, we first normalize the physical equations and then assume a harmonic solution.
+
+\subsubsection{Normalization}
+We normalize the plunge equation \eqref{eq:gvt_plunge_phys} by the mass, $m$, and the pitch equation \eqref{eq:gvt_pitch_phys} by the moment of inertia about the center of mass, $I_0$. Using the definitions $\omega_h^2=K_h/m$ and $\omega_\theta^2=K_\theta/I_0$, we get:
+
+\begin{align}
+    \ddot{h} - x_{CP} \ddot{\theta} + \omega_h^2 h &= 0 \label{eq:gvt_plunge_modal} \\
+    -\frac{m x_{CP}}{I_0} \ddot{h} + \frac{I_p}{I_0} \ddot{\theta} + \omega_\theta^2 \theta &= 0 \label{eq:gvt_pitch_modal}
+\end{align}
+
+\subsubsection{Harmonic Solution and Matrix Formulation}
+Assuming a solution of the form $h(t) = \hat{h}e^{st}$ and $\theta(t) = \hat{\theta}e^{st}$, the second time derivatives become $\ddot{h} = s^2\hat{h}e^{st}$ and $\ddot{\theta} = s^2\hat{\theta}e^{st}$. Substituting these into the normalized equations \eqref{eq:gvt_plunge_modal} and \eqref{eq:gvt_pitch_modal} yields:
+\begin{align*}
+    (s^2 + \omega_h^2)\hat{h} - x_{CP}s^2\hat{\theta} &= 0 \\
+    -\frac{m x_{CP}}{I_0}s^2\hat{h} + \left(\frac{I_p}{I_0}s^2 + \omega_\theta^2\right)\hat{\theta} &= 0
+\end{align*}
+
+The two algebraic equations can be assembled into the matrix form $(s^2\mathbf{M}_S + \mathbf{K}_S + \mathbf{K}_A)\mathbf{x} = \mathbf{0}$:
+\begin{equation*}
+    s^2
+    \begin{bmatrix}
+        1 & -x_{CP} \\
+        -\frac{m}{I_0}x_{CP} & \frac{I_P}{I_0}
+    \end{bmatrix}
+    \begin{Bmatrix} \hat{h} \\ \hat{\theta} \end{Bmatrix}
+    +
+    \begin{bmatrix}
+        \omega_h^2 & 0 \\
+        0 & \omega_\theta^2
+    \end{bmatrix}
+    \begin{Bmatrix} \hat{h} \\ \hat{\theta} \end{Bmatrix}
+    +
+    \begin{bmatrix}
+        0 & 0 \\
+        0 & 0
+    \end{bmatrix}
+    \begin{Bmatrix} \hat{h} \\ \hat{\theta} \end{Bmatrix}
+    =
+    \begin{Bmatrix} 0 \\ 0 \end{Bmatrix}
+\end{equation*}
+
+\subsubsection*{Polynomial Eigenvalue Problem Matrices}
+The system matrices are identified as:
+\begin{align*}
+    \mathbf{M}_S &=
+    \begin{bmatrix}
+        1 & -x_{CP} \\
+        -\frac{m}{I_0}x_{CP} & \frac{I_P}{I_0}
+    \end{bmatrix} && \text{(Structural Mass Matrix)} \\
+    \mathbf{K}_S &=
+    \begin{bmatrix}
+        \omega_h^2 & 0 \\
+        0 & \omega_\theta^2
+    \end{bmatrix} && \text{(Structural Stiffness Matrix)} \\
+    \mathbf{M}_A &=
+    \begin{bmatrix}
+        0 & 0 \\
+        0 & 0
+    \end{bmatrix} && \text{(Aerodynamic Mass Matrix is zero)} \\
+    \mathbf{K}_A(U) &=
+    \begin{bmatrix}
+        0 & 0 \\
+        0 & 0
+    \end{bmatrix} && \text{(Aerodynamic Stiffness Matrix is zero)}
+\end{align*}
+
+
+
+\newpage
+% ======================================================================
+% PROBLEM E.3: DERIVATION OF DIVERGENCE SPEED
+% ======================================================================
+\section{Problem E.2}
+Static divergence is a non-oscillatory, aeroelastic instability where the aerodynamic twisting moment on a structure overcomes its torsional stiffness, leading to structural failure.
+
+\subsection{Condition for Static Divergence}
+The phenomenon is static, which implies that all time-dependent terms (velocities and accelerations) are zero. In the context of the eigenvalue problem $(s^2\mathbf{M} + s\mathbf{C} + \mathbf{K}(U))\mathbf{x} = \mathbf{0}$, this corresponds to the condition where an eigenvalue becomes zero ($s=0$).
+
+Setting $s=0$ simplifies the general equation of motion to:
+\begin{equation}
+    \mathbf{K}(U)\mathbf{x} = \mathbf{0}
+\end{equation}
+For a non-trivial solution ($\mathbf{x} \neq \mathbf{0}$) to exist, the determinant of the total stiffness matrix, $\mathbf{K}(U)$, must be zero. This is the fundamental condition for divergence.
+\begin{equation}
+    \det(\mathbf{K}(U)) = 0
+\end{equation}
+
+\subsection{Derivation}
+The derivation begins by setting the determinant of the total physical stiffness matrix to zero.
+\begin{align*}
+    \det(\mathbf{K}(U)) = \det \begin{pmatrix} K_h & L_0(U) \\ 0 & K_\theta - L_0(U) x_{QP} \end{pmatrix} &= 0 \\
+    K_h(K_\theta - L_0(U) x_{QP}) &= 0
+\end{align*}
+Since the plunge stiffness $K_h$ is non-zero, the term in the parenthesis must be zero. This gives the physical condition for divergence: the aerodynamic moment must equal the structural restoring moment.
+\begin{equation}
+     K_\theta = L_0(U) x_{QP} \label{eq:divergence_condition_2}
+\end{equation}
+For a 2D airfoil, the standard lift function per unit span is $L_0(U) = \frac{1}{2}\rho U^2 c a_1$, where $c$ is the chord length. Substituting this into our condition gives:
+\begin{align*}
+    K_\theta &= \left(\frac{1}{2}\rho U^2 c a_1\right) x_{QP}
+\end{align*}
+To express this in terms of modal parameters, we substitute the relationship for torsional stiffness, $K_\theta = I_0 \omega_\theta^2$:
+\begin{align*}
+    I_0 \omega_\theta^2 &= \frac{1}{2}\rho U^2 c a_1 x_{QP}
+\end{align*}
+Finally, we solve for the airspeed, $U$, which is now defined as the divergence speed, $U_D$:
+\begin{align*}
+    U_D^2 &= \frac{2 I_0 \omega_\theta^2}{\rho c a_1 x_{QP}} \\
+    U_D &= \sqrt{\frac{2 I_0 \omega_\theta^2}{\rho c a_1 x_{QP}}}
+\end{align*}
+Factoring $\omega_\theta$ out of the square root gives the final expression.
+
+\subsubsection{Final Expression for Divergence Speed}
+\begin{equation}
+    \boxed{
+    U_D = \omega_\theta \sqrt{\frac{2 I_0}{x_{QP} a_1 \rho c}}
+    }
+\end{equation}
+
+\newpage
+% ======================================================================
+% APPENDIX A: Derivation of Uncoupled Natural Frequencies
+% ======================================================================
+\appendix
+\section{Derivation of Uncoupled Natural Frequencies}
+
+The uncoupled natural frequencies for plunge and pitch motion are derived by simplifying the general equations of motion under the assumption of no aerodynamic forces ($U=0$) and no mass coupling ($x_{CP}=0$). This analysis begins by recalling the solution for a standard single-degree-of-freedom (1-DOF) system.
+
+\subsection{1-DOF Free Vibration Analysis}
+A simple mass-spring system is governed by the equation:
+\begin{equation}
+m\ddot{x} + kx = 0
+\label{eq:1dof_equation}
+\end{equation}
+Assuming a solution of the form $x(t) = \hat{x}e^{st}$, the second derivative is $\ddot{x} = s^2\hat{x}e^{st} = s^2x$. Substituting this into the equation of motion yields the characteristic equation:
+\begin{equation}
+(ms^2 + k)\hat{x} = 0
+\label{eq:1dof_characteristic}
+\end{equation}
+For a non-trivial solution ($\hat{x} \neq 0$), we solve for $s$:
+\begin{equation}
+s^2 = -\frac{k}{m}
+\label{eq:1dof_s_squared}
+\end{equation}
+The natural frequency, $\omega_n$, is defined such that $\omega_n^2 = k/m$. Therefore:
+\begin{equation}
+s^2 = -\omega_n^2 \implies s = \pm i\omega_n
+\label{eq:1dof_eigenvalues}
+\end{equation}
+The general solution describes simple harmonic motion:
+\begin{equation}
+x(t) = C_1 e^{i\omega_n t} + C_2 e^{-i\omega_n t} = C \cos(\omega_n t + \psi)
+\label{eq:1dof_solution}
+\end{equation}
+
+\subsection{Uncoupled Plunge Natural Frequency}
+For the uncoupled plunge motion of the airfoil, the equation of motion simplifies to:
+\begin{equation}
+m\ddot{h} + K_h h = 0
+\label{eq:plunge_uncoupled}
+\end{equation}
+By direct analogy with the 1-DOF system, where mass $m$ is the airfoil mass and $K_h$ is the plunge spring stiffness, the plunge natural frequency squared is:
+\begin{equation}
+\omega_h^2 = \frac{K_h}{m}
+\label{eq:plunge_natural_freq}
+\end{equation}
+The frequency in Hertz is given by $f_h = \omega_h / (2\pi)$.
+
+\subsection{Uncoupled Pitch Natural Frequency}
+For the uncoupled pitch motion, the equation of motion simplifies to:
+\begin{equation}
+I_o\ddot{\theta} + K_\theta \theta = 0
+\label{eq:pitch_uncoupled}
+\end{equation}
+This equation is the rotational analogue of the 1-DOF system. The term $I_o$ represents the mass moment of inertia of the airfoil about the axis of rotation. It is important to note the distinction between $I_P$, the moment of inertia about a general reference point P, and $I_o$. For this uncoupled case, we assume the center of mass lies on the axis of rotation ($x_{CP}=0$), and thus we define:
+\begin{equation}
+I_o = I_P \big|_{x_{CP}=0}
+\label{eq:inertia_relationship}
+\end{equation}
+By analogy, where $I_o$ is the rotational inertia and $K_\theta$ is the torsional stiffness, the pitch natural frequency squared is:
+\begin{equation}
+\omega_\theta^2 = \frac{K_\theta}{I_o}
+\label{eq:pitch_natural_freq}
+\end{equation}
+The frequency in Hertz is given by $f_\theta = \omega_\theta / (2\pi)$.
+
+
+\newpage
+% ======================================================================
+% APPENDIX B: Mathematical Derivation of the Linearized Lift Force
+% ======================================================================
+\section{Mathematical Derivation of the Linearized Lift Force}
+
+The aerodynamic lift force, $L$, is defined by the standard lift equation, which relates the force to the fluid properties and flow conditions through a dimensionless coefficient. The equation is given by:
+\begin{equation}
+    L = \frac{1}{2} \rho U^2 S C_L
+    \label{eq:lift_general}
+\end{equation}
+where $\rho$ is the fluid density, $U$ is the freestream velocity, $S$ is the reference wing area, and $C_L$ is the lift coefficient. The term $\frac{1}{2} \rho U^2$ is the dynamic pressure, $q$.
+
+The lift coefficient, $C_L$, is primarily a function of the angle of attack, $\theta$. For analytical tractability, we linearize this function, $C_L(\theta)$, using a first-order Taylor series expansion about a reference angle $\theta_0 = 0$:
+\begin{equation}
+    C_L(\theta) \approx C_L(0) + \frac{dC_L}{d\theta}\bigg|_{\theta=0} (\theta - 0)
+\end{equation}
+For a symmetric airfoil, there is no lift at zero angle of attack, thus $C_L(0) = 0$. This simplifies the approximation to:
+\begin{equation}
+    C_L(\theta) \approx \left( \frac{dC_L}{d\theta}\bigg|_{\theta=0} \right) \theta
+\end{equation}
+We define the constant derivative term as the lift curve slope, $a_1$:
+\begin{equation}
+    a_1 \equiv \frac{dC_L}{d\theta}
+\end{equation}
+This yields the linearized lift coefficient model, which holds for small $\theta$:
+\begin{equation}
+    C_L = a_1 \theta
+    \label{eq:cl_linear}
+\end{equation}
+
+\begin{figure}[htbp]
+    \centering
+    \input{figures/lift_curve.tex}
+    \caption{Lift coefficient ($C_L$) versus angle of attack ($\theta$), illustrating the linear region for small $\theta$ and the subsequent rounded stall behavior.}
+    \label{fig:lift_curve}
+\end{figure}
+% Note: Lift curve figure placeholder - original figure file not found
+
+Substituting the linear model from Equation \ref{eq:cl_linear} into the general lift equation (Equation \ref{eq:lift_general}) gives the final expression for the linearized lift force:
+\begin{equation}
+    L = \frac{1}{2} \rho U^2 S a_1 \theta
+    \label{eq:lift_linear}
+\end{equation}
+This formulation is predicated on several key assumptions, which are listed and explained below.
+
+\subsection{Fundamental Assumptions for Linearized Lift Theory}
+
+\begin{enumerate}
+\item \textbf{Linear Dependence on Angle of Attack}
+
+   The lift coefficient varies linearly with angle of attack: $C_L = a_1 \theta$, where $a_1$ is the lift curve slope. This assumption is valid for small angles of attack before the onset of flow separation ($\theta < \theta_{\text{stall}}$).
+
+\item \textbf{Symmetric Airfoil Geometry}
+
+   The analysis assumes a symmetric airfoil with no zero-lift angle: $C_L(0) = 0$. For a cambered airfoil, a zero-lift offset would be included: $C_L = C_{L0} + a_1 \theta$.
+
+\item \textbf{Ideal Lift Curve Slope}
+
+   From thin airfoil theory, the theoretical lift curve slope for a 2D airfoil is $a_1 = 2\pi$ rad$^{-1}$. This represents the ideal, inviscid case and provides an upper bound for real airfoils.
+
+\item \textbf{Subsonic and Incompressible Flow}
+
+   The flow is assumed to be incompressible with constant density $\rho = \text{constant}$. This is a valid approximation for Mach numbers $M \ll 0.3$, typical for low-speed aeroelastic analysis.
+
+\item \textbf{Rigid Airfoil Structure}
+
+   The airfoil is assumed to maintain its shape under aerodynamic loading (no structural deformation beyond the prescribed rigid-body motions). This enables linear analysis by separating structural and aerodynamic effects.
+
+\item \textbf{Fully Attached Airflow}
+
+   The flow remains attached over the entire airfoil surface with no flow separation, stall, or vortex shedding. This assumption is valid only for small angles of attack and excludes post-stall behavior.
+
+\item \textbf{Neglect of Drag Effects}
+
+   Aerodynamic drag forces are assumed negligible compared to lift forces for the purpose of this analysis. This is typically valid for high-aspect-ratio wings at small angles of attack.
+
+\item \textbf{Small Angle Approximation}
+
+   The angle of attack $\theta$ (in radians) is assumed to be small such that:
+   \begin{align}
+   \sin \theta &\approx \theta \\
+   \cos \theta &\approx 1
+   \end{align}
+
+   This enables linearization of the aerodynamic relationships and is typically valid for $|\theta| < 0.2$ radians ($\approx 11^{\circ}$).
+
+\end{enumerate}
+
+\newpage
+% ======================================================================
+% APPENDIX C: Mathematical Details of Exponential Solutions
+% ======================================================================
+\section{Mathematical Details of Exponential Solutions}
+
+This appendix provides the complete mathematical justification for the time derivative relationships used in the eigenvalue analysis.
+
+\subsection{Derivation of Time Derivatives for Exponential Functions}
+
+Consider the general exponential function:
+\begin{equation}
+f(t) = A e^{st}
+\label{eq:exponential_general}
+\end{equation}
+where $A$ is a complex constant and $s$ is a complex parameter.
+
+\textbf{First Derivative:}
+Using the chain rule:
+\begin{equation}
+\frac{d}{dt}[A e^{st}] = A \frac{d}{dt}[e^{st}] = A \cdot s \cdot e^{st} = s \cdot (A e^{st}) = s \cdot f(t)
+\label{eq:first_derivative}
+\end{equation}
+
+\textbf{Second Derivative:}
+Applying the derivative operator again:
+\begin{equation}
+\frac{d^2}{dt^2}[A e^{st}] = \frac{d}{dt}[s \cdot A e^{st}] = s \cdot \frac{d}{dt}[A e^{st}] = s \cdot (s \cdot A e^{st}) = s^2 \cdot (A e^{st}) = s^2 \cdot f(t)
+\label{eq:second_derivative}
+\end{equation}
+
+\subsection{Application to Displacement Functions}
+
+For our airfoil system with:
+\begin{align}
+h(t) &= \hat{h} e^{st} \\
+\theta(t) &= \hat{\theta} e^{st}
+\end{align}
+
+\textbf{Plunge Motion Derivatives:}
+\begin{align}
+\dot{h}(t) &= \frac{d}{dt}[\hat{h} e^{st}] = s \hat{h} e^{st} = s \cdot h(t) \\
+\ddot{h}(t) &= \frac{d^2}{dt^2}[\hat{h} e^{st}] = s^2 \hat{h} e^{st} = s^2 \cdot h(t)
+\end{align}
+
+\textbf{Pitch Motion Derivatives:}
+\begin{align}
+\dot{\theta}(t) &= \frac{d}{dt}[\hat{\theta} e^{st}] = s \hat{\theta} e^{st} = s \cdot \theta(t) \\
+\ddot{\theta}(t) &= \frac{d^2}{dt^2}[\hat{\theta} e^{st}] = s^2 \hat{\theta} e^{st} = s^2 \cdot \theta(t)
+\end{align}
+
+\subsection{Physical Interpretation}
+
+The parameter $s$ has the physical interpretation:
+\begin{itemize}[noitemsep]
+\item $s = i\omega$ for purely oscillatory motion at frequency $\omega$
+\item $s = \sigma + i\omega$ for oscillatory motion with exponential growth/decay
+\item $\sigma > 0$: unstable (growing) motion
+\item $\sigma < 0$: stable (decaying) motion
+\item $\sigma = 0$: neutrally stable oscillation
+\end{itemize}
+
+This mathematical framework allows us to determine system stability by examining the eigenvalues $s$ of the characteristic equation.
+\newpage
+
+
+
+\newpage
+% Ensure Appendix D exists for the diagram
+\newpage
+% ======================================================================
+% APPENDIX D: 1-DOF SYSTEM REVIEW (EXPANDED)
+% ======================================================================
+\section{Detailed Review of 1-DOF Damped Vibration}
+
+To understand the origin of the modal parameter relationships used in the main body of this work, it is essential to first review the classic single-degree-of-freedom (1-DOF) mass-spring-damper system. This foundational model provides the physical intuition behind concepts like natural frequency and damping ratio.
+
+\subsection{The Governing Equation of Motion}
+The system consists of a mass ($m$) connected to a fixed wall by a linear spring (with stiffness $k$) and a viscous damper (with damping coefficient $c$).
+
+% --- Define Muted/Pastel Colors ---
+\definecolor{pastelblue}{RGB}{174, 198, 235}
+\definecolor{pastelgreen}{RGB}{177, 221, 155}
+\definecolor{pastelorange}{RGB}{255, 204, 153}
+\definecolor{darkgray}{RGB}{80, 80, 80}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        every node/.style={font=\small},
+        spring/.style={ % The spring style is still needed
+            thick,
+            decoration={
+                coil, aspect=0.4, segment length=3.5pt, amplitude=4pt, pre length=5pt, post length=5pt
+            }, decorate
+        }
+    ]
+    % --- Main Mass Block ---
+    \node[draw, thick, minimum width=2.5cm, minimum height=1.5cm, fill=pastelblue] (mass) at (0,0) {\large$m$};
+    
+    % --- Fixed Wall ---
+    \draw[thick, color=darkgray] (-4, -1.5) -- (-4, 1.5);
+    \fill[pattern=north east lines, pattern color=darkgray!60] (-4.2, -1.5) rectangle (-4, 1.5);
+    
+    % --- Damper (using circuitikz) ---
+    \draw[color=pastelorange, line width=1.2pt] (-4, 0.5) to[damper, label=\(c\)] (mass.west |- 0, 0.5);
+    
+    % --- Spring ---
+    \draw[spring, color=pastelgreen, line width=1.2pt] (-4, -0.5) -- (mass.west |- 0, -0.5) node[midway, below, black, yshift=-2pt] {$k$};
+    
+    % --- Displacement Arrows ---
+    \draw[->, thick, color=darkgray] (0, -1.2) -- (2.5, -1.2) node[midway, below, black] {$x, \dot{x}, \ddot{x}$};
+    \draw[dashed, color=darkgray] (mass.south) -- (0, -1.1);
+    
+    \end{tikzpicture}
+    \caption{A standard 1-DOF mass-spring-damper system.}
+\end{figure}
+
+According to Newton's Second Law ($\sum F = ma$), the sum of the forces acting on the mass must equal its mass times acceleration. The forces are the spring force ($-kx$), the damping force ($-c\dot{x}$), and the inertial force ($-m\ddot{x}$). For dynamic equilibrium, the sum is zero:
+\begin{equation}
+    m\ddot{x} + c\dot{x} + kx = 0
+\end{equation}
+This is a second-order linear homogeneous ordinary differential equation.
+
+\subsection{The Characteristic Equation}
+To solve this equation, we assume a solution of the form $x(t) = \hat{x}e^{st}$, where $\hat{x}$ is a constant amplitude and $s$ is a complex number. The derivatives are:
+\begin{align*}
+    \dot{x}(t) &= s \cdot \hat{x}e^{st} \\
+    \ddot{x}(t) &= s^2 \cdot \hat{x}e^{st}
+\end{align*}
+Substituting these into the equation of motion gives:
+\begin{align*}
+    m(s^2 \hat{x}e^{st}) + c(s \hat{x}e^{st}) + k(\hat{x}e^{st}) &= 0 \\
+    (ms^2 + cs + k)\hat{x}e^{st} &= 0 && \text{(Factor out common terms)}
+\end{align*}
+For a non-trivial solution (where motion occurs, so $\hat{x}e^{st} \neq 0$), the term in the parenthesis must be zero. This gives the characteristic equation:
+\begin{equation}
+    ms^2 + cs + k = 0
+\end{equation}
+
+\subsection{Solving for the Roots}
+This is a simple quadratic equation for the variable $s$. We can solve it using the quadratic formula, $s = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$:
+\begin{align}
+    s_{1,2} &= \frac{-c \pm \sqrt{c^2 - 4mk}}{2m} \\
+    &= -\frac{c}{2m} \pm \frac{\sqrt{c^2 - 4mk}}{2m} && \text{(Separate the terms)} \\
+    &= -\frac{c}{2m} \pm \sqrt{\frac{c^2 - 4mk}{4m^2}} && \text{(Bring denominator inside the root)} \\
+    &= -\frac{c}{2m} \pm \sqrt{\left(\frac{c}{2m}\right)^2 - \frac{k}{m}} && \text{(Simplify the expression)}
+\end{align}
+These two roots, $s_1$ and $s_2$, completely define the behavior of the system.
+
+\subsection{Introducing Modal Parameters}
+To simplify and generalize this result, we define two critical modal parameters:
+
+\begin{enumerate}
+    \item \textbf{The Undamped Natural Frequency ($\omega_n$):} This is the frequency at which the system would oscillate if there were no damping ($c=0$). It is defined as:
+    $$ \omega_n = \sqrt{\frac{k}{m}} $$
+
+    \item \textbf{The Damping Ratio ($\zeta$):} This is a non-dimensional number that describes how much damping is present compared to the "critical" amount needed to prevent oscillation. It is defined as:
+    $$ \zeta = \frac{c}{c_{cr}} = \frac{c}{2\sqrt{mk}} $$
+    Using our definition of $\omega_n$, we can rewrite this as $\zeta = \frac{c}{2m\omega_n}$. From this, we can express the term $\frac{c}{2m}$ as:
+    $$ \frac{c}{2m} = \zeta\omega_n $$
+\end{enumerate}
+
+\subsection{Final Form of the Roots}
+By substituting these modal parameters back into the equation for the roots, we get a much cleaner expression:
+\begin{align}
+    s_{1,2} &= -\zeta\omega_n \pm \sqrt{(\zeta\omega_n)^2 - \omega_n^2} \\
+    &= -\zeta\omega_n \pm \sqrt{\omega_n^2(\zeta^2 - 1)} && \text{(Factor out } \omega_n^2\text{)} \\
+    &= -\zeta\omega_n \pm \omega_n\sqrt{\zeta^2 - 1} && \text{(Final form of the roots)}
+\end{align}
+For most structural systems, damping is light ($\zeta < 1$), which makes the term inside the square root negative. We can then write the solution using $i = \sqrt{-1}$:
+\begin{align}
+    s_{1,2} &= -\zeta\omega_n \pm i\omega_n\sqrt{1 - \zeta^2} \\
+    &= -\zeta\omega_n \pm i\omega_d && \text{(where } \omega_d = \omega_n\sqrt{1 - \zeta^2} \text{ is the damped natural frequency)}
+\end{align}
+This analysis provides the fundamental link between the direct physical parameters of a system ($m, c, k$) and the modal parameters ($\omega_n, \zeta$) used to describe its vibratory nature.
+
+\newpage
+% ======================================================================
+% APPENDIX D: MATLAB Code
+% ======================================================================
+\section{MATLAB Code}
+\subsection{MAIN file}
+
+\begin{lstlisting}[caption={Main analysis script for Homework 1.}, label={lst:main_script}]
+%% Initialization
+clc             % clear command window
+clear           % clear workspace
+format compact
+set(0,'DefaultFigureWindowStyle','docked')
+nfig=1;
+tol=1e-10;   %Tolerance for discarding machine zero
+
+%% Choose what section to run
+ifSectionB_GVT=0; % Perform GVT analysis
+
+ifSectionC_Flutter=0; %perform flutter analysis
+    ifC2basicFlutter=0; % perform basic flutter analysis
+    ifC3Zoom=0; % zoom around flutter
+    ifC4UFvsCP=0; % plot multiple times to find UF for various xCP
+    ifC5UFvsQP=0; % plot multiple times to find UF for various xQP
+    ifC6Div=0; % calculate and plot divergence speed
+
+ifSectionD_Damping=1; % perform analysis with damping
+    ifDampedGVT=0; % perform damped GVT analysis
+    ifDampedFlutter=1; % perform damped Flutter analysis
+
+%% Input Data Homework 1
+rho=1.225; % air density, 1.225 kg/m3
+a1=2*pi; % ideal lift curve slope value
+
+% ------ data from homework MAIN ---------
+c=0.45; % airfoil chord, m
+m=3.2; % mass, kg
+I0=0.055; % moment of inertia about the center of mass, kg*m^2
+fh=1.8; % plunge frequency, Hz
+ft=5.3; % pitch frequency, Hz
+CPratioDefault=-10e-2; % static offset
+QPratioDefault=35e-2; % aerodynamic offset
+
+% ------ data from homework C.2 ---------
+UendUF=14; % flutter diagram
+NU=1001; % length of airspeed
+
+% ------ data from homework C.4 ---------
+UstartCP=8; UendCP=16; % xCP variation airspeed range
+CPratioRange=[-20 -15 -10 -5 -1 -0.1]/100; N_CP=length(CPratioRange);
+%CPratioRange=[20 15 10 5 1 0.1 0]/100; N_CP=length(CPratioRange); %Part e
+
+% ------ data from homework C.5 ---------
+UstartQP=8; UendQP=13; % xQP variation airspeed range
+QPratioRange=[25 30 35]/100; N_QP=length(QPratioRange);
+
+% ------ data from homework C.6 ---------
+UendDiv=20; % flutter diagram for divergence analysis
+
+% ------ data from homework D.2 ---------
+zh=3e-2; % plunge damping ratio
+zt=2e-2; % pitch damping ratio
+
+
+%%  Section B: GVT
+if ifSectionB_GVT
+display('Section B. Ground Vibration Test (GVT) Analysis')
+close all % close all figures
+display(' (a) input data')
+fprintf(' c=%2.1fm, m=%2.1f kg/m, I0=%5.4f kg*m^2/m \n',c,m,I0)
+fprintf(' uncoupled frequencies fh=%2.1f Hz, ft=%2.1f Hz \n',fh,ft)
+display(' ')
+GVT(c,m,I0,fh,ft,CPratioDefault) % run function GVT
+display(' ')
+display(' (e) Every student should insert here discussion of results')
+end % ifGVT ends here
+
+
+%% Section C: FLUTTER ANALYSIS
+if ifSectionC_Flutter
+display('Section C. Flutter Eigen Analysis')
+close all % close all figures
+%% Display input data
+CPratio=CPratioDefault; xCP=CPratio*c;
+QPratio=QPratioDefault; xQP=QPratio*c;
+display(' input data')
+fprintf(' rho=%4.3f kg/m^3 (air density) \n',rho)
+fprintf(' c=%2.1fm, m=%2.1f kg/m, I0=%5.4f kg*m^2/m \n',c,m,I0)
+fprintf(' uncoupled frequencies fh=%2.1f Hz, ft=%2.1f Hz \n',fh,ft)
+fprintf(' static offset xCP=%2.1f%%, %5.4f m \n',CPratio*100,xCP)
+fprintf(' aerodynamic offset xQP=%2.1f%%, %5.4f m \n',QPratio*100,xQP)
+%% CALCULATE STRUCTURAL MATRICES MS, KS
+wt=2*pi*ft; wh=2*pi*fh;
+Ip=I0+m*xCP^2; % moment of inertia about the elastic center,kg*m^2/m
+MS=[ 1          -xCP ;
+    -m/I0*xCP   Ip/I0 ] ; % structural mass matrix
+KS=[wh^2          0 ;
+     0            wt^2 ] ; % structural stiffness matrix
+%% DEFINE AERODYNAMIC LIFT FUNCTION
+L0=@(UU) rho*UU^2/2*c*a1; % Lift function for a generic speed UU
+%% DEFINE AIRSPEED RANGE
+Ustart=0; Uend=UendUF; % flutter diagram
+if ifC6Div; Uend=UendDiv; end % extended diagram
+U=linspace(Ustart, Uend, NU); % airspeed range
+if ifC3Zoom;
+% Read UF and create airspeed range around UF
+UF=input('enter flutter speed read on the flutter diagram UF=');
+eps=1e-2;U=[0 6 (1-eps)*UF UF (1+eps)*UF];
+end
+NU=length(U);
+%% Run basic flutter analysis
+[r,f,z,sigma,v] = eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,0,KS);
+if ifC2basicFlutter
+% if NU > 10; % only plot if more than ten points to plot
+display([' Ustart=' num2str(Ustart) ' m/s, Uend=' num2str(Uend) 'm/s,' ...
+        ' NU=' num2str(NU)])
+close all % close all figures
+plotTitle={['xCP=' num2str(CPratio*1e2) '%' 'xQP=' num2str(QPratio*1e2) '% ']};
+figure; plot_f_z(U,f,z,plotTitle)
+end
+if ifC3Zoom; displayUfv(U,f,v); end % print zoom-in values if needed
+%% UF variation with xCP
+if ifC4UFvsCP
+close all % close all figures
+figure(1);
+% xCP variation airspeed range
+Ustart=UstartCP; Uend=UendCP; NU=1001; U=linspace(Ustart,Uend,NU);
+display([' Ustart=' num2str(Ustart) ' m/s, Uend=' num2str(Uend) 'm/s,' ...
+' NU=' num2str(NU)])
+QPratio=QPratioDefault; xQP=QPratio*c; % aerodynamic offset
+display([' QPratio=' num2str(QPratio*100) '%'])
+display(CPratioRange*100,' CPratioRange %')
+%% LOOP OVER ALL CPratio values
+for nCP=1:N_CP
+CPratio=CPratioRange(nCP); xCP=CPratio*c; % static offset
+Ip=I0+m*xCP^2; % moment of inertia about the elastic center,kg*m^2/m
+MS=[ 1        -xCP ;
+    -m/I0*xCP      Ip/I0 ] ; % structural mass matrix
+[r,f,z,sigma,v] = eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,0,KS);
+plotTitle={['xQP=' num2str(QPratio*1e2) '%, various xCP']};
+plot_f_z(U,f,z,plotTitle)
+hold on
+%% identify UF values
+fprintf(' CPratio=%0.1f%% \n', CPratio*100)
+display('put datatips on plot to identify UF ')
+display('when done, press any key into the command window to continue')
+pause
+end % nCP loop ends here
+UF_CP=input(['enter [UF1, UF2, UF3, ...] values ' ...
+'from datatips on plot in the order of appearance=']);
+display(' ')
+%% plot UF vs xCP%
+display(CPratioRange*100, ' xCP %')
+display(UF_CP, ' UF, m/s')
+figure(2);
+plot(CPratioRange*100,UF_CP,'-r');
+xlim([-20 20]); ylim([0 Uend]); xlabel('xCP, %'); ylabel('U_F, m/s')
+title(['U_F vs. x_C_P for x_Q_P=' num2str(QPratio*100) ' %'],...
+'FontSize', 11, 'FontWeight', 'normal')
+grid on
+end % ifUFvsCP ends here
+%% UF variation with xQP
+if ifC5UFvsQP
+close all % close all figures
+% xQP variation airspeed range
+Ustart=UstartQP; Uend=UendQP; NU=1001; U=linspace(Ustart,Uend,NU);
+display([' Ustart=' num2str(Ustart) ' m/s, Uend=' num2str(Uend) 'm/s,' ...
+' NU=' num2str(NU)])
+CPratio=CPratioDefault; xCP=CPratio*c; % static offset
+display([' CPratio=' num2str(CPratio*100) '%'])
+Ip=I0+m*xCP^2; % moment of inertia about the elastic center,kg*m^2/m
+MS=[ 1 -xCP ;
+-m/I0*xCP Ip/I0 ] ; % structural mass matrix
+figure(1);
+display([' QPratioRange % = ' num2str(QPratioRange*100)])
+%% LOOP OVER ALL QPratio values
+for nQP=1:N_QP
+QPratio=QPratioRange(nQP); xQP=QPratio*c; % static offset
+[r,f,z,sigma,v] = eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,0,KS);
+plotTitle={['xCP=' num2str(CPratio*1e2) '%, various xQP']};
+plot_f_z(U,f,z,plotTitle)
+hold on
+%% identify UF values
+fprintf(' QPratio=%0.0f%% \n', QPratio*100)
+display('put datatips on plot to identify UF ')
+display('when done, press any key into the command window to continue')
+pause
+end % NxQP loop ends here
+UF_QP=zeros(1,N_QP);
+UF_QP=input(['enter [UF1, UF2, UF3, ...] values ' ...
+'from datatips on plot in the order of appearance=']);
+display(' ')
+%% plot UF vs xQP%
+display(QPratioRange*100, ' xQP %')
+display(UF_QP, ' UF, m/s')
+figure(2);
+plot(QPratioRange*100,UF_QP,'-b');
+xlim([20 30]); ylim([0 Uend]); xlabel('xQP, %'); ylabel('U_F, m/s')
+title(['U_F vs. x_Q_P for x_C_P=' num2str(CPratio*100) ' %'],...
+'FontSize', 11, 'FontWeight', 'normal')
+grid on
+end % ifUFvsQP ends here
+%% calculate and plot divergence speed UD
+if ifC6Div
+display([' Ustart=' num2str(Ustart) ' m/s, Uend=' num2str(Uend) 'm/s,' ...
+' NU=' num2str(NU)])
+close all % close all figures
+% ---- (a) ----
+QPratio=QPratioDefault; xQP=QPratio*c;
+[r,f,z,sigma,v] = eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,0,KS);
+figure
+plotTitle={['xCP=' num2str(CPratio*1e2) '% ' ...
+'xQP=' num2str(QPratio*1e2) '%']};
+plot_f_sigmaExtended(U,f,sigma,plotTitle)
+% ---- (b) ----
+QPratio=[20 25 30]*1e-2;
+xQP=QPratio*c;
+UD=wt*sqrt(2*I0./(xQP*a1*rho*c));
+% display(' ')
+display(QPratio*100,'QPratio, %')
+display(UD,'divergence speed UD, m/s')
+figure
+plot(QPratio*1e2,UD,'-b')
+ylim([0 Uend])
+xlabel('x_Q_P, %')
+ylabel('U_D, m/s')
+title('U_D vs. x_Q_P', 'FontSize', 11, 'FontWeight', 'normal')
+grid on
+end % ifDiv ends here
+end % ifFlutter ends here
+
+
+
+%% Section D: include damping
+if ifSectionD_Damping
+display('Section D. Damped GVT and Flutter')
+close all % close all figures
+%% display input data
+display('input data')
+if ifDampedFlutter; fprintf(' rho=%4.3f kg/m^3 (air density) \n',rho); end
+fprintf(' c=%2.1fm, m=%2.1f kg/m, I0=%5.4f kg*m^2/m \n',c,m,I0)
+fprintf(' uncoupled frequencies fh=%2.1f Hz, ft=%2.1f Hz \n',fh,ft)
+fprintf(' damping ratios zh=%2.0f%%, zt=%2.0f%%, \n',[zh, zt]*100)
+CPratio=CPratioDefault; xCP=CPratio*c;
+Ip=I0+m*xCP^2; % moment of inertia about the elastic center,kg*m^2/m
+fprintf(' static offset xCP=%2.1f%%, %5.4f m \n',CPratio*100,xCP)
+QPratio=QPratioDefault; xQP=QPratio*c; % aerodynamic offset
+fprintf(' aerodynamic offset xQP=%2.1f%%, %5.4f m \n',QPratio*100, xQP)
+%% CALCULATE STRUCTURAL MATRICES MS, CS, KS
+wt=2*pi*ft; wh=2*pi*fh;
+MS=[ 1 -xCP ;
+-m/I0*xCP Ip/I0 ] ; % structural mass matrix
+CS=[2*zh*wh 0 ;
+0 2*zt*wt ] ; % structural viscous damping
+KS=[wh^2 0 ;
+0 wt^2 ] ; % structural stiffness matrix
+%% DAMPED GVT
+if ifDampedGVT
+dampedGVT(zh,zt,MS,CS,KS) % run dampedGVT function
+end % ifDampedGVT ends here
+%% DAMPED FLUTTER
+if ifDampedFlutter
+display('Damped Flutter')
+close all % close all figures
+%% DEFINE AIRSPEED RANGE
+Ustart=0; Uend=UendUF; % flutter diagram
+NU=1001; U=linspace(Ustart,Uend,NU); % airspeed range
+%% Calculate and plot damped flutter diagram
+figure
+[r,f,z,sigma,v]=eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,CS,KS);
+plotTitle={[['xCP=' num2str(CPratio*1e2) '% ' 'xQP=' num2str(QPratio*1e2) '%'] ...
+[' zh=' num2str(zh*1e02) '%'] [' zt=' num2str(zt*1e02) '%']]};
+plotOptions='.r';
+plot_f_z_Damped(U,f,z,plotTitle,plotOptions)
+%% Identify damped UF values
+display('put datatips on plot to identify damped UF ')
+display('when done, press any key into the command window to continue')
+pause
+%% Overlap Undamped Plot
+zh=0; zt=0; % undamped case
+CS=[2*zh*wh 0 ;
+0 2*zt*wt ] ; % structural viscous damping
+[r,f,z,sigma,v]=eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,CS,KS);
+plotTitle={[['xCP=' num2str(CPratio*1e2) '% ' 'xQP=' num2str(QPratio*1e2) '%'] ...
+[' zh=' num2str(zh*1e02) '%'] [' zt=' num2str(zt*1e02) '%']]};
+plotOptions='.b';
+plot_f_z_Damped(U,f,z,plotTitle,plotOptions)
+end % ifDampedFlutter ends here
+end % ifDamping ends here
+%% Finish
+display(' ')
+display(' ---------------')
+display (['success! ' mfilename ' finished successfully'])
+\end{lstlisting}
+
+\newpage
+\subsection{dampedGVT.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function dampedGVT(zh,zt,MS,CS,KS)
+%{
+Summary of this function goes here
+Detailed explanation goes here
+%}
+%% CALCULATE EIGENVALUES: use polyeig to get eigenvectors and, eigenvalues
+[V_raw,s_raw] = polyeig(KS,CS,MS);
+[V,s]=sort_norm_eig(V_raw,s_raw);
+% display(s,'sorted eigenvalues s');
+% display(V,'sorted and normalized eigenvectors V');
+%% EXTRACT DAMPING AND FREQ. FROM REAL AND IMAG PARTS OF s
+% zz=real(s)./abs(s); z=-sort(zz); % damping
+z=-real(s)./abs(s); % damping
+f=abs(imag(s))/(2*pi); % frequencies
+%% CALCULATE UNDAMPED FREQUENCIES AND MODESHAPES
+[V_raw0,s_raw0] = polyeig(KS,0,MS);
+[V0,s0]=sort_norm_eig(V_raw0,s_raw0);
+f0=abs(imag(s0))/(2*pi); % undamped frequencies
+%% DISPLAY FREQUENCY AND DAMPING
+display(' ')
+display('Damped GVT')
+display(f,' (a) damped frequency f, Hz')
+display(f0,' undamped frequency f, Hz')
+display(' ')
+display(z*100,' (b) coupled modal damping, z, %')
+display([zh,zt]*100,' uncoupled modal damping, zt,zh, %')
+%% DISPLAY MODESHAPES
+display(' ')
+display(V,' (c) damped modeshapes V')
+display(V0,' undamped modeshapes V0')
+
+
+end % function ends here
+\end{lstlisting}
+
+\newpage
+\subsection{displayUfv.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function displayUfv(U,f,v)
+display('frequencies and modeshapes at various airspeeds')
+NU=length(U);
+for jU=1:NU
+display(['U=' num2str(U(jU)) ' m/s'])
+display(f(:,jU)',' frequency, Hz')
+display(v(:,:,jU),' modeshapes')
+% display(' ')
+end
+
+
+end % function ends here
+\end{lstlisting}
+
+\newpage
+\subsection{eigenFlutter.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function[r,f,z,sigma,v] = eigenFlutter(rho,a1,c,m,I0,xQP,U,MS,CS,KS)
+tol=1e-10; % tolerance for discarding machine zero
+NU=length(U);
+%% define aerodynamic lift function
+L0=@(UU) rho*UU^2/2*c*a1; % Lift function for a generic speed UU
+%% clear space
+r=zeros(4,NU); v=zeros(2,4,NU); f=zeros(4,NU); z=zeros(4,NU); sigma=zeros(4,NU);
+for jU=1:NU
+%% define flutter matrices
+MA=zeros(2,2); % aerodynamic mass matrix MA=0
+CA=zeros(2,2); % aerodynamic damping matrix,CA=0
+% UU=U(jU);
+% L=L0(UU);
+KA=[0 L0(U(jU))/m ;
+0 -xQP*L0(U(jU))/I0 ] ; % aerodynamic stiffness matrix
+M=MS+MA; % system mass matrix
+C=CS+CA; % system viscous damping matrix
+K=KS+KA; % system stiffness matrix
+%% calculate eigenvalues: use polyeig to get eigenvectors V and eigenvalues s
+[V_raw,s_raw] = polyeig(K,C,M);
+[V,s]=sort_norm_eig(V_raw,s_raw);
+% display(s,'sorted eigenvalues s')
+% display(V,'sorted and normalized eigenvectors V');
+%% store eigenvalues and eigenvectors
+r(:,jU)=s;
+%% extract damping and freq. from real and imaginary parts of s
+ff=abs(imag(s))/(2*pi); % frequencies
+% zz=-real(s)./abs(s); zz=zz.*(abs(zz)>tol);
+sig=real(s); sig=sig.*(abs(sig)>tol);
+zz=-sig./abs(s); % damping
+[~,Iz]=sort(sig,'descend'); % sort damping in descending order
+    for i=1:4 % store frequencies and damping values
+    f(i,jU)=ff(Iz(i));
+    z(i,jU)=zz(Iz(i));
+    sigma(i,jU)=real(s(Iz(i)));
+    v(:,i,jU)=V(:,Iz(i));
+    end
+end % jU loop ends here
+
+
+end % function ends here
+\end{lstlisting}
+
+\newpage
+\subsection{GVT.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function GVT(c,m,I0,fh,ft,CPratioDefault)
+wh=2*pi*fh; wt=2*pi*ft;
+CPratio=CPratioDefault; % static offset as % of chord
+%% Calculate stiffnesses from uncoupled angular freq. wh, wt
+Kh=m*wh^2; % plunge spring stiffness, N/m
+Kt=I0*wt^2; % pitch spring stiffness, N*m/rad
+display(' (b) calculate spring stiffnesses')
+fprintf(' plunge stiffness Kh=%2.1f N/m \n',Kh)
+fprintf(' pitch stiffness Kt=%3.2f N*m/rad \n',Kt)
+display(' ')
+CPratio=CPratioDefault; % static offset as % of chord
+xCP=CPratio*c; % static offset value
+fprintf(' (c) static offset xCP=%2.1f%%, %5.4f m \n',CPratio*100,xCP)
+Ip=I0+m*xCP^2; % moment of inertia about the elastic center, kg*m^2
+fprintf(' moment of inertia Ip= %5.4f m \n',Ip)
+MS=[ 1 -xCP ;
+-m/I0*xCP Ip/I0 ]; % structural mass matrix
+KS=[wh^2 0 ;
+0 wt^2 ]; % structural stiffness matrix
+display(MS,' structural mass matrix MS')
+display(KS,' structural stiffness matrix KS')
+% use polyeig to get eigenvectors V and eigenvalues s
+[V_raw,s_raw] = polyeig(KS,0,MS);
+[V,s]=sort_norm_eig(V_raw,s_raw);
+display(s,' sorted eigenvalues s')
+display(V,' sorted and normalized eigenvectors V');
+ff=abs(imag(s))/(2*pi);
+[fc,If,~]=unique(ff,'stable'); % Frequencies
+fprintf(' coupled frequencies fI=%1.4f Hz, fII=%1.4f Hz \n',fc)
+fprintf(' uncoupled frequencies fh=%1.4f Hz, ft=%1.4f Hz \n',fh,ft)
+fun=[fh,ft];
+df=(fc-fun)./fun;
+fprintf(' frequency diff dfI=%1.4f%%, dfII=%1.4f%% \n',df*100)
+V_modes=V(:,If); % modeshapes
+display(V_modes,' modeshapes, V_I, V_II')
+display(' ')
+display(' (d) other xCP values ')
+CPratio=[-20 -10 -1 0 1 10 20]*1e-2; % static offset as % of chord
+N_CP=size(CPratio,2);
+display (CPratio*100,'CPratio %')
+xCP=CPratio*c; % static offset value
+display (xCP,'xCP, m')
+Ip=I0+m*xCP.^2; % moment of inertia about the elastic center, kg*m^2
+display(Ip,' Ip, kg*m^2')
+f=zeros(2,N_CP); df=zeros(2,N_CP); V_modes=zeros(2,2,N_CP);
+for nCP=1:N_CP
+MS=[ 1 -xCP(nCP);
+-m/I0*xCP(nCP) Ip(nCP)/I0 ];
+KS=[wh^2 0 ;
+0 wt^2 ];
+[V_raw,s_raw] = polyeig(KS,0,MS);
+[V,s]=sort_norm_eig(V_raw,s_raw);
+ff=abs(imag(s))/(2*pi); [fc,If,~]=unique(ff,'stable');
+dff=(fc-fun)./fun;
+f(:,nCP)=fc; % frequencies
+df(:,nCP)=dff; % freq diff
+V_m=V(:,If);
+V_modes(:,:,nCP)=V_m; % modeshapes
+end
+display(f,' coupled frequencies, Hz')
+display(df*100,' df%')
+V_mode1(:,:)=V_modes(:,1,:);
+display(V_mode1,' modeshape V_I')
+V_mode2(:,:)=V_modes(:,2,:);
+display(V_mode2,' modeshape V_II')
+end % function ends here
+\end{lstlisting}
+
+
+\newpage
+\subsection{plot\_f\_sigmaExtended.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function plot_f_sigmaExtended(U,f,sigma,plotTitle)
+%{
+plot extended flutter diagram f and sigma vs U to identify divergence speed UD
+%}
+NU=length(U);
+subplot(2,1,1); plot(U,f,'.r');
+title(plotTitle, 'FontSize', 11,'FontWeight','normal')
+xlabel('U, m/s'); ylabel('f, Hz');
+fmax=ceil(max(max(f))); ylim([0 fmax]);
+% ylim([2.5 3])
+xlim([U(1) U(NU)]);
+hold on
+subplot(2,1,2);
+plot(U,sigma,'.g');
+xlim([U(1) U(NU)]); xlabel('U, m/s');
+ymax=15; ylim([-ymax ymax]); ylabel('sigma=real(s)');
+grid on
+hold on
+end                 % Function ends here
+\end{lstlisting}
+
+\newpage
+\subsection{plot\_f\_z\_Damped.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function plot_f_z_Damped(U,f,z,plotTitle,plotOptions)
+NU=length(U); 
+subplot(2,1,1); plot(U,f,plotOptions); 
+title(plotTitle, 'FontSize', 11,'FontWeight','normal')
+xlabel('U, m/s'); ylabel('f, Hz'); 
+fmax=ceil(max(max(f))); ylim([0 fmax]);
+% ylim([2.5 3])
+xlim([U(1) U(NU)]);  
+hold on
+subplot(2,1,2); plot(U,z*1e2,plotOptions);
+xlim([U(1) U(NU)]); xlabel('U, m/s'); 
+ymax=15; ylim([-ymax ymax]); ylabel('\zeta, %'); 
+grid on
+hold on
+ 
+end % function ends here
+\end{lstlisting}
+
+\newpage
+\subsection{plot\_f\_z.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function plot_f_z(U,f,z,plotTitle)
+NU=length(U);
+subplot(2,1,1); plot(U,f,'.r');
+title(plotTitle, 'FontSize', 11,'FontWeight','normal')
+xlabel('U, m/s'); ylabel('f, Hz');
+fmax=ceil(max(max(f))); ylim([0 fmax]);
+xlim([U(1) U(NU)]);
+hold on
+subplot(2,1,2); plot(U,z*1e2,'.g');
+xlim([U(1) U(NU)]); xlabel('U, m/s');
+ymax=15; ylim([-ymax ymax]); ylabel('\zeta, %');
+grid on
+hold on
+
+end % function ends here
+\end{lstlisting}
+
+\newpage
+\subsection{sort\_norm\_eig.m}
+\begin{lstlisting}[caption={Helper script for Homework 1.}, label={lst:main_script}]
+function [X_sorted_normalized,e_sorted] = sort_norm_eig(X,e)
+%{
+X(N,Ne) = matrix of Ne eigenvectors each of N dofs
+e(Ne) = row of Ne eigenvalues
+Procedure:
+    sort eigenvalues e in magnitude order and stores into es
+    reorder the eigenvector X and stores into Xs
+    normalize the sorted eigenvectors Xs to get Xsn
+    such that the largest element in each eigenvector is = 1
+%}
+N=size(X,1); Ne=size(X,2); % pick sizes N, Ne
+e_abs=abs(e); % pick up abs values
+% [~,Is]=sort(e_abs,'descend'); % sort in descending order
+[~,Is]=sort(e_abs,'ascend'); % sort in ascending order
+% Is contains the sorted indices
+%% store sorted eigenvalues and eigenvectors
+e_sorted=zeros(1,Ne); Xs=zeros(N,Ne);
+for ne=1:Ne; e_sorted(ne)=e(Is(ne)); Xs(:,ne)=X(:,Is(ne)); end %
+% display(e_sorted,'sorted eigenvalues')
+% display(Xs,'sorted eigenvectors')
+%% normalize eigenvectors to make +ve the largest element in each column
+Xabs=abs(Xs);
+[~,IX]=max(Xabs,[],1);
+X_sorted_normalized=zeros(N);
+for j=1:Ne;
+scale=sign(Xs(IX(j),j))*max(abs(Xs(:,j)));
+X_sorted_normalized(:,j)=Xs(:,j)/scale;
+end
+
+end % function ends here
+\end{lstlisting}
+
+\end{document}
