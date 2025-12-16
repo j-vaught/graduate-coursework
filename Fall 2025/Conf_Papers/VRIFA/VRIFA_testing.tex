@@ -1,0 +1,562 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{hyperref}
+
+\title{Ablation Study of VRIFA Parameters}
+\author{JC Vaught}
+\date{ }
+
+\begin{document}
+\maketitle
+
+\noindent i aint gonna include the following in the study:
+\begin{itemize}
+  \item Video I/O parameters (e.g., \texttt{--video-path}, \texttt{--output-dir})
+  \item Frame processing cadence (e.g., \texttt{--frame-step})
+  \item Output selection flags (e.g., which PNGs/MP4s are written)
+\end{itemize}
+
+\noindent Instead, imma focus on the \emph{algorithmic} parameters:
+\begin{itemize}
+  \item Pre-threshold smoothing (Gaussian blur)
+  \item Morphological cleanup (open/close)
+  \item Size filtering (minimum region area)
+  \item Contrast and thresholding behavior
+  \item Reference selection (``dry'' baseline)
+  \item Color processing (colorspace and channel weights)
+  \item Frame locking / temporal persistence
+\end{itemize}
+\newpage
+\section{Metrics and Visualizations}
+
+\subsection{Quantitative Metrics}
+
+\begin{itemize}
+  \item \textbf{Segmentation quality}
+  \begin{itemize}
+    \item Intersection-over-Union (IoU) vs.\ ground truth masks.
+    \item Precision, recall, and F1-score where labels exist.
+  \end{itemize}
+  \item \textbf{Mask structure and noise}
+  \begin{itemize}
+    \item Number of connected components per frame.
+    \item Count of ``small'' components (below a fixed area threshold).
+    \item Presence and count of internal holes in the main resin region.
+  \end{itemize}
+  \item \textbf{Flow-front characteristics}
+  \begin{itemize}
+    \item Flow-front position vs.\ time (distance from gate).
+    \item Detection lag (difference between true front time and detected front time).
+  \end{itemize}
+  \item \textbf{Temporal stability}
+  \begin{itemize}
+    \item Frame-to-frame IoU between successive masks.
+    \item Number of ``flicker'' pixels (pixels toggling on/off across consecutive frames).
+  \end{itemize}
+\end{itemize}
+
+\subsection{Planned Figures}
+
+\begin{itemize}
+  \item \textbf{Parameter sweep curves}
+  \begin{itemize}
+    \item Parameter value on the x-axis.
+    \item Metric of interest (IoU, small components, lag, etc.) on the y-axis.
+  \end{itemize}
+  \item \textbf{Temporal plots}
+  \begin{itemize}
+    \item Frame index vs.\ flow-front distance for different parameter settings.
+    \item Frame index vs.\ mask area for different parameter settings.
+  \end{itemize}
+  \item \textbf{Qualitative comparisons}
+  \begin{itemize}
+    \item Panels of:
+    \begin{itemize}
+      \item Original frame.
+      \item Contrast map.
+      \item Final mask overlay for multiple parameter settings.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\section{Pre-Threshold Smoothing (Gaussian Blur)}
+
+\subsection{Parameters and Ranges}
+
+\begin{itemize}
+  \item \textbf{Parameters}
+  \begin{itemize}
+    \item \texttt{--blur-kernel}: odd-sized Gaussian kernel, e.g.
+    \begin{itemize}
+      \item $k \in \{1, 3, 5, 7, 9\}$.
+    \end{itemize}
+    \item \texttt{--skip-blur}:
+    \begin{itemize}
+      \item Boolean toggle to bypass the blur step.
+    \end{itemize}
+  \end{itemize}
+  \item \textbf{Experimental conditions}
+  \begin{itemize}
+    \item Sweep \texttt{--blur-kernel} with \texttt{--skip-blur = false}.
+    \item Compare against \texttt{--skip-blur = true} as an explicit baseline.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Pixel-level noise}
+  \begin{itemize}
+    \item Number of isolated 1--2 pixel components.
+  \end{itemize}
+  \item \textbf{Boundary quality}
+  \begin{itemize}
+    \item Perimeter length or roughness index of the main blob.
+  \end{itemize}
+  \item \textbf{Temporal stability}
+  \begin{itemize}
+    \item Frame-to-frame IoU of the main resin region.
+  \end{itemize}
+  \item \textbf{Detection timeliness}
+  \begin{itemize}
+    \item Frame index at which resin is first detected vs.\ ground truth.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Plots}
+  \begin{itemize}
+    \item Blur kernel size $\rightarrow$ number of small components.
+    \item Blur kernel size $\rightarrow$ boundary roughness.
+    \item Blur kernel size $\rightarrow$ detection lag (in frames).
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item Side-by-side overlays for:
+    \begin{itemize}
+      \item Very small kernel (sharp edges, high noise).
+      \item Medium kernel (balanced).
+      \item Large kernel (smooth but possibly delayed front).
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\section{Morphological Cleanup}
+
+\subsection{Parameters and Ranges}
+
+\begin{itemize}
+  \item \textbf{Parameters}
+  \begin{itemize}
+    \item \texttt{--morph-kernel}:
+    \begin{itemize}
+      \item Kernel sizes, e.g.\ $3\times 3$, $5\times 5$, $7\times 7$, $9\times 9$.
+    \end{itemize}
+    \item \texttt{--morph-shape}:
+    \begin{itemize}
+      \item Rectangular vs.\ elliptical kernels.
+    \end{itemize}
+    \item \texttt{--morph-close-iterations}:
+    \begin{itemize}
+      \item Number of closing iterations, e.g.\ 0--3.
+    \end{itemize}
+    \item \texttt{--morph-open-iterations}:
+    \begin{itemize}
+      \item Number of opening iterations, e.g.\ 0--3.
+    \end{itemize}
+  \end{itemize}
+  \item \textbf{Experimental conditions}
+  \begin{itemize}
+    \item Vary kernel size at fixed shape.
+    \item Compare shapes (rect vs.\ ellipse) at fixed size.
+    \item Sweep open/close iterations independently.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Noise suppression}
+  \begin{itemize}
+    \item Number of small components after morphology.
+  \end{itemize}
+  \item \textbf{Blob integrity}
+  \begin{itemize}
+    \item Number of internal holes in the main resin region.
+    \item Relative change in mask area vs.\ pre-morph mask (\%).
+  \end{itemize}
+  \item \textbf{Over-merging}
+  \begin{itemize}
+    \item Instances where distinct resin regions become merged.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Plots}
+  \begin{itemize}
+    \item Morph kernel size $\rightarrow$ number of small components.
+    \item Open iterations $\rightarrow$ small components removed.
+    \item Close iterations $\rightarrow$ number of holes in the main blob.
+    \item Morph kernel size $\rightarrow$ mask area change (\%).
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item No morphology vs.\ aggressive open/close.
+    \item Rect vs.\ ellipse on thin features and corners.
+  \end{itemize}
+\end{itemize}
+
+\section{Size Filtering (Minimum Area)}
+
+\subsection{Parameters and Ranges}
+
+\begin{itemize}
+  \item \textbf{Parameter}
+  \begin{itemize}
+    \item \texttt{--min-area} (pixels$^2$).
+  \end{itemize}
+  \item \textbf{Experimental sweep}
+  \begin{itemize}
+    \item Log-like steps:
+    \begin{itemize}
+      \item $0$ (off), $10$, $50$, $200$, $1000$, $5000$, $10000$.
+    \end{itemize}
+    \item Evaluate on:
+    \begin{itemize}
+      \item Noise-heavy sequences.
+      \item Clean sequences.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Component statistics}
+  \begin{itemize}
+    \item Number of components retained vs.\ removed.
+    \item Fraction of total mask area retained.
+  \end{itemize}
+  \item \textbf{Main blob survival}
+  \begin{itemize}
+    \item Indicator (0/1) for whether the main resin region survives filtering.
+  \end{itemize}
+  \item \textbf{Detection quality}
+  \begin{itemize}
+    \item Precision/recall/F1 vs.\ ground truth where available.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Plots}
+  \begin{itemize}
+    \item Minimum area $\rightarrow$ number of components kept.
+    \item Minimum area $\rightarrow$ percentage of mask area retained.
+    \item Minimum area $\rightarrow$ precision/recall/F1 (if labeled data).
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item Very low \texttt{--min-area}: many speckles.
+    \item ``Optimal'' \texttt{--min-area}: noise removed, main blob intact.
+    \item Excessive \texttt{--min-area}: main resin region partially or fully removed.
+  \end{itemize}
+\end{itemize}
+
+\section{Contrast and Thresholding Behavior}
+
+\subsection{Parameters and Modes}
+
+\begin{itemize}
+  \item \textbf{Parameters}
+  \begin{itemize}
+    \item \texttt{--contrast-threshold} (fixed threshold).
+    \item \texttt{--contrast-percentile} (adaptive percentile threshold).
+    \item \texttt{--threshold-scale} (multiplicative factor).
+    \item \texttt{--threshold-offset} (additive shift).
+  \end{itemize}
+  \item \textbf{Modes}
+  \begin{itemize}
+    \item Fixed threshold mode:
+    \begin{itemize}
+      \item Use only \texttt{--contrast-threshold}.
+    \end{itemize}
+    \item Percentile mode:
+    \begin{itemize}
+      \item Use only \texttt{--contrast-percentile}.
+    \end{itemize}
+    \item Fine-tuned mode:
+    \begin{itemize}
+      \item Apply \texttt{--threshold-scale} and \texttt{--threshold-offset} on top of a base threshold.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Mask density}
+  \begin{itemize}
+    \item Fraction of pixels classified as flow per frame.
+  \end{itemize}
+  \item \textbf{Flow-front position}
+  \begin{itemize}
+    \item Distance from inlet gate vs.\ frame index.
+  \end{itemize}
+  \item \textbf{Error metrics}
+  \begin{itemize}
+    \item False positives in known dry regions.
+    \item False negatives in regions where resin is clearly present.
+    \item IoU vs.\ ground truth masks.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Fixed threshold}
+  \begin{itemize}
+    \item \texttt{--contrast-threshold} $\rightarrow$ \% pixels classified as flow.
+    \item \texttt{--contrast-threshold} $\rightarrow$ IoU vs.\ ground truth.
+  \end{itemize}
+  \item \textbf{Percentile threshold}
+  \begin{itemize}
+    \item \texttt{--contrast-percentile} $\rightarrow$ \% pixels classified as flow.
+    \item \texttt{--contrast-percentile} $\rightarrow$ IoU vs.\ ground truth.
+  \end{itemize}
+  \item \textbf{Temporal behavior}
+  \begin{itemize}
+    \item Frame index vs.\ flow-front distance for multiple thresholds plotted as separate curves.
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item Threshold too low: flooded masks, many false positives.
+    \item Threshold too high: fragmented front, delayed detection.
+    \item Fixed vs.\ percentile on sequences with changing illumination.
+  \end{itemize}
+\end{itemize}
+
+\section{Reference Selection (Dry Baseline)}
+
+\subsection{Parameters and Modes}
+
+\begin{itemize}
+  \item \textbf{Parameters}
+  \begin{itemize}
+    \item \texttt{--ref-mode}:
+    \begin{itemize}
+      \item First frame.
+      \item Fixed frame index.
+      \item Running average.
+      \item Trailing window.
+    \end{itemize}
+    \item \texttt{--ref-running-alpha}:
+    \begin{itemize}
+      \item Update rate for running modes, e.g.\ $\{0.01, 0.05, 0.1, 0.2, 0.5\}$.
+    \end{itemize}
+  \end{itemize}
+  \item \textbf{Experimental conditions}
+  \begin{itemize}
+    \item Compare all \texttt{--ref-mode} settings on the same videos.
+    \item For running modes, sweep \texttt{--ref-running-alpha}.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Robustness to lighting drift}
+  \begin{itemize}
+    \item Mean background contrast (in non-resin ROIs) vs.\ time.
+  \end{itemize}
+  \item \textbf{Detection stability}
+  \begin{itemize}
+    \item Mask area in background-only regions vs.\ frame index.
+  \end{itemize}
+  \item \textbf{Adaptivity}
+  \begin{itemize}
+    \item Recovery time after a permanent lighting change (frames).
+  \end{itemize}
+  \item \textbf{Segmentation quality}
+  \begin{itemize}
+    \item IoU vs.\ ground truth under slow drift and abrupt lighting changes.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Per-mode curves}
+  \begin{itemize}
+    \item Frame index vs.\ mean background contrast.
+    \item Frame index vs.\ background mask area.
+  \end{itemize}
+  \item \textbf{Alpha sweeps}
+  \begin{itemize}
+    \item \texttt{--ref-running-alpha} $\rightarrow$ average false positive rate.
+    \item \texttt{--ref-running-alpha} $\rightarrow$ recovery time after lighting shift.
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item Fixed reference: good at start, drifts under illumination change.
+    \item Running reference: smooth but may ``forget'' dry reference if alpha too large.
+  \end{itemize}
+\end{itemize}
+
+\section{Color Processing}
+
+\subsection{Parameters and Modes}
+
+\begin{itemize}
+  \item \textbf{Parameters}
+  \begin{itemize}
+    \item \texttt{--colorspace}:
+    \begin{itemize}
+      \item CIELAB, RGB, HSV, grayscale.
+    \end{itemize}
+    \item \texttt{--channel-weights}:
+    \begin{itemize}
+      \item Per-channel weights within the chosen colorspace.
+    \end{itemize}
+  \end{itemize}
+  \item \textbf{Experimental conditions}
+  \begin{itemize}
+    \item Full pipeline under each colorspace.
+    \item Within a colorspace, define and compare weighting profiles, e.g.:
+    \begin{itemize}
+      \item CIELAB: L*-dominated vs.\ a*/b*-dominated.
+      \item RGB: green-emphasis vs.\ blue-emphasis.
+      \item HSV: S/V-emphasis vs.\ H-suppressed.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Contrast between resin and dry regions}
+  \begin{itemize}
+    \item Mean contrast score difference between resin ROIs and dry ROIs.
+  \end{itemize}
+  \item \textbf{Segmentation quality}
+  \begin{itemize}
+    \item IoU vs.\ ground truth.
+    \item False positives induced by glare, stains, or reflections.
+  \end{itemize}
+  \item \textbf{Sensitivity to color shifts}
+  \begin{itemize}
+    \item Performance under warm vs.\ cool illumination conditions.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Across colorspaces}
+  \begin{itemize}
+    \item Colorspace (categorical) $\rightarrow$ resin vs.\ dry contrast (bar chart).
+    \item Colorspace $\rightarrow$ IoU vs.\ ground truth.
+  \end{itemize}
+  \item \textbf{Within a colorspace}
+  \begin{itemize}
+    \item Weight on a given channel $\rightarrow$ IoU.
+    \item Weight on a given channel $\rightarrow$ false positive rate.
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item For each colorspace:
+    \begin{itemize}
+      \item Original frame.
+      \item Contrast map.
+      \item Mask overlay, highlighting cases where some colorspaces confuse glare or stains with resin.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\section{Frame Locking / Temporal Persistence}
+
+\subsection{Parameters and Ranges}
+
+\begin{itemize}
+  \item \textbf{Parameter}
+  \begin{itemize}
+    \item \texttt{--lock-frames}: number of consecutive frames required before a pixel is ``locked'' as flow.
+  \end{itemize}
+  \item \textbf{Experimental sweep}
+  \begin{itemize}
+    \item Values: $0$ (off), $1$, $3$, $5$, $10$ frames.
+    \item Evaluate on:
+    \begin{itemize}
+      \item Sequences with strong flicker / glare.
+      \item Sequences with fast-moving flow front.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\subsection{Measurements}
+
+\begin{itemize}
+  \item \textbf{Temporal stability}
+  \begin{itemize}
+    \item Frame-to-frame IoU between locked masks.
+    \item Number of flicker pixels per frame.
+  \end{itemize}
+  \item \textbf{Flow-front lag}
+  \begin{itemize}
+    \item Difference between instantaneous detection and locked front position (in frames or mm).
+  \end{itemize}
+  \item \textbf{Visual smoothness}
+  \begin{itemize}
+    \item Change in mask area per frame as a proxy for temporal smoothness.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Plots and Analysis}
+
+\begin{itemize}
+  \item \textbf{Plots}
+  \begin{itemize}
+    \item \texttt{--lock-frames} $\rightarrow$ number of flicker pixels per frame.
+    \item \texttt{--lock-frames} $\rightarrow$ flow-front lag (frames/mm).
+    \item Frame index vs.\ mask area with and without locking.
+  \end{itemize}
+  \item \textbf{Qualitative examples}
+  \begin{itemize}
+    \item No locking: temporally noisy, flickering pixels.
+    \item Moderate locking: smooth front, minimal lag.
+    \item Excessive locking: clearly delayed front and ``ghost'' resin.
+  \end{itemize}
+\end{itemize}
+
+\section{Summary}
+
+\begin{itemize}
+  \item \textbf{Goal}
+  \begin{itemize}
+    \item Produce a set of curves and qualitative figures that:
+    \begin{itemize}
+      \item Explain how each algorithmic knob influences robustness and accuracy.
+      \item Justify the final recommended default settings.
+    \end{itemize}
+  \end{itemize}
+  \item \textbf{Outcome}
+  \begin{itemize}
+    \item A coherent ablation study suitable for inclusion as:
+    \begin{itemize}
+      \item Main text figures for key parameters.
+      \item Supplementary material for exhaustive sweeps.
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\end{document}

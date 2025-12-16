@@ -1,0 +1,385 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{subfig}
+\usepackage{hyperref}
+\usepackage[ruled,vlined]{algorithm2e}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue
+}
+
+\title{VRIFA: A Camera Baseline for VARTM Flow Tracking}
+
+\author{
+\IEEEauthorblockN{Alex Chayer\IEEEauthorrefmark{1}, JC Vaught\IEEEauthorrefmark{1}, Dr. Professor\IEEEauthorrefmark{1}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1} Mechanical Engineering, University of South Carolina, Columbia, SC, USA}
+\IEEEauthorblockA{Contact: achayer@email.sc.edu, jvaught@sc.edu, prof1@email.sc.edu}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Tracking the resin flow front during Vacuum-Assisted Resin Transfer Molding (VARTM) with a single RGB camera is attractive because it is inexpensive, non-intrusive, and provides full-field information. 
+However, most existing solutions are one-off scripts with undocumented parameter tuning, making them difficult to reproduce or reuse. 
+We present VRIFA(VARTM Resin Infusion Flow‑Front Assessment Algorithm), a simple, open-source baseline for flow-front tracking from any RGB camera. 
+VRIFA implements a tunable pipeline that converts frames to a chosen colorspace, computes contrast against a reference frame, applies thresholding and morphology, and extracts the flow-front edge to produce masks, overlays, and diagnostic outputs in real time on a single processing thread. 
+We (i) package established computer vision operations into a robust, configurable tool, (ii) evaluate it on several new and public datasets, and (iii) provide a practical parameter-tuning guide that links observable failure modes to concrete settings. 
+\end{abstract}
+
+\begin{IEEEkeywords}
+VARTM, RTM, resin infusion, flow front, computer vision, RGB camera, open source.
+\end{IEEEkeywords}
+
+% ===================================================================
+% FIRST-PAGE ILLUSTRATION (FULL WIDTH)
+% ===================================================================
+
+\begin{figure*}[!t]
+    \centering
+    % Placeholder: overall system / teaser figure.
+    % Replace `fig_firstpage_overview.pdf` with the actual file.
+    \includegraphics[width=\textwidth]{fig_preview.png}
+    \caption{Illustrative overview of flow tracking methods and costs -- and a comparison to VRIFA with a setup image. \\
+    NEEDS TO BE FIXED AND REPLACED}
+    \label{fig:firstpage_overview}
+\end{figure*}
+
+% ===================================================================
+\section{Introduction}
+% ===================================================================
+
+Tracking the resin flow front during Vacuum-Assisted Resin Transfer Molding (VARTM) and related resin infusion processes is important for understanding permeability, detecting defects such as dry spots, and enabling closed-loop control. 
+Single RGB cameras are appealing sensors as they are low cost, easy to deploy, and can monitor the full field through a transparent mold or vacuum bag.
+
+However, in practice, camera-based solutions are typically implemented as ad hoc scripts. 
+They are difficult to reuse across setups because the processing logic and parameter choices are rarely documented in a systematic way. 
+As a result, reproducing published results or tuning an existing script to a new material, lighting condition, or camera is often time-consuming.
+
+VRIFA is a simple, tunable baseline for resin flow-front tracking from single RGB videos. VRIFA combines well-known computer vision operations -- colorspace conversion, contrast computation, thresholding, morphology, and contour extraction -- into a configurable pipeline that runs in real time on a single thread and outputs per-frame masks, overlays, and diagnostics.
+
+The goal of this work is to provide a usable, explainable reference implementation and a clear tuning methodology.
+
+The main contributions are:
+\begin{itemize}
+    \item An open-source reference implementation of a single-camera flow-front tracking pipeline that runs on commodity hardware.
+    \item A parameter-tuning guide that groups the algorithm's parameters into intuitive categories and links symptoms (e.g., false positives, flicker, lost thin fingers) to specific parameters.
+    \item An experimental evaluation on multiple datasets (laboratory videos and public infusion imagery), with simple baseline comparisons and timing measurements.
+\end{itemize}
+
+The rest of the paper is organized as follows. Section~\ref{sec:related} summarizes related work. Section~\ref{sec:method} describes the VRIFA pipeline and its parameter groups. Section~\ref{sec:datasets} presents the datasets and test scenarios. Section~\ref{sec:experiments} details the experiments and results. Section~\ref{sec:tuning} provides a practical parameter tuning guide. Section~\ref{sec:discussion} discusses limitations and future work, and Section~\ref{sec:conclusion} concludes.
+
+% ===================================================================
+\section{Background and Related Work}
+\label{sec:related}
+% ===================================================================
+
+Camera-based flow-front tracking in resin infusion typically relies on simple image processing: converting frames to grayscale or a color space, thresholding the wetted region, and extracting the flow-front contour. These approaches have been used to measure permeability, validate simulations, and support basic process monitoring.
+
+Alternative sensing approaches include thermography, dielectric and capacitive sensors, fiber-optic systems, and pressure mapping. These sensors can observe through-thickness flow or opaque tooling, but they provide sparse measurements and require more intrusive instrumentation.
+
+More recent work explores machine learning and deep learning for flow-front detection, either by training models on camera images, or by learning to map sensor signals to flow-front shapes. While promising, these methods often rely on private datasets and more complex training pipelines.
+
+In contrast, our focus is to formalize a simple RGB-camera baseline, implemented with classical computer vision building blocks, and to document how to tune it effectively. We position VRIFA as a practical reference, not a replacement for more advanced methods.
+
+% ===================================================================
+\section{VRIFA Method}
+\label{sec:method}
+% ===================================================================
+
+VRIFA processes an input RGB video and produces, for each selected frame, a binary mask of the wetted region, an overlay with the flow-front edge, and optional diagnostic images and videos. The pipeline is illustrated in Fig.~\ref{fig:pipeline}.
+
+\begin{figure}[!t]
+    \centering
+    % Placeholder: pipeline diagram.
+    \includegraphics[width=\linewidth]{fig_pipeline.pdf}
+    \caption{VRIFA processing pipeline. From left to right, top to bottom: 
+    yada yada yada}
+    \label{fig:pipeline}
+\end{figure}
+
+\subsection{High-Level Pipeline}
+
+Algorithm~\ref{alg:vrifa} summarizes the per-frame processing pipeline.%
+\footnote{The code mirrors this structure one-to-one, so that each block in the algorithm corresponds to a clearly identifiable implementation stage.}
+
+\begin{algorithm}[!t]
+\caption{VRIFA Processing Pipeline}
+\label{alg:vrifa}
+\DontPrintSemicolon
+\SetAlgoLined
+
+\KwIn{RGB video $V$, ROI, configuration}
+\KwOut{Per-frame wetted masks and diagnostic overlays}
+
+\ForEach{frame $I_t \in V$}{
+    1. Crop to ROI and convert to weighted color space\;
+    2. Compute contrast $C_t$ relative to reference $R_t$\;
+    3. Threshold $C_t$ $\rightarrow$ binary mask $M_t$\;
+    4. Apply morphological closing + opening\;
+    5. Remove small connected components\;
+    6. Enforce temporal consistency (lock-frames)\;
+    7. Extract flow front and generate output(s)\;
+}
+\end{algorithm}
+
+\subsection{Parameter Groups}
+
+The implementation exposes a number of parameters that can be grouped into intuitive categories (Table~\ref{tab:param_groups}). In this paper we emphasize how to tune these groups rather than individual flags.
+
+\begin{table}[!t]
+    \centering
+    \caption{VRIFA parameter groups and representative examples.}
+    \label{tab:param_groups}
+    \begin{tabular}{p{0.26\linewidth}p{0.64\linewidth}}
+        \toprule
+        \textbf{Group} & \textbf{Representative parameters} \\
+        \midrule
+        Input and ROI &
+        Video path and output directory; frame step; symmetric or per-side ROI margins. \\
+        Contrast and Threshold &
+        Colorspace (CIELAB, HSV, grayscale, RGB); channel weights; threshold mode (Otsu / percentile / fixed); threshold scaling and offset. \\
+        Blur and Morphology &
+        Gaussian blur kernel size; morphological kernel size and shape (ellipse, rectangle, cross); numbers of closing and opening iterations. \\
+        Mask Cleanup &
+        Minimum connected-component area used to suppress speckles and small artifacts. \\
+        Temporal Stability &
+        Reference mode (first frame, running average, previous-$N$, fixed index); running-average factor; lock-frames hysteresis. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ===================================================================
+\section{Datasets and Test Scenarios}
+\label{sec:datasets}
+% ===================================================================
+
+We evaluate VRIFA on a mix of laboratory videos and publicly available datasets that contain resin infusion imagery or flow-front patterns.
+
+\subsection{Laboratory Videos}
+
+The first set of tests uses RGB videos recorded in a laboratory VARTM setup. A single camera is mounted above the vacuum bag, capturing the entire part. The videos cover different layups, resin colors, and lighting conditions. For a subset of frames (\(20\)--\(50\) per video), a human annotator draws either a binary mask of the wetted region or a flow-front polyline to serve as ground truth.
+
+\subsection{Public Infusion Imagery}
+
+We also consider public infusion imagery, for example from Roboflow-based datasets focused on resin fronts and infusion scenes. These datasets provide diverse camera angles and setups and can be used both qualitatively and quantitatively.
+
+\subsection{Simulation-Based Flow-Front Images}
+
+Finally, we include synthetic flow-front images from simulation-based datasets where resin filling patterns are represented as images. These datasets are useful for controlled experiments where the ``true'' flow-front shape is known exactly.
+
+\begin{figure}[!t]
+    \centering
+    % Placeholder: dataset examples.
+    \includegraphics[width=\linewidth]{fig_dataset_examples.pdf}
+    \caption{Examples of frames and flow-front patterns used in evaluation. 
+    Top row: laboratory VARTM videos with overhead RGB camera. 
+    Middle row: public infusion imagery (e.g., Roboflow datasets) with varied viewpoints and lighting. 
+    Bottom row: simulation-based flow-front images with color-coded filling patterns.}
+    \label{fig:dataset_examples}
+\end{figure}
+
+Figure~\ref{fig:dataset_examples} shows representative examples from these sources.
+
+% ===================================================================
+\section{Experiments and Results}
+\label{sec:experiments}
+% ===================================================================
+
+We organize our experiments around five simple questions (E1--E5): E1) how does VRIFA compare to basic thresholding baselines? E2) how do colorspace and threshold choices affect performance? E3) how do blur, morphology, and minimum area interact? E4) how do temporal stability settings affect jitter and lag? and E5) what is the runtime behavior at different resolutions and configurations?
+
+For quantitative results, we report Intersection-over-Union (IoU) between predicted and ground-truth masks, mean front position error over time, front jitter after the front has stabilized, and processing speed (frames per second).
+
+\subsection{E1: Baseline Comparison}
+
+We compare three simple methods summarized in Table~\ref{tab:baselines}.
+
+\begin{table}[!t]
+    \centering
+    \caption{Baseline methods used in E1.}
+    \label{tab:baselines}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Method} & \textbf{Description} \\
+        \midrule
+        Grayscale baseline &
+        Grayscale conversion, Otsu thresholding, and morphology. \\
+        LAB baseline &
+        LAB colorspace, Otsu thresholding, fixed dry reference frame. \\
+        VRIFA (recommended) &
+        Full configuration described in Section~\ref{sec:tuning}. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e1_iou_baselines.pdf}
+    \caption{Mean IoU for three methods across datasets: grayscale baseline, LAB baseline, and full VRIFA configuration. Each group of bars corresponds to a dataset.}
+    \label{fig:e1_iou_baselines}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e1_front_error_vs_time.pdf}
+    \caption{Mean front position error versus time for the three methods on a representative laboratory video. VRIFA reduces error and improves stability relative to simpler baselines.}
+    \label{fig:e1_front_error}
+\end{figure}
+
+Figures~\ref{fig:e1_iou_baselines} and~\ref{fig:e1_front_error} illustrate typical performance differences.
+
+\subsection{E2: Colorspace and Threshold Choices}
+
+We evaluate multiple colorspaces (CIELAB, HSV, grayscale, RGB) and thresholding strategies (Otsu, percentile, fixed) to understand their impact on IoU.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e2_colorspace_threshold.pdf}
+    \caption{IoU as a function of colorspace and threshold mode on a laboratory dataset. LAB with Otsu or percentile thresholds often performs best, while grayscale can be more sensitive to lighting.}
+    \label{fig:e2_colorspace_threshold}
+\end{figure}
+
+Figure~\ref{fig:e2_colorspace_threshold} shows how different combinations affect segmentation quality.
+
+\subsection{E3: Blur, Morphology, and Minimum Area}
+
+We vary the blur kernel size, morphological kernel, numbers of closing and opening iterations, and minimum area for connected components. The goal is to characterize the trade-off between noise suppression and preservation of fine flow fingers.
+
+\begin{figure}[!t]
+    \centering
+    \subfloat[IoU vs.\ blur kernel size]{%
+        \includegraphics[width=\linewidth]{fig_e3_iou_vs_blur.pdf}
+    }\\[-1ex]
+    \subfloat[IoU vs.\ minimum area]{%
+        \includegraphics[width=\linewidth]{fig_e3_iou_vs_minarea.pdf}
+    }
+    \caption{Effect of spatial smoothing and mask cleanup. (a) IoU as a function of blur kernel size. (b) IoU as a function of minimum area threshold. Small kernels and moderate minimum area often strike a good balance between detail and noise suppression.}
+    \label{fig:e3_blur_minarea}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e3_qualitative_grid.pdf}
+    \caption{Qualitative illustration of blur, morphology, and minimum area. Each row shows (left to right) input frame, predicted mask, and overlay for different parameter settings: low smoothing (top), recommended settings (middle), and overly aggressive smoothing and cleanup (bottom) that erodes thin flow fingers.}
+    \label{fig:e3_qualitative}
+\end{figure}
+
+Figures~\ref{fig:e3_blur_minarea} and~\ref{fig:e3_qualitative} illustrate these effects quantitatively and qualitatively.
+
+\subsection{E4: Temporal Stability}
+
+We investigate how the lock-frames hysteresis and reference mode affect front jitter and detection lag during late stages of the infusion, when the front should be stable but glare and noise may cause flicker.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e4_jitter_vs_lockframes.pdf}
+    \caption{Standard deviation of front position (jitter) versus lock-frames setting. Larger lock-frames reduces jitter but can increase detection lag.}
+    \label{fig:e4_jitter_lockframes}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e4_lag_vs_lockframes.pdf}
+    \caption{Average detection lag (in frames) versus lock-frames. Users can select a setting that trades a small lag for significantly improved stability.}
+    \label{fig:e4_lag_lockframes}
+\end{figure}
+
+Figures~\ref{fig:e4_jitter_lockframes} and~\ref{fig:e4_lag_lockframes} summarize these trade-offs.
+
+\subsection{E5: Runtime and Robustness}
+
+We measure processing speed and IoU at different resolutions and frame-step values, comparing a ``lightweight'' and a ``heavy'' configuration.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e5_fps_vs_resolution.pdf}
+    \caption{Processing speed versus video resolution for lightweight and heavy configurations. Even on CPU, VRIFA maintains real-time performance at moderate resolutions.}
+    \label{fig:e5_fps_resolution}
+\end{figure}
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{fig_e5_iou_vs_time_per_frame.pdf}
+    \caption{Pareto plot of IoU versus processing time per frame for multiple configurations. Each point represents a different combination of parameters; efficient high-IoU operating points are highlighted.}
+    \label{fig:e5_pareto}
+\end{figure}
+
+Figures~\ref{fig:e5_fps_resolution} and~\ref{fig:e5_pareto} illustrate runtime behavior and accuracy–speed trade-offs.
+
+% ===================================================================
+\section{Practical Parameter Tuning Guide}
+\label{sec:tuning}
+% ===================================================================
+
+One of the main aims of this work is to provide a simple, practical guide to tuning VRIFA's parameters. We first describe a recommended default configuration and then summarize how to adjust parameter groups for common failure modes.
+
+\subsection{Default Recipe}
+
+For a typical laboratory video with clear contrast and moderate glare, we recommend the default configuration in Table~\ref{tab:default_recipe}.
+
+\begin{table}[!t]
+    \centering
+    \caption{Recommended default VRIFA configuration for laboratory videos.}
+    \label{tab:default_recipe}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Component} & \textbf{Setting} \\
+        \midrule
+        ROI margin &
+        $10\%$ on all sides. \\
+        Colorspace &
+        CIELAB with equal channel weights. \\
+        Threshold &
+        Otsu, unit scale, zero offset. \\
+        Blur kernel &
+        $9 \times 9$ Gaussian kernel. \\
+        Morphology &
+        $5 \times 5$ elliptical kernel; 1 closing + 1 opening iteration. \\
+        Minimum area &
+        $\approx 0.1\%$ of ROI area. \\
+        Reference mode &
+        First frame. \\
+        Lock-frames &
+        2. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Scenario-Based Recipes}
+These recipes, combined with the symptom-based guide in Table~\ref{tab:tuning}, are intended to make VRIFA easy to adapt to new datasets without extensive trial-and-error.
+
+% ===================================================================
+\section{Discussion and Future Work}
+\label{sec:discussion}
+% ===================================================================
+
+VRIFA demonstrates that a carefully tuned classical computer vision pipeline can provide robust single-camera flow-front tracking in many practical scenarios. At the same time, the method has important limitations.
+
+First, it requires optical access: the flow front must be visible in RGB images through a transparent mold or vacuum bag. This limits its applicability in industrial setups with opaque tooling. Second, performance depends on reasonable lighting; extreme glare, low contrast, or heavy occlusions can still cause failures despite parameter tuning. Third, the approach provides limited information about through-thickness flow; it primarily observes surface appearance.
+
+Future work includes combining VRIFA with other sensing modalities (e.g., dielectric or pressure sensors) for improved robustness, incorporating lightweight learned components to automatically choose parameters or correct failure modes, and integrating the flow-front estimates into simple closed-loop control schemes.
+
+% ===================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ===================================================================
+
+We presented VRIFA, a simple and tunable baseline for resin flow-front tracking with a single RGB camera. Rather than proposing a new algorithm, we focused on packaging established image processing operations into an open-source tool, evaluating it on multiple datasets, and providing a practical parameter tuning guide. We hope that VRIFA can serve as a common reference point for future work on vision-based monitoring in VARTM and related processes, and that the methodology described here will make camera-based flow-front tracking more accessible and reproducible.
+
+\vspace{1ex}
+\noindent\textbf{Code and Data Availability:} A reference implementation of VRIFA and scripts to reproduce the experiments in this paper will be made publicly available upon publication.
+
+% ===================================================================
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}
