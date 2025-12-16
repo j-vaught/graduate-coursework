@@ -1,0 +1,204 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usetikzlibrary{decorations.pathmorphing}
+
+\begin{document}
+
+\begin{figure}[htbp]
+    \centering
+
+    % Set the viewing angle
+    \tdplotsetmaincoords{70}{30}
+
+    \begin{tikzpicture}[tdplot_main_coords, scale=1.5]
+
+        % --- CONFIGURATION ---
+        \def\plateW{7}
+        \def\plateD{5}
+        \def\rodH{5}
+
+        \def\cx{3.5}
+        \def\cy{2.5}
+        \def\czBot{4.5}
+        \def\czTop{4.8}
+        \def\cR{0.15}
+
+        \def\angA{220}
+        \def\angB{-340}
+
+        
+        % ==========================================
+        % 1. LEFT ROD (Center x=-0.05, y=2.5)
+        % ==========================================
+        % Side Face
+        \filldraw[fill=gray!80!black, draw=black, ultra thin]
+            (-0.1, 2.45, 0) -- (0.0, 2.45, 0) -- (0.0, 2.45, 5) -- (-0.1, 2.45, 5) -- cycle;
+
+        % Front Face
+        \filldraw[fill=gray!60!white, draw=black, ultra thin]
+            (0.0, 2.45, 0) -- (0.0, 2.55, 0) -- (0.0, 2.55, 5) -- (0.0, 2.45, 5) -- cycle;
+
+        % Top Face
+        \filldraw[fill=gray!40!white, draw=black, ultra thin]
+            (-0.1, 2.45, 5) -- (0.0, 2.45, 5) -- (0.0, 2.55, 5) -- (-0.1, 2.55, 5) -- cycle;
+
+        % ==========================================
+        % 2. THE PLATE (Base, Thickness = 0.5)
+        % ==========================================
+        % Top surface
+        \filldraw[fill=gray!20, draw=black, thin]
+            (0,0,0.5) -- (\plateW,0,0.5) -- (\plateW,\plateD,0.5) -- (0,\plateD,0.5) -- cycle;
+
+        % Front edge
+        \filldraw[fill=gray!20, draw=black, thin]
+            (0,0,0.5) -- (\plateW,0,0.5) -- (\plateW,0,0) -- (0,0,0) -- cycle;
+
+        % Side edge
+        \filldraw[fill=gray!20, draw=black, thin]
+            (\plateW,0,0.5) -- (\plateW,\plateD,0.5) -- (\plateW,\plateD,0) -- (\plateW,0,0) -- cycle;
+
+        % ==========================================
+        % 3. VARTM LAYERS (Resin Infusion)
+        % ==========================================
+
+        % A. Dry Fabric (Red)
+        \filldraw[fill=red!20, draw=black, thin]
+            (0.5,0.5,0.5) -- (6.5,0.5,0.5) -- (6.5,4.5,0.5) -- (0.5,4.5,0.5) -- cycle;
+
+        % B. Wet Resin (Green) - Left half with jagged edge
+        \filldraw[fill=green!20, draw=black, thin]
+            (0.5,0.5,0.5) --
+            (3.5,0.5,0.5)
+            decorate[decoration={random steps, segment length=4mm, amplitude=1mm}]
+                { -- (3.5,4.5,0.5) }
+            -- (0.5,4.5,0.5) -- cycle;
+
+
+
+
+
+        % ==========================================
+        % 7. Dashed Lines from Camera Lens to Fabric Corners
+        % ==========================================
+        \draw[dashed, thin, red]
+            (\cx,\cy,\czBot) -- (0.5,0.5,0.5);
+        
+        \draw[dashed, thin, red]
+            (\cx,\cy,\czBot) -- (6.5,0.5,0.5);
+        
+        \draw[dashed, thin, red]
+            (\cx,\cy,\czBot) -- (6.5,4.5,0.5);
+        
+        \draw[dashed, thin, red]
+            (\cx,\cy,\czBot) -- (0.5,4.5,0.5);
+
+                    % ==========================================
+        % 4. RIGHT ROD (Center x=7.05, y=2.5)
+        % ==========================================
+        % Side Face
+        \filldraw[fill=gray!80!black, draw=black, ultra thin]
+            (7.0,2.45,0) -- (7.1,2.45,0) -- (7.1,2.45,5) -- (7.0,2.45,5) -- cycle;
+
+        % Front Face
+        \filldraw[fill=gray!60!white, draw=black, ultra thin]
+            (7.1,2.45,0) -- (7.1,2.55,0) -- (7.1,2.55,5) -- (7.1,2.45,5) -- cycle;
+
+        % Top Face
+        \filldraw[fill=gray!40!white, draw=black, ultra thin]
+            (7.0,2.45,5) -- (7.1,2.45,5) -- (7.1,2.55,5) -- (7.0,2.55,5) -- cycle;
+
+            
+        % ==========================================
+        % 4.5 Camera Lens (UNDER Camera)
+        % ==========================================
+
+
+        \filldraw[fill=gray, draw=gray, ultra thin]
+            plot[domain=\angA:\angB, samples=30, variable=\t]
+                ({\cx+\cR*cos(\t)}, {\cy+\cR*sin(\t)}, \czBot)
+            --
+            plot[domain=\angB:\angA, samples=30, variable=\t]
+                ({\cx+\cR*cos(\t)}, {\cy+\cR*sin(\t)}, \czTop)
+            -- cycle;
+
+        % Body edges
+        \draw[ultra thin]
+            ({\cx+\cR*cos(\angA)}, {\cy+\cR*sin(\angA)}, \czBot) --
+            ({\cx+\cR*cos(\angA)}, {\cy+\cR*sin(\angA)}, \czTop);
+
+        \draw[ultra thin]
+            ({\cx+\cR*cos(\angB)}, {\cy+\cR*sin(\angB)}, \czBot) --
+            ({\cx+\cR*cos(\angB)}, {\cy+\cR*sin(\angB)}, \czTop);
+
+        \filldraw[fill=black, draw=black, ultra thin]
+            plot[domain=0:360, samples=50, variable=\t]
+                ({\cx+\cR*cos(\t)}, {\cy+\cR*sin(\t)}, \czTop);
+
+        \draw[black, ultra thin]
+            plot[domain=\angA-360:\angB+360, samples=30, variable=\t]
+                ({\cx+\cR*cos(\t)}, {\cy+\cR*sin(\t)}, \czBot);
+
+        % ==========================================
+        % 5. Camera BOX (Under Center)
+        % ==========================================
+        % Side Face (Right)
+        \filldraw[fill=gray!80!black, draw=black, ultra thin]
+            (3.8,2.3,4.8) -- (3.8,2.7,4.8) -- (3.8,2.7,5.0) -- (3.8,2.3,5.0) -- cycle;
+
+        % Front Face
+        \filldraw[fill=gray!60!white, draw=black, ultra thin]
+            (3.2,2.3,4.8) -- (3.8,2.3,4.8) -- (3.8,2.3,5.0) -- (3.2,2.3,5.0) -- cycle;
+
+        % Top Face
+        \filldraw[fill=gray!60!white, draw=black, ultra thin]
+            (3.2,2.3,5.0) -- (3.8,2.3,5.0) -- (3.8,2.7,5.0) -- (3.2,2.7,5.0) -- cycle;
+
+        % ==========================================
+        % 6. TOP HORIZONTAL BEAM
+        % ==========================================
+        % Back Face
+        \filldraw[fill=gray!80!black, draw=black, ultra thin]
+            (-0.1,2.45,5.0) -- (7.1,2.45,5.0) -- (7.1,2.45,5.1) -- (-0.1,2.45,5.1) -- cycle;
+
+        % Front Face
+        \filldraw[fill=gray!60!white, draw=black, ultra thin]
+            (7.1,2.45,5.0) -- (7.1,2.55,5.0) -- (7.1,2.55,5.1) -- (7.1,2.45,5.1) -- cycle;
+
+        % Top Face
+        \filldraw[fill=gray!40!white, draw=black, ultra thin]
+            (-0.1,2.45,5.1) -- (7.1,2.45,5.1) -- (7.1,2.55,5.1) -- (-0.1,2.55,5.1) -- cycle;
+
+
+% CAMERA LABEL
+\draw[black, thin]
+    (\cx,\cy,\czTop) --
+    ++(1,1,1) node[above]{\textbf{Camera}};
+
+% LEFT ROD LABEL
+\draw[black, thin]
+    (0,2.5,5) --
+    ++(-1,0,0.5) node[above]{\textbf{Sensor/Camera Support}};
+
+% PLATE LABEL
+\draw[black, thin]
+    (4.5,0,0.25) -- ++(0,-1,0) node[below]{\textbf{Base Plate}};
+
+% DRY FABRIC LABEL
+\draw[red, thin]
+    (6.2,4.2,0.5) -- (6.5,5.9,1) node[above]{\textbf{Dry Fabric}};
+
+% WET RESIN LABEL
+\draw[green!30!black, thin]
+    (3.0,1.2,0.5) -- (2,-1.8,0.5) node[below]{\textbf{Wet Resin}};
+
+
+    \end{tikzpicture}
+
+    \caption{VARTM flow front and camera figure}
+\end{figure}
+
+\end{document}
