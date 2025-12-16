@@ -14,9 +14,10 @@ Directory Structure (ASCII)
 │   │   ├── Devon_surf_current
 │   │   ├── IEEE Papers
 │   │   │   ├── Annotation_Literature_Review
+│   │   │   ├── Echo_trails
+│   │   │   ├── One-Click_DEAD
 │   │   │   ├── SouthEast_NON_submission
-│   │   │   ├── EchoTrails_GPT_v1.tex
-│   │   │   └── EchoTrails_Gemini_v1.1.tex
+│   │   │   └── Ideas.txt
 │   │   ├── random figures
 │   │   └── VRIFA
 │   ├── EMCH 501
