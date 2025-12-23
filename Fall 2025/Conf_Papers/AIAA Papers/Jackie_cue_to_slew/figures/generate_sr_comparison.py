@@ -97,30 +97,24 @@ def run_sr_pipeline():
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     
     # Helper to clean axes
-    def clean_ax(ax, title, img, color):
+    def clean_ax(ax, title, img):
         ax.imshow(img)
         ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
-        # Add a colored border
+        # Add a black border
         for spine in ax.spines.values():
-            spine.set_edgecolor(color)
-            spine.set_linewidth(3)
+            spine.set_edgecolor('black')
+            spine.set_linewidth(2)
         ax.set_xticks([])
         ax.set_yticks([])
 
-    # Panel 1
-    clean_ax(axes[0], "Digital Zoom (Crop)", img_digital, '#466A9F') # Blue
-    axes[0].text(0.5, -0.1, f"Input: {lr_w}x{lr_h} px (Pixelated)", transform=axes[0].transAxes, 
-                 ha='center', va='top', fontsize=10, color='#444444')
+    # Panel 1: Digital Zoom
+    clean_ax(axes[0], "Digital Zoom (Crop)", img_digital)
 
-    # Panel 2
-    clean_ax(axes[1], "Super-Resolution (AI)", img_sr, '#E07020') # Orange
-    axes[1].text(0.5, -0.1, "Smoothed / Hallucinated", transform=axes[1].transAxes, 
-                 ha='center', va='top', fontsize=10, color='#444444')
+    # Panel 2: Super-Resolution (with model name)
+    clean_ax(axes[1], "Super-Resolution (EDSR)", img_sr)
 
-    # Panel 3
-    clean_ax(axes[2], "Optical Zoom (Ground Truth)", img_gt, '#73000A') # Garnet
-    axes[2].text(0.5, -0.1, "True Optical Detail", transform=axes[2].transAxes, 
-                 ha='center', va='top', fontsize=10, color='#444444')
+    # Panel 3: Optical Zoom
+    clean_ax(axes[2], "Optical Zoom (Ground Truth)", img_gt)
 
     plt.tight_layout()
     plt.savefig('fig_sr_comparison.png', dpi=300, bbox_inches='tight')
