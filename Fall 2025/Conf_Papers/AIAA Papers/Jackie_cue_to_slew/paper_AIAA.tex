@@ -103,24 +103,21 @@ We address this by replacing the human labeler with a dual-camera system designe
 The contributions of this work are presented as follows: i) a hardware-software architecture that synchronizes wide-angle search with narrow-angle verification; ii) a predictive control formulation that compensates for system latency to enable reliable active target acquisition from wide-angle cues; and iii) a validated pipeline for label transfer, showing how distracting objects rejected by the PTZ can be automatically added to the wide-angle dataset to reduce false positives in future deployment.
 
 \section{Related Work}
-\subsection{Small Object Detection}
-Recent surveys synthesize methods for small object detection, highlighting multi-scale feature processing, super-resolution or enhancement, context modeling, and data-centric strategies such as targeted acquisition and hard-negative mining.
-\par
-For airborne targets, YOLO-family detectors are commonly chosen for their speed--accuracy trade-off, and recent work explicitly evaluates YOLOv8-based pipelines for flying object detection.
 
-\subsection{PTZ Tracking and Active Vision}
-PTZ tracking differs from fixed-camera tracking because the camera motion changes the image formation process and induces highly dynamic backgrounds. Standardized evaluation of PTZ trackers and benchmark methodologies have been studied, emphasizing control latency, re-centering accuracy, and zoom stability.
-\par
-Modern active vision approaches incorporate deep detection modules into PTZ decision-making for improved observation quality, including PTZ-assisted perception pipelines and PTZ-guided small-object detection strategies.
-\par
-For small aerial targets, recent systems explicitly coordinate wide sensing with PTZ imaging and tracking to keep fast, erratically moving targets in view.
+\subsection{Small Object Detection and Resolution Limits}
+The fundamental bottleneck in small object detection is the scarcity of distinguishing features. When a target occupies few pixels (i.e. $15 \times 15$ pixels), class-defining details are often lost entirely \cite{nikouei2024smallobj}. Classical solutions involving super-resolution (SR) attempt to reconstruct this lost detail \cite{mahaur2022superres}. 
 
-\subsection{Pseudo-Labeling, Self-Training, and Active Learning}
-Pseudo-labeling and self-training reduce annotation costs by selecting high-confidence predictions as training targets, but they require careful thresholding and quality control to avoid drift. Adaptive thresholding strategies for pseudo-label selection have been proposed to reduce manual tuning, and recent object detection self-training methods emphasize robust selection mechanisms.
-\par
-Active learning for object detection studies how uncertainty and diversity can guide sample selection for labeling, including plug-and-play strategies that combine uncertainty- and diversity-based phases.
-\par
-This paper differs in that the ``labeling oracle'' is not a human annotator but a sensor action: the PTZ zoom. The acquisition action produces a higher-fidelity view that improves label quality and reduces ambiguity without manual annotation.
+However, reliance on SR for scientific data collection is flawed. First, SR is fundamentally generative; it estimates high-frequency details based on learned priors, creating a risk of hallucination where the model reinforces its own biases \cite{zhang2019zoom}. Second, the latency advantage of SR is negligible for high-quality restoration. While lightweight models can run in $<30$ms on edge accelerators (e.g., Jetson Orin), high-fidelity generative models required for scientific validity often require $>300$ms per frame \cite{nvidia_jetson_benchmarks}. This exceeds the mechanical slew-and-settle time of our system ($\approx 150$ms), which is competitive with high-end commercial PTZ units (typically 60--200\,ms command latency \cite{ptz_latency_pelco}). Our system therefore chooses the mechanical penalty to obtain optical ground truth rather than the computational penalty for hallucinated details.
+
+\subsection{Active Acquisition vs. Continuous Tracking}
+Most PTZ tracking literature focuses on the control problem of keeping a target centered in the frame \cite{ptz_reproducible, ptz_eval}. This requires mitigating total system latency (video encoding + network + mechanical response), which for IP-based systems frequently ranges from 200--500\,ms \cite{ptz_latency_optics}. Our work addresses active acquisition, or "slew-to-classification." Unlike continuous tracking, where the objective is persistence, our objective is information gain via discrete or one-off spot-checks.
+
+Existing active perception systems like VIGIA-E \cite{vigia_ptz} typically optimize for broad area coverage or anomaly detection. Our system instead functions as a sparse query mechanism. It identifies specific low-confidence candidates in the wide field and commits the PTZ resource to verifying them individually. This shifts the challenge from long-term stabilization to fast, accurate separate-and-verify maneuvers.
+
+\subsection{Sensor-Driven Labeling}
+Reducing manual annotation is a central goal of both semi-supervised learning and active learning. Pseudo-labeling methods such as ASTOD \cite{self_training} attempt to retrain models using high-confidence predictions, but this approach often fails in the small-object regime where the detector is consistently uncertain \cite{self_training_enh}. Similarly, active learning strategies like PPAL \cite{active_learning_ppod} identify informative samples but still require a human loop \cite{active_learning_survey}. 
+
+Our proposed "Active Acquisition" creates a fully automated hybrid. We use the selection logic of active learning (targeting less confident samples) but satisfy the label query using the PTZ camera instead of a human. The success of this automated verification relies on the additional information provided by optical zoom. While the target is ambiguous at $15 \times 15$ pixels, the zoomed view restores it to a regime (e.g., $>100 \times 100$ pixels) where off-the-shelf detectors already achieve near-perfect accuracy \cite{yolo_flying}. By physically bridging the gap between the surveillance view and the high-resolution training distribution of standard models, we convert a difficult "small object" inference problem into a trivial classification task, enabling the generation of verified small object ground truth labels at scale.
 
 \section{System Overview}
 \subsection{Hardware and Software Roles}
@@ -457,6 +454,15 @@ X. Zhang, Q. Chen, R. Ng, and V. Koltun, ``Zoom to Learn, Learn to Zoom,'' in \t
 
 \bibitem{active_learning_ppod}
 ``Plug and Play Active Learning for Object Detection,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2024. doi: \url{10.1109/CVPR52733.2024.01684}
+
+\bibitem{ptz_latency_pelco}
+``Pelco Esprit Compact PTZ Technical Specifications,'' Pelco by Motorola Solutions, 2024. [Online]. Available: \url{https://www.pelco.com/products/cameras/esprit-compact}
+
+\bibitem{ptz_latency_optics}
+``Understanding Latency in IP Video Systems,'' PTZOptics White Paper, 2023. [Online]. Available: \url{https://ptzoptics.com/latency/}
+
+\bibitem{nvidia_jetson_benchmarks}
+``NVIDIA Jetson Orin Nano AI Performance Benchmarks,'' NVIDIA Developer Blog, 2024. [Online]. Available: \url{https://developer.nvidia.com/embedded/jetson-benchmarks}
 
 \end{thebibliography}
 
