@@ -130,7 +130,7 @@ The wide camera produces candidate detections and tracklets. A scheduling policy
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.75\columnwidth]{fig_fov_comparison.pdf}
+\includegraphics[width=0.75\columnwidth]{fig_fov_understanding_topdown.pdf}
 \caption{Field of view comparison. The wide camera (blue) covers approximately $90^\circ$ for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable, high-resolution view that can be directed to any point within the wide FOV.}
 \label{fig:fov}
 \end{figure}
@@ -143,47 +143,6 @@ The wide camera produces candidate detections and tracklets. A scheduling policy
 \label{fig:pipeline}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}
-    % Background/Origin
-    \coordinate (O) at (0,0);
-
-    % Wide Camera Field of View
-    \fill[fill=CGrayLight] (O) -- (4, -1.8) -- (4, 1.8) -- cycle;
-    \node[text=CGrayDark, font=\scriptsize] at (3.5, 1.4) {Wide FOV};
-
-    % Wide Cam Icon
-    \node[rectangle, draw=black, fill=white, minimum width=0.8cm, minimum height=0.4cm] (W) at (O) {};
-    \node[font=\scriptsize, below=2pt] at (W.south) {Wide Cam};
-
-    % PTZ Camera Icon (slightly offset)
-    \coordinate (P) at (0, -0.6);
-    \node[rectangle, draw=Garnet, fill=Garnet!10, minimum width=0.8cm, minimum height=0.4cm] (PTZ) at (P) {};
-    \node[font=\scriptsize, color=Garnet, below=2pt] at (PTZ.south) {PTZ Cam};
-
-    % Target Trajectory
-    \draw[dashed, color=CDark, thick] (1.5, 1.2) -- (4.2, 0.2);
-    \node[circle, fill=CDark, inner sep=2pt, label={[labeltext]above:Target}] (T) at (3.5, 0.46) {};
-
-    % PTZ Beam
-    \fill[Garnet, opacity=0.2] (P) -- ($(T)+(0,0.3)$) -- ($(T)-(0,0.3)$) -- cycle;
-    \draw[Garnet, thick] (P) -- (T);
-
-    % Vectors
-    \draw[->, color=CBlue, thick] (O) -- node[above, font=\tiny]{$\hat{d}_w$} (T);
-    \draw[->, color=Garnet, thick] (P) -- node[below, font=\tiny]{$\hat{d}_p$} (T);
-
-    % Annotation
-    \node[align=left, font=\scriptsize, anchor=north west] at (0.2, 1.8) {
-        \textcolor{CBlue}{$\blacksquare$} Wide Detection\\
-        \textcolor{Garnet}{$\blacksquare$} PTZ Confirmation
-    };
-
-\end{tikzpicture}
-\caption{Acquisition Geometry. The system predicts the target vector $\hat{d}_w$ in the wide frame and computes the required PTZ vector $\hat{d}_p$ to center the target for high-resolution verification.}
-\label{fig:geometry}
-\end{figure}
 
 
 \section{Problem Formulation}
@@ -198,16 +157,10 @@ Here $U(\cdot)$ is an acquisition utility that increases with (i) label correctn
 
 \section{Calibration and Cross-View Geometry}
 \subsection{Camera Model}
-Both cameras are modeled with intrinsics $(K_w, K_p)$ and distortion parameters. Let $\Pi(\cdot)$ be perspective projection with distortion, and let $R_{pw}, t_{pw}$ map 3D points from wide-camera coordinates to PTZ-camera coordinates (Fig.~\ref{fig:coords}).
+Both cameras are modeled with intrinsics $(K_w, K_p)$ and distortion parameters. Let $\Pi(\cdot)$ be perspective projection with distortion, and let $R_{pw}, t_{pw}$ map 3D points from wide-camera coordinates to PTZ-camera coordinates.
 \par
 For sky targets at long range, parallax between cameras is often negligible if the baseline is small relative to range. In that regime, direction-only transfer is effective: rays from each camera correspond to the same world direction, and cross-view mapping can be performed using ray directions on the unit sphere rather than estimated depth.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.7\columnwidth]{fig_coord_frames.pdf}
-\caption{Coordinate frame relationship. The wide camera frame $(X_w, Y_w, Z_w)$ and PTZ camera frame $(X_p, Y_p, Z_p)$ are related by rotation $R_{pw}$ and translation $t_{pw}$.}
-\label{fig:coords}
-\end{figure}
 
 \subsection{Mapping Wide Detections to PTZ Pan/Tilt Commands}
 Let $(u,v)$ be the center of a wide detection box $b^w$ in pixel coordinates. After undistortion, the bearing direction in the wide camera frame is
@@ -226,14 +179,8 @@ Let $h^w$ be the detected box height in wide pixels. Under small-angle approxima
 \begin{equation}
 h^p_{\mathrm{des}} \approx \alpha f_p(z) \approx \frac{h^w}{f_w} f_p(z),
 \end{equation}
-then choose the zoom $z$ whose calibrated $f_p(z)$ best matches the required value, clipped to PTZ limits (Fig.~\ref{fig:zoomcurve}). This approach avoids explicit range estimation and is well suited for distant aircraft.
+then choose the zoom $z$ whose calibrated $f_p(z)$ best matches the required value, clipped to PTZ limits. This approach avoids explicit range estimation and is well suited for distant aircraft.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.6\columnwidth]{fig_zoom_focal.pdf}
-\caption{Zoom-to-focal-length calibration curve. The PTZ focal length $f_p(z)$ is a nonlinear function of the zoom setting $z$, calibrated empirically.}
-\label{fig:zoomcurve}
-\end{figure}
 
 \section{PTZ Triggering, Tracking, and Scheduling}
 PTZ tracking is a coupled perception-and-control problem with dynamic imaging conditions and control delays. Prior PTZ tracking evaluations emphasize that camera motion, latency, and re-centering quality dominate performance differences in practice.
