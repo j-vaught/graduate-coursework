@@ -10,13 +10,6 @@ This repository organizes graduate course materials, conference papers, and rese
 │   ├── Conf_Papers/
 │   │   ├── AIAA Papers/
 │   │   │   ├── Jackie_cue_to_slew/           # Dual-Camera Active Acquisition Paper
-│   │   │   │   ├── figures/                  # All paper figures (PDFs, TikZ)
-│   │   │   │   ├── paper_AIAA.tex            # AIAA conference format
-│   │   │   │   ├── paper.tex                 # IEEE format
-│   │   │   │   ├── draft_introduction.md     # Introduction drafts & references
-│   │   │   │   ├── Feedback_intro_v1.md      # Reviewer feedback on introduction
-│   │   │   │   ├── abstract_iterations.md    # Abstract revision history
-│   │   │   │   └── *.sty, *.cls, *.bst       # LaTeX style files
 │   │   │   ├── cancilla_submission_proposal.tex
 │   │   │   ├── kirk_submission_proposal.tex
 │   │   │   ├── mateo_submission_proposal.tex
