@@ -76,10 +76,11 @@
 
 \title{Dual-Camera Active Acquisition for Automated Small-Object Dataset Construction}
 
-\author{Jackie Wang\footnote{Graduate Student, Department of Mechanical Engineering, Member AIAA.}}
-\author{JC Vaught\footnote{Graduate Student, Department of Mechanical Engineering, Member AIAA.}}
-\author{Douglas Cahl\footnote{Professor, Department of Mechanical Engineering, Member AIAA.}}
-\author{Yi Wang\footnote{Professor, Department of Mechanical Engineering, Senior Member AIAA.}}
+\author{Jackie Wang\footnote{Graduate Student, Department of Mechanical Engineering, AIAA Student Member.}}
+\author{JC Vaught\footnote{Graduate Student, Department of Mechanical Engineering, AIAA Student Member.}}
+\author{Douglas Cahl\footnote{Professor, Department of Mechanical Engineering.}}
+\author{Yi Wang\footnote{Professor, Department of Mechanical Engineering.}}
+
 \affil{Department of Mechanical Engineering, University of South Carolina, Columbia, SC, 29201}
 
 \begin{document}
@@ -91,13 +92,15 @@ Deep learning performance on small objects is frequently bottlenecked by the qua
 \end{abstract}
 
 \section{Introduction}
-Detecting small objects in wide-area imagery remains difficult because small targets contain limited discriminative detail, are sensitive to blur and compression, and are easily confused with background clutter or visually similar distractors. Surveys of small-object detection emphasize persistent challenges from low resolution, occlusion, background interference, and class imbalance, while also documenting that improvements frequently depend on better data and scale-aware acquisition rather than architecture changes alone.
+While recent surveys \cite{chen2020survey, nikouei2024smallobj} have demonstrated significant architectural improvements in generic object detection, they have failed to fully solve a problem that has persisted for decades: small object detection. The core issue remains one of pixel-level information loss, since no amount of digital zoom can recover details that were never sampled. Although some super-resolution algorithms show promise by recovering detail via temporal information, these methods are often computationally intensive and ill-suited for strict real-time inference \cite{mahaur2022superres}.
 \par
-This paper addresses the data bottleneck directly. Instead of treating the camera as a passive sensor, we treat sensing as an active process in which a fixed wide-angle camera performs continuous search and a controllable PTZ camera performs confirmation and detail capture on demand. Active PTZ systems have long been studied for tracking and dynamic imaging, and modern work continues to integrate deep detectors with PTZ control for small aerial targets.
+Even with high-resolution imagery, real-time detection pipelines typically downsample inputs to manageable resolutions (e.g., $640 \times 640$) to satisfy compute constraints. This reduction inherently compresses distant targets into featureless blobs that are difficult to classify without relying on temporal context (as humans do) or additional sensor modalities \cite{rozantsev2017flying}.
 \par
-The key idea is to exploit complementary camera roles. The wide-angle stream provides persistent coverage and candidate proposals, while the PTZ camera provides a temporary, high-resolution view that increases classification confidence and stabilizes localization. Those high-quality PTZ detections are then projected back to wide-angle frames to produce labels that are spatially consistent with the deployment camera and valuable for retraining the wide-angle detector.
+In the case of distant aerial surveillance, a target may occupy fewer than $15 \times 15$ pixels in a wide-angle feed. At this resolution, distractors (i.e. birds, cloud edges, specular highlights, or sensor noise) are indistinguishable from the target of interest. Standard digital zooming (cropping) only magnifies these ambiguities \cite{zhang2019zoom}. To achieve robust detection, a dataset must contain examples where these confusing cases are resolved, yet human labelers often cannot distinguish them in raw wide-angle footage.
 \par
-The airplane-in-the-sky test case is representative of many small-object regimes. Targets are frequently fewer than 20--40 pixels in height at wide focal lengths; motion is largely angular with occasional accelerations; backgrounds vary with clouds, haze, sun glare, and camera sensor artifacts. These conditions align with published analyses of small/tiny object detection challenges and with prior work on detection of flying objects using YOLO-family models.
+We address this by replacing the human labeler with a dual-camera system designed to automate the construction of small-object datasets. A fixed wide-angle camera provides persistent coverage, while a controllable Pan-Tilt-Zoom (PTZ) camera provides resolution on demand. The key technical challenge lies in the handover, since the system must move a mechanical lens to capture a moving target based on delayed visual data. This system compensates for the $\approx 150$\,ms latency between sensor capture and motor response and achieves high movement rates ($120^\circ$/s) without inducing motion blur.
+\par
+The contributions of this work are presented as follows: i) a hardware-software architecture that synchronizes wide-angle search with narrow-angle verification; ii) a predictive control formulation that compensates for system latency to enable reliable active target acquisition from wide-angle cues; and iii) a validated pipeline for label transfer, showing how distracting objects rejected by the PTZ can be automatically added to the wide-angle dataset to reduce false positives in future deployment.
 
 \section{Related Work}
 \subsection{Small Object Detection}
@@ -410,20 +413,23 @@ This paper presented a dual-camera active acquisition method for fully automated
 
 \begin{thebibliography}{99}
 
-\bibitem{smallobj_survey1}
-``Small Object Detection: A Comprehensive Survey on Challenges, Techniques and Real-World Applications,'' \textit{Intelligent Systems with Applications}, 2025. doi: \url{10.1016/j.iswa.2025.200561}
+\bibitem{nikouei2024smallobj}
+M. Nikouei et al., ``Small Object Detection: A Comprehensive Survey on Challenges, Techniques, and Real-World Applications,'' \textit{Intelligent Systems with Applications}, vol. 25, 2025. doi: \url{10.1016/j.iswa.2025.200561}
 
-\bibitem{smallobj_survey2}
-``Small object detection in diverse application landscapes,'' \textit{Multimedia Tools and Applications}, vol. 83, pp. 40321--40359, 2024. doi: \url{10.1007/s11042-024-18866-w}
+\bibitem{mahaur2022superres}
+B. Mahaur, N. Singh, and K. K. Mishra, ``Road object detection: a comparative study of deep learning-based algorithms,'' \textit{Multimedia Tools and Applications}, vol. 81, no. 10, pp. 14247-14282, 2022. doi: \url{10.1007/s11042-022-12447-5}
 
-\bibitem{smallobj_survey3}
-``Deep learning-based detection from the perspective of small or tiny objects: A comparative review,'' \textit{Image and Vision Computing}, vol. 117, p. 104813, 2022. doi: \url{10.1016/j.imavis.2022.104439}
+\bibitem{rozantsev2017flying}
+A. Rozantsev, V. Lepetit and P. Fua, ``Detecting Flying Objects Using a Single Moving Camera,'' \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 39, no. 5, pp. 879-892, 1 May 2017. doi: \url{10.1109/TPAMI.2016.2564408}
+
+\bibitem{chen2020survey}
+G. Chen, H. Pu, W. Luo, and L. Zhang, ``A Survey of the Four Pillars for Small Object Detection: Multiscale Representation, Contextual Information, Super-Resolution, and Region Proposal,'' \textit{IEEE Transactions on Systems, Man, and Cybernetics: Systems}, vol. 52, no. 2, pp. 936-953, Feb. 2022. doi: \url{10.1109/TSMC.2020.3005231}
+
+\bibitem{zhang2019zoom}
+X. Zhang, Q. Chen, R. Ng, and V. Koltun, ``Zoom to Learn, Learn to Zoom,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 3762-3770, 2019. doi: \url{10.1109/CVPR.2019.00388}
 
 \bibitem{yolo_flying}
 ``Real-Time Flying Object Detection with YOLOv8,'' \textit{arXiv preprint arXiv:2305.09972}, 2023. doi: \url{10.48550/arXiv.2305.09972}
-
-\bibitem{yolo_review}
-``A Comprehensive Review of YOLO: From YOLOv1 to YOLOv8 and Beyond,'' \textit{arXiv preprint arXiv:2304.00501}, 2023. doi: \url{10.48550/arXiv.2304.00501}
 
 \bibitem{ptz_eval}
 ``Evaluation of trackers for Pan-Tilt-Zoom Scenarios,'' \textit{arXiv preprint arXiv:1711.04260}, 2017. doi: \url{10.48550/arXiv.1711.04260}
