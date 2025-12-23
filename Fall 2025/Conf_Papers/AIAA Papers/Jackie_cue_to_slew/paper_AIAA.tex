@@ -96,7 +96,14 @@ While recent surveys \cite{chen2020survey, nikouei2024smallobj} have demonstrate
 \par
 Even with high-resolution imagery, real-time detection pipelines typically downsample inputs to manageable resolutions (e.g., $640 \times 640$) to satisfy compute constraints. This reduction inherently compresses distant targets into featureless blobs that are difficult to classify without relying on temporal context (as humans do) or additional sensor modalities \cite{rozantsev2017flying}.
 \par
-In the case of distant aerial surveillance, a target may occupy fewer than $15 \times 15$ pixels in a wide-angle feed. At this resolution, distractors (i.e. birds, cloud edges, specular highlights, or sensor noise) are indistinguishable from the target of interest. Standard digital zooming (cropping) only magnifies these ambiguities \cite{zhang2019zoom}. To achieve robust detection, a dataset must contain examples where these confusing cases are resolved, yet human labelers often cannot distinguish them in raw wide-angle footage.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=1.0\textwidth]{fig_sr_comparison.png}
+\caption{Comparison of Wide-Angle Crop (Digital Zoom), Simulated Super-Resolution, and true Optical Zoom active acquisition. The wide-angle crop (left) lacks distinguishing features. Generative super-resolution (center) hallucinates a plausible but inaccurate shape. Active optical zoom (right) recovers true high-frequency details needed for valid ground truth.}
+\label{fig:zoomlevels}
+\end{figure*}
+
+Figure~\ref{fig:zoomlevels} illustrates the challenge in distant aerial surveillance, where a target may occupy fewer than $15 \times 15$ pixels in a wide-angle feed. At this resolution, distractors (i.e. birds, cloud edges, specular highlights, or sensor noise) are indistinguishable from the target of interest. Standard digital zooming (cropping) only magnifies these ambiguities \cite{zhang2019zoom}. To achieve robust detection, a dataset must contain examples where these confusing cases are resolved, yet human labelers often cannot distinguish them in raw wide-angle footage.
 \par
 We address this by replacing the human labeler with a dual-camera system designed to automate the construction of small-object datasets. A fixed wide-angle camera provides persistent coverage, while a controllable Pan-Tilt-Zoom (PTZ) camera provides resolution on demand. The key technical challenge lies in the handover, since the system must move a mechanical lens to capture a moving target based on delayed visual data. This system compensates for the $\approx 150$\,ms latency between sensor capture and motor response and achieves high movement rates ($120^\circ$/s) without inducing motion blur.
 \par
@@ -339,12 +346,7 @@ Airplanes introduce systematic small-object issues. In a wide-angle view, aircra
 \par
 Flying-object detection has been studied with YOLOv8 as a practical real-time architecture choice, and YOLO-family surveys emphasize why these models are frequently deployed in resource-constrained real-time settings.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=1.0\textwidth]{fig_zoom_comparison.pdf}
-\caption{Zoom level comparison. At wide-angle (left), a distant airplane may occupy only 15 pixels---insufficient for reliable classification. Progressive zoom increases pixel count, enabling confident detection at 20x zoom (right).}
-\label{fig:zoomlevels}
-\end{figure*}
+
 
 \subsection{Class Taxonomy and Negatives}
 For this test case, the primary class is \textit{airplane}. Hard negatives arise from birds, insects near the lens, distant drones, clouds with sharp edges, sensor noise, and specular highlights (Fig.~\ref{fig:negatives}). The PTZ confirmation step naturally collects informative negatives: wide proposals that are rejected by PTZ as non-airplane can be stored as hard negatives with contextual metadata.
