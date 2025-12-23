@@ -47,15 +47,16 @@ iso_fov = r"""
     \coordinate (CamFixed) at (0, -0.3, 0);
     \coordinate (CamPTZ) at (0, 0.3, 0);
     
+    % Platform under cameras
+    \filldraw[gray!20, draw=gray!50] (-0.4, -0.8, -0.3) -- (0.4, -0.8, -0.3) -- (0.4, 0.8, -0.3) -- (-0.4, 0.8, -0.3) -- cycle;
+    
     % Camera icons (vertical cylinders using nodes)
     % Fixed camera (blue) - Solid fill
     \node[cylinder, shape border rotate=90, draw=CBlue!50!black, fill=CBlue, minimum height=0.6cm, minimum width=0.4cm, aspect=0.4, anchor=center] (NodeFixed) at (CamFixed) {};
     % PTZ camera (red) - Solid fill
     \node[cylinder, shape border rotate=90, draw=Garnet!50!black, fill=Garnet, minimum height=0.6cm, minimum width=0.4cm, aspect=0.4, anchor=center] (NodePTZ) at (CamPTZ) {};
     
-    % Labels
-    \node[below left, font=\tiny\sffamily] at (CamFixed) {Fixed};
-    \node[below right, font=\tiny\sffamily] at (CamPTZ) {PTZ};
+    % Labels removed per user request
     
     % === DEFINE GEOMETRY ===
     % Wide FOV geometry
@@ -91,10 +92,10 @@ iso_fov = r"""
     
     % Other objects in wide FOV but outside zoom (diamonds in YZ planes)
     \def\oS{0.15}
-    % Object 1 at X=6
-    \fill[gray!60] (6, -2-\oS, 0.5) -- (6, -2, 0.5+\oS) -- (6, -2+\oS, 0.5) -- (6, -2, 0.5-\oS) -- cycle;
-    % Object 2 at X=5
-    \fill[gray!60] (5, 2.5-\oS, -0.5) -- (5, 2.5, -0.5+\oS) -- (5, 2.5+\oS, -0.5) -- (5, 2.5, -0.5-\oS) -- cycle;
+    % Object 1 at X=7 (updated position)
+    \fill[gray!60] (7, -2-\oS, 0.5) -- (7, -2, 0.5+\oS) -- (7, -2+\oS, 0.5) -- (7, -2, 0.5-\oS) -- cycle;
+    % Object 2 at X=7 (updated position)
+    \fill[gray!60] (7, 2.5-\oS, -0.5) -- (7, 2.5, -0.5+\oS) -- (7, 2.5+\oS, -0.5) -- (7, 2.5, -0.5-\oS) -- cycle;
     % Object 3 at X=7
     \fill[gray!60] (7, -1-\oS, 2) -- (7, -1, 2+\oS) -- (7, -1+\oS, 2) -- (7, -1, 2-\oS) -- cycle;
     
@@ -110,7 +111,7 @@ iso_fov = r"""
     % Far plane rectangle (the "screen")
     \fill[CBlue, opacity=0.08] (WBL) -- (WBR) -- (WTR) -- (WTL) -- cycle;
     \draw[CBlue, dashed, opacity=0.5] (WBL) -- (WBR) -- (WTR) -- (WTL) -- cycle;
-    \node[CBlue, font=\sffamily\small] at (\dist, 0, \wideZup+0.5) {Wide FoV};
+    % Label removed
     
     % === ZOOM FOV (drawn after targets) ===
     % === ZOOM FOV (drawn after targets) ===
@@ -124,12 +125,8 @@ iso_fov = r"""
     % Zoom far plane
     \fill[Garnet, opacity=0.25] (ZBL) -- (ZBR) -- (ZTR) -- (ZTL) -- cycle;
     \draw[Garnet, dashed, opacity=0.5] (ZBL) -- (ZBR) -- (ZTR) -- (ZTL) -- cycle;
-    \node[Garnet, font=\sffamily\small, anchor=west] at ($(Target) + (0.5, 1, 0.5)$) {Zoom FoV};
+    % Label removed
     
-    % === ANNOTATIONS ===
-    
-    % Range
-    \draw[<->, gray, thin] (0, -4.5, -1) -- (8, -4.5, -1) node[midway, below, font=\tiny] {Range $R$};
     
 \end{tikzpicture}
 """
