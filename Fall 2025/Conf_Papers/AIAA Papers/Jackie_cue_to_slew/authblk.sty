@@ -1,0 +1,37 @@
+\ProvidesPackage{authblk}[2001/02/27 v1.3 authblk mock with multi-author support]
+
+\DeclareOption{blocks}{}
+\DeclareOption*{}
+\ProcessOptions\relax
+
+\newcommand{\Authfont}{\normalfont}
+\newcommand{\Affilfont}{\normalfont\itshape}
+\newlength{\affilsep}
+\setlength{\affilsep}{1em}
+
+% Storage for authors and affiliations
+\newif\if@authblk@first
+\@authblk@firsttrue
+\let\AB@authors\@empty
+\let\AB@affillist\@empty
+
+% Redefine \author to accumulate authors
+\renewcommand{\author}[2][]{%
+  \if@authblk@first
+    \@authblk@firstfalse
+    \gdef\AB@authors{{\Authfont#2}}%
+  \else
+    \g@addto@macro\AB@authors{, {\Authfont#2}}%
+  \fi
+}
+
+% Define \affil
+\newcommand{\affil}[2][]{%
+  \g@addto@macro\AB@affillist{\par{\Affilfont#2}}%
+}
+
+% Hook into \@author
+\AtBeginDocument{%
+  \let\AB@origmaketitle\maketitle
+  \def\@author{\AB@authors\AB@affillist}%
+}
