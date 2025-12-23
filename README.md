@@ -22,7 +22,7 @@ This repository organizes graduate course materials, conference papers, and rese
 │   │   │   └── Ideas.txt
 │   │   ├── Devon_surf_current/               # Surface current analysis paper
 │   │   ├── VRIFA/                            # VARTM Flow Front Analysis
-│   │   └── random figures/                   # Standalone TikZ diagrams
+│   │   └── random figures/
 │   ├── EMCH 501/                             # Engineering Analysis 1
 │   │   ├── HW1/
 │   │   ├── HW2/
