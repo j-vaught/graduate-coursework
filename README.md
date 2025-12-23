@@ -20,8 +20,6 @@ This repository organizes graduate course materials, conference papers, and rese
 │   │   │   ├── One-Click_DEAD/
 │   │   │   ├── SouthEast_NON_submission/
 │   │   │   └── Ideas.txt
-│   │   ├── Devon_surf_current/               # Surface current analysis paper
-│   │   ├── VRIFA/                            # VARTM Flow Front Analysis
 │   │   └── random figures/
 │   ├── EMCH 501/                             # Engineering Analysis 1
 │   │   ├── HW1/
@@ -35,6 +33,10 @@ This repository organizes graduate course materials, conference papers, and rese
 │       ├── HW3/
 │       └── Exam/
 └── Spring 2026/
+    ├── Papers/
+    │   ├── AIAA_SciTech/
+    │   │   └── VRIFA/                        # VARTM Flow Front Analysis
+    │   └── Devon_surf_current/               # Surface current analysis paper
     ├── CSCE763/                              # Digital Image Processing
     ├── CSCE775/                              # Deep Reinforcement Learning
     └── EMCH792/                              # Optimal State Estimation
