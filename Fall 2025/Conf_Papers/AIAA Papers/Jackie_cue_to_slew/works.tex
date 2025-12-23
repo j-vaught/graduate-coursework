@@ -1,0 +1,91 @@
+\documentclass[conf]{new-aiaa}
+
+% --- PACKAGES ---
+\usepackage{amsmath}
+\let\Bbbk\relax
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{authblk}
+
+\begin{document}
+
+\section{Related Work}
+
+\subsection{Small Object Detection and Resolution Limits}
+The fundamental bottleneck in small object detection is the scarcity of distinguishing features. When a target occupies few pixels (i.e. $15 \times 15$ pixels), class-defining details are often lost entirely \cite{nikouei2024smallobj}. Classical solutions involving super-resolution (SR) attempt to reconstruct this lost detail \cite{mahaur2022superres}. 
+
+However, reliance on SR for scientific data collection is flawed. First, SR is fundamentally generative; it estimates high-frequency details based on learned priors, creating a risk of hallucination where the model reinforces its own biases \cite{zhang2019zoom}. Second, the latency advantage of SR is negligible for high-quality restoration. While lightweight models can run in $<30$ms on edge accelerators (e.g., Jetson Orin), high-fidelity generative models required for scientific validity often require $>300$ms per frame \cite{nvidia_jetson_benchmarks}. This exceeds the mechanical slew-and-settle time of our system ($\approx 150$ms), which is competitive with high-end commercial PTZ units (typically 60--200\,ms command latency \cite{ptz_latency_pelco}). Our system therefore chooses the mechanical penalty to obtain optical ground truth rather than the computational penalty for hallucinated details.
+
+\subsection{Active Acquisition vs. Continuous Tracking}
+Most PTZ tracking literature focuses on the control problem of keeping a target centered in the frame \cite{ptz_reproducible, ptz_eval}. This requires mitigating total system latency (video encoding + network + mechanical response), which for IP-based systems frequently ranges from 200--500\,ms \cite{ptz_latency_optics}. Our work addresses active acquisition, or "slew-to-classification." Unlike continuous tracking, where the objective is persistence, our objective is information gain via discrete or one-off spot-checks.
+
+Existing active perception systems like VIGIA-E \cite{vigia_ptz} typically optimize for broad area coverage or anomaly detection. Our system instead functions as a sparse query mechanism. It identifies specific low-confidence candidates in the wide field and commits the PTZ resource to verifying them individually. This shifts the challenge from long-term stabilization to fast, accurate separate-and-verify maneuvers.
+
+\subsection{Sensor-Driven Labeling}
+Reducing manual annotation is a central goal of both semi-supervised learning and active learning. Pseudo-labeling methods such as ASTOD \cite{self_training} attempt to retrain models using high-confidence predictions, but this approach often fails in the small-object regime where the detector is consistently uncertain \cite{self_training_enh}. Similarly, active learning strategies like PPAL \cite{active_learning_ppod} identify informative samples but still require a human loop \cite{active_learning_survey}. 
+
+Our proposed "Active Acquisition" creates a fully automated hybrid. We use the selection logic of active learning (targeting less confident samples) but satisfy the label query using the PTZ camera instead of a human. The success of this automated verification relies on the additional information provided by optical zoom. While the target is ambiguous at $15 \times 15$ pixels, the zoomed view restores it to a regime (e.g., $>100 \times 100$ pixels) where off-the-shelf detectors already achieve near-perfect accuracy \cite{yolo_flying}. By physically bridging the gap between the surveillance view and the high-resolution training distribution of standard models, we convert a difficult "small object" inference problem into a trivial classification task, enabling the generation of verified small object ground truth labels at scale.
+
+\begin{thebibliography}{99}
+
+\bibitem{nikouei2024smallobj}
+M. Nikouei et al., ``Small Object Detection: A Comprehensive Survey on Challenges, Techniques, and Real-World Applications,'' \textit{Intelligent Systems with Applications}, vol. 25, 2025. 
+
+\bibitem{mahaur2022superres}
+B. Mahaur, N. Singh, and K. K. Mishra, ``Road object detection: a comparative study of deep learning-based algorithms,'' \textit{Multimedia Tools and Applications}, vol. 81, no. 10, pp. 14247-14282, 2022. 
+
+\bibitem{rozantsev2017flying}
+A. Rozantsev, V. Lepetit and P. Fua, ``Detecting Flying Objects Using a Single Moving Camera,'' \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 39, no. 5, pp. 879-892, 2017. 
+
+\bibitem{chen2020survey}
+G. Chen, H. Pu, W. Luo, and L. Zhang, ``A Survey of the Four Pillars for Small Object Detection: Multiscale Representation, Contextual Information, Super-Resolution, and Region Proposal,'' \textit{IEEE Transactions on Systems, Man, and Cybernetics: Systems}, vol. 52, no. 2, pp. 936-953, 2022. 
+
+\bibitem{zhang2019zoom}
+X. Zhang, Q. Chen, R. Ng, and V. Koltun, ``Zoom to Learn, Learn to Zoom,'' \textit{CVPR}, 2019. 
+
+\bibitem{yolo_flying}
+``Real-Time Flying Object Detection with YOLOv8,'' \textit{arXiv preprint arXiv:2305.09972}, 2023. 
+
+\bibitem{ptz_eval}
+``Evaluation of trackers for Pan-Tilt-Zoom Scenarios,'' \textit{arXiv preprint arXiv:1711.04260}, 2017. 
+
+\bibitem{ptz_reproducible}
+``Reproducible Evaluation of Pan-Tilt-Zoom Tracking,'' \textit{ICIP}, 2015. 
+
+\bibitem{active_ptz}
+``Active Visual Perception Enhancement Method Based on Deep Reinforcement Learning,'' \textit{Electronics}, vol. 13, no. 9, 2024. 
+
+\bibitem{anomalous_ptz}
+``Anomalous object detection by active search with PTZ cameras,'' \textit{Expert Systems with Applications}, vol. 184, 2021. 
+
+\bibitem{vigia_ptz}
+``VIGIA-E: Density-Aware Patch Selection for Efficient Video Surveillance with PTZ Cameras,'' \textit{CAIP}, 2025. 
+
+\bibitem{self_training}
+``Adaptive Self-Training for Object Detection,'' \textit{ICCVW}, 2023. 
+
+\bibitem{self_training_enh}
+``Improving Object Detection Accuracy with Self-Training Based on Bi-Directional Pseudo Label Recovery,'' \textit{Electronics}, vol. 13, no. 12, 2024. 
+
+\bibitem{active_learning_survey}
+``Ten Years of Active Learning Techniques and Object Detection: A Comprehensive Survey,'' \textit{Applied Sciences}, vol. 13, no. 10, 2023. 
+
+\bibitem{active_learning_ppod}
+``Plug and Play Active Learning for Object Detection,'' \textit{CVPR}, 2024. 
+
+\bibitem{ptz_latency_pelco}
+``Pelco Esprit Compact PTZ Technical Specifications,'' Pelco by Motorola Solutions, 2024. [Online].
+
+\bibitem{ptz_latency_optics}
+``Understanding Latency in IP Video Systems,'' PTZOptics White Paper, 2023. [Online].
+
+\bibitem{nvidia_jetson_benchmarks}
+``NVIDIA Jetson Orin Nano AI Performance Benchmarks,'' NVIDIA Developer Blog, 2024. [Online].
+
+\end{thebibliography}
+
+\end{document}
