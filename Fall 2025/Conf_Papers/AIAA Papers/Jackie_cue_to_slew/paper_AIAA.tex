@@ -126,7 +126,7 @@ Reducing manual annotation is a central goal of both semi-supervised learning an
 
 Our proposed "Active Acquisition" creates a fully automated hybrid. We use the selection logic of active learning (targeting less confident samples) but satisfy the label query using the PTZ camera instead of a human. The success of this automated verification relies on the additional information provided by optical zoom. While the target is ambiguous at $15 \times 15$ pixels, the zoomed view restores it to a regime (e.g., $>100 \times 100$ pixels) where off-the-shelf detectors already achieve near-perfect accuracy \cite{yolo_flying}. By physically bridging the gap between the surveillance view and the high-resolution training distribution of standard models, we convert a difficult "small object" inference problem into a trivial classification task, enabling the generation of verified small object ground truth labels at scale.
 
-\section{System Overview}
+\section{System Overview and Formulation}
 \subsection{Hardware and Software Roles}
 The system uses two cameras mounted with a fixed relative pose (Fig.~\ref{fig:hardware}):
 \par
@@ -142,31 +142,28 @@ The wide camera produces candidate detections and tracklets. A scheduling policy
 \label{fig:zoom_sequence}
 \end{figure*}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=1.0\columnwidth]{fig_cameras_side_by_side.pdf}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{fig_cameras_side_by_side.pdf}
 \caption{Physical hardware configuration. A fixed wide-angle camera provides persistent coverage while a 2-axis PTZ camera can be commanded to lock onto and zoom in on candidate targets.}
 \label{fig:hardware}
-\end{figure}
-
-\begin{figure}[t]
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
 \centering
-\includegraphics[width=0.75\columnwidth]{fig_fov_understanding_topdown.pdf}
-\caption{Field of view comparison. The wide camera (blue) covers approximately $90^\circ$ for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable, high-resolution view that can be directed to any point within the wide FOV.}
+\includegraphics[width=\linewidth]{fig_fov_understanding_topdown.pdf}
+\caption{Field of view comparison. The wide camera (blue) covers approximately $90^\circ$ for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable view.}
 \label{fig:fov}
-\end{figure}
-
-\subsection{End-to-End Pipeline Diagram}
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{fig_pipeline.pdf}
-\caption{Dual-camera active acquisition loop. The PTZ camera is triggered by wide-angle detections to improve evidence quality; high-confidence PTZ detections are transferred back to wide-angle frames.}
-\label{fig:pipeline}
-\end{figure}
+\end{minipage}
+\end{figure*}
 
 
 
-\section{Problem Formulation}
+
+
+\subsection{Problem Formulation}
 Let $I^w_t$ be the wide-angle frame at time $t$, and let $I^p_t$ be the PTZ frame captured at time $t$ with telemetry $\tau_t = (\theta_t,\phi_t,z_t)$ representing pan, tilt, and zoom. The wide detector produces candidate detections $D_t = \{(b^w_{t,i}, s^w_{t,i}, c_{t,i})\}_i$ with bounding boxes $b^w_{t,i}$, confidence scores $s^w_{t,i}$, and class labels $c_{t,i}$.
 \par
 The system chooses actions $a_t$ that either keep scanning (no PTZ) or command the PTZ to acquire a zoomed observation centered on a selected candidate. The goal is to maximize the expected dataset value subject to control and compute constraints:
@@ -238,6 +235,13 @@ We use wide-camera tracklets to provide temporal coherence and to predict target
 \end{tikzpicture}
 \caption{Latency Compensation. The PTZ command must account for processing delays and mechanical slew time. The target position is extrapolated $\Delta$ seconds into the future to ensure the PTZ arrives at the correct bearing.}
 \label{fig:latency}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_pipeline.pdf}
+\caption{Dual-camera active acquisition loop. The PTZ camera is triggered by wide-angle detections to improve evidence quality; high-confidence PTZ detections are transferred back to wide-angle frames.}
+\label{fig:pipeline}
 \end{figure}
 
 \begin{algorithm}[t]
