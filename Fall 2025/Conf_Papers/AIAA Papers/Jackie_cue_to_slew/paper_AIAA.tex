@@ -128,12 +128,9 @@ Our proposed "Active Acquisition" creates a fully automated hybrid. We use the s
 
 \section{System Overview and Formulation}
 \subsection{Hardware and Software Roles}
-The system uses two cameras mounted with a fixed relative pose (Fig.~\ref{fig:hardware}):
-\par
-(1) a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector; \par
-(2) a PTZ camera whose pan, tilt, and zoom can be commanded via a control interface and whose telemetry is logged with timestamps.
-\par
-The wide camera produces candidate detections and tracklets. A scheduling policy selects targets and commands the PTZ to re-center and zoom. The PTZ stream is analyzed to confirm class and refine bounding boxes. High-confidence PTZ detections are transferred back to the wide-angle frame to create dataset labels. A curation module filters low-quality frames and controls redundancy.
+The system consists of two cameras mounted with a fixed relative pose (Fig.~\ref{fig:hardware}): (1) a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector on the primary GPU, and (2) a PTZ camera whose pan, tilt, and zoom can be commanded via a control interface. The PTZ camera also runs a concurrent YOLO instance on the Deep Learning Accelerator (DLA) to verify targets once acquired. The baseline separation $b \approx 0.5$\,m is sufficiently small compared to the target range ($R > 100$\,m) that the parallax error is negligible for the initial open-loop slew command. The wide camera produces candidate detections and tracklets. A scheduling policy selects targets and commands the PTZ to re-center and zoom. The PTZ stream is analyzed to confirm class and refine bounding boxes. High-confidence PTZ detections are transferred back to the wide-angle frame to create dataset labels. A curation module filters low-quality frames and controls redundancy.
+
+The core operation involves a dynamic handover where the computer reads the wide camera, calculates a bearing, and commands the PTZ to intercept the moving target, compensating for processing and mechanical latencies.
 
 \begin{figure*}[t]
 \centering
@@ -159,25 +156,20 @@ The wide camera produces candidate detections and tracklets. A scheduling policy
 \end{minipage}
 \end{figure*}
 
-
-
-
-
 \subsection{Problem Formulation}
-Let $I^w_t$ be the wide-angle frame at time $t$, and let $I^p_t$ be the PTZ frame captured at time $t$ with telemetry $\tau_t = (\theta_t,\phi_t,z_t)$ representing pan, tilt, and zoom. The wide detector produces candidate detections $D_t = \{(b^w_{t,i}, s^w_{t,i}, c_{t,i})\}_i$ with bounding boxes $b^w_{t,i}$, confidence scores $s^w_{t,i}$, and class labels $c_{t,i}$.
-\par
-The system chooses actions $a_t$ that either keep scanning (no PTZ) or command the PTZ to acquire a zoomed observation centered on a selected candidate. The goal is to maximize the expected dataset value subject to control and compute constraints:
+We formulate the active acquisition as a greedy utility maximization problem. Let $I^w_{t_{cap}}$ be the wide-angle frame captured at time $t_{cap}$, and let the PTZ state be defined by telemetry $\tau_t = (\theta, \phi, z, \dot{\theta}, \dot{\phi})_t$, explicitly including angular velocity to model inertia. The wide detector produces candidate detections $D_{t_{cap}} = \{(b^w_{i}, s^w_{i}, c_{i})\}_i$.
+
+The system must select an action $a_{t}$ at decision time $t$ that will take effect at a future arrival time $t_{arr} = t + \delta$, where $\delta$ accounts for processing and mechanical slew delays. The objective is to maximize the expected utility of the next captured observation:
 \begin{equation}
-\max_{\pi} \ \mathbb{E}\left[\sum_t U\left(I^w_t, I^p_t, \tau_t\right)\right]
+a^\star = \arg\max_{a \in \mathcal{A}} \mathbb{E}\left[ U(I^p_{t_{arr}}, \tau_{t_{arr}}) \mid D_{t_{cap}}, \tau_{t} \right]
 \end{equation}
-subject to PTZ dynamics, latency, bandwidth, and storage budgets.
-Here $U(\cdot)$ is an acquisition utility that increases with (i) label correctness probability, (ii) localization quality, (iii) novelty/diversity, and (iv) usefulness for training (hard examples and hard negatives).
+This optimization is subject to operational constraints: the PTZ must be available (not currently slewing) and the target must be within the reachable field of view. The utility function $U(\cdot)$ prioritizes high-confidence verification, localization precision, and sample diversity.
 
 \section{Calibration and Cross-View Geometry}
 \subsection{Camera Model}
 Both cameras are modeled with intrinsics $(K_w, K_p)$ and distortion parameters. Let $\Pi(\cdot)$ be perspective projection with distortion, and let $R_{pw}, t_{pw}$ map 3D points from wide-camera coordinates to PTZ-camera coordinates.
 \par
-For sky targets at long range, parallax between cameras is often negligible if the baseline is small relative to range. In that regime, direction-only transfer is effective: rays from each camera correspond to the same world direction, and cross-view mapping can be performed using ray directions on the unit sphere rather than estimated depth.
+For sky targets at long range, parallax between cameras is often negligible if the baseline is small relative to range. For a typical target size of $\approx 30$\,cm (e.g., small drone or distant aircraft part) at a range of $R \approx 100$\,m, and a camera baseline of $b \approx 0.5$\,m, the parallax angle is small enough that a direction-only transfer provides a sufficiently accurate initial seed for the PTZ to acquire the target. Once the PTZ is slewed to this seed location, its onboard detector (running on DLA) refines the tracking lock. In this regime, ray directions on the unit sphere are used for cross-view mapping rather than estimated depth.
 
 
 \subsection{Mapping Wide Detections to PTZ Pan/Tilt Commands}
@@ -205,42 +197,12 @@ PTZ tracking is a coupled perception-and-control problem with dynamic imaging co
 \par
 We use wide-camera tracklets to provide temporal coherence and to predict target bearing during PTZ motion. A lightweight predictor (e.g., constant angular velocity with $\alpha$--$\beta$ filtering or a Kalman filter) provides a predicted bearing $\hat{d}_w(t+\Delta)$ given command latency $\Delta$, consistent with classical pan/tilt tracking formulations.
 
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[x=1.2cm, y=1.0cm]
-    % Axes
-    \draw[->, CGrayDark] (0,0) -- (6.5,0) node[right, font=\tiny] {Time};
 
-    % Events on timeline
-    \draw[dashed, CGrayDark] (1, 3.5) -- (1, 0) node[below, font=\tiny] {$t_{detect}$};
-    \draw[dashed, CGrayDark] (3, 3.5) -- (3, 0) node[below, font=\tiny] {$t_{cmd}$};
-    \draw[dashed, CGrayDark] (5, 3.5) -- (5, 0) node[below, font=\tiny] {$t_{arrive}$};
-
-    % Target Motion Path (Top)
-    \draw[thick, CDark] (0,3) -- (6, 3.5) node[right, font=\tiny] {Target Trajectory};
-    \fill[CDark] (1, 3.08) circle (2pt) node[above left, font=\tiny] {Pos($t_d$)};
-    \fill[Garnet] (5, 3.42) circle (2pt) node[above left, font=\tiny] {Pos($t_a$)};
-
-    % Latency Blocks
-    \node[flatblock, fill=CBlue!10, text width=1.6cm, minimum height=0.6cm] at (2, 2) {Proc. Latency};
-    \node[flatblock, fill=Garnet!10, text width=1.6cm, minimum height=0.6cm] at (4, 2) {Mech. Slew};
-
-    % Prediction Arrow
-    \draw[flatarrow, color=CSecondaryRed, dashed] (1, 3.08) -- node[below, rotate=5, font=\tiny, color=CSecondaryRed] {Prediction $\Delta$} (5, 3.42);
-
-    % Explanation Text
-    \node[anchor=west, text width=5cm, font=\scriptsize, color=CGrayDark] at (0.2, 1.0) {
-        To center the target at arrival time $t_{arrive}$, the system must command angles for the \textit{future} position predicted from the detection at $t_{detect}$.
-    };
-\end{tikzpicture}
-\caption{Latency Compensation. The PTZ command must account for processing delays and mechanical slew time. The target position is extrapolated $\Delta$ seconds into the future to ensure the PTZ arrives at the correct bearing.}
-\label{fig:latency}
-\end{figure}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_pipeline.pdf}
-\caption{Dual-camera active acquisition loop. The PTZ camera is triggered by wide-angle detections to improve evidence quality; high-confidence PTZ detections are transferred back to wide-angle frames.}
+\caption{Automated label-generation pipeline. Wide-field tracking selects candidates, PTZ verifies optically, and homography maps labels to the wide view.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -288,43 +250,9 @@ The transferred wide box is the tight axis-aligned rectangle enclosing the proje
 \subsection{Quality Gates and Drift Prevention}
 Self-training and pseudo-labeling can suffer from confirmation bias if low-quality pseudo-labels are admitted. This is widely recognized in semi-supervised detection; adaptive thresholding and robust pseudo-label selection reduce manual tuning and improve stability.
 \par
-In this system, the primary drift control mechanism is the physical zoom verification: many ambiguous wide detections become unambiguous at higher resolution. Remaining failure modes are handled by quality gates (Fig.~\ref{fig:gates}) that reject samples when motion blur is excessive, exposure is saturated (e.g., sun glare), the target is at the frame boundary, or the PTZ detector disagrees with the wide detector class in a way indicative of confusion (e.g., airplane vs bird). Each gate is implemented as a deterministic predicate so that dataset inclusion is reproducible and auditable.
+In this system, the primary drift control mechanism is the physical zoom verification: many ambiguous wide detections become unambiguous at higher resolution. Remaining failure modes are handled by quality gates that reject samples when motion blur is excessive, exposure is saturated (e.g., sun glare), the target is at the frame boundary, or the PTZ detector disagrees with the wide detector class in a way indicative of confusion (e.g., airplane vs bird). Each gate is implemented as a deterministic predicate so that dataset inclusion is reproducible and auditable.
 
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[node distance=5mm]
-    % Nodes
-    \node[data, text width=2cm] (raw) {Raw PTZ\\Frame};
 
-    \node[decision, below=of raw] (blur) {Blurry?};
-    \node[decision, below=of blur] (sat) {Saturated?};
-    \node[decision, below=of sat] (class) {Class Match?};
-    \node[decision, below=of class] (conf) {High Conf?};
-
-    \node[flatblock, below=of conf, fill=CLime!20] (accept) {Accept \&\\Transfer};
-
-    \node[coordinate, right=1.5cm of blur] (discard) {};
-    \node[text=Garnet, font=\footnotesize\bfseries] at (discard) {Discard};
-
-    % Paths
-    \draw[flatarrow] (raw) -- (blur);
-
-    \draw[flatarrow] (blur.south) -- node[right, font=\tiny] {No} (sat.north);
-    \draw[flatarrow] (blur.east) -- node[above, font=\tiny] {Yes} (discard |- blur);
-
-    \draw[flatarrow] (sat.south) -- node[right, font=\tiny] {No} (class.north);
-    \draw[flatarrow] (sat.east) -- node[above, font=\tiny] {Yes} (discard |- sat);
-
-    \draw[flatarrow] (class.south) -- node[right, font=\tiny] {Yes} (conf.north);
-    \draw[flatarrow] (class.east) -- node[above, font=\tiny] {No} (discard |- class);
-
-    \draw[flatarrow] (conf.south) -- node[right, font=\tiny] {Yes} (accept.north);
-    \draw[flatarrow] (conf.east) -- node[above, font=\tiny] {No} (discard |- conf);
-
-\end{tikzpicture}
-\caption{Quality Gate Logic. To prevent dataset contamination (drift), PTZ frames must pass a series of deterministic checks for image quality (blur, saturation) and content verification before being used to generate labels.}
-\label{fig:gates}
-\end{figure}
 
 \subsection{Dataset Schema}
 Each committed example stores the wide frame (or short clip), the transferred label, and acquisition metadata. Table~\ref{tab:schema} defines a minimal schema sufficient for training and analysis.
@@ -424,58 +352,58 @@ This paper presented a dual-camera active acquisition method for fully automated
 \begin{thebibliography}{99}
 
 \bibitem{nikouei2024smallobj}
-M. Nikouei et al., ``Small Object Detection: A Comprehensive Survey on Challenges, Techniques, and Real-World Applications,'' \textit{Intelligent Systems with Applications}, vol. 25, 2025. doi: \url{10.1016/j.iswa.2025.200561}
+M. Nikouei et al., ``Small Object Detection: A Comprehensive Survey on Challenges, Techniques, and Real-World Applications,'' \textit{Intelligent Systems with Applications}, vol. 25, 2025. doi: \url{https://doi.org/10.1016/j.iswa.2025.200561}
 
 \bibitem{mahaur2022superres}
-B. Mahaur, N. Singh, and K. K. Mishra, ``Road object detection: a comparative study of deep learning-based algorithms,'' \textit{Multimedia Tools and Applications}, vol. 81, no. 10, pp. 14247-14282, 2022. doi: \url{10.1007/s11042-022-12447-5}
+B. Mahaur, N. Singh, and K. K. Mishra, ``Road object detection: a comparative study of deep learning-based algorithms,'' \textit{Multimedia Tools and Applications}, vol. 81, no. 10, pp. 14247-14282, 2022. doi: \url{https://doi.org/10.1007/s11042-022-12447-5}
 
 \bibitem{rozantsev2017flying}
-A. Rozantsev, V. Lepetit and P. Fua, ``Detecting Flying Objects Using a Single Moving Camera,'' \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 39, no. 5, pp. 879-892, 1 May 2017. doi: \url{10.1109/TPAMI.2016.2564408}
+A. Rozantsev, V. Lepetit and P. Fua, ``Detecting Flying Objects Using a Single Moving Camera,'' \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 39, no. 5, pp. 879-892, 1 May 2017. doi: \url{https://doi.org/10.1109/TPAMI.2016.2564408}
 
 \bibitem{chen2020survey}
-G. Chen, H. Pu, W. Luo, and L. Zhang, ``A Survey of the Four Pillars for Small Object Detection: Multiscale Representation, Contextual Information, Super-Resolution, and Region Proposal,'' \textit{IEEE Transactions on Systems, Man, and Cybernetics: Systems}, vol. 52, no. 2, pp. 936-953, Feb. 2022. doi: \url{10.1109/TSMC.2020.3005231}
+G. Chen, H. Pu, W. Luo, and L. Zhang, ``A Survey of the Four Pillars for Small Object Detection: Multiscale Representation, Contextual Information, Super-Resolution, and Region Proposal,'' \textit{IEEE Transactions on Systems, Man, and Cybernetics: Systems}, vol. 52, no. 2, pp. 936-953, Feb. 2022. doi: \url{https://doi.org/10.1109/TSMC.2020.3005231}
 
 \bibitem{zhang2019zoom}
-X. Zhang, Q. Chen, R. Ng, and V. Koltun, ``Zoom to Learn, Learn to Zoom,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 3762-3770, 2019. doi: \url{10.1109/CVPR.2019.00388}
+X. Zhang, Q. Chen, R. Ng, and V. Koltun, ``Zoom to Learn, Learn to Zoom,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 3762-3770, 2019. doi: \url{https://doi.org/10.1109/CVPR.2019.00388}
 
 \bibitem{yolo_flying}
-``Real-Time Flying Object Detection with YOLOv8,'' \textit{arXiv preprint arXiv:2305.09972}, 2023. doi: \url{10.48550/arXiv.2305.09972}
+``Real-Time Flying Object Detection with YOLOv8,'' \textit{arXiv preprint arXiv:2305.09972}, 2023. doi: \url{https://doi.org/10.48550/arXiv.2305.09972}
 
 \bibitem{ptz_eval}
-``Evaluation of trackers for Pan-Tilt-Zoom Scenarios,'' \textit{arXiv preprint arXiv:1711.04260}, 2017. doi: \url{10.48550/arXiv.1711.04260}
+``Evaluation of trackers for Pan-Tilt-Zoom Scenarios,'' \textit{arXiv preprint arXiv:1711.04260}, 2017. doi: \url{https://doi.org/10.48550/arXiv.1711.04260}
 
 \bibitem{ptz_reproducible}
-``Reproducible Evaluation of Pan-Tilt-Zoom Tracking,'' in \textit{Proceedings of the IEEE International Conference on Image Processing (ICIP)}, 2015. doi: \url{10.1109/ICIP.2015.7351162}
+``Reproducible Evaluation of Pan-Tilt-Zoom Tracking,'' in \textit{Proceedings of the IEEE International Conference on Image Processing (ICIP)}, 2015. doi: \url{https://doi.org/10.1109/ICIP.2015.7351162}
 
 \bibitem{active_ptz}
-``Active Visual Perception Enhancement Method Based on Deep Reinforcement Learning,'' \textit{Electronics}, vol. 13, no. 9, p. 1654, 2024. doi: \url{10.3390/electronics13091654}
+``Active Visual Perception Enhancement Method Based on Deep Reinforcement Learning,'' \textit{Electronics}, vol. 13, no. 9, p. 1654, 2024. doi: \url{https://doi.org/10.3390/electronics13091654}
 
 \bibitem{anomalous_ptz}
-``Anomalous object detection by active search with PTZ cameras,'' \textit{Expert Systems with Applications}, vol. 184, p. 115150, 2021. doi: \url{10.1016/j.eswa.2021.115150}
+``Anomalous object detection by active search with PTZ cameras,'' \textit{Expert Systems with Applications}, vol. 184, p. 115150, 2021. doi: \url{https://doi.org/10.1016/j.eswa.2021.115150}
 
 \bibitem{vigia_ptz}
-``VIGIA-E: Density-Aware Patch Selection for Efficient Video Surveillance with PTZ Cameras,'' in \textit{Proceedings of the 25th International Conference on Computer Analysis of Images and Patterns (CAIP)}, 2025. doi: \url{10.1007/978-3-032-04968-1_23}
+``VIGIA-E: Density-Aware Patch Selection for Efficient Video Surveillance with PTZ Cameras,'' in \textit{Proceedings of the 25th International Conference on Computer Analysis of Images and Patterns (CAIP)}, 2025. doi: \url{https://doi.org/10.1007/978-3-032-04968-1_23}
 
 \bibitem{self_training}
-``Adaptive Self-Training for Object Detection,'' in \textit{Proceedings of the IEEE/CVF International Conference on Computer Vision Workshops (ICCVW)}, 2023. doi: \url{10.1109/ICCVW60793.2023.00102}
+``Adaptive Self-Training for object Detection,'' in \textit{Proceedings of the IEEE/CVF International Conference on Computer Vision Workshops (ICCVW)}, 2023. doi: \url{https://doi.org/10.1109/ICCVW60793.2023.00102}
 
 \bibitem{self_training_enh}
-``Improving Object Detection Accuracy with Self-Training Based on Bi-Directional Pseudo Label Recovery,'' \textit{Electronics}, vol. 13, no. 12, p. 2230, 2024. doi: \url{10.3390/electronics13122230}
+``Improving Object Detection Accuracy with Self-Training Based on Bi-Directional Pseudo Label Recovery,'' \textit{Electronics}, vol. 13, no. 12, p. 2230, 2024. doi: \url{https://doi.org/10.3390/electronics13122230}
 
 \bibitem{active_learning_survey}
-``Ten Years of Active Learning Techniques and Object Detection: A Comprehensive Survey,'' \textit{Applied Sciences}, vol. 13, no. 10, p. 6181, 2023. doi: \url{10.3390/app13169110}
+``Ten Years of Active Learning Techniques and Object Detection: A Comprehensive Survey,'' \textit{Applied Sciences}, vol. 13, no. 10, p. 6181, 2023. doi: \url{https://doi.org/10.3390/app13169110}
 
 \bibitem{active_learning_ppod}
-``Plug and Play Active Learning for Object Detection,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2024. doi: \url{10.1109/CVPR52733.2024.01684}
+``Plug and Play Active Learning for Object Detection,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2024. doi: \url{https://doi.org/10.1109/CVPR52733.2024.01684}
 
 \bibitem{ptz_latency_pelco}
-``Pelco Esprit Compact PTZ Technical Specifications,'' Pelco by Motorola Solutions, 2024. [Online]. Available: \url{https://www.pelco.com/products/cameras/esprit-compact}
+``What is the Measured Latency on Esprit Compact PTZ Cameras?,'' Pelco Support Article, 2024. [Online]. Available: \url{https://support.pelco.com/s/article/What-is-the-Measured-Latency-on-Esprit-Compact-PTZ-Cameras}
 
 \bibitem{ptz_latency_optics}
-``Understanding Latency in IP Video Systems,'' PTZOptics White Paper, 2023. [Online]. Available: \url{https://ptzoptics.com/latency/}
+``Fixing IP-Based Latency \& Sync Issues on PTZOptics Cameras,'' PTZOptics Knowledge Base, 2024. [Online]. Available: \url{https://community.ptzoptics.com/s/article/Fixing-IP-Based-Latency-Sync-Issues-on-PTZOptics-Cameras}
 
 \bibitem{nvidia_jetson_benchmarks}
-``NVIDIA Jetson Orin Nano AI Performance Benchmarks,'' NVIDIA Developer Blog, 2024. [Online]. Available: \url{https://developer.nvidia.com/embedded/jetson-benchmarks}
+``NVIDIA Jetson AI Lab Benchmarks,'' NVIDIA Jetson AI Lab, 2024. [Online]. Available: \url{https://www.jetson-ai-lab.com/benchmarks.html}
 
 \end{thebibliography}
 
