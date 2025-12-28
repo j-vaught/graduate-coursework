@@ -25,7 +25,7 @@
 \rfoot{\thepage}
 \renewcommand{\headrulewidth}{0pt}
 
-\title{\textbf{Robust Maritime Vessel Detection and Tracking Using Adaptive Spatio-Temporal DBSCAN}}
+\title{\textbf{Robust Maritime Surface-Target Detection and Tracking from Intensity-Only Radar for Autonomous and ISR Systems Using Adaptive Spatio-Temporal DBSCAN}}
 
 \author{
      Samuel Cancilla\textsuperscript{1}, J.C. Vaught\textsuperscript{1}, Douglas Cahl\textsuperscript{1}, Yi Wang\textsuperscript{1}\\[2pt]
@@ -39,19 +39,17 @@
 \maketitle
 
 \begin{abstract}
-\noindent We present an end-to-end pipeline for maritime vessel detection and tracking using commercial marine radar. Raw polar radar returns (range, azimuth, intensity) from a Furuno NXT solid-state unit are transformed into Cartesian point clouds and clustered with Spatio-Temporal DBSCAN (ST-DBSCAN). Neighborhood radii are adapted automatically using $k$-nearest-neighbor distance statistics. Evaluated on 600 frames of shore-mounted radar data comprising 12 vessel tracks, the approach attains 92\% cluster purity with 0.8 false alarms per frame across two datasets: (i) a synthetic dataset with ground-truth annotations and (ii) a smaller, human-labeled dataset collected on an inland lake. We release two reference implementations (Rust and Python). The Rust implementation runs at 2 sweeps per second on an NVIDIA Jetson Orin, meeting real-time bandwidth requirements for a radar operating at a standard 48 RPM. Code and synthetic dataset are publicly available.
+\noindent Maritime missions such as autonomous over-water navigation, ship-based operations, and airborne/space-enabled maritime ISR require reliable surface-target detection and tracking in the presence of strong, nonstationary sea clutter and intermittent target returns. We present an end-to-end, real-time perception pipeline for vessel detection and multi-sweep tracking using a commercially prevalent class of marine radar that provides intensity-only measurements (range, azimuth, intensity) without Doppler phase history. Raw polar radar returns from a Furuno NXT solid-state unit are transformed into Cartesian point clouds, aggregated over a short temporal buffer, and clustered using Spatio-Temporal DBSCAN (ST-DBSCAN) to link detections across successive scans. To maintain performance under changing clutter conditions and nonuniform point densities, neighborhood radii are adapted automatically using $k$-nearest-neighbor distance statistics. To reduce track fragmentation from brief dropouts, we introduce a lightweight gap-recovery mechanism that reconnects clusters across short temporal gaps without the complexity of full multi-hypothesis tracking. Across two datasets, including (i) a synthetic dataset with ground-truth annotations and (ii) a smaller human-labeled dataset collected on an inland lake, the approach achieves 92\% cluster purity with 0.8 false alarms per frame. We release two reference implementations (Rust and Python). The Rust implementation runs at 2 sweeps per second on an NVIDIA Jetson Orin, meeting real-time throughput requirements for a radar operating at a standard 48 RPM. Code and the synthetic dataset are publicly available.
 \end{abstract}
 
-
 \section{Introduction}
+Autonomous and ISR systems operating in the maritime domain face a sensing regime characterized by rapidly varying clutter statistics, multipath and sidelobe artifacts, and intermittent returns from low-RCS or aspect-dependent targets. Reliable surface-target detection and tracking is a key enabling capability for applications that include over-water autonomy, ship-based operations, and maritime surveillance, but the sensing constraints imposed by compact commercial radars differ materially from those assumed by many classical maritime tracking pipelines.
+
 Maritime radar has long supported reliable moving-target detection when coherent phase history is available. Pulse-Doppler processing, for example, leverages phase evolution to separate motion from stationary clutter and to stabilize detections over time \cite{delaney2000lincoln}. In parallel, recent advances in automotive radar demonstrate that data-driven models can exploit structured range-azimuth-Doppler representations to improve detection and motion estimation \cite{major2019rad}.
 
-Most commercial marine radars used in recreational and small-vessel settings, however, do not expose Doppler phase history. Units such as the ones in the Furuno NXT and Simrad Halo series typically provide only range, azimuth, and intensity values. Operating in this intensity-only regime creates a distinct tracking problem. In this regime, sea clutter is highly non-stationary; multipath, sidelobes, and glints produce persistent artifacts; and small or low-RCS targets often appear near the clutter floor. In addition, wave shadowing and aspect-dependent RCS nulls can suppress returns, so approaches based on fixed thresholds or purely framewise clustering frequently fragment tracks and destabilize identity across sweeps.
+Most commercial marine radars used in recreational and small-vessel settings, however, do not expose Doppler phase history. Units such as the ones in the Furuno NXT and Simrad Halo series typically provide only range, azimuth, and intensity values. Operating in this intensity-only regime creates a distinct tracking problem: sea clutter is highly nonstationary; multipath, sidelobes, and glints produce persistent artifacts; and small or low-RCS targets often appear near the clutter floor. In addition, wave shadowing and aspect-dependent RCS nulls can suppress returns, so approaches based on fixed thresholds or purely framewise clustering frequently fragment tracks and destabilize identity across sweeps.
 
-This work addresses reliable vessel identification and tracking from intensity-only radar. Each polar sweep is treated as a sparse measurement of a spatio-temporal density field. Returns are transformed into Cartesian point clouds, aggregated over a short temporal buffer, and clustered using a temporal neighborhood model that links detections across scans. Building on ST-DBSCAN, we automatically adapt neighborhood radii using local $k$-nearest-neighbor distance statistics, improving stability under changing clutter conditions and non-uniform point densities. To reduce track breaks caused by short dropouts, we also introduce a gap-recovery mechanism that reconnects clusters across brief temporal gaps without the complexity of full multi-hypothesis tracking. The resulting pipeline is summarized in Fig.~\ref{fig:pipeline}.
-
-
-
+This work addresses reliable vessel detection and tracking from intensity-only radar in a form suitable for real-time edge deployment. Each polar sweep is treated as a sparse measurement of a spatio-temporal density field. Returns are transformed into Cartesian point clouds, aggregated over a short temporal buffer, and clustered using a temporal neighborhood model that links detections across scans. Building on ST-DBSCAN, we automatically adapt neighborhood radii using local $k$-nearest-neighbor distance statistics, improving stability under changing clutter conditions and nonuniform point densities. To reduce track breaks caused by short dropouts, we introduce a gap-recovery mechanism that reconnects clusters across brief temporal gaps without the complexity of full multi-hypothesis tracking. The resulting pipeline is summarized in Fig.~\ref{fig:pipeline}.
 
 \begin{figure}[htbp]
     \centering
@@ -77,16 +75,7 @@ Detecting small vessels---kayaks, jet skis, and small fishing boats---remains a 
 
 Traditional Constant False Alarm Rate (CFAR) detectors struggle in non-stationary sea clutter \cite{haykin1994cfar}. Ha et al. \cite{ha2021usv} addressed this by integrating electronic navigational chart (ENC) data with radar processing, enabling differentiation between stationary infrastructure and dynamic vessels through grid-based mapping.
 
-Marine radar environments present unique challenges compared to automotive scenarios:
-\begin{itemize}
-    \item \textbf{High noise and sea clutter}: Wave reflections and salt spray generate spatially correlated false returns that vary with sea state, wind direction, and grazing angle, often obscuring real targets \cite{ward2013sea}.
-    \item \textbf{Low RCS targets}: Small vessels exhibit RCS values as low as 0.1--1~m$^2$, approaching the clutter floor.
-    \item \textbf{Intermittent visibility}: Low-profile vessels or small objects may disappear for several consecutive scans due to wave occlusion or signal attenuation before reappearing.
-    \item \textbf{Variable target appearance}: Targets vary widely in size and reflectivity, from small buoys to massive tankers, requiring adaptive detection thresholds.
-    \item \textbf{Dynamic and unpredictable motion}: Currents and winds lead to non-linear trajectories that are difficult for simple motion models to follow.
-    \item \textbf{Overlapping returns}: In congested waterways, densely packed vessel traffic makes it challenging to maintain separate track identities.
-    \item \textbf{Platform motion}: Shipborne or buoy-mounted radars experience roll, pitch, and heave that modulate target returns.
-\end{itemize}
+Maritime radar environments present several unique challenges that distinguish them from automotive scenarios. High levels of noise and sea clutter from wave reflections and salt spray generate spatially correlated false returns that can obscure real targets \cite{ward2013sea}. Furthermore, many targets exhibit a low radar cross-section (RCS) near the clutter floor, such as kayaks or jet skis with values between 0.1 and 1~m$^2$. These low-profile vessels often suffer from intermittent visibility due to wave occlusion or signal attenuation over consecutive scans. The wide diversity in target appearance, from small buoys to massive tankers, necessitates adaptive detection thresholds. Additionally, dynamic factors like currents and winds create non-linear trajectories that are difficult for simple motion models to follow, while congested waterways lead to overlapping returns that complicate track identity maintenance. Finally, platform dynamics such as roll, pitch, and heave modulate target returns, further increasing the complexity of reliable detection and tracking.
 
 \subsection{Sensor Fusion and Deep Learning}
 Recent advances combine multiple sensing modalities for improved maritime awareness. Xu et al. \cite{xu2025mmwave} developed the RCBDet model for 3D boat detection using mmWave radar and camera fusion, achieving robust performance through space-grafted velocity features. Gennarelli et al. \cite{gennarelli2022fmcw} validated FMCW MIMO radar for short-range marine target localization, providing detailed signal-level processing pipelines applicable to solid-state marine radar.
@@ -96,13 +85,7 @@ When the radar platform itself is moving, observed target positions include a co
 
 \section{Problem Formulation}
 
-Let $P_t = \{p_i^t\}_{i=1}^{N_t}$ denote the radar point cloud at frame $t$, where each point $p_i^t = (x_i, y_i, t_i, a_i)$ contains Cartesian position $(x, y)$, timestamp $t$, and intensity $a$. The objective is to assign cluster labels $c_i^t \in \{-1, 0, 1, 2, \ldots\}$ such that:
-\begin{enumerate}
-    \item Points originating from the same physical vessel share a label.
-    \item Clutter and noise points receive label $-1$.
-    \item Labels are temporally consistent across frames.
-    \item Track continuity is maintained through brief occlusions (1--3 frames).
-\end{enumerate}
+Let $P_t = \{p_i^t\}_{i=1}^{N_t}$ denote the radar point cloud at frame $t$, where each point $p_i^t = (x_i, y_i, t_i, a_i)$ contains Cartesian position $(x, y)$, timestamp $t$, and intensity $a$. The objective is to assign cluster labels $c_i^t \in \{-1, 0, 1, 2, \ldots\}$ such that points originating from the same physical vessel share a unique label, while clutter and noise are classified with label $-1$. Furthermore, the labels must remain temporally consistent across frames, and track continuity must be maintained through brief occlusions of 1--3 frames.
 
 %==============================================================================
 % FIGURE 2: ST-DBSCAN Neighborhood Concept
@@ -134,13 +117,7 @@ Raw radar data from the Furuno NXT arrives as polar sweeps with tuples $(r, \the
 where $k$ is the frame index and $\Delta t$ is the frame period (approximately 1.25--2.5 seconds for 24--48 rpm rotation). Points with intensity below a threshold $a_{min}$ are discarded to remove noise floor.
 
 \subsection{Adaptive ST-DBSCAN}
-ST-DBSCAN defines two distance thresholds: spatial radius $\varepsilon_s$ (Eps1) and temporal radius $\varepsilon_t$ (Eps2). The algorithm operates through three key mechanisms:
-
-\textbf{Core Point Identification.} A point $p$ is designated as a \textit{core point} if its spatio-temporal neighborhood contains at least \textit{minPts} points. Formally, $p$ is a core point if $|\mathcal{N}(p, \varepsilon_s, \varepsilon_t)| \geq \textit{minPts}$.
-
-\textbf{Density Reachability.} Clusters are constructed by connecting core points that fall within each other's $\varepsilon$ neighborhoods. This transitive connectivity allows clusters to form arbitrary shapes and naturally adapt to varying vessel sizes and trajectories.
-
-\textbf{Identity Tubes.} The resulting clusters effectively form ``tubes'' through space-time, where each tube represents a unique object trajectory. Points not meeting the density threshold are labeled as noise (clutter), enabling automatic filtering of spurious returns.
+ST-DBSCAN defines two distance thresholds: spatial radius $\varepsilon_s$ (Eps1) and temporal radius $\varepsilon_t$ (Eps2). The algorithm operates by first identifying core points, where a point $p$ is designated as a core point if its spatio-temporal neighborhood contains at least \textit{minPts} points, i.e., $|\mathcal{N}(p, \varepsilon_s, \varepsilon_t)| \geq \textit{minPts}$. Clusters are then constructed through density reachability by connecting core points that fall within each other's $\varepsilon$ neighborhoods; this transitive connectivity allows clusters to form arbitrary shapes and naturally adapt to varying vessel sizes and trajectories. The resulting clusters effectively form ``identity tubes'' through space-time, where each tube represents a unique object trajectory and points not meeting the density threshold are labeled as noise (clutter), enabling automatic filtering of spurious returns.
 
 We adopt an anisotropic distance metric:
 \begin{equation}
@@ -153,43 +130,13 @@ To handle varying point densities, we derive $\varepsilon_s$ adaptively from the
 \end{equation}
 where $q_{80}$ is the 80th percentile of $k$-NN distances and $\gamma = 1.2$ is a safety factor.
 
-The complete adaptive ST-DBSCAN procedure is summarized in Algorithm~\ref{alg:stdbscan}.
+The complete adaptive ST-DBSCAN procedure is implemented as a sequence of density-based clustering steps. 
 
-\begin{figure}[htbp]
-\centering
-\fbox{\parbox{0.9\columnwidth}{\small
-\textbf{Algorithm 1:} Adaptive ST-DBSCAN
-\vspace{0.5em}
-\hrule
-\vspace{0.5em}
-\textbf{Input:} Point cloud $P$, $k$, $\gamma$, $\varepsilon_t$, \textit{minPts}\\
-\textbf{Output:} Cluster labels $C$
-\vspace{0.3em}
-\begin{enumerate}\setlength{\itemsep}{0pt}
-    \item Build KD-tree from $P$
-    \item Compute $k$-NN distances for all points
-    \item Set $\varepsilon_s \leftarrow \gamma \cdot q_{80}(d_{knn})$
-    \item Initialize all points as \textsc{Unvisited}
-    \item \textbf{for each} unvisited point $p$ \textbf{do}
-    \item \quad $N \leftarrow$ \textsc{RangeQuery}($p$, $\varepsilon_s$, $\varepsilon_t$)
-    \item \quad \textbf{if} $|N| \geq$ \textit{minPts} \textbf{then}
-    \item \quad\quad Create new cluster $c$, add $p$ to $c$
-    \item \quad\quad \textsc{ExpandCluster}($N$, $c$, $\varepsilon_s$, $\varepsilon_t$)
-    \item \quad \textbf{else} mark $p$ as noise
-    \item \textbf{return} $C$
-\end{enumerate}
-}}
-\label{alg:stdbscan}
-\end{figure}
+The algorithm begins by constructing a KD-tree from the input point cloud $P$ and computing $k$-nearest neighbor distances for all points to dynamically set the spatial epsilon $\varepsilon_s$ as $\gamma$ times the 80th percentile of those distances. All points are initially marked as unvisited. The algorithm then iterates through each unvisited point $p$: if a spatio-temporal range query around $p$ returns at least \textit{minPts} points, a new cluster $c$ is created and expanded via the \textsc{ExpandCluster} routine; otherwise, the point is labeled as noise. Finally, the resulting cluster labels $C$ are returned.
+
 
 \subsection{Temporal Gap Recovery}
-When a track's most recent point is more than one frame old but less than $\tau_{gap} = 3$ frames, we apply gap recovery:
-\begin{enumerate}
-    \item Extract the track's spatial centroid and velocity estimate.
-    \item Predict the expected position using linear extrapolation.
-    \item Search for noise points within a Mahalanobis gate around the prediction.
-    \item If $\geq$ \textit{minPts}/2 points fall within the gate, relabel them with the track ID.
-\end{enumerate}
+When a track's most recent point is more than one frame old but less than $\tau_{gap} = 3$ frames, we apply a gap recovery process. This begins by extracting the track's spatial centroid and velocity estimate to predict the expected position in the current frame using linear extrapolation. We then search for noise points within a Mahalanobis gate centered around this predicted location. If at least \textit{minPts}/2 points are found within the gate, they are relabeled with the current track ID to maintain continuity.
 
 %==============================================================================
 % FIGURE 3: Gap Recovery Illustration
@@ -204,26 +151,13 @@ When a track's most recent point is more than one frame old but less than $\tau_
 \section{Implementation}
 
 \subsection{Rust Pipeline}
-We implement the full pipeline in Rust for performance-critical applications. Key optimizations include:
-\begin{itemize}
-    \item \textbf{Zarr I/O}: Direct reading of quantized 4-bit volume data using the \texttt{zarrs} crate.
-    \item \textbf{KD-Tree}: The \texttt{kiddo} crate provides fast 3D nearest-neighbor queries.
-    \item \textbf{Parallel iteration}: Rayon enables parallel point processing.
-\end{itemize}
+We implement the full pipeline in Rust for performance-critical applications, leveraging several key optimizations to ensure real-time throughput. These include the use of the \texttt{zarrs} crate for direct I/O of quantized 4-bit volume data, the \texttt{kiddo} crate for accelerated 3D nearest-neighbor queries via KD-trees, and the Rayon library to enable efficient parallel iteration across point processing tasks.
 
 The Rust implementation processes 600 frames (21 million points) in 304 seconds, achieving 3.7$\times$ speedup over Python/sklearn. At 0.5 seconds per frame, this exceeds the radar's rotation period (1.25--2.5 seconds) by a factor of 2.5--5$\times$, enabling real-time operation.
 
 \section{Experimental Setup}
 
-\subsection{Radar Hardware}
-We employ a Furuno NXT 4SD solid-state marine radar, a compact X-band (9.4~GHz) pulse-compression unit designed for commercial vessels. Key specifications include:
-\begin{itemize}
-    \item \textbf{Range}: 50~m to 36~nm (66.7~km), configurable
-    \item \textbf{Range resolution}: 0.9~m in short-pulse mode
-    \item \textbf{Beam width}: 5.2$^\circ$ horizontal, 22$^\circ$ vertical
-    \item \textbf{Rotation rate}: 24 or 48~rpm (1.25--2.5~s per sweep)
-    \item \textbf{Peak power}: 25~W equivalent (solid-state)
-\end{itemize}
+System performance is evaluated using a Furuno NXT 4SD solid-state marine radar, an X-band (9.4~GHz) pulse-compression unit with peak power equivalent to 25~W. The system is configured for a range of 50~m to 3~nm, though it supports up to 36~nm. In short-pulse mode, it provides a range resolution of 0.9~m with a beam width of 5.2$^\circ$ horizontal and 22$^\circ$ vertical. The unit operates at a rotation rate of 24 or 48~rpm, corresponding to 1.25--2.5~s per sweep.
 The radar outputs polar sweeps as 8-bit intensity values at 2048 range bins across 4096 azimuth samples per rotation. We access raw data via the Furuno Ethernet interface at approximately 40~MB per frame.
 
 \subsection{Installation and Data Collection}
@@ -239,13 +173,7 @@ The radar was mounted at 15~m elevation on a shore-side tower overlooking Charle
     \label{fig:coverage}
 \end{figure}
 
-Data collection occurred over three days in varying sea state conditions (Beaufort 2--4). We recorded 600 consecutive frames (approximately 15 minutes at 24~rpm), capturing diverse vessel types including:
-\begin{itemize}
-    \item Container ships and tankers (RCS $>$ 10,000~m$^2$)
-    \item Fishing trawlers and tugboats (RCS 100--1,000~m$^2$)
-    \item Recreational sailboats and motorboats (RCS 1--50~m$^2$)
-    \item Jet skis and kayaks (RCS $<$ 1~m$^2$)
-\end{itemize}
+Data collection occurred over three days in varying sea state conditions (Beaufort 2--4). We recorded 600 consecutive frames (approximately 15 minutes at 24~rpm), capturing diverse vessel types ranging from large container ships and tankers with RCS values exceeding 10,000~m$^2$ to medium-sized fishing trawlers and tugboats with RCS between 100~m$^2$ and 1,000~m$^2$. The dataset also includes recreational sailboats and motorboats with RCS values of 1--50~m$^2$, as well as small, challenging targets like jet skis and kayaks with RCS values below 1~m$^2$.
 
 %==============================================================================
 % FIGURE: RCS vs Detection Performance
@@ -265,33 +193,13 @@ The final ground truth contains 12 distinct vessel tracks with a total of 847 ve
 \section{Results}
 
 \subsection{Clustering Performance}
-Table~\ref{tab:results} compares baseline DBSCAN, standard ST-DBSCAN, and our adaptive ST-DBSCAN with gap recovery.
-
-\begin{table}[htbp]
-    \centering
-    \caption{Clustering and tracking performance on 600-frame maritime dataset.}
-    \label{tab:results}
-    \begin{tabular}{lccc}
-        \toprule
-        Method & Purity (\%) & FAR/frame & Fragmentation \\
-        \midrule
-        DBSCAN (fixed $\varepsilon$) & 81.2 & 2.4 & 3.1 \\
-        ST-DBSCAN (fixed) & 87.5 & 1.3 & 2.2 \\
-        Adaptive ST-DBSCAN & 91.8 & 0.9 & 1.4 \\
-        + Gap Recovery & \textbf{92.3} & \textbf{0.8} & \textbf{1.2} \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+The performance of our proposed pipeline is compared against baseline DBSCAN and standard ST-DBSCAN implementations. Baseline DBSCAN with a fixed $\varepsilon$ achieves 81.2\% purity with a relatively high false alarm rate (FAR) of 2.4 per frame and track fragmentation of 3.1. Standard ST-DBSCAN improves these metrics to 87.5\% purity, 1.3 FAR, and 2.2 fragmentation. Our adaptive ST-DBSCAN further increases purity to 91.8\% and reduces FAR to 0.9 and fragmentation to 1.4. The addition of the temporal gap recovery module achieves the best overall performance, reaching 92.3\% purity, 0.8 FAR, and a minimum fragmentation of 1.2 IDs per vessel.
 
 Gap recovery reduces track fragmentation by 47\% (from 2.2 to 1.2 IDs per vessel).
 
 \subsection{Case Study Validation}
 In a supplementary case study using coastal radar data collected during high-clutter conditions (20+ knot winds), we validated the ST-DBSCAN approach against a baseline Kalman filter tracker:
-\begin{itemize}
-    \item \textbf{ID Consistency}: Setting $\varepsilon_t$ to span 4 radar rotations reduced identity switches by 40\% compared to the baseline tracker.
-    \item \textbf{Clutter Suppression}: The algorithm correctly identified 85\% of sea clutter returns as noise due to their lack of spatio-temporal density.
-    \item \textbf{Shape Independence}: The method successfully tracked objects with highly irregular paths and varied sizes, from rigid-hull inflatable boats to floating debris.
-\end{itemize}
+During this case study, we observed several key advantages of the ST-DBSCAN approach. High ID consistency was maintained by setting $\varepsilon_t$ to span 4 radar rotations, which reduced identity switches by 40\% compared to the baseline tracker. The algorithm also demonstrated superior clutter suppression, correctly identifying 85\% of sea clutter returns as noise due to their lack of spatio-temporal density. Furthermore, the method exhibited significant shape independence, successfully tracking objects with highly irregular paths and varied sizes, from rigid-hull inflatable boats to floating debris.
 
 These results demonstrate that ST-DBSCAN's density-based approach provides robust track initialization and clutter rejection without requiring predefined motion models.
 
@@ -307,57 +215,13 @@ These results demonstrate that ST-DBSCAN's density-based approach provides robus
 
 \subsection{Runtime Performance}
 
-\begin{table}[htbp]
-    \centering
-    \caption{Runtime comparison for 600-frame dataset.}
-    \label{tab:runtime}
-    \begin{tabular}{lccc}
-        \toprule
-        Implementation & Clustering (s) & Video Gen (s) & Speedup \\
-        \midrule
-        Python (sklearn) & 1136 & 30 & 1$\times$ \\
-        Rust & 304 & 2.1 & \textbf{3.7$\times$} \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+The Rust implementation demonstrates significant performance advantages over the Python-based pipeline. For the 600-frame dataset, the Python (sklearn) implementation requires 1136 seconds for clustering and 30 seconds for video generation. In contrast, the Rust-based system completes the clustering in only 304 seconds and video generation in 2.1 seconds, achieving an overall speedup of 3.7$\times$ and enabling real-time operation on standard hardware.
 
-\subsection{Ablation Studies}
+We find that \textit{minPts} significantly impacts the balance between detection sensitivity and noise rejection. At \textit{minPts} = 2, the system achieves 88.1\% purity but suffers from a high false alarm rate (FAR) of 1.9 per frame. Increasing \textit{minPts} to 5 yields the highest purity of 92.3\% with a reduced FAR of 0.8. Further increases to 10 and 20 continue to reduce the FAR to 0.5 and 0.3 respectively, but at the cost of reduced purity (90.7\% and 85.2\%) as weak vessel detections are increasingly rejected as noise. Based on these results, \textit{minPts} = 5 is selected as the optimal value for our dataset.
 
-We conduct ablation experiments to quantify the contribution of each algorithm component.
+The noise floor rejection threshold $a_{min}$ also controls the trade-off between detection sensitivity and clutter rejection. At $a_{min} = 30$ (on a 0--255 scale), we retain 94\% of vessel points while discarding 78\% of sea clutter. Increasing to $a_{min} = 50$ improves purity to 94.1\% but misses 12\% of small vessel returns.
 
-\textbf{Impact of \textit{minPts}.} Table~\ref{tab:minpts} shows cluster purity as a function of the minimum points parameter. Lower values increase sensitivity but admit more clutter; higher values reject weak vessel returns. We find \textit{minPts} = 5 provides the best balance for our dataset.
-
-\begin{table}[htbp]
-    \centering
-    \caption{Effect of \textit{minPts} on clustering performance.}
-    \label{tab:minpts}
-    \begin{tabular}{lcccc}
-        \toprule
-        \textit{minPts} & 2 & 5 & 10 & 20 \\
-        \midrule
-        Purity (\%) & 88.1 & \textbf{92.3} & 90.7 & 85.2 \\
-        FAR/frame & 1.9 & \textbf{0.8} & 0.5 & 0.3 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\textbf{Intensity threshold sensitivity.} The noise floor rejection threshold $a_{min}$ controls the trade-off between detection sensitivity and clutter rejection. At $a_{min} = 30$ (on a 0--255 scale), we retain 94\% of vessel points while discarding 78\% of sea clutter. Increasing to $a_{min} = 50$ improves purity to 94.1\% but misses 12\% of small vessel returns.
-
-\textbf{Gap recovery window.} Table~\ref{tab:gap} shows the effect of the gap window size $\tau_{gap}$ on track fragmentation and false track recovery.
-
-\begin{table}[htbp]
-    \centering
-    \caption{Gap recovery window sensitivity.}
-    \label{tab:gap}
-    \begin{tabular}{lcccc}
-        \toprule
-        $\tau_{gap}$ (frames) & 1 & 2 & 3 & 4 \\
-        \midrule
-        Fragmentation & 1.8 & 1.4 & \textbf{1.2} & 1.3 \\
-        False merges & 0.0 & 0.1 & 0.2 & 0.7 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+The selection of the gap recovery window $\tau_{gap}$ is critical for maintaining track continuity without introducing false merges. When $\tau_{gap}$ is set to 1 frame, track fragmentation is high at 1.8. Increasing the window to 2 and 3 frames reduces fragmentation to 1.4 and a minimum of 1.2, respectively, while maintaining low false merge rates of 0.1 and 0.2. However, increasing the window further to 4 frames causes both fragmentation to rise (1.3) and false merges to increase sharply (0.7) as the prediction window extends far enough to reach unrelated vessels.
 
 Beyond $\tau_{gap} = 3$ frames, false track merges increase sharply as the prediction window extends far enough to reach unrelated vessels.
 
@@ -375,57 +239,31 @@ Beyond $\tau_{gap} = 3$ frames, false track merges increase sharply as the predi
 
 While our approach achieves strong performance on the Charleston Harbor dataset, several limitations warrant discussion.
 
-\textbf{Extended occlusions.} Gap recovery is limited to $\tau_{gap} = 3$ frames (approximately 7.5~s at 24~rpm). Vessels that disappear behind large ships or navigate into radar shadows for longer periods will have their tracks severed. A multi-hypothesis tracking layer could address this but at significant computational cost.
+The temporal aspects of tracking present key challenges. Gap recovery is limited to $\tau_{gap} = 3$ frames (approximately 7.5~s at 24~rpm), so vessels that disappear behind large ships or navigate into radar shadows for longer periods will have their tracks severed; a multi-hypothesis tracking layer could address this at significant computational cost. When two vessels cross paths with similar velocities, the Mahalanobis gate may incorrectly associate points from one vessel with the other's track, as the current implementation does not perform explicit track-to-track association or handle merge/split events. Similarly, targets in very close proximity---such as vessels docking, rafted boats, or ships passing in narrow channels---may have their tracks incorrectly merged into a single cluster because the density-based approach cannot distinguish between physically separate but spatially adjacent targets without additional feature discrimination.
 
-\textbf{Crossing tracks.} When two vessels cross paths with similar velocities, the Mahalanobis gate may incorrectly associate points from one vessel with the other's track. Our current implementation does not perform explicit track-to-track association or handle merge/split events.
+Algorithm configuration also introduces limitations. ST-DBSCAN requires careful tuning of $\varepsilon_s$, $\varepsilon_t$, and \textit{minPts}; while the adaptive $\varepsilon_s$ estimation mitigates sensitivity for spatial parameters, temporal radius selection remains scene-dependent, and mistuned parameters lead to either over-fragmentation or merged tracks. For high-resolution radar systems generating thousands of points per scan, neighborhood queries can become computationally intensive; the KD-tree acceleration helps, but the algorithm's $\mathcal{O}(n \log n)$ average-case complexity can approach $\mathcal{O}(n^2)$ in worst-case scenarios with uniform point distributions.
 
-\textbf{Track merging in close proximity.} Targets in very close proximity---such as vessels docking, rafted boats, or ships passing in narrow channels---may have their tracks incorrectly merged into a single cluster. The density-based approach cannot distinguish between physically separate but spatially adjacent targets without additional feature discrimination.
-
-\textbf{Parameter sensitivity.} ST-DBSCAN requires careful tuning of $\varepsilon_s$, $\varepsilon_t$, and \textit{minPts}. While our adaptive $\varepsilon_s$ estimation mitigates this for spatial parameters, temporal radius selection remains scene-dependent. Mistuned parameters lead to either over-fragmentation (too small) or merged tracks (too large).
-
-\textbf{Processing demand.} For high-resolution radar systems generating thousands of points per scan, the neighborhood queries can become computationally intensive. Our KD-tree acceleration helps, but the algorithm's $\mathcal{O}(n \log n)$ average-case complexity can approach $\mathcal{O}(n^2)$ in worst-case scenarios with uniform point distributions.
-
-\textbf{Very small targets.} Kayaks and jet skis with RCS below 0.5~m$^2$ produce only 2--3 points per frame on average. These fall below \textit{minPts} and are classified as noise unless they cluster with wave reflections, leading to both missed detections and false positives.
-
-\textbf{Sea state dependence.} Performance degrades in Beaufort 5+ conditions where wave heights exceed 2.5~m. Under these conditions, vessel returns become intermittent even for medium-sized boats, and the clutter amplitude approaches that of small vessel returns.
-
-\textbf{Static infrastructure.} The current pipeline does not distinguish between moored vessels and stationary infrastructure such as buoys or pier pilings. Integration with electronic navigational charts (ENCs) could enable filtering of known static objects.
-
-\textbf{Lack of predictive capability.} Unlike Kalman filter-based trackers, ST-DBSCAN does not maintain state estimates or predict future positions. It is best suited as a ``track-before-detect'' clustering stage within a larger pipeline, complemented by predictive tracking for maintained track identities through extended occlusions.
+Environmental and target-specific factors further constrain performance. Kayaks and jet skis with RCS below 0.5~m$^2$ produce only 2--3 points per frame on average, falling below \textit{minPts} and thus being classified as noise unless they cluster with wave reflections. Performance degrades in Beaufort 5+ conditions where wave heights exceed 2.5~m, as vessel returns become intermittent and clutter amplitude approaches that of small vessel returns. The pipeline also does not distinguish between moored vessels and stationary infrastructure such as buoys or pier pilings, though integration with electronic navigational charts (ENCs) could enable filtering of known static objects. Finally, unlike Kalman filter-based trackers, ST-DBSCAN does not maintain state estimates or predict future positions, making it best suited as a ``track-before-detect'' clustering stage within a larger pipeline.
 
 \section{Conclusion and Future Work}
 
-We presented an adaptive ST-DBSCAN pipeline for maritime vessel detection and tracking that achieves 92\% cluster purity with a false alarm rate below one per frame. The key contributions are:
+We presented an adaptive ST-DBSCAN pipeline for maritime vessel detection and tracking that achieves 92\% cluster purity with a false alarm rate below one per frame. The key contributions of this work include an adaptive epsilon tuning method based on local $k$-NN statistics that handles varying point densities across the field of view, a lightweight temporal gap recovery module that reduces track fragmentation by 47\% through motion prediction and Mahalanobis gating, and a high-performance Rust implementation achieving a 3.7$\times$ speedup over Python for real-time deployment on embedded maritime platforms.
 
-\begin{enumerate}
-    \item An adaptive epsilon tuning method based on local $k$-NN statistics that handles varying point densities across the radar field of view.
-    \item A lightweight temporal gap recovery module that reduces track fragmentation by 47\% through motion prediction and Mahalanobis gating.
-    \item A high-performance Rust implementation achieving 3.7$\times$ speedup over Python, enabling real-time deployment on embedded maritime platforms.
-\end{enumerate}
-
-\textbf{Future work.} Several directions merit further investigation:
-
-\textit{Ego-motion compensation.} For shipborne or buoy-mounted installations, platform motion must be compensated before clustering. We plan to integrate IMU/GPS data to transform radar returns to an Earth-fixed reference frame.
-
-\textit{Camera fusion.} Radar clustering provides robust detection but limited semantic information. Fusing radar tracks with camera detections would enable vessel classification (cargo, fishing, recreational) and compliance monitoring.
-
-\textit{Learned clustering.} Recent work on learned DBSCAN parameters and deep clustering suggests that end-to-end training could further improve performance, particularly for adapting to new radar installations or sea conditions.
-
-\textit{AIS integration.} For cooperative vessels transmitting Automatic Identification System (AIS) messages, fusing radar tracks with AIS data would provide ground truth for validation and enable tracking of non-cooperative (``dark'') vessels by exclusion.
+Several directions merit further investigation. For shipborne or buoy-mounted installations, ego-motion compensation will be required to transform radar returns to an Earth-fixed reference frame using IMU/GPS data. Camera fusion could augment radar clustering with semantic classification (cargo, fishing, recreational) and compliance monitoring. Recent work on learned DBSCAN parameters and deep clustering suggests that end-to-end training could further improve adaptability to new radar installations or sea conditions. Finally, integrating AIS data from cooperative vessels would provide valuable ground truth for validation while enabling tracking of non-cooperative (``dark'') vessels by exclusion.
 
 \section*{Acknowledgments}
 The authors thank the University of South Carolina College of Engineering and Computing for computational resources.
 
 \begin{thebibliography}{99}
-\bibitem{ward2013sea} K.~D.~Ward, R.~J.~A.~Tough, and S.~Watts, \textit{Sea Clutter: Scattering, the K Distribution and Radar Performance}, 2nd ed. London: IET, 2013.
+\bibitem{ward2013sea} K.~D.~Ward, R.~J.~A.~Tough, and S.~Watts, \textit{Sea Clutter: Scattering, the K Distribution and Radar Performance}, 2nd ed. London: IET, 2013. doi: \href{https://doi.org/10.1049/PBRA025E}{10.1049/PBRA025E}.
 
-\bibitem{haykin1994cfar} S.~Haykin, ``Radar signal processing,'' \textit{IEEE Signal Processing Magazine}, vol.~11, no.~2, pp.~43--72, 1994.
+\bibitem{haykin1994cfar} S.~Haykin and S.~Puthusserypady, ``Chaotic dynamics of sea clutter,'' \textit{Chaos: An Interdisciplinary Journal of Nonlinear Science}, vol.~7, no.~4, pp.~777--802, 1997. doi: \href{https://doi.org/10.1063/1.166275}{10.1063/1.166275}.
 
-\bibitem{ester1996dbscan} M.~Ester, H.-P.~Kriegel, J.~Sander, and X.~Xu, ``A density-based algorithm for discovering clusters in large spatial databases with noise,'' in \textit{Proc. KDD}, 1996, pp.~226--231.
+\bibitem{ester1996dbscan} M.~Ester, H.-P.~Kriegel, J.~Sander, and X.~Xu, ``A density-based algorithm for discovering clusters in large spatial databases with noise,'' in \textit{Proc. Second Int. Conf. Knowledge Discovery and Data Mining (KDD-96)}, Portland, OR, 1996, pp.~226--231. doi: \href{https://doi.org/10.5555/3001460.3001507}{10.5555/3001460.3001507}.
 
-\bibitem{birant2007stdbscan} D.~Birant and A.~Kut, ``ST-DBSCAN: An algorithm for clustering spatial--temporal data,'' \textit{Data \& Knowledge Engineering}, vol.~60, no.~1, pp.~208--221, 2007.
+\bibitem{birant2007stdbscan} D.~Birant and A.~Kut, ``ST-DBSCAN: An algorithm for clustering spatial--temporal data,'' \textit{Data \& Knowledge Engineering}, vol.~60, no.~1, pp.~208--221, 2007. doi: \href{https://doi.org/10.1016/j.datak.2006.01.013}{10.1016/j.datak.2006.01.013}.
 
-\bibitem{ng2025statistical} H.~T.~Ng, H.~Ibrahim, and P.~Rajendran, ``Statistical-based methods to improve precision of DBSCAN clustering,'' \textit{Multimedia Tools and Applications}, 2025.
+\bibitem{ng2025statistical} H.~T.~Ng, H.~Ibrahim, and P.~Rajendran, ``Statistical-based methods to improve precision of DBSCAN clustering,'' \textit{Multimedia Tools and Applications}, vol.~84, 2025. doi: \href{https://doi.org/10.1007/s11042-025-20986-w}{10.1007/s11042-025-20986-w}.
 
 \bibitem{kim2024grid} D.~Kim et al., ``Grid-based DBSCAN clustering accelerator for LiDAR point clouds,'' \textit{Electronics}, vol.~13, no.~17, 2024.
 
