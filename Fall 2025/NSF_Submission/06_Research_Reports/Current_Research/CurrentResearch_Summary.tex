@@ -1,0 +1,154 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\geometry{margin=1in}
+\title{Completed Research Portfolio Summary}
+\author{JC Vaught}
+\date{October 2, 2025}
+\begin{document}
+\maketitle
+\section*{Scope}
+This report consolidates completed research deliverables stored within the project workspace as of October~2,~2025. Each section captures outcomes that have already been produced, verified, or documented; prospective plans and future-facing proposals that appear in the source materials have been intentionally excluded in accordance with the reporting requirement.
+
+\section{GPU Parallelism and Scaling Studies}
+\subsection{Literature Synthesis}
+A comparative literature survey distilled the canonical sharding strategies for transformer-scale training across data, model, pipeline, and tensor parallelism. The deliverable summarizes implementation complexity, strengths, and latency/communication trade-offs to guide deployment choices on small GPU clusters.\cite{gpu-summary-table}
+
+\subsection{Benchmarked Workflows}
+Hands-on experiments were executed across two- and four-GPU configurations using transformer language models at 1{,}024- and 4{,}096-dimension embeddings. The study logged throughput, memory ceilings, utilization, and recovery characteristics for each parallelism mode, providing concrete guidance on when the added orchestration cost delivers a measurable benefit.\cite{gpu-weekly-brief}
+
+\section{Thermal Camera Calibration Survey}
+A comprehensive review of non-radar calibration targets categorized active versus passive thermal patterns and captured achieved reprojection errors where available.\cite{thermal-summary} Table~\ref{tab:thermal-calibration} enumerates the documented configurations.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}p{2cm} >{\raggedright\arraybackslash}p{2.5cm} >{\raggedright\arraybackslash}p{6cm}}
+\caption{Completed thermal calibration approaches and performance metrics.}\label{tab:thermal-calibration}\\
+\toprule
+Method & Category & RMSE (px) & Notes \\
+\midrule
+Paper checkerboard + flood lamp & Passive & 0.41--0.48 & Heated board delivers sub-half-pixel accuracy with minimal equipment. \\
+IR lamp checkerboard (HDR frame blend) & Passive & 0.60--0.714 & Increased dynamic range required to visualize pattern, but error increases because of lamp non-uniformity. \\
+Monitor-displayed mask & Passive & 0.284--0.324 & Utilizes emissive screen for high-contrast target without custom fabrication. \\
+Aluminum tape on board & Passive & --- & Commonly deployed low-cost method; qualitative assessment notes strong contrast from metal's low emissivity. \\
+Printed aluminum plate (ink) & Passive & 0.10--0.22 & Metal substrate with printed pattern delivers best-in-class passive accuracy; commercially common. \\
+Printed aluminum plate (UV) & Passive & 0.233 & UV-cured print variant yields marginally higher error than inked plate. \\
+Heated resistive wires & Active & 0.175--0.177 & Precisely positioned heat points create reliable features for calibration. \\
+Bulb array on backing & Active & 0.588 & Bulb heating provides workable calibration but suffers from thermal bloom. \\
+Circular mask target & Passive & 0.052 & Circular aperture mask documented as the lowest error among surveyed methods. \\
+\bottomrule
+\end{longtable}
+
+Cost analysis highlighted metal targets (e.g., 24\,×\,24 in plates quoted at \$55) and active heating rigs as the primary expense drivers, motivating preference for reusable passive configurations with demonstrated sub-0.2 pixel accuracy.\cite{thermal-summary}
+
+\section{Maritime Vision Dataset Catalog}
+The dataset catalog consolidates public maritime sensing corpora across electro-optical, infrared, and radar modalities to accelerate training data acquisition for fusion pipelines.\cite{maritime-datasets} Key exemplars include:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Singapore Maritime Dataset (SMD): 81 on-shore/on-board 1080p video sequences with day/night/haze diversity for detection and tracking benchmarks.
+  \item MARVEL: \textasciitilde2~million web-crawled ship images across 109 vessel classes for fine-grained classification.
+  \item MarDCT (ARGOS-Venice): 6{,}742 annotated images plus 16 Venice waterway videos supporting urban USV research.
+  \item SeaDronesSee: >54{,}000 UAV frames with \textasciitilde400k annotations plus multispectral bands for search-and-rescue detection.
+  \item KOLOMVERSE: 186{,}419 4K images extracted from 5{,}845 hours of CCTV coverage on 17 vessels across 21 sea zones, with bounding boxes for collision avoidance.
+  \item M2SODAI: Multi-modal aerial RGB + hyperspectral dataset capturing 5{,}764 ship and debris instances to suppress sun-glint false alarms.
+\end{itemize}
+The catalog couples each entry with publication references, sensor modalities, and download provenance, easing compliance and reproducibility tracking for downstream experiments.
+
+\section{Radar--Camera Fusion Research}
+A technical whitepaper documented the empirical limitations of X-band radar and optical-only detection for small, low-RCS targets in dynamic sea clutter, then proposed a radar-assisted annotation pipeline.\cite{fusion-summary} Completed analyses include:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Demonstrated CFAR thresholding on Lake Murray radar captures to illustrate clutter-adaptive detection and its residual failure modes in inhomogeneous seas.
+  \item Quantified automatic gain control side effects that either suppress or saturate small-object returns, establishing the requirement for raw-data access and multi-gain capture.
+  \item Outlined a co-registration workflow where radar-projected regions-of-interest accelerate human-in-the-loop labeling, reducing manual scan burden for sub-5~pixel targets.
+\end{itemize}
+
+\section{M364C FLIR Sensor Calibration and Data Pipeline (May 2025)}
+The ONR monthly report for May~2025 compiled finished deliverables across imaging, fusion, and range estimation tasks.\cite{monthly-report-may2025}
+\subsection{Imaging System Enhancements}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Upgraded the Jetson Orin camera GUI with real-time uptime, CPU/RAM/temperature telemetry, storage endurance estimates, selectable overlays, and full-screen per-camera views (Figure~1 in source).
+  \item Fabricated a 60~mm aluminum-square thermal calibration board, enabling reliable IR visualization of checkerboard corners for the M364C.
+  \item Processed paired IR/RGB captures through MATLAB Stereo Calibrator, achieving 0.80~pixel mean reprojection error.
+  \item Explored uncalibrated SURF-based rectification, using pixel-difference diagnostics to evaluate residual misalignment between modalities.
+  \item Captured new Charleston, SC shoreline sequences, expanding the IMSEL maritime dataset to 8{,}589 annotated IR/RGB pairs (1{,}411 short of the 10k goal).
+\end{itemize}
+
+\subsection{Geometric Processing and Data Management}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Replaced fixed crop windows with a world-distance cutoff to define rectified image bounds, keeping edge-length errors under 10\% on tiled ground truth scenes.
+  \item Commissioned a radar/camera/INS recorder on Jetson AGX Orin; timestamped sweeps, frames, and navigation metadata now persist without loss for downstream fusion alignment.
+\end{itemize}
+
+\subsection{Range Estimation and Environmental Modeling}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Refined geometric range calibration by acquiring camera--IMU transform matrices at \textasciitilde10~m board separation and logging sensor time shifts.
+  \item Improved LWIR range regression by reparameterizing inputs to XGBoost, lifting $R^2$ from 0.65 to 0.90 across seven datasets spanning 14 unknown gain settings; captured 250+ paired LWIR frames with ground-truth distances using a demo Axiom Optics sensor.
+  \item Trained a rain segmentation model and instituted manual-cleanup workflows to raise mask fidelity for deraining efforts.
+\end{itemize}
+
+\section{Multi-Gain Radar Characterization (June 2025)}
+A focused campaign partially validated the multi-gain acquisition workflow and streamlined the Furuno NXT capture stack.\cite{phase2-gain}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Gathered \textasciitilde60{,}000 sweeps (\textasciitilde200~GB) across seven Lake Murray and Lake Greenwood access points over 20 days, covering day, night, and storm conditions with 1.5~NM effective radius per site.
+  \item Entropy analysis over five ranges and 100 gain steps (5 samples each) identified the 30--93\% S1/S2 zone as information-rich while flagging saturation above 94\%.
+  \item Logged 2{,}500 sweeps per mini-calibration in 40~minutes, informing design of a 20k-sweep comprehensive calibration.
+  \item Hardened field hardware with a new enclosure and OS tuning, shrinking Raspberry Pi boot time from $\ge$4~min to $<20$~s.
+  \item Authored a parallel CSV-to-NetCDF converter that compresses storage by \textasciitilde25\times and attaches richer metadata; multi-core implementation accelerates cleanup by $>$4\times relative to previous scripts.
+  \item Benchmarked six single-frame denoisers (BM3D best) and multi-frame filters (multi-look median leading) plus OpenCV HDR merges (Merge Mertens and NLM improving low-SNR targets).
+  \item Trained an initial temporal masked autoencoder on 132 samples (40 epochs, 75\% masking) to assess feasibility of self-supervised radar reconstruction.
+\end{itemize}
+
+\section{HDR Radar Tracking and Simulation (July 2025)}
+Subsequent work operationalized HDR fusion and automated tracking on newly collected datasets.\cite{phase2-hdr}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Characterized receiver response via dual corner reflectors, noting compression above gain level 9 (0--100 scale) and capturing parameter scripts for repeatability.
+  \item Selected gain triplet (40/50/70) and short-2 pulse for lake operations; Robertson HDR fusion produced 16-bit PPIs, boosting peak signal-to-clutter by $>$12~dB and visibly clarifying land, buoys, and boats.
+  \item Built a Monte Carlo simulator that ingests GIS shorelines and buoy catalogs, supports Rayleigh/K/Weibull clutter models, allows STC curve sweeps, and matches real scenes within 2~dB across range gates.
+  \item Delivered two functional trackers: a self-initializing extended Kalman filter with adaptive birth/dormant logic, and a temporal masked autoencoder fine-tuned on three hand-labelled masks that already exceeds July's baseline IoU.
+\end{itemize}
+
+\section{Site Surveys for Radar Data Collection}
+The South Carolina lake access workbook catalogs actionable launch points, geocodes, and amenity notes for inland and coastal radar deployments.\cite{lake-access}
+\begin{itemize}[leftmargin=*,nosep]
+  \item Compiled access documentation for Lake Marion, Moultrie, Murray, Hartwell, Keowee, Jocassee, and Thurmond, each with links to operating authorities and ramp directories.
+  \item Listed Google Maps references and coordinates for Monticello access points (e.g., 34.324162~N, 81.285518~W) to streamline logistics for night operations.
+  \item Extended coverage to coastal ramps (Calibogue, Port Royal, St.~Helena Sounds) and priority beach sites, capturing facility notes such as restroom and shower availability relevant to crew planning.
+\end{itemize}
+
+\section{Portable Power Station Comparison}
+A market survey benchmarked eight sub-350~Wh portable power stations for field sensor deployments.\cite{power-stations} Table~\ref{tab:power} summarizes the evaluated models.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{1.8cm} >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{2cm} >{\raggedright\arraybackslash}p{1.5cm} >{\raggedright\arraybackslash}p{2cm} >{\raggedright\arraybackslash}p{2.2cm}}
+\caption{Portable power station comparison metrics.}\label{tab:power}\\
+\toprule
+Model & Capacity (Wh) & AC Output & USB-C Ports & Weight (lb) & Price (USD) & Notes \\
+\midrule
+GoLabs i200 & 256 & 200~W (250~W surge) & 60~W + 30~W & 8.37 & 229.99 & Reference unit; discontinued. \\
+Jackery Explorer 240 v2 & 256 & 300~W (600~W surge) & 2\,×\,100~W + 15~W & 7.94 & 199.99 & Widely stocked (Amazon, Walmart). \\
+Jackery Explorer 300 & 293 & 300~W (500~W surge) & 60~W & 7.10 & 178.00 & Lowest price among tested units. \\
+Jackery Explorer 300 Plus & 288 & 300~W (600~W surge) & 2\,×\,100~W & 8.20 & 269.00 & Current availability through Walmart. \\
+Anker SOLIX C300 & 288 & 300~W (600~W surge) & 2\,×\,140~W + 15~W & 9.10 & 229.99 & 50-minute fast charge reported. \\
+EcoFlow RIVER 2 & 256 & 300~W (600~W surge) & 60~W & 7.70 & 169.99 & 60-minute recharge; dual AC receptacles. \\
+BLUETTI EB3A & 268.8 & 600~W (1.2~kW surge) & 100~W & 10.10 & 189.99 & Highest AC rating; heavier chassis. \\
+Goal Zero Yeti 300 & 297 & 350~W (600~W surge) & 100~W + 2\,×\,30~W & 13.70 & 349.95 & Premium pricing; limited stock outside Amazon. \\
+\bottomrule
+\end{longtable}
+
+\section*{Conclusion}
+Across sensing, data curation, hardware readiness, and algorithm development, the archived artifacts document a mature research stack ready for expanded fielding and additional automation. Continued work can build directly on the delivered calibration assets, fused datasets, HDR capture workflows, and benchmarking toolchains captured here.
+
+\begin{thebibliography}{99}
+\bibitem{gpu-summary-table} J.~C.~Vaught, ``GPU Parallelism Literature Review Summary Table,'' 2025.
+\bibitem{gpu-weekly-brief} J.~C.~Vaught, ``Radar Update Weekly Brief -- 23 September 2025,'' 2025.
+\bibitem{thermal-summary} J.~C.~Vaught, ``Thermal Calibration Summary,'' 2025.
+\bibitem{maritime-datasets} J.~C.~Vaught, ``Overview of Maritime Datasets for Vision-Based Navigation and Detection,'' 2025.
+\bibitem{fusion-summary} J.~C.~Vaught, ``Radar-Camera Fusion Summary,'' 2025.
+\bibitem{monthly-report-may2025} University of South Carolina \\ Integer Technologies, ``Advanced Perception for Autonomous Platforms in the Littorals: Monthly Scientific and Technical Report 22,'' May 2025.
+\bibitem{phase2-gain} J.~C.~Vaught, ``Phase 2 Gain Analysis Report,'' June 2025.
+\bibitem{phase2-hdr} J.~C.~Vaught, ``Phase 2 HDR Tracking Report,'' July 2025.
+\bibitem{lake-access} J.~C.~Vaught, ``SC Lake Radar Access Locations Workbook,'' 2025.
+\bibitem{power-stations} J.~C.~Vaught, ``Portable Power Station Comparison Workbook,'' 2025.
+\end{thebibliography}
+
+\end{document}

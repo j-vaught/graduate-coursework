@@ -1,0 +1,451 @@
+Short summary: Develop a fusion-based approach to reliably detect small, low-RCS objects at sea by
+combining radar and camera data, and use radar cues to streamline image labeling.
+Summary
+Conventional marine radars alone struggle to detect small, low radar-cross-section (RCS) objects (like
+kayaks, swimmers, buoys, pylons) in higher sea states and heavy sea clutter, and optical camera detectors
+are limited by scarce labeled data in marine settings. By fusing X-band radar and cameras, the system will
+improve the detection of small maritime objects and automatically assist in labeling camera images using
+radar returns as cues.
+
+SEA-ING IS BELIEVING: AUTOMATED MARINE OBJECT LABELING
+The first look.
+
+PART 1.
+
+INTRODUCTION & BACKGROUND
+
+In maritime settings, vision-based object detection faces a severe data labeling bottleneck. Building large,
+annotated image datasets of small boats or floating objects at sea is expensive and time-consuming. Such
+objects, as seen in Figure 1, are relatively rare and often only a few pixels in size, so collecting and labeling
+examples requires expert annotators to sift through hours of mostly-empty footage.
+
+Figure 1: Small Object Detection: A Succinct Review
+
+Existing public maritime image datasets are few, and those that do exist have limited scale and
+diversity. Deep learning models demand plentiful labeled examples to achieve high accuracy, yet acquiring
+those examples on the open ocean is impractical. As a result, current vision models trained on sparse
+maritime data struggle to detect small, distant objects reliably. In comparison to common object detection
+on land, labeling maritime scenes (mostly water with tiny far-off targets) is far more costly and difficult.
+Page 1 of 17
+DISTRIBUTION STATEMENT D
+
+This shortage of annotated data is a major barrier to deploying robust camera-based detectors on marine
+platforms.
+Secondary sensor suites, such as marine radar systems, often have difficulty reliably detecting very
+small, low-RCS targets (e.g. a partially submerged person, small buoy, or debris) against the dynamic ocean
+background. Such objects return very weak echoes that are easily masked by sea clutter, the radar returns
+from waves. In practice, the unfavorable signal-to-clutter ratio means that small craft or persons in the water
+may go undetected by conventional X-band navigation radars in rough seas. Even specialized surveillance
+radars (for example, airborne periscope-detection radars) suffer high false-alarm rates in choppy conditions,
+as breaking wave tops produce spurious bright clutter spikes that can mimic or eclipse genuine targets. In
+short, using radar alone, small maritime objects are often lost in clutter or generate many false detections.
+An example of Low-RCS objects in differing clutter environments is provided in Figure 2.
+
+Figure 2: Low-RCS Objects in Low, Med, & High Rain Clutter
+
+This represents a critical gap for maritime safety and security, as low-profile hazards or intruders
+may elude single-sensor detection. However, Radar-camera sensor fusion offers a promising solution to
+overcome these challenges. Marine radar operates day or night and in fog, rain, or glare where optical
+cameras often fail, and can detect objects at long range beyond the visible horizon. A preliminary sketch of
+this proposal is seen in Figure 3.
+
+Page 2 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 3: Comparison of Camera and Radar detection systems
+
+By leveraging radar’s all-weather detections to cue the camera, we can effectively “seed” the
+image labeling process. For instance, if the radar returns indicate a target at a certain range and bearing,
+that can flag a region-of-interest in the corresponding camera frame for a human annotator (or an assisting
+algorithm) to verify and label. Researchers have begun exploring such cross-sensor cueing; for example, a
+Radar Region Proposal Network (RRPN) has been proposed to project radar detections into the camera
+view as candidate object regions. In our context, the radar will act as an automatic proposal generator for
+the camera, focusing attention on likely object locations, especially valuable when objects are small or
+visibility is poor. The overarching goal (and motivation for this project) is to bridge the radar and optical
+modalities to overcome their individual limitations. A fusion of radar and camera information promises
+more robust detection of small maritime objects and a means to automate data labeling. Radar can
+compensate for the camera’s shortcomings in low-visibility conditions, while the camera provides highresolution classification that radar lacks. By jointly using radar and optical sensors, we aim to improve the
+detection performance for small objects at sea and develop an automated labeling aid; addressing both the
+detection gap of radar and the data scarcity problem of deep learning models. One possible annotatorassisted pipeline is shown in Figure 4; combining 2 separate algorithms to create useful annotation data.
+
+Page 3 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 4: Radar-Overlay Object Detection Pipeline
+
+PART 2.
+
+TECHNICAL BACKGROUND
+
+Part 2.1
+
+Marine Radar Fundamentals
+
+Modern marine radars operate using either a pulsed or Frequency-Modulated Continuous-Wave (FMCW)
+scheme. Traditional pulsed radar (often magnetron-based) transmits high-power microwave pulses and
+measures the echo return time to determine target range. These can emit kilowatt-level peak power pulses,
+offering long-range detection, but they require a warm-up period and have a short blind zone (minimum
+range) during each pulse when the radar cannot receive. In contrast, FMCW radar continuously sweeps its
+transmit frequency and listens for the frequency-shifted returns, achieving similar range performance with
+much lower peak power (on the order of tens of watts). An example of the difference between FMCW and
+Pulse radar is shown in Figure 5. FMCW radars have no inherent blind range (since they transmit and
+receive simultaneously) and provide improved short-range detection and Doppler sensitivity due to their
+coherent processing. While magnetron pulse radars remain popular for their simplicity and long-range
+capability, solid-state FMCW radars are increasingly adopted for their instant-on operation, lower power
+consumption, and ability to detect very close-in objects that pulsed radars might miss.
+
+Page 4 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 5: Comparison of Pulse and FMCW Radar Waveforms
+
+For this project, an X-band marine radar (9.4 GHz) is utilized due to low-cost, power efficiency,
+and ease-of-use. Regardless of the chosen architecture, understanding radar operating mode (pulsed vs.
+FMCW) will inform how collected data is to be processed and integrated with other sensors or cameras.
+Although some radar systems (automotive primarily) are stationary; the majority of marine radar provides
+a 360° panoramic image of echoes (often referred to as PPI or Plan Position Indicator) in which targets are
+detected against sea clutter.
+Part 2.2
+
+Gain Control and CFAR
+
+A key challenge in radar processing is distinguishing small targets from sea clutter and noise, which requires
+careful setting of detection thresholds. Radar units include gain control circuits to adjust the amplification
+of incoming echoes, effectively controlling the display intensity of returns. Proper gain setting is crucial:
+set the gain too low and weak targets disappear; set it too high and the display saturates with background
+noise or sea clutter. On older or lower-end radars, the gain is adjusted manually by the operator; typically
+increasing it until noise speckles just become visible, then dialing back slightly. Skilled operators constantly
+tweak the gain to maximize target visibility without overwhelming clutter. In heavy clutter (e.g. high sea
+state or rain), an operator may reduce gain to avoid false returns, at the cost of possibly losing very small
+echoes. A simple example of high and medium clutter environments is shown in Figure 6. A can be seen
+in Figure 6, although a gain setting can work in one environment, it does not necessarily guarantee it will
+work in another environment. Thus the major drawback of manual tuning is it’s subjectivity and inclination
+towards continuous readjustment.
+
+Page 5 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 6: High and Medium Clutter Environments with Varying Gain Levels
+
+Modern radar systems(such as the commercial ones utilized for this project) often employ
+Automatic Gain Control (AGC) to continually adapt receiver gain based on overall return levels. AGC will
+lower gain when the radar sees a lot of strong returns (for instance, large waves or nearby land) to prevent
+the display from washing out, and raise gain in calmer conditions to maintain sensitivity. This adaptive
+approach keeps the output within an optimal range without operator intervention. However, AGC is a blunt
+instrument; it does not discriminate between wanted targets and unwanted clutter. In the presence of heavy
+clutter, AGC may inadvertently suppress small target echoes along with the background, since it simply
+equalizes the total output level. Thus, a tiny kayak could be damped out when large waves are in the vicinity,
+as the radar autonomously reduces gain to handle the clutter. Finding the right balance is difficult, which is
+one reason we are motivated to handle raw radar data in a more intelligent way (using sensor fusion and
+learning, as described later) rather than relying purely on built-in AGC.
+
+Page 6 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 7: CFAR Implementation for Data Collected at Lake Murray
+
+Another fundamental radar processing technique is the Constant False Alarm Rate (CFAR)
+detector. The elementary basics of CFAR is shown graphically in Figure 8 while a version of CA-CFAR is
+shown on real data in Figure 7. CFAR adaptively sets the detection threshold based on local clutter statistics
+to maintain a roughly constant false alarm probability. In practice, the radar computes the average or
+distribution of the return power in a sliding window around a cell and chooses a threshold such that, say,
+only one in a million noise cells exceeds it (for a false alarm rate of 10 –6). Any echo stronger than this
+threshold is declared a target. CFAR is very useful in maritime radar since sea clutter is not uniform: it
+raises thresholds in regions of heavy backscatter (e.g. breaking waves) and lowers thresholds in calmer
+areas. This adaptivity prevents a flood of false alarms that a fixed threshold would trigger in rough seas,
+and conversely, it retains sensitivity in calm waters where a fixed high threshold would miss targets.
+
+Page 7 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 8: CFAR 1D and 2D on Sample Radar Data
+
+In addition to requiring tuning for each radar, CFAR is not foolproof. In intense, non-homogeneous
+clutter, a small target’s echo may be submerged below a heightened local threshold; the radar effectively
+raises the bar so high (to keep false alarms down) that the target is missed. For example, a slow-moving
+person in water surrounded by choppy waves might be invisible to a standard CFAR detector because the
+local sea clutter drives the threshold above the person’s return level. On the flip side, in non-homogenous
+clutter scenarios, CFAR can become overly sensitive, requiring careful tuning of the false-alarm rate to
+avoid peppering the screen with false targets. These limitations motivate exploring machine learning
+approaches, which can potentially learn to recognize the subtle signal of small objects within clutter and
+motivate using additional sensor modalities (camera) to confirm which radar returns are real targets.
+
+Part 2.3
+
+Planned Sensor Fusion Approach
+
+By combining radar and camera data, it is believed there is a path to capitalize on the strengths of each. The
+radar provides range, bearing, and a detection confidence (echo amplitude) for objects, even in darkness or
+haze. The camera provides rich appearance information to classify and localize those objects in image
+space. A critical step in fusion is sensor co-registration; i.e. calibrating the coordinate frames of the radar
+and camera so that we can map a radar detection (range θ, bearing φ) to the corresponding pixel location in
+the camera image. A calibration technique has not been settled upon yet, but will likely be of the
+autonomous variety.
+Once this calibration is in place, each radar detection can be projected into the camera view as an
+annotated bounding box or marker. This allows a few immediate benefits: (1) Improved detection - if the
+radar detects something that the camera-based algorithm missed, the system can direct attention to that
+region in the image (for a potential false-negative recovery); and (2) Assisted labeling - as we begin building
+a training dataset for camera object detection, the radar can pre-suggest regions of interest, drastically
+reducing the human effort needed to scan each frame for tiny objects. In essence, the radar acts as an “extra
+pair of eyes” for the camera, especially in scenarios of poor visibility or tiny targets. The aim is to implement
+a radar-assisted labeling pipeline where radar detections provide initial bounding boxes for objects in the
+Page 8 of 17
+DISTRIBUTION STATEMENT D
+
+camera images. A human annotator (or an automatic verification step) would then confirm or adjust these
+boxes, resulting in labeled images with significantly less manual labor. A simple diagram with real sensor
+data overlayed by a possible implementation for human annotators is shown in Figure 9. This approach
+addresses the aforementioned labeling bottleneck by focusing human attention on likely object locations
+instead of erratically and aimlessly searching large empty frames for small objects.
+
+Figure 9: Annotator-Radar Labelling Pipeline
+
+Part 2.4
+
+Multi-Gain Radar Data for CNN
+
+A novel aspect of the approach is how Radar gain is handled. As discussed, a single fixed gain (or even
+AGC) can either wash out weak targets or flood the display with clutter. Our solution posits to capture
+multiple radar intensity frames at different gain levels and feed them together into a neural network,
+allowing the network to learn a composite understanding of the scene. The marine radar we use can be
+configured to produce such multi-gain outputs via low-level manipulation of the radar software, and
+utilizing temporal-based techniques. By doing so, the chosen detection architecture can avoid committing
+to a single threshold early on. If the gain is too low, one frame will show almost nothing – even strong
+returns like land might barely appear. Conversely, if the gain is too high, another frame will show everything
+lit up (strong targets and noise speckle everywhere) so that true targets are hard to distinguish. In practice
+today, an operator must manually adjust gain to find a Goldilocks setting for each situation. To reduce this
+dependence on an expert user, we propose an automatic multi-gain fusion. Because the radar display’s
+native output tends to be binary (see Figure 10) at any given gain, effectively an aggressive thresholding
+that yields mostly 0 or 1 in the pixel matrix, no single setting can capture all targets. By combining multiple
+“exposures” of the radar at low, medium, and high gain, it is possible to obtain a richer representation of
+the underlying signal strength.
+
+Page 9 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 10: Histograms of Different Gain Settings – 4-bit Quantized
+
+The neural network will receive a stack of these frames (e.g. as separate input channels), from
+which it can deduce that an object which is invisible in the low-gain frame but pops out in the high-gain
+frame is likely a small target in heavy clutter, whereas something visible in low gain but blurred in high
+gain might be a strong target or interference. Feeding multiple gain levels into a CNN is expected to improve
+small object detection, essentially providing the network with dynamic range context that the radar’s own
+display thresholding throws away. This idea is inspired by the concept of multi-exposure imaging in
+photography, where combining images taken at different exposures can reveal details in both dark and
+bright regions. In our case, the “exposures” are radar gains. An initial convolutional model (e.g. a custom
+ConvNet or an adaptation of YOLO for radar) will be developed to take these multi-gain radar frames and
+output detections (range, angle) of potential targets. Those detections can then be mapped onto the camera
+images as described. Ultimately, the output of the fusion system will be both a radar PPI with target markers
+and camera frames with annotated objects; a comprehensive situational picture. Preliminary results for
+gain-combining and clutter removal under High clutter simulated settings is shown in Figure 11 with
+somewhat promising results.
+
+Page 10 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 11: Multi-Gain Radar Detection for Stationary Low-RCS Objects in High Clutter Environments
+
+PART 3.
+
+PLANNED WORK
+
+Over the next several months, the plan is to design and implement an end-to-end radar-camera object
+detection pipeline that demonstrates the advantages of fusion and multi-gain radar processing. The major
+components and milestones of this research ‘phase’ are as follow below.
+Part 3.1
+
+Build the Sensor Rig
+
+Set up the experimental platform combining a marine radar and an optical camera (and optionally an AIS
+receiver) on a test vessel or shoreline station. This includes hardware integration and calibrating the relative
+orientation and position of the radar and camera (i.e. performing the co-registration so that we can
+accurately overlay radar detections on camera images). Timing synchronization between sensors will be
+completed to ensure each radar sweep can be paired with the corresponding video frame. The current testing
+rig and a sketch of a proposed new testing rig is shown in Figure 12.
+
+Page 11 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 12: Radar Data Collection System - Current & Planned
+
+Part 3.2
+
+Collect Pilot Dataset
+
+Conduct data collection trials to gather a pilot dataset of synchronized radar and camera recordings. The
+aim is to collect on less than 10 hours of radar PPI video (scans) with corresponding camera footage in
+various conditions. These will include scenarios with known small targets (e.g. a kayak, buoy, pylons) as
+well as background-only runs. Importantly, we will record raw radar data without lossy compression. The
+pilot dataset will be curated as A-MARV-pilot, a preliminary version of what will become a larger
+Amplitude-only Maritime Radar Video (A-MARV) dataset. All data will undergo minimal preprocessing:
+filtering obvious noise, applying our multi-gain transformation on each radar frame, and storing aligned
+radar-camera pairs for training and analysis. The initial data is planned to be collected at Lake Murray with
+future locations to include SC lakes and shorelines before moving to more complex and diverse sea
+scenarios. The full selection of lakes planned for the initial release of lake data is shown in Figure 13.
+
+Page 12 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 13: Planned Lakes for Data Collection
+
+Part 3.3
+
+Multi-Gain Data Fusion Technique
+
+Implement the scheme of generating multi-gain radar input frames. We will produce, for example, three
+intensity images: one with low gain (conservative threshold), one medium, and one high gain (sensitive).
+These three images form a multi-channel radar representation of that moment. This step may involve
+developing a script or using the radar’s SDK to adjust gain or threshold levels. We will validate that this
+approach indeed highlights targets across the frames, e.g. a small kayak might only appear in the high-gain
+image, whereas land or large vessels appear even in low-gain. The combination effectively spans the
+dynamic range of returns.
+Part 3.4
+
+CNN Model Development
+
+Design and train a baseline convolutional neural network that ingests the multi-gain radar data (and
+potentially temporal sequences) to detect objects. As a starting point, we plan to implement a 1 D
+convolutional detector that scans each radar range-azimuth slice (similar to a Conv1D over the radar’s polar
+coordinate image). This simple model will be trained to distinguish target returns from clutter using the
+pilot data. We will compare its performance to the classical 1D CA-CFAR detector as a baseline. The
+hypothesis is that even a basic learning-based model can achieve better sensitivity than CFAR for low-RCS
+targets, when provided with multi-gain inputs. As we iterate, more sophisticated models (e.g. 2 D CNN on
+Page 13 of 17
+DISTRIBUTION STATEMENT D
+
+the Cartesian radar image or even a radar-camera fusion network) may be explored, but the initial focus is
+on getting a working radar-target detector.
+
+Part 3.5
+
+End-to-End Detection Pipeline
+
+Integrate the radar-CNN and camera. Detected target coordinates from the radar-CNN will be mapped onto
+the camera frame in real-time (or offline, initially). We will implement a simple user interface to visualize
+results – for example, drawing radar detections as bounding boxes on the camera video. This will serve as
+a radar-assisted labeling tool: when we pause the video, the system can output suggested annotations for
+any objects the radar picked up. The pipeline will be evaluated on the pilot dataset by measuring detection
+rates and correctness of the suggested labels.
+
+Part 3.6
+
+Preliminary Evaluation and Iteration
+
+Evaluate the performance of the radar-based detector versus traditional methods. Specifically, we will
+compare detection outcomes of our CNN to the radar’s standard ARPA implementation. Key metrics
+include probability of detection for the small test targets and false alarm rates. If the initial model
+underperforms in some scenarios (e.g. very rough clutter), we will analyze the failure cases and consider
+additional inputs or model architecture changes. We expect to demonstrate improvement over CFAR, at
+least in moderate conditions, as a proof-of-concept result suitable for publication.
+
+Part 3.7
+
+Radar-Assisted Image Labeling
+
+As an offshoot of the detection pipeline, develop a semi-automatic labeling tool for the camera imagery.
+This tool will use the radar detections (after filtering out obvious false alarms) to mark regions in each video
+frame that likely contain an object. A human annotator can then quickly confirm the presence of an object
+and label its bounding box or class, rather than searching from scratch. We will apply this process to our
+pilot dataset to generate training labels for the camera. This not only accelerates data annotation but also
+yields a more diverse training set of small-object images than could reasonably be labeled manually. The
+effectiveness of radar cueing will be quantified by measuring the reduction in manual effort (e.g. how many
+proposals per hour the radar provides and what fraction are true objects). This addresses the objective of an
+automated labeling pipeline using radar cues.
+
+Figure 14: One-Year Timeline of Project
+
+Page 14 of 17
+DISTRIBUTION STATEMENT D
+
+PART 4.
+
+EXPECTED RESULTS & OUTCOMES
+
+Improving the detection of small objects in the maritime domain has significant real-world implications.
+From a maritime safety perspective, the ability to spot a person overboard or a semi-submerged hazard (e.g.
+a floating log or container) can save lives and prevent collisions. Small vessels such as kayaks or dinghies
+are often missed by large ship radars until dangerously close; a better detection system could alert operators
+or autonomous navigation systems earlier.
+Enhancing radar detectability of these objects – without overwhelming false alarms – fills a critical
+gap in surveillance of ports, coastal waters, and open oceans. This is increasingly important as we move
+toward unmanned surface vessels and advanced maritime traffic monitoring, where reliable automation of
+small object detection is required for safety and security. The fusion approach in this project also offers a
+valuable benefit for data generation and algorithm development.
+By using radar to assist in labeling optical imagery, we tackle the data scarcity issue that plagues
+maritime computer vision. Instead of relying on hundreds of hours of tedious manual annotation to train a
+camera-based detector, the radar’s cues allow us to rapidly label a high-quality dataset. This radar-assisted
+labeling not only reduces human workload dramatically, but it also improves dataset quality; the labels are
+more likely to catch hard-to-see objects that a human might overlook when fatigued. In essence, our
+approach leverages the complementary nature of the sensors: radar provides precision in detection cueing,
+and the camera provides rich detail for classification. Together, they yield a system more robust than either
+alone, particularly for the challenging maritime environment.
+PART 5.
+
+FUTURE DIRECTION
+
+This first phase of research will establish a strong foundation for a longer-term Ph.D. roadmap. In the future,
+we plan to build on the prototype and concepts developed during the Master’s work to tackle deeper
+challenges in radar perception and sensor fusion. Some future research directions include:
+Part 5.1
+
+Self-Supervised Radar Representation Learning
+
+I will explore training the radar detection models with self-supervised learning techniques to reduce reliance
+on extensive labeled data. One planned approach is a Radar Masked Autoencoder (Radar-MAE), where the
+model learns to reconstruct missing portions of radar scans, thereby learning robust features from raw data.
+By pre-training on a large amount of unlabeled radar video (tens or hundreds of hours), the model can
+develop an understanding of sea clutter characteristics and typical target signatures. These features can then
+be fine-tuned for detection tasks with relatively few labeled examples (few-shot learning). This thrust is
+expected to lead to a conference publication (e.g. CVPR ’27 or ‘28) showcasing that a self-supervised radar
+model outperforms a fully supervised one given limited labels.
+
+Page 15 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 15: Results of preliminary MAE training (<10 minutes on MacBook Air)
+
+Part 5.2
+
+Physics-Informed and Continual Learning
+
+Another future direction is to incorporate radar signal processing physics into the neural network
+architecture. For example, embedding the radar’s known range equation or CFAR principles as
+differentiable components (loss terms or network layers) could guide the model to make physically
+plausible detections (controlling false alarm rates explicitly). We will also investigate Vision Transformer
+(ViT) models tailored to radar by encoding priors like the pulse repetition frequency and antenna patterns.
+In tandem, as we deploy the system in varied environments, continual learning strategies will be needed so
+the model can adapt to new sea states or sensor configurations without forgetting old knowledge.
+Techniques like online domain adaptation and Elastic Weight Consolidation (EWC) are planned to ensure
+the radar perception system remains robust over time. These advanced topics form the core of much later
+work, aiming for journal-level contributions in the radar/remote sensing field.
+Part 5.3
+
+A-MARV Dataset Expansion
+
+Throughout the entire project, we expect to significantly scale up our data collection to build the Amplitudeonly Maritime Radar Video (A-MARV) dataset; the first open benchmark dataset of its kind. The full AMARV will comprise many hours of real radar recordings (X-band, ~9.4 GHz) captured in diverse
+conditions, using a tri-gain recording strategy (temporal low/medium/high gain frames) to preserve smalltarget visibility. It is planned to label a portion of this data with “strong” annotations (definite object labels)
+and an even larger portion with “weak” annotations generated by semi-automatic means (e.g. the radarassisted labeling plus a data programming approach using tools like Snorkel). The A-MARV dataset will
+be published with standardized tasks (detection, domain adaptation, continual learning, few-shot learning)
+to catalyze research in maritime radar ML. The goal is to eventually release A-MARV along with baseline
+models and an evaluation toolkit, establishing a community resource. This will not only validate the broader
+impact of our work but also ensure reproducibility and benchmarking for future researchers. A dedicated
+data descriptor paper (e.g. in IEEE T-GRS) is planned once the initial version of the dataset is ready.
+
+Page 16 of 17
+DISTRIBUTION STATEMENT D
+
+Figure 16: Initial (v0.1) A-MARV Dataset Collection Locations
+
+So far, the core prototype has been established, integrating a multi-gain radar with high-resolution
+imagery and training initial detection models, and run our first small-object detection trials. Over the
+coming months, we’ll focus on quantifying gains in small-object detection and automated labeling accuracy
+as well as sharing performance benchmarks and system design insights
+Beyond these early milestones, we’ll broaden our approach to include self-supervised learning
+strategies and curate a much larger, diverse dataset to drive continued improvements. Ultimately, by year
+five, our goal is to deliver a production-ready, low-RCS maritime-target detection system alongside the AMARV open dataset; together enabling a more comprehensive all-weather, 24/7 maritime situational
+awareness.
+
+Page 17 of 17
+DISTRIBUTION STATEMENT D
+
+

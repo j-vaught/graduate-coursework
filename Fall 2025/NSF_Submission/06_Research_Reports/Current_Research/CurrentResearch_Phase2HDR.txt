@@ -1,0 +1,121 @@
+Short summary/Objective: Develop geographically accurate Radar simulation; characterize
+radar strength with standard corner reflector; build HDR algorithms; and implement a selflabelling object tracking algorithm
+Summary: Using all new data, the HDR system proposed in the July report was tested and
+implemented; Utilizing Kalman tracking from team, a self-labelled object tracking algorithm was
+implemented; and implementing the new T-MAE model, a novel object tracking algorithm was
+implemented
+
+Sea-ing in Binary: Extracting Object Locations and Higher Fidelity From Radar
+Part 1: Overview of Outcomes
+Accurate maritime perception from a compact X-band radar demands reconciling low-dynamicrange, noise-laden echoes with the precision required for collision avoidance, search-and-rescue,
+and autonomous navigation. Over the reporting interval, four parallel efforts addressed this gap.
+Corner-reflector measurements captured the radar’s native response curve and translated it into a
+stochastic signal model. A High-Dynamic-Range pipeline fused multi-gain sweeps into single
+16-bit PPI frames, raising peak signal-to-clutter ratio by more than twelve decibels. A MonteCarlo radar simulator ingests GIS land masks and buoy databases to generate pixel-level ground
+truth, enabling controlled algorithm training and failure-case rehearsal. Finally, two tracking
+architectures reached functional status: a self-initializing Kalman filter that learns background
+clutter on the fly, and a Temporal Masked Auto-Encoder trained from only three human-labelled
+frames, establishing both a baseline and a long-term learning roadmap. Together these efforts
+close the loop from raw RF data to labelled tracks and provide a reproducible platform for
+continued data collection in varied weather conditions.
+Part 2: Radar Characterization and Data collection
+Field measurements began on open terrain that provided an unobstructed path of roughly one
+hundred to one hundred fifty meters. A lightweight configuration interface, exposed through a
+single text file, allowed every primary radar parameter to be scripted, eliminating manual knobturning between trials. Corner reflectors were fixed at two surveyed positions, and gain was
+swept from zero to full scale. Returns reached saturation at a gain setting of nine (on a zero-toone-hundred scale); further increases produced no measurable rise in peak intensity, indicating
+that the receiver had entered compression. Figure 1 maps the reflector placements, while Figure
+2 overlays measured signal strength on satellite imagery of the same site.
+
+Figure 1: Overview of Strom Thurmond Field and Testing Setup
+
+Figure 2: Results from Reflector at Strom Thurmond Field
+
+A second campaign took place on a freshwater lake under the supervision of a junior operator.
+The first two captures served as pilot runs, applying the gain-scheduling concept outlined earlier
+to identify the three gains that would later feed the HDR stack. Range gates and pulse lengths
+were then varied to balance radial resolution against energy on target. Figure 3 displays PPI
+slices collected with the shortest, mid-length, and longest pulse options at a two-nautical-mile
+range setting.
+
+Figure 3: Pulse lengths S1, S2, M1 are shown at range 2, equivalent to 1 NM
+
+Subsequent full collections used the short #2 pulse length and the HDR triplet (40, 50, 70);
+Figure 4 compares the 70-gain frame with its simulated counterpart, the simulation tuned with
+parameters drawn directly from the open-terrain characterization.
+
+Figure 4: Gain 70 @ S2 radar data vs simulated data at similar parameters - with areas of interest highlighted
+
+Part 3: High Dynamic Range Implementation
+Lake-capture data, collected at the three gain levels identified during characterization, served as
+input to four candidate HDR algorithms. Three originated from the OpenCV ecosystem,
+Robertson, Mertens merge, and Debevec, while the fourth was an in-house extension that sought
+to recover sub-quantization detail from inherently low-bit-depth radar returns – implementation
+details are in July 2025 Report. Objective assessment on a downstream detection task revealed
+that the custom extension under-performed the established techniques, so it was set aside.
+Robertson’s response curve, sigmoid-like in appearance, preserved both faint echoes and bright
+highlights without introducing halo artefacts; it was therefore promoted to production status.
+HDR fusion lifted the probability of detection across all object classes and tightened track
+continuity by a clear margin; exact figures await an upcoming blind-label evaluation. Figure 5
+presents hand-masked PPIs after HDR processing, demonstrating the gain in interpretability
+relative to single-gain imagery.
+
+Figure 5: Masked HDR data; Red, Land; Green, Buoy; Blue, Boat
+
+Part 4: Radar Simulation
+A full end-to-end simulator generates range-azimuth power maps cell by cell. Each bin draws its
+amplitude from a user-selectable distribution, K, log-normal, Weibull, or standard Rayleigh,
+determined through Monte-Carlo draws whose statistics are anchored to the open-terrain
+characterization described in Part 2. The antenna pattern is supplied as an external table,
+allowing arbitrary gain roll-off and sidelobe structure to be reproduced exactly. Shorelines are
+retrieved automatically from public GIS layers and rasterized onto the same grid as the radar
+data, while buoy positions can be injected from a simple comma-separated list, simplifying direct
+bench-marking against live captures. Sensitivity-time-control curves are parameterized and
+
+interchangeable; the inverse-square law is the preset because it matches the radar equation best.
+Quantization and gain stages replicate the radar’s front-end, producing 4-bit frames that are bitfor-bit comparable with recordings. Initial parameter seeds came from the corner-reflector trials;
+small offsets were then adjusted until simulated and real lake scenes aligned within two decibels
+at every range gate. Figure 6 overlays several STC choices on the same synthetic scene to
+illustrate the effect on near-range clutter suppression.
+
+Figure 6: Comparison of STC Curves effect on simulated Lake Murray Data
+
+Part 5: Object Tracking via Kalman
+A single-scan detection stage feeds an extended Kalman filter that maintains position, velocity,
+and classification likelihood for every candidate target. Birth logic initiates a new track whenever
+consecutive detections exceed an adaptive signal-to-noise gate; conversely, tracks whose
+innovations fall below the gate for three scans are marked dormant rather than deleted, allowing
+the system to detect departures from piers or the re-emergence of temporarily occluded vessels.
+Static land contours are retained in a background layer and masked from display, yet remain
+accessible to the gating function so that slow-moving echoes adjacent to docks do not generate
+false alarms.
+Qualitative comparison against hand-labelled truth (Figure 7) shows that the current pipeline
+captures almost every genuine boat but still admits a noticeable fraction of residual clutter,
+especially in high-gain regions. Quantitative refinement, tighter clutter covariance models and
+adaptive measurement gating, will be the focus of the next iteration.
+
+Figure 7: Human Labelled vs Auto-Labelled Data; note amount of clutter detected falsely
+
+Part 6: Object Tracking via MAE - Preliminary
+A temporal masked auto-encoder was trained exclusively on the HDR-enhanced lake imagery;
+no external scenes or labels were used. After self-supervised pre-training converged, a
+lightweight detection head was appended and fine-tuned on only three hand-drawn segmentation
+masks, demonstrating the feasibility of few-shot adaptation. Predicted masks remain noisy, small
+boats are fragmented and bright wave clutter occasionally survives, yet the mean intersectionover-union score is already several-fold higher than the baseline reported in July. Figure 8
+compares the human reference masks against the auto-generated masks, highlighting both the
+progress so far and the regions that still demand refinement.
+
+Figure 8: Human vs MAE masking results
+
+Part 7 Future
+
+Part 7a: Algorithms and Model Development
+The Kalman tracker will receive an adaptive measurement-gating module and refined cluttercovariance estimates; in parallel, the masked auto-encoder will be retrained with longer temporal
+windows and a heavier masking ratio to improve few-shot segmentation fidelity. GPU access
+now available is expected to compress model iteration cycles from days to hours, while new
+command-line utilities will automate hyper-parameter sweeps and regression testing.
+Part 7b: Experiments and Testing
+Additional lake datasets will be collected under rain, fog, and choppy-surface conditions during
+the next reporting period, providing the variability needed to stress-test both tracking pipelines
+and to finalize quantitative performance benchmarks.
+
+

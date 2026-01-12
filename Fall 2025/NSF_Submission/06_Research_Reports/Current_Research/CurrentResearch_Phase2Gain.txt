@@ -1,0 +1,889 @@
+Short summary/Objective: Partially validate the Multi-Gain workflow; capture ~200GB, 60k
+full sweeps at SC lakes; configure storage pipeline; streamline radar capture rig; test multiple
+HDR and decluttering methods; and prototype the proposed Masked Auto Encoder(MAE) model
+Summary: Using ~200 GB of lake data, the optimal range of S1/S2 gains were narrowed to 4090%; Furuno NXT radar features, primarily variable pulses, adjustable beam width, and dualpulse/range modes were investigated, all while trialing prototype clutter-removal and HDR
+techniques on this data. Additionally, simpler hardware was implemented, reducing setup time, a
+parallelized CSV-to-NetCDF pipeline was developed, decreasing disk footprint, and a temporal
+Masked Auto Encoder prototype was produced.
+Sea-ing in High-Definition: Extracting Dynamic Range in Low-Bit Sensors
+Part 1: Overview of Outcomes
+Table 1: Overview of Objectives & Results
+
+Outcome
+Multi-gain workflow
+partially validated
+Field data captured
+Preliminary
+characterization
+completed
+Rig & startup sequence
+streamlined
+Storage pipeline
+deployed
+Denoising algorithms
+compared
+Early HDR fusion
+trialed
+Temporal MAE
+prototype trained
+Rust cleanup tool
+parallelized
+Furuno NXT feature
+probe completed
+
+Metric/Evidence
+Entropy analysis of 7 datasets narrowed viable S1/S2 gain values
+to 30-93% range.
+≈200 GB ≈60 k full sweeps across 7 public lake sites (6 × Lake
+Murray + 1 × Lake Greenwood), including night-time & storm
+conditions.
+2,500 sweeps (5 ranges × 100 gains × 5 samples) logged in 40
+min; results feed full-calibration design for August (20k sweeps
+each).
+New rugged enclosure; Raspberry Pi boot time cut from ≥4 min to
+<20 s after OS re-flashing and service pruning.
+Rust CSV-to-NetCDF converter shrank raw data
+footprint ≈25× while adding richer metadata schema.
+Among 6 single-frame denoisers, BM3D appeared to perform
+best; Multi-Look median led multi-frame tests.
+OpenCV’s MergeMertens and NLM Algorithms improved fainttarget visibility; ghosting highlighted further work.
+132 training samples; 40 epochs; masks 75 % voxels. Poor results
+highlight further work is needed.
+Multi-core low-level code implementation delivers >4× faster
+post-processing versus prior Python script.
+Variable pulses, adjustable STC & dual-range modes
+characterized; findings guide August real-time gain scheduler.
+
+Part 2: Gain Analysis and Collected Data Summary
+
+Part 2a: Gain Analysis
+Traditional High Dynamic Range (HDR) algorithms typically require sensor characterization to boost
+dynamic range. This often involves comparing a sensor's response to a "ground truth" measurement.
+However, when a ground truth isn't available, alternative approaches are necessary. For this
+system, relative gain can be calculated using various mathematical and statistical methods.
+To analyze the gain, the radar was configured for minimal signal processing. Features like interpolation,
+RezBoost (Software-augmented Horizontal Beam Width), clutter control, and STC were all deactivated to
+ensure the purest possible characterization of the radar itself. Data was collected across 5 different
+ranges and 100 distinct gain values, with 5 samples per value. One sample set was discarded in each
+setting due to mid-sweep settings changes.
+
+Figure 1: Example of simple HDR via Stacking Frames
+
+Figure 1 illustrates the concept of simple HDR by stacking three 4-bit frames to effectively
+achieve 12 bits of dynamic range instead of 4. Notice that at high gain, distinguishing wave
+reflectivity from objects becomes difficult. Conversely, at low gain, some objects are barely
+detectable, and wave reflectivity is absent. The HDR stacked result effectively retains wave
+information while still enabling clear visual detection of actual objects.
+One crucial method for empirically determining optimal gain values in a radar system is through the
+analysis of Shannon entropy. Due to the quantized nature of the radar's Analog-to-Digital Converter
+(ADC) and the inherent probabilistic distribution of received radar signals (comprising targets, clutter,
+and noise), Shannon entropy serves as a robust metric for quantifying the information content and
+statistical complexity of the digitized radar returns.
+Shannon entropy, denoted as H(X), is calculated based on the probability distribution of the discrete
+amplitude values (xi) of the digitized radar signal. For a discrete random variable X with possible
+outcomes {x1,x2,…,xn} and corresponding probabilities P(xi), the entropy is given by:
+
+n
+
+H ( X )= ∑ P ( x i ) log b P( x i )
+i=1
+
+where b is the base of the logarithm (typically 2 for entropy in bits). In this context, P(xi) represents the
+probability of observing a specific amplitude value xi from the digitized radar output. A higher entropy
+value indicates a greater degree of uncertainty, randomness, or information within the signal, whereas
+lower entropy suggests more predictability or less information.
+
+Figure 2: Entropy rates vs Gain across different range settings
+
+The results of the Shannon entropy analysis for varying gain settings are presented in Figure 2. The
+observed relationship between gain and entropy can be segmented into four distinct zones, each indicating
+the predominant source and characteristic of the observed radar signal:
+1. Noise Floor Zone: This initial zone is characterized by a moderate, but generally low, increase in
+entropy. At these minimal gain settings, the received signal is primarily dominated by the radar
+receiver's internal thermal noise (e.g., Johnson-Nyquist noise). While some amplification of this
+inherent system noise occurs, leading to a slight increase in signal variance and thus entropy, the
+system is largely insensitive to external targets. Any detectable objects in this zone would typically be
+close and possess a high Radar Cross Section (RCS). This phenomenon is evident in Figure 3.G1 and
+Figure 3.G15, which show that while some returns exist, it predominantly originates from areas near
+the radar or from targets with a high RCS.
+2. Target Acquisition Zone: In this zone, the entropy exhibits a slow, steady increase with rising gain.
+This indicates the radar system is transitioning into its effective detection range. Weak target echoes,
+low-level ambient clutter (e.g., from ground or structures), and external environmental noise begin to
+be amplified above the internal noise floor. The signal's statistical complexity grows as it starts to
+incorporate contributions from these external sources. However, while most objects become
+
+detectable, especially stronger ones, low-RCS targets or returns from less reflective materials like
+water or light rain may still be under the minimum quantized value. This can be seen in Figure 3.G20
+and Figure 3.G80, where most major objects are detectable across the entire range with minimal
+clutter being introduced.
+3. Information Rich Zone: This zone is marked by a dramatic increase in Shannon entropy. At these gain
+settings, the radar achieves ‘optimal’ sensitivity, ensuring that a wide range of received signals,
+including echoes from targets of varying RCS (even relatively low-RCS ones), significant clutter
+returns, and amplified noise, are well above the system's noise floor. The signal becomes highly
+complex and information-rich due to the superposition of these diverse and strong returns,
+maximizing the potential for target detection. However, it is a fine balance, as excessive gain beyond
+this point can lead to signal degradation. This is particularly evident in Figure 3.G85 and Figure
+3.G93, Both images contain significant clutter, rain, and sea returns, indicating high information
+density. However, objects become more easily washed out or blend into the background at these
+higher gain settings compared to the previous zones.
+4. Saturation Zone: Characterized by a sharp, often near-vertical, decrease in entropy at the highest gain
+settings. This drastic drop is primarily due to the saturation and clipping of the radar's Analog-toDigital Converter (ADC) or preceding analog receiver stages. When the amplified signal exceeds the
+maximum voltage or digital value the hardware can process, it becomes flattened at that limit. This
+non-linear distortion reduces the true dynamic range of the signal, decreasing the number of unique
+amplitude values and thereby making the signal statistically more predictable within its clipped range,
+leading to a significant reduction in calculated entropy. In this zone, even moderate returns, such as
+those from sea clutter or heavy rain, become fully saturated, rendering the signal severely
+compromised and hindering effective target discrimination. As seen in Figure 3.G95 and Figure
+3.G99, it's visually apparent that even sea and rain clutter are saturating the ADC, which results
+in reduced overall information density.
+
+Figure 3: Different Sections of the Entropy v. Gain Chart, but shown in PPI plots
+
+Part 2b: Field Volume & Sites
+Over a focused period of 20 days, extensive radar data collection was conducted, resulting in 22
+separate datasets acquired from seven strategically chosen public access points across Lake
+Murray and Lake Greenwood. As depicted in Figure 4, six of these collection points were
+located around Lake Murray, with an additional point on Lake Greenwood, each benefiting from
+an effective radar coverage zone extending a 1.5 nautical mile (NM) radius.
+
+Figure 4: Radar data collection points and their effective 3 nautical mile (NM) coverage zones on Lake Murray (six points) and
+Lake Greenwood (one point). This extensive survey yielded approximately 60,000 radar frames, totaling over 200 GB of data.
+
+This comprehensive survey effort culminated in the acquisition of approximately 60,000 radar
+frames, amounting to a substantial volume of over 200 GB of raw data. This metric directly
+addresses the objective of capturing a sufficient number of radar sweeps, providing a
+foundational dataset for subsequent analyses. The progressive accumulation of this dataset is
+visualized in Figure 5, illustrating the cumulative growth of radar frames from June 15th to July
+4th, demonstrating consistent progress in data acquisition.
+
+Figure 5: Cumulative growth of radar data frames over the collection period (June 15th to July 4th).
+
+The diverse field conditions encountered during this collection period, including both nighttime
+and storm conditions, were crucial for robust system characterization. Figure 6 showcases
+examples of nighttime data acquisition at Lake Murray, specifically highlighting setups on the
+north side of the dam and at the lake's upper tip where it transitions into the Saluda River.
+
+Figure 6: Nighttime radar data collection efforts at Lake Murray. The first two images (left and center) show the field setup on
+the north side of the Lake Murray dam. The third image (right) captures the data collection point located at the upper tip of Lake
+Murray.
+
+Complementing these nocturnal operations, Figure 7 presents typical daytime setups across key
+Lake Murray locations, including Sunset Park, Shull Island Boat Ramp, and notably, the
+Macedonia Lutheran Church site, which proved to be the most frequently utilized collection
+point due to its accessibility and favorable conditions.
+
+Figure 7: Daytime radar data collection setups at three key locations on Lake Murray. From left to right: Sunset Park, Shull
+Island Boat Ramp, and Macedonia Lutheran Church. The Macedonia Lutheran Church site (right) was the most frequently
+utilized data collection point throughout the survey.
+
+The variety of these environmental settings and geographical locations ensures that the collected
+data encompasses a broad spectrum of real-world scenarios, which is vital for validating the
+Multi-Gain workflow. Specifically, the field data allowed for the entropy analysis (Part 2a),
+which subsequently narrowed the viable S1/S2 gain values to a 30-93% range based on the
+information-rich zone findings (Figure 2 and Figure 3). This extensive field data collection and
+site diversity were paramount in laying the groundwork for optimizing the radar's performance
+characteristics for High Dynamic Range applications.
+
+Part 3: Furuno Radar Details & ARPA
+Radar systems, like the Furuno unit(s) used in this study, operate by emitting electromagnetic
+pulses and interpreting the reflected signals. The precision and utility of the data derived from
+these systems are heavily influenced by the fundamental parameters of these pulses and the
+subsequent signal processing. The ability to manipulate and understand these parameters is
+crucial for achieving high dynamic range (HDR) and effective clutter removal, which are some
+of the goals of this research.
+Part 3a: FURUNO specs
+The core of radar operation involves the transmission of energy in discrete bursts and the
+measurement of returns. For the Furuno system in use, a single radial (a line extending outwards
+from the radar's center) is composed of 868 ‘dots’ or range cells, representing individual range
+measurements. A full 360-degree sweep is captured by approximately 600 radials in this system
+with ‘high RPM’. However, with advanced functionalities such as Dual Pulse, this data density
+can effectively be doubled to ~1200 radials per sweep, providing a significantly finer resolution
+
+of the surrounding area. This dense data capture is critical for later computational analysis and
+the application of machine learning models like the proposed MAE.
+
+Figure 8: Log-scaled representation of radar range value (NM) versus range code, illustrating possible range settings from
+0.0625 NM to 36 NM.
+
+Figure 8 demonstrates the vast operational range of the radar, from very close-quarters (0.0625 NM) to
+extended offshore distances (36 NM). The log-scaled representation highlights the non-linear relationship
+between the internal range code and the actual nautical mile value. This non-linearity necessitates a robust
+understanding of the radar's response across its entire operational envelope, particularly when applying
+algorithms designed to extract higher dynamic range. The ability to select appropriate ranges for data
+collection was fundamental to the field data capture summarized in Part 2b.
+
+Figure 9: log-log plot illustrates the estimated chirp duration (pulse length in microseconds) as a function of radar range
+(nautical miles), specifically highlighting different operational tiers. The S1 and S2 designations represent shorter pulse lengths
+primarily suited for close-range (Harbor) detection, M1, M2, and M3 denote medium pulse lengths for coastal operations, while
+the 'L' tier signifies long pulse lengths optimized for extended offshore ranges.
+
+The choice of pulse length is critical for radar performance. As illustrated in Figure 9, Furuno
+radars utilize various "chirp durations" or pulse lengths, each optimized for specific operational
+tiers.
+Shorter pulse lengths (S1, S2 - Harbor tiers) are ideal for close-range detection, offering high
+range resolution to distinguish between closely spaced targets like buoys or other vessels in
+congested waterways. The trade-off is typically lower overall power and thus shorter detection
+range.
+Medium pulse lengths (M1, M2, M3 - Coastal tiers) provide a balance between range resolution
+and detection capability, suitable for navigating coastal areas where both detail and moderate
+range are required.
+
+Long pulse lengths (L - Offshore tiers) carry more energy, allowing for greater detection range,
+crucial for identifying distant targets in open waters. However, longer pulses inherently reduce
+range resolution, meaning closely spaced targets at long range might appear as a single,
+elongated echo.
+The ability to vary pulses by adjusting their length is a fundamental aspect of optimizing radar
+performance for different scenarios. A shorter pulse provides better discrimination between
+targets at close range, while a longer pulse increases the total energy transmitted, enhancing
+detection of weaker targets at greater distances. For this research, understanding these pulse
+characteristics is vital for developing effective HDR and decluttering techniques, as the optimal
+pulse for capturing information in one zone (e.g., harbor) may be entirely different from another
+(e.g., offshore).
+
+Figure 10: (Left) Comparison of signal magnitude versus frequency for two pulse durations (100 µs and 500 µs), demonstrating
+the improved signal parsing with a longer pulse. (Right) Visual representation of different radar waveforms: Pulse Radar, Pulse
+Compression, Sawtooth FMCW, and Triangular FMCW.
+
+Figure 10(Left) underscores the impact of pulse duration on signal quality. A longer pulse, such
+as 500 µs, can allow for "improved signal parsing" or more detailed analysis of the return signal,
+potentially leading to better target identification and tracking, especially when coupled with
+advanced processing techniques like pulse compression. Figure 10(Right) provides insight into
+various radar waveforms, beyond simple pulse radar. A comparison of waveforms is provided in
+Table 2.
+
+Table 2: Comparison between Different Radar Waveforms
+
+Key Limitations
+
+Transmits short, high-power
+electromagnetic pulses and listens for
+echoes. Range is determined by
+measuring the time delay between
+transmission and reception.
+
+Simplicity of design and
+operation. Good range
+resolution with very short
+pulses.
+
+Direct trade-off between range
+resolution (short pulse) and
+detection range (long pulse).
+Less detection energy with
+short pulses.
+
+Transmits a relatively long,
+internally modulated pulse (e.g.,
+chirped frequency), which is then
+digitally "compressed" upon
+reception into a much narrower,
+high-amplitude pulse through signal
+processing (e.g., matched filtering).
+
+Achieves high energy (long
+range) and high resolution
+(short effective pulse).
+Improved Signal-to-Noise
+Ratio (SNR). Enhanced
+clutter rejection due to
+unique spectral properties.
+
+Requires more complex signal
+processing on reception.
+
+Transmits a continuous wave whose
+frequency changes linearly in a
+"sawtooth" pattern. Range is
+calculated by measuring the
+frequency difference between the
+simultaneously transmitted and
+received signals.
+Similar to Sawtooth FMCW, but the
+transmitted wave's frequency sweeps
+both up and down in a triangular
+pattern. Range and velocity are
+determined from frequency
+differences observed during both the
+up-sweep and down-sweep phases.
+
+Very high range resolution
+(centimeter-level) at short
+ranges. Low transmitted peak
+power (inherently safer,
+energy efficient). Can
+provide Doppler (velocity)
+information.
+All benefits of Sawtooth
+FMCW. More robust and
+unambiguous measurement
+of both range and velocity
+due to bidirectional sweep,
+helping to resolve potential
+ambiguities.
+
+Primarily effective at shorter
+ranges. Susceptible to
+interference from other
+FMCW radars.
+
+Triangular
+FMCW
+
+Sawtooth FMCW
+
+Conventiona
+l Pulse
+
+Major Benefits
+
+Pulse
+Compression
+
+Description
+
+Similar range limitations to
+Sawtooth FMCW. Still
+primarily for shorter-range
+applications.
+
+Figure 11: Comparison of Dual Pulse and Dual Range radar functionalities. Dual Pulse (top) offers improved interpolation and
+signal clarity by utilizing Pulse Differential (red), which detects movement and effectively narrows the horizontal beam,
+and Pulse Averaging (blue), which filters out fast-moving noise. Dual Range (bottom) enhances spatial resolution, providing a
+clearer view for targets at both close and far distances simultaneously.
+
+Figure 11 highlights two significant enhancements to radar performance directly relevant to this
+report: Dual Pulse and Dual Range. The advanced Dual Pulse feature refines radar return quality
+for improved signal clarity, crucial for HDR applications. This is achieved via Pulse Differential,
+which compares successive returns to detect target movement, sharpening the horizontal beam
+by distinguishing moving targets from stationary clutter and clarifying vessel traffic.
+Concurrently, Pulse Averaging reduces random noise by averaging multiple returns, enhancing
+the signal-to-noise ratio to discern weaker targets amidst interference like rough seas or rain.
+This dual functionality effectively doubles the number of radials per sweep (from ~600 to
+~1200), enabling more detailed spatial data capture. Complementing this, Dual Range
+simultaneously displays two different range scales in addition to gain, offering both broad
+situational awareness and fine-detail navigation without constant switching. For HDR, this
+provides critical multi-exposure information from a single scan, supporting later HDR work.
+
+Part 3b: Furuno Data Augmentation
+
+The Furuno SDK and platform offer a comprehensive suite of software features designed to
+enhance radar performance and operator interpretation. Among these, RezBoost (Effective
+Azimuth Beam Width) is prominently touted for its ability to provide 'clearer' data, ostensibly
+making it easier for an operator to discern real objects from clutter on the display. This function
+claims to significantly reduce the effective horizontal beam width from a physical 3.8 degrees
+down to approximately 1.9 degrees. The visual impact of RezBoost is compellingly
+demonstrated in Figure 12, where the radar image processed with RezBoost (left panel) exhibits
+sharper, more defined returns, appearing less spread out than the 'Standard' setting (right panel).
+This sharpening is achieved by sophisticated digital signal processing that simulates the effect of
+a narrower physical antenna beam. While this undoubtedly benefits human operators by reducing
+angular spreading and improving the visual separation of closely spaced targets, its utility for the
+computational research undertaken here is likely limited. There is a concern that RezBoost may
+operate by applying internal filters or transformations that could potentially discard or smooth
+out valuable raw data, particularly the subtle variations critical for high dynamic range (HDR)
+extraction or the nuanced features required by machine learning models like the Masked Auto
+Encoder (MAE). For this research, maintaining access to the purest, least-processed data is ideal.
+
+Figure 12: RezBoost Max(3) vs Standard Settings
+
+Beyond visual enhancements, the Furuno system also employs intelligent data handling, particularly
+concerning interpolation and its interaction with the Dual Pulse functionality. Despite claims of being an
+8-bit system, raw data collection consistently reveals only 17 distinct amplitude values, effectively
+rendering it a 4-bit system with one additional level. This limited quantization presents a notable
+challenge for extracting high dynamic range. However, when interpolation is activated, the system
+provides a full 8-bit output while concurrently removing the Dual Pulse functionality and providing
+additional radials. This suggests the presence of an internal algorithm generating synthetic or interpolated
+data points to create a smoother transition in results and to fill in the perceived missing dynamic range.
+
+Figure 13: Interpolation and RezBoost effect on data usage
+
+The impact of these settings on data acquisition volume is quantitatively presented in Figure 13. This bar
+chart illustrates how enabling or disabling Interpolation and RezBoost affects the number of data points
+(in millions) captured per sweep. For instance, with "Interp Off, RezBoost On," data counts are
+approximately 0.5 million, suggesting that while RezBoost provides visual enhancement, it does not
+increase raw data density without interpolation. Conversely, the "Interp On, RezBoost On" configuration
+yields the highest data count at approximately 1.8 million, indicating that interpolation, even when
+coupled with RezBoost, significantly increases the volume of reported data, likely incorporating the
+additional radials and interpolated values. The "Interp Off, RezBoost Off" setting, representing a more
+raw data capture with limited bit depth, still provides a substantial 1.0 million data points, aligning with
+the expected density when Dual Pulse is active. Finally, the "Interp On, RezBoost Off" scenario also
+registers approximately 1.8 million data points, identical to the "Interp On, RezBoost On" case, which
+further supports the hypothesis that the act of interpolation itself is the primary driver for the increased
+data points, irrespective of RezBoost's state.
+
+Part 3c: ARPA vs mARPA & Furuno Implementation
+Radar systems for collision avoidance are broadly categorized into ARPA (Automatic Radar Plotting Aid)
+and mARPA (mini-ARPA), distinguished by their automation and target tracking capacity. Full ARPA
+systems, typically found on larger commercial vessels, automatically detect, acquire, and track targets,
+calculating critical collision parameters (CPA, TCPA) and providing comprehensive target data (ID,
+bearing, range, COG, SOG). These systems require precise heading and speed inputs, powerful
+processing (e.g., Kalman filtering), and a high-resolution radar front-end. In contrast, mARPA, common
+
+on smaller recreational craft, requires manual target selection, tracks fewer targets (10-30), has slower
+updates, lacks automatic hazard detection, and may occasionally drop tracks. While still valuable,
+mARPA's limitations make it a less sophisticated collision avoidance tool. A more complete summary is
+seen in Table 3.
+The Furuno DRS4D-NXT radar, used in this project, possesses full ARPA capabilities, a significant
+feature for a leisure-class solid-state Doppler radar. It automatically tracks up to 100 targets, providing
+rapid speed and course vectors and detecting low-RCS objects. The ability of the Furuno NXT to generate
+comprehensive tracking data, even when internal processing is bypassed for raw data capture, provides a
+rich dataset for supervised training. The presence of full ARPA may also serve as a benchmark for
+evaluating the performance of the algorithms developed within this study. Currently, there has been no
+success in implementing ARPA/mARPA across any of the Furuno & Simrad radars in this project.
+Table 3: Summary of ARPA and mARPA capabilities
+
+Feature
+Target Acquisition
+Track Updates
+Motion Vectors
+Collision Alarms
+Maximum Tracks
+Track Robustness
+Platform Size / Cost
+Supplemental Needs
+Typical Use Case
+
+ARPA (Full)
+
+mARPA (Mini)
+
+Automatic (self-plots based on
+Doppler/guard-zone rules) and manual
+Every antenna rotation (≤ 2.5 s @ 48
+RPM)
+True- and relative-motion vectors
+drawn for every track
+Continuous CPA/TCPA calculation;
+audible/visual alarms on threshold
+breach
+Up to 100 targets (modern sets)
+Maintains tracks through course/speed
+changes; minimal drop-out
+Larger, commercial vessels; requires
+high-performance processor and
+sensor inputs
+Gyro-compass (≤ 0.5° error), speed
+input (log/GPS), high-res pulsecompression radar, Kalman filter
+Primary collision-avoidance on
+commercial ships, offshore support,
+naval vessels
+
+Manual only (operator must select
+each echo)
+Slower cadence (often tied to slower
+processor/sweep rates)
+Often only basic relative vectors;
+may lack true-motion computation
+No automatic hazard detection or
+alarm generation
+Typically 10–30 targets
+May drop targets when echoes
+weaken or vessel maneuvers
+Smaller recreational craft; lowercost, less-powerful hardware
+No gyro/speed inputs required;
+simpler radar front-end and
+correlation logic
+Supplementary collision-awareness
+on yachts, fishing boats, small
+workboats
+
+Part 4: Decluttering and Dynamic Range Algorithm Analysis
+In maritime radar imaging, two of the most formidable challenges are (1) clutter and speckle noise, which
+obscure real targets against a highly variable sea return, and (2) the wide dynamic range of reflectivities,
+from faint buoys and small craft to large steel hulls, that must be rendered simultaneously. Effective
+decluttering enhances detection and tracking performance, while extended dynamic-range processing
+ensures that both low- and high-intensity echoes are visible in a single composite.
+
+Figure 14: Overview of the three primary algorithms tested
+
+To address these challenges, three broad classes of algorithms were evaluated, as shown in Figure 14.
+Single‐Frame Noise‐Reduction Models operate on each radar sweep independently, estimating local
+statistics such as mean, variance and patch similarity to distinguish noise from signal. Methods like Lee
+filtering, wavelet denoising and BM3D adaptively smooth homogeneous regions while preserving edges.
+Because they require no temporal alignment, these approaches offer the lowest latency and simplest
+integration, but can only exploit spatial structure and typically blur small or low‐contrast targets.
+Multi‐Frame Noise‐Reduction Models leverage a short sequence of consecutive sweeps, exploiting the
+fact that true clutter (sea surface, stationary objects) remains correlated over time while speckle and
+random noise do not. Techniques ranging from pixel‐wise median averaging and robust principal
+component analysis (RPCA) to non‐local means across frames achieve significantly stronger noise
+suppression, but at the expense of sensitivity to moving targets and the need for robust registration.
+Multi‐Exposure (HDR) Fusion Models combine radar returns captured at different gain or exposure
+settings, which encode complementary information: high‐gain sweeps reveal faint echoes but saturate
+strong targets, while low‐gain sweeps preserve bright returns but lose weak signals. HDR fusion
+algorithms (for example, exposure‐fusion or the MergeMertens method) automatically select and blend
+the best‐exposed regions from each image, producing a single radar map that simultaneously displays
+both ends of the intensity spectrum. This approach excels at extending dynamic range without explicit
+sensor calibration, though it requires careful alignment to avoid ghosting and can blend in noise if the
+exposures are poorly matched.
+
+Part 4a: Single-frame denoising
+
+Single-frame denoising techniques operate on each radar sweep individually, without leveraging temporal
+correlations. Figure 15 showcases visual results from four representative algorithms tested under
+consistent conditions. These techniques vary in their mathematical assumptions, filtering domains, and
+trade-offs between noise suppression and target preservation.
+
+Figure 15: A Visual comparison of Lee Filtering, Noise2Void, Bm3D, and Wavelet Decomposition
+
+Lee filtering assumes a multiplicative speckle noise model commonly observed in coherent radar
+systems. The observed image intensity I is modeled as I = S ⋅ N , where S is the true signal and N is the
+multiplicative noise. Within a local window Ω, the filtered output is computed as a linear blend of the
+local mean μ Ω and the observed value:
+I filtered = μ Ω + W ⋅ ( I - μ Ω ),
+with weight
+2
+
+W=
+
+2
+
+σΩ - σn
+σ 2Ω
+
+,
+
+where σ 2Ω is the local variance and σ 2n is the noise variance. This filter is edge-aware: where local variance
+is high (i.e., near object boundaries), smoothing is reduced. However, in practice, Lee filtering tended to
+over-smooth returns near point targets and failed to suppress higher-order speckle noise effectively,
+leading to residual clutter seen in Figure 15.
+Noise2Void uses a self-supervised convolutional neural network trained to predict the intensity of masked
+pixels from their surroundings. It leverages a U-Net architecture with blind-spot convolutions to avoid
+identity learning. The objective function minimized during training is
+
+L = ∑ | | f θ ( I ¿ ) - I i | |22,
+i∈ M
+
+where M is the set of masked pixels, and f θ is the CNN output. Since training does not require clean
+targets, it is adaptable to arbitrary radar speckle profiles. Despite its adaptability, in our radar scenes it
+
+smoothed out low-RCS (Radar Cross Section) targets and failed to sufficiently suppress coherent noise
+near edges, as seen in the comparative patches of Figure 15.
+BM3D(Block-Matching and 3D Filtering) is a two-stage, non-local transform-domain algorithm. It
+begins by grouping similar patches P i from the image into 3D arrays via block matching using Euclidean
+norms. The first stage applies a 3D linear transform (typically DCT or Haar), followed by hard
+thresholding in the coefficient domain:
+
+^ = T -1 ( H (T ( P )))
+C
+
+where T is the 3D transform and H is a hard-threshold operator. In the second stage, patches are
+aggregated around the pre-filtered estimate and processed via collaborative Wiener filtering:
+
+^ wiener = T - 1 ( W ⋅ T ( P ) )
+P
+
+with W computed from estimated signal variance. BM3D outperformed other single-frame methods by
+balancing noise suppression and retention of target edges and structures, making it a very good singleframe method in Figure 15.
+Wavelet Decomposition (Multiresolution Denoising) approach performs a discrete wavelet transform
+(DWT) to decompose the image into sub-bands across multiple spatial resolutions. Let I be the radar
+intensity image; then
+j
+
+I = A j + ∑ Dk
+k =1
+
+where A j is the approximation at scale j , and D k are detail coefficients. Denoising is applied via
+shrinkage:
+'
+a) Hard thresholding: D k = D k ⋅ 1|D |> T
+k
+
+b) Soft thresholding: D k = sign ( D k ) ⋅ max (|D k|- T , 0 )
+'
+
+The choice of threshold TT can follow universal rules (VisuShrink) or Bayesian models (BayesShrink). In
+the results, wavelet methods preserved large target structures but often obliterated weaker returns and
+introduced minor block artifacts due to hard coefficient pruning, as seen in Figure 15.
+
+Part 4b: Multi-frame denoising
+Multi-frame denoising algorithms exploit temporal correlations across successive radar sweeps. These
+methods assume that noise is random and uncorrelated between frames, while persistent clutter or real
+targets exhibit temporal coherence.
+
+Figure 16: A visual Comparison of RPCA and MTI. These algorithms performed worst among all algorithms tested across the 3
+classes
+
+RPCA(Robust Principal Component Analysis) seeks to decompose a temporal stack D ∈ R m × n (where
+each column is a vectorized radar frame) into a low-rank matrix L (background) and a sparse
+matrix (foreground and noise) via:
+
+min | | L ||* + λ || S | |1 s.t. D = L + S
+L,S
+
+Here, | | ∙ | |* denotes the nuclear norm (sum of singular values), promoting low-rank structure and | | ∙ | |1
+promotes sparsity. Optimization is typically performed using the inexact augmented Lagrange multiplier
+method. RPCA strongly suppressed random clutter but erroneously pushed stationary objects (e.g.,
+anchored buoys) into the background, making them nearly invisible (Figure 16). Computational cost also
+scales poorly with frame size and sequence length.
+MTI (Moving Target Indication) exploits Doppler processing principles by subtracting frames or
+applying filter banks tuned to velocity. A simple two-frame canceller is:
+
+y [n] = x [n] - x [n - 1]
+
+which cancels static or slow clutter. However, MTI performance depends critically on the radar PRF,
+sweep rate, and accurate alignment. In our case, azimuth jitter and platform motion caused strong “false
+movement” artifacts. MTI failed to isolate real movers (targets) and instead highlighted edge noise and
+frame misalignments, as shown in Figure 16.
+
+Figure 17: A visual comparison of NLM and MLA. NLM appeared to perform best.
+MLA (Multi-Look Averaging) reduces speckle variance by averaging across N co-registered frames:
+N
+
+a) Mean estimator: I MLA =
+
+1
+∑I
+N i=1 i
+
+b) Median estimator (more robust to outliers): I MLA = median ( I 1 , I 2 , … , I N )
+Assuming speckle is zero-mean, independent, and stationary, the noise variance decreases by
+
+1
+. MLA
+N
+
+produced stable backgrounds and preserved large echoes but blurred moving vessels due to temporal
+averaging. It outperformed RPCA and MTI, as shown in Figure 17, but underperformed relative to NLM.
+NLM (Temporal Non-Local Means) identifies similar spatiotemporal patches P ( p ) and computes the
+denoised value as:
+
+Where
+
+1
+I^ ( p ) =
+∑ w ( p ,q)⋅ I (q)
+Z ( p ) q ∈ N ( p)
+
+(
+
+w ( p , q ) = exp -
+
+| P ( p ) - P ( q ) |22
+h2
+
+)
+
+and Z ( p ) is the normalization factor. NLM computes similarities in 3D (space-time) and averages based
+on those weights. It retains both moving and stationary objects by leveraging high-redundancy
+spatiotemporal structures. In Figure 17, NLM preserved low-RCS targets and minimized background
+clutter, outperforming all other multi-frame techniques.
+
+Part 4c: HDR fusion
+HDR fusion combines three radar sweeps—high-gain, medium-gain and low-gain—to capture both faint
+and strong echoes in a single image. The high-gain sweep brings out low-reflectivity targets (small boats,
+buoys), the low-gain sweep prevents saturation of bright features (ships, shorelines), and the medium-gain
+sweep bridges the two, reducing the radiometric gap. However, challenges arise due to motion
+misalignment and non-calibrated gain transitions.
+
+Figure 18: A comparison of Merge Merten and NLM(applied in a non-standard application) for HDR. NLM performs poorly for
+moving objects
+
+The Merge-Mertens exposure-fusion algorithm constructs a weight map for each gain level based on
+local contrast, local variance (as a proxy for saturation in single-channel radar) and a “well-exposedness”
+term
+
+[
+
+E ( p ) = exp -
+
+( I ( p ) - 0.5 )
+2 σ2
+
+2
+
+]
+
+where I ( p ) is the normalized pixel intensity and σ controls the emphasis on mid-range values. These
+three weight maps are normalized and blurred into Gaussian pyramids G i( l ); simultaneously, each gain
+image is decomposed into a Laplacian pyramid Li( l ). At each level l , the fused pyramid coefficient is
+
+L
+
+(l )
+fused
+
+( p)=
+
+∑
+
+i ∈ { hi,med,lo }
+
+G i( l ) ( p ) Li( l ) ( p )
+
+∑ G (jl ) ( p )
+j
+
+and collapsing the fused Laplacian pyramid reconstructs the HDR image. By assigning near-zero weight
+to saturated or under-exposed pixels at every scale, Merge-Mertens achieves a smooth, ghost-tolerant
+blend without explicit sensor calibration.
+In practice, as seen in Figure 18, Merge-Mertens successfully rendered both dim and bright echoes, but
+vessels that moved more than one beamwidth between gain captures left faint “ghost” outlines. These
+artifacts arise because even sub-second delays allow target displacement, which the multiscale blending
+cannot fully absorb.
+An alternative attempt treated the three gain images as temporal frames and applied temporal non-local
+means (NLM) denoising. NLM seeks similar spatiotemporal patches P(p)P(p) and computes
+
+(
+
+)
+
+( ) ( )2
+^I ( p ) = 1 ∑ exp - | P p - P q |2 I ( q )
+Z ( p) q
+h2
+where h is the filtering bandwidth. Because the three gains differ by 20–40 dB and suffer non-linear log
+detection, patch distances become dominated by mean-level shifts rather than structural similarity. In
+addition, any motion between the captures causes patches of the same object to misalign. The result is
+indiscriminate averaging of unrelated content: coastlines smear, moving boats blur into gray halos, and
+weak targets disappear entirely.
+
+Part 5: Data Storage and Formatting + Hardware Updates
+Part 5a: Storage & Conversion
+NetCDF is a self-describing, array-oriented standard with built-in named dimensions, rich metadata and
+chunked I/O. Any researcher can open a NetCDF file in Python, MATLAB, R or C and immediately
+understand its contents; units, long names, provenance and all; without separate schema files or custom
+parsers. In contrast, raw binaries (.bin), NumPy arrays (.npy) or MATLAB files (.mat) lack a universal
+metadata convention; flat text (.csv/.txt) requires sidecar descriptors; and folder-wide compressors (e.g.
+ZSTD) force full-file decompression even for small slices. The combination of portability, partial-read
+performance and community conventions (such as CF-metadata) establishes NetCDF as the de facto
+choice for long-term scientific data stewardship.
+Raw radar sweeps arrive as CSV files; each row recording range, gain, angle and the time of the first
+sweep. Immediately, these CSVs are ingested into a two-level NetCDF structure via a three-stage Rust
+pipeline that performs deduplication, sanitization and conversion into a compressed Echo variable. Frontloading NetCDF ensures that every downstream tool (MATLAB’s ncread, Python’s netCDF4/xarray, R’s
+ncdf4) reads the same self-describing, chunk-friendly archive, eliminating bespoke CSV parsers and
+accelerating both interactive analysis and automated workflows.
+
+Figure 19: High-Level overview of NetCDF data storage. Global data contains location and radar settings.
+
+At the top level(Figure 19), each NetCDF file opens with a set of global attributes, radar latitude and
+longitude, transmitter gain, start-of-sweep timestamp, and so on, followed by an unlimited “time”
+dimension. Defining time as an unlimited axis makes it possible to append future sweeps without
+rewriting the file. For every index along that axis, the two-dimensional Echo(gates, angle) variable is
+stored and compressed in place using DEFLATE-9. Because all metadata lives in the header, (i.e. units,
+long names, provenance) tools like MATLAB’s ncread, Python’s netCDF4/xarray or R’s ncdf4 can open
+the file and immediately interpret every field without sidecar schemas or manual parsing.
+
+Figure 20: Lower-level look at NetCDF structure. Scaled at 1:100
+
+Drilling down (Figure 20), the Echo array sits on two dimensions; time (unlimited length) and angle (0–
+8192 steps). The NetCDF4’s DEFLATE 9 filter (with byte-shuffle) was used to greatly reduce storage
+size. Crucially, NetCDF’s chunked I/O lets readers fetch a single time-slice or angular subset without
+decompressing the entire archive.
+
+Figure 21: RUST processing pipeline for radar data. Converts CSV to NetCDF
+
+To create the NetCDF4 files from massive datasets (>0.2 TB), a highly-parallelized Rust program (Figure
+21) spins up a work queue and three stages of workers:
+1. Deduplication, where a coordinator thread lists new CSVs and dispatches them to cleaners that drop
+exact-duplicate records.
+
+2. Sanitization, in which validators normalize data types, enforce 0 ≤ angle<360° (8192), and
+quarantine any corrupt files.
+3. Conversion, where threads batch-read cleaned CSV rows into memory structs and append them
+directly into the NetCDF file, then write out the global attributes all at once.
+Running all stages in parallel across multiple cores real run-time low; even though compression is CPUheavy, the work is amortized over each batch and scales nearly linearly with core count.
+Once the canonical NetCDF is complete, simple Python or MATLAB scripts slice each time-step into 16bit PNG frames and assemble an MP4 via FFmpeg. By standardizing on NetCDF, we eliminated dozens
+of bespoke CSV parsers, gained self-describing metadata, random-access subsetting, and cross-language
+interoperability, all outweighing the raw speed/size gains of a one-off ZSTD archive.
+
+Part 5b: Capture-Rig Refinements
+Field deployment was dramatically simplified by replacing the ad-hoc open-frame prototype (Figure 22,
+left) with a purpose-built sealed enclosure and elevation mount (Figure 22, right). The new housing
+protects sensitive electronics from moisture and debris, streamlines cable management, and locks down
+the antenna at a fixed height, reducing rig-up time from several minutes of tinkering with software to
+under one minute of plug-and-play.
+
+Figure 22: Original open-frame prototype (left) versus the new sealed enclosure with finalized elevation mount (right), offering
+faster setup and better environmental protection.
+
+Beyond the enclosure itself, the entire lakeside transport and mounting system was reimagined. As shown
+in Figure 23, the original rig relied on hand-carried tripods and loose power packs (left), whereas the
+proposed design integrates all components onto a compact wheeled platform (right). The sealed dome sits
+atop a sturdy three-leg elevation apparatus, with battery, computer, and human-interface unit fastened
+inside. A dedicated transportation device allows a single operator to roll the rig into position and begin
+data capture immediately, eliminating the need for repeated assembly and disassembly on uneven terrain.
+
+Figure 23: Existing open-frame lakeside rig (left) versus the new wheeled platform (right) with sealed dome, integrated elevation
+apparatus, power supply, transportation device, and human-interface unit
+
+Part 5c: Collection Software Improvements
+Bringing the boot time down from several minutes to under twenty seconds began with swapping out the
+bloated Raspberry Pi OS image for a leaner build (while still retaining GUI support). By stripping
+unnecessary services and drivers, the Pi now reaches a useable prompt in under 20 s, compared with four
+to six minutes on the previous install.
+Simultaneously, the data‐capture code was refactored and ported from C into modern C++. The main
+program shrank from roughly 2,000 lines to just over 500, achieved by removing redundant function
+calls, consolidating I/O routines, and leveraging STL containers and RAII for resource management. The
+result is a far more modular codebase, where the boost web server, radar‐SDK worker, calibration
+handler, sweep sequencer, and file‐writer threads each live in their own component.
+Figure 24 illustrates this multithreaded workflow: after initialization, three core modules spin up in
+parallel, while dedicated threads manage range/gain sequencing and raw‐data/PNG writes. Pushing so
+many concurrent threads, five in the main pipeline plus any callback threads from the radar SDK, has
+begun to bump against the Pi 5’s four‐thread architectural limit, leading to scheduler contention under
+peak load, resulting in severe data loss when adding additional processing threads (i.e. edge processing).
+Future work will explore rebalancing responsibilities to avoid thread starvation or implementing more
+‘offline’ processing.
+
+Figure 24: Block diagram of the capture software’s multithreaded workflow: after initialization, three core modules run in
+parallel while dedicated threads sequence range/gain sweeps and write raw data plus PNG frames
+
+Part 5d: Calibration Sequencing
+Calibration proceeds in two tiers. As seen in Figure 25, the mini‐calibration varies five discrete ranges
+(0.0625, 0.125, 0.25, 0.50 and 0.75 NM) and 100 gain settings (0–99), capturing five back‐to‐back
+sweeps at each gain (discarding the first as a warm-up). With sea- and rain-clutter disabled, this produces
+2,500 valid sweeps in one run. In high-RPM mode, a mini‐calibration completes in about 40 minutes; in
+low-RPM it takes roughly 80 minutes.
+For thorough system characterization, the full-calibration adds two interpolation modes and four
+RezBoost settings (2×4 additional configurations), multiplying the sweep count to 20,000. At high RPM
+
+this requires ~320 minutes (≈5 h 20 m), and at low RPM ~640 minutes (≈10 h 40 m). The resulting data
+feed into automated routines that compute gain-vs-range response curves, quantify ADC linearity, and
+generate lookup tables for real-time gain scheduling on the radar web server.
+
+Figure 25: Nested calibration workflow showing five range settings (r₁–r₅), 100 gain steps (0–99), and five sweeps per gain—
+yielding 5 × 100 × 5 = 2,500 sweeps per mini‐calibration pass
+
+Part 6: Self-Supervised Temporal Exposure MAE Prototype
+Part 6a: The Idea
+Raw dual-pulse radar sweeps are reshaped into a four-dimensional tensor, range × azimuth ×
+time/gain × pulse, and fed into a Masked Autoencoder that learns both motion and exposure
+priors without any manual labels. In the first stage, 75 % of the voxels in each current frame are
+randomly masked and reconstructed conditioned on the previous time slice; this forces the
+encoder to internalize object trajectories and temporal consistency (see Figure 26and Figure 27).
+
+Figure 26: Complete proposed MAE detection pipeline.
+
+The second stage applies an exposure-aware mask, borrowing from SelfHDR, to treat clipped or
+saturated low-gain voxels as missing data, compelling the network to fuse in high-gain returns
+where needed. Combined, these self-supervised tasks teach the model to handle both dynamicrange extremes and moving targets on low-bit, non-Doppler radar hardware.
+
+Figure 27: Visual representation of the 4D Radar Data Tensor the MAE is trained on
+
+Part 6b: Results
+With just 132 frames for training, 40 epochs of training at batch size 1, and an L₂+SSIM
+reconstruction loss, the Temporal MAE captured some broad background structure and slow
+object motion but struggles to resolve most targets. Reconstruction MSE remained high and
+SSIM on masked regions produced blurred or incomplete restorations. The exposure-aware pass
+improved contrast recovery in saturated areas but introduced edge artifacts, indicating that a
+learnable or adaptive masking threshold may be required.
+Part 7 Future
+Part 7a: Algorithms and Model Development
+The first priority will be to finalize the optimal S1/S2 gain values so that the radar can operate in
+full HDR mode, ensuring maximal dynamic-range capture across all scenarios. Once the gain
+window is locked in, work will shift to completing the preliminary HDR-to-object-detection
+pipeline, whereby high-, medium- and low-gain frames are fused and fed directly into a
+lightweight detection network. In parallel, the Masked Autoencoder prototype will undergo
+further testing in both its temporal and exposure-aware configurations, leveraging a larger and
+
+more varied training corpus plus adaptive masking schedules to improve reconstruction fidelity
+and increase detection accuracy.
+
+Part 7b: Experiments and Testing
+The calibration web-server needs to be enhanced to support a truly end-to-end mini- and fullcalibration run; in addition to range and gain selectors, users will need controls for STC, pulse
+length, RezBoost, rotation speed and interpolation, and the underlying threading model must be
+refactored to eliminate dropped sweeps. Once the server is robust, system-level field trials will
+validate both one-click calibration and HDR-detection performance under varied weather
+conditions. If capacity allows, undergraduate-led efforts will integrate IMU/GPS data into radar
+headers for precise georeferencing, add a synchronized RGB camera for multimodal objectlabelled datasets, and build a simple touch-accessible frontend so operators can deploy the entire
+capture, calibration and HDR pipeline from a single panel.
+
+
