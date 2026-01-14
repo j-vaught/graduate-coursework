@@ -1,0 +1,266 @@
+%=== file: Marketing_Engineering.tex =======================================
+% Molinaroli College of Engineering and Computing - 22 Flyers
+% Distribution: Swearingen Engineering Center
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Page & margins
+\newcommand{\PageMargin}{0.9in}
+
+% Vertical adjustments
+\newcommand{\HeadlineTopShift}{-0.6in}
+
+% Headline / subhead sizes (pt)
+\newcommand{\HeadlineSize}{44}
+\newcommand{\HeadlineLeading}{48}
+\newcommand{\SubheadSize}{20}
+\newcommand{\SubheadLeading}{24}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{0.6pt}
+\newcommand{\RuleVSpace}{-1em}
+
+% QR block controls
+\newcommand{\QRSize}{4in}
+\newcommand{\QRLabelSize}{16}
+\newcommand{\QRLabelLeading}{12}
+\newcommand{\QRURLSize}{10}
+\newcommand{\QRURLLeading}{12}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% QR overlay placement
+\newcommand{\QRXOffset}{0.0in}
+\newcommand{\QRYOffset}{-0.6in}
+
+% Footer controls
+\newcommand{\FooterLogoWidth}{0.5}
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+% Note: using \\ instead of \newline helps keep centering tight
+\newcommand{\SubheadSuffix}{\\[0.2em]\PublishPunch}
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage[letterpaper,margin=\PageMargin]{geometry}
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{000000}
+
+\pagecolor{white}
+\color{dgBlack}
+
+% NUCLEAR OPTION: Kill all paragraph indentation globally
+\setlength{\parindent}{0pt}
+
+% ----- Headline styles
+\newcommand{\FlyerHeadline}[1]{%
+  \begin{center}%
+    \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+    #1\unskip\par % \unskip eats accidental spaces at end of input
+  \end{center}%
+}
+
+\newcommand{\FlyerSubhead}[1]{%
+  \begin{center}%
+    \vspace{0em}%
+    \fontsize{\SubheadSize}{\SubheadLeading}\selectfont
+    #1\unskip\SubheadSuffix\par % \unskip ensures no gap before suffix
+  \end{center}%
+}
+
+% Divider line
+\newcommand{\HR}{%
+  \vspace{\RuleVSpace}%
+  \noindent\color{dgGray}\rule{\linewidth}{\RuleThickness}%
+  \vspace{\RuleVSpace}%
+}
+
+% ----- URL display helper
+\usepackage{xstring}
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- QR block
+\newcommand{\QRBlock}{%
+  \begin{center}%
+    {\fontsize{\QRLabelSize}{\QRLabelLeading}\selectfont\bfseries \QRLabelText}\par
+    \vspace{\QRGap}%
+    \qrcode[height=\QRSize]{\WriteURL}\par
+    \vspace{\QRGap}%
+    {\fontsize{\QRURLSize}{\QRURLLeading}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}%
+  \end{center}%
+}
+
+% ----- Overlay QR placement
+\newcommand{\PlaceQR}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at ($(current page.center)+(\QRXOffset,\QRYOffset)$) {%
+      \begin{minipage}{0.6\linewidth}
+        \centering
+        \QRBlock
+      \end{minipage}
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Footer
+\newcommand{\Footer}{%
+  \vfill
+  \HR
+  \begin{center}%
+    \includegraphics[width=\FooterLogoWidth\linewidth]{DG_logo.pdf}%
+  \end{center}%
+}
+
+% ----- One-command flyer builder
+\newcommand{\MakeFlyer}[2]{%
+  \thispagestyle{empty}%
+  \vspace*{\HeadlineTopShift}%
+  \FlyerHeadline{#1}%
+  \HR
+  \FlyerSubhead{#2}%
+  \PlaceQR
+  \Footer
+  \newpage
+}
+
+\begin{document}
+% ---------------------------------------------------------------
+% TRADITIONAL ENGINEERING (10 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Swearingen AC broken again?}
+  {Tell us about the building that teaches HVAC but can't regulate its own temperature.}
+
+\MakeFlyer
+  {Senior design budget: \$200?}
+  {Tell us about capstone projects, material costs, and building the future on a shoestring.}
+
+\MakeFlyer
+  {Engineering homework takes 40 hours a week?}
+  {Tell us about workload, sleep deprivation, and whether the grind is worth it.}
+
+\MakeFlyer
+  {Lab partner did nothing but got the same grade?}
+  {Tell us about group work in engineering, accountability, and carrying the team.}
+
+\MakeFlyer
+  {MechE but never touched a machine?}
+  {Tell us about hands-on learning gaps, theory overload, and practical skills.}
+
+\MakeFlyer
+  {CivE but campus sidewalks crumbling?}
+  {Tell us about infrastructure irony, campus maintenance, and practicing what we teach.}
+
+\MakeFlyer
+  {ChemE with lab safety violations?}
+  {Tell us about lab conditions, equipment concerns, and whether safety comes first.}
+
+\MakeFlyer
+  {EE but the outlets don't work?}
+  {Tell us about building problems, study spaces, and basic functionality.}
+
+\MakeFlyer
+  {Aerospace but never seen a plane?}
+  {Tell us about industry connections, experiential learning, and bridging classroom to career.}
+
+\MakeFlyer
+  {Is the engineering curve a feature or a bug?}
+  {Tell us about grading practices, competition vs. collaboration, and mental health.}
+
+% ---------------------------------------------------------------
+% COMPUTER SCIENCE / IT (8 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Coding on lab computers from 2010?}
+  {Tell us about outdated hardware, slow compilers, and tech that doesn't tech.}
+
+\MakeFlyer
+  {Stack Overflow knows more than your TA?}
+  {Tell us about teaching quality, office hours that don't help, and self-teaching everything.}
+
+\MakeFlyer
+  {CS curriculum five years behind?}
+  {Tell us about learning languages no one uses, missing modern frameworks, and catching up on your own.}
+
+\MakeFlyer
+  {Is CSCE 146 a graduation gatekeeper?}
+  {Tell us about weed-out courses, high fail rates, and bottleneck classes.}
+
+\MakeFlyer
+  {Group coding project but nobody uses Git?}
+  {Tell us about collaboration chaos, version control nightmares, and basic skills gaps.}
+
+\MakeFlyer
+  {Cyber major but campus Wi-Fi isn't?}
+  {Tell us about network problems, security practices, and institutional irony.}
+
+\MakeFlyer
+  {Intern pay beats your prof's salary?}
+  {Tell us about industry vs. academia, talent drain, and who's teaching the future.}
+
+\MakeFlyer
+  {AI is everywhere but your AI class is waitlisted?}
+  {Tell us about hot topics, limited seats, and demand that outpaces supply.}
+
+% ---------------------------------------------------------------
+% BIOMEDICAL / SPECIALIZED (4 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Research opportunity or free labor?}
+  {Tell us about unpaid positions, resume padding, and exploitation dressed as experience.}
+
+\MakeFlyer
+  {BME but med school ignores you?}
+  {Tell us about pathway confusion, professional school admissions, and interdisciplinary challenges.}
+
+\MakeFlyer
+  {IE major? "What even is that?"}
+  {Tell us about explaining your major, career paths, and underrated fields.}
+
+\MakeFlyer
+  {Co-op killed your graduation timeline?}
+  {Tell us about work terms, delayed timelines, and the co-op trade-off.}
+
+\end{document}

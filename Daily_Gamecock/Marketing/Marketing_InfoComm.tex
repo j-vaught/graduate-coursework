@@ -1,0 +1,242 @@
+%=== file: Marketing_InfoComm.tex ==========================================
+% College of Information and Communications - 16 Flyers
+% Distribution: Carolina Coliseum
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Page & margins
+\newcommand{\PageMargin}{0.9in}
+
+% Vertical adjustments
+\newcommand{\HeadlineTopShift}{-0.6in}
+
+% Headline / subhead sizes (pt)
+\newcommand{\HeadlineSize}{44}
+\newcommand{\HeadlineLeading}{48}
+\newcommand{\SubheadSize}{20}
+\newcommand{\SubheadLeading}{24}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{0.6pt}
+\newcommand{\RuleVSpace}{-1em}
+
+% QR block controls
+\newcommand{\QRSize}{4in}
+\newcommand{\QRLabelSize}{16}
+\newcommand{\QRLabelLeading}{12}
+\newcommand{\QRURLSize}{10}
+\newcommand{\QRURLLeading}{12}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% QR overlay placement
+\newcommand{\QRXOffset}{0.0in}
+\newcommand{\QRYOffset}{-0.6in}
+
+% Footer controls
+\newcommand{\FooterLogoWidth}{0.5}
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+% Note: using \\ instead of \newline helps keep centering tight
+\newcommand{\SubheadSuffix}{\\[0.2em]\PublishPunch}
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage[letterpaper,margin=\PageMargin]{geometry}
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{000000}
+
+\pagecolor{white}
+\color{dgBlack}
+
+% NUCLEAR OPTION: Kill all paragraph indentation globally
+\setlength{\parindent}{0pt}
+
+% ----- Headline styles
+\newcommand{\FlyerHeadline}[1]{%
+  \begin{center}%
+    \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+    #1\unskip\par % \unskip eats accidental spaces at end of input
+  \end{center}%
+}
+
+\newcommand{\FlyerSubhead}[1]{%
+  \begin{center}%
+    \vspace{0em}%
+    \fontsize{\SubheadSize}{\SubheadLeading}\selectfont
+    #1\unskip\SubheadSuffix\par % \unskip ensures no gap before suffix
+  \end{center}%
+}
+
+% Divider line
+\newcommand{\HR}{%
+  \vspace{\RuleVSpace}%
+  \noindent\color{dgGray}\rule{\linewidth}{\RuleThickness}%
+  \vspace{\RuleVSpace}%
+}
+
+% ----- URL display helper
+\usepackage{xstring}
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- QR block
+\newcommand{\QRBlock}{%
+  \begin{center}%
+    {\fontsize{\QRLabelSize}{\QRLabelLeading}\selectfont\bfseries \QRLabelText}\par
+    \vspace{\QRGap}%
+    \qrcode[height=\QRSize]{\WriteURL}\par
+    \vspace{\QRGap}%
+    {\fontsize{\QRURLSize}{\QRURLLeading}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}%
+  \end{center}%
+}
+
+% ----- Overlay QR placement
+\newcommand{\PlaceQR}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at ($(current page.center)+(\QRXOffset,\QRYOffset)$) {%
+      \begin{minipage}{0.6\linewidth}
+        \centering
+        \QRBlock
+      \end{minipage}
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Footer
+\newcommand{\Footer}{%
+  \vfill
+  \HR
+  \begin{center}%
+    \includegraphics[width=\FooterLogoWidth\linewidth]{DG_logo.pdf}%
+  \end{center}%
+}
+
+% ----- One-command flyer builder
+\newcommand{\MakeFlyer}[2]{%
+  \thispagestyle{empty}%
+  \vspace*{\HeadlineTopShift}%
+  \FlyerHeadline{#1}%
+  \HR
+  \FlyerSubhead{#2}%
+  \PlaceQR
+  \Footer
+  \newpage
+}
+
+\begin{document}
+% ---------------------------------------------------------------
+% JOURNALISM / NEWS (8 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Journalism school but local news is dying?}
+  {Tell us about industry collapse, career anxiety, and whether journalism has a future.}
+
+\MakeFlyer
+  {Told to be objective but your rent isn't?}
+  {Tell us about bias, economic pressures, and the myth of neutrality.}
+
+\MakeFlyer
+  {J-school but AI writes articles now?}
+  {Tell us about automation, ChatGPT journalism, and what humans still offer.}
+
+\MakeFlyer
+  {Is the Daily Gamecock the only option?}
+  {Tell us about student media, alternatives, and where your voice fits.}
+
+\MakeFlyer
+  {Broadcast Journalism but the studio is booked?}
+  {Tell us about equipment access, facility scheduling, and hands-on learning barriers.}
+
+\MakeFlyer
+  {Sports Media but ESPN isn't hiring?}
+  {Tell us about job market realities, competition, and breaking into the industry.}
+
+\MakeFlyer
+  {Information Science sounds made up?}
+  {Tell us about explaining your major, career paths, and why data matters.}
+
+\MakeFlyer
+  {Visual Communications but Adobe costs \$600/year?}
+  {Tell us about software costs, creative tools, and barriers to design education.}
+
+% ---------------------------------------------------------------
+% PR / ADVERTISING (4 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Portfolio required but clients pay in exposure?}
+  {Tell us about free work, building experience, and exploitation in creative fields.}
+
+\MakeFlyer
+  {Social media manager for free?}
+  {Tell us about content creation labor, student org marketing, and skills that aren't valued.}
+
+\MakeFlyer
+  {PR class but USC's PR is embarrassing?}
+  {Tell us about institutional communications, crisis management, and learning from bad examples.}
+
+\MakeFlyer
+  {Advertising ethics but every ad is manipulative?}
+  {Tell us about industry practices, moral compromises, and where you draw the line.}
+
+% ---------------------------------------------------------------
+% BROADCAST / VISUAL (4 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Newsroom equipment older than you?}
+  {Tell us about outdated cameras, editing bays from 2012, and producing with limitations.}
+
+\MakeFlyer
+  {Video editing on a laptop that crashes?}
+  {Tell us about hardware requirements, personal equipment costs, and technical barriers.}
+
+\MakeFlyer
+  {Comm major but can't public speak?}
+  {Tell us about curriculum gaps, performance anxiety, and skills that aren't taught.}
+
+\MakeFlyer
+  {Mass Comm? "What even is that?"}
+  {Tell us about explaining your degree, jack-of-all-trades education, and career paths.}
+
+\end{document}

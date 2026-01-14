@@ -1,5 +1,5 @@
 from typing import Optional
-from environments.environment_abstract import State, Environment
+from .environment_abstract import State, Environment
 from typing import List, Tuple
 import numpy as np
 

@@ -1,0 +1,222 @@
+%=== file: Marketing_Education.tex =========================================
+% College of Education - 12 Flyers
+% Distribution: Wardlaw College
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Page & margins
+\newcommand{\PageMargin}{0.9in}
+
+% Vertical adjustments
+\newcommand{\HeadlineTopShift}{-0.6in}
+
+% Headline / subhead sizes (pt)
+\newcommand{\HeadlineSize}{44}
+\newcommand{\HeadlineLeading}{48}
+\newcommand{\SubheadSize}{20}
+\newcommand{\SubheadLeading}{24}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{0.6pt}
+\newcommand{\RuleVSpace}{-1em}
+
+% QR block controls
+\newcommand{\QRSize}{4in}
+\newcommand{\QRLabelSize}{16}
+\newcommand{\QRLabelLeading}{12}
+\newcommand{\QRURLSize}{10}
+\newcommand{\QRURLLeading}{12}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% QR overlay placement
+\newcommand{\QRXOffset}{0.0in}
+\newcommand{\QRYOffset}{-0.6in}
+
+% Footer controls
+\newcommand{\FooterLogoWidth}{0.5}
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+% Note: using \\ instead of \newline helps keep centering tight
+\newcommand{\SubheadSuffix}{\\[0.2em]\PublishPunch}
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage[letterpaper,margin=\PageMargin]{geometry}
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{000000}
+
+\pagecolor{white}
+\color{dgBlack}
+
+% NUCLEAR OPTION: Kill all paragraph indentation globally
+\setlength{\parindent}{0pt}
+
+% ----- Headline styles
+\newcommand{\FlyerHeadline}[1]{%
+  \begin{center}%
+    \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+    #1\unskip\par % \unskip eats accidental spaces at end of input
+  \end{center}%
+}
+
+\newcommand{\FlyerSubhead}[1]{%
+  \begin{center}%
+    \vspace{0em}%
+    \fontsize{\SubheadSize}{\SubheadLeading}\selectfont
+    #1\unskip\SubheadSuffix\par % \unskip ensures no gap before suffix
+  \end{center}%
+}
+
+% Divider line
+\newcommand{\HR}{%
+  \vspace{\RuleVSpace}%
+  \noindent\color{dgGray}\rule{\linewidth}{\RuleThickness}%
+  \vspace{\RuleVSpace}%
+}
+
+% ----- URL display helper
+\usepackage{xstring}
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- QR block
+\newcommand{\QRBlock}{%
+  \begin{center}%
+    {\fontsize{\QRLabelSize}{\QRLabelLeading}\selectfont\bfseries \QRLabelText}\par
+    \vspace{\QRGap}%
+    \qrcode[height=\QRSize]{\WriteURL}\par
+    \vspace{\QRGap}%
+    {\fontsize{\QRURLSize}{\QRURLLeading}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}%
+  \end{center}%
+}
+
+% ----- Overlay QR placement
+\newcommand{\PlaceQR}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at ($(current page.center)+(\QRXOffset,\QRYOffset)$) {%
+      \begin{minipage}{0.6\linewidth}
+        \centering
+        \QRBlock
+      \end{minipage}
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Footer
+\newcommand{\Footer}{%
+  \vfill
+  \HR
+  \begin{center}%
+    \includegraphics[width=\FooterLogoWidth\linewidth]{DG_logo.pdf}%
+  \end{center}%
+}
+
+% ----- One-command flyer builder
+\newcommand{\MakeFlyer}[2]{%
+  \thispagestyle{empty}%
+  \vspace*{\HeadlineTopShift}%
+  \FlyerHeadline{#1}%
+  \HR
+  \FlyerSubhead{#2}%
+  \PlaceQR
+  \Footer
+  \newpage
+}
+
+\begin{document}
+% ---------------------------------------------------------------
+% TEACHER PREPARATION (8 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Unpaid student teaching for a full semester?}
+  {Tell us about working for free, financial strain, and why future teachers deserve better.}
+
+\MakeFlyer
+  {Classroom management? They didn't cover TikTok.}
+  {Tell us about outdated training, student behavior, and what education classes actually prepare you for.}
+
+\MakeFlyer
+  {Teacher pay is a joke but you're still here?}
+  {Tell us about passion vs. practicality, South Carolina salaries, and why you chose this path.}
+
+\MakeFlyer
+  {Ed major? "That's your backup plan?"}
+  {Tell us about disrespect for the profession, defending your choice, and what teachers actually do.}
+
+\MakeFlyer
+  {Praxis prep on top of everything else?}
+  {Tell us about certification tests, study stress, and barriers to becoming a teacher.}
+
+\MakeFlyer
+  {Is Wardlaw preparing you for reality?}
+  {Tell us about theory vs. practice, idealistic training, and the shock of the real world.}
+
+\MakeFlyer
+  {SpEd but inclusion's just a buzzword?}
+  {Tell us about resources, support systems, and what inclusion really requires.}
+
+\MakeFlyer
+  {ECE but childcare costs more than pay?}
+  {Tell us about the economics of early education, undervalued work, and systemic problems.}
+
+% ---------------------------------------------------------------
+% PRACTICUM / FIELD EXPERIENCE (4 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Placed 45 minutes from campus?}
+  {Tell us about commute costs, placement logistics, and time that's never accounted for.}
+
+\MakeFlyer
+  {Your co-op teacher checked out years ago?}
+  {Tell us about bad placements, learning from people who've given up, and mentor quality.}
+
+\MakeFlyer
+  {Observation hours but schools won't let you in?}
+  {Tell us about bureaucratic barriers, background checks, and jumping through hoops.}
+
+\MakeFlyer
+  {PE major but gym's always booked?}
+  {Tell us about facility access, scheduling conflicts, and space for movement.}
+
+\end{document}

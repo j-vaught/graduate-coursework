@@ -1,0 +1,206 @@
+%=== file: Marketing_PublicHealth.tex ======================================
+% Arnold School of Public Health - 8 Flyers
+% Distribution: Discovery Building, Strom Thurmond Wellness
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Page & margins
+\newcommand{\PageMargin}{0.9in}
+
+% Vertical adjustments
+\newcommand{\HeadlineTopShift}{-0.6in}
+
+% Headline / subhead sizes (pt)
+\newcommand{\HeadlineSize}{44}
+\newcommand{\HeadlineLeading}{48}
+\newcommand{\SubheadSize}{20}
+\newcommand{\SubheadLeading}{24}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{0.6pt}
+\newcommand{\RuleVSpace}{-1em}
+
+% QR block controls
+\newcommand{\QRSize}{4in}
+\newcommand{\QRLabelSize}{16}
+\newcommand{\QRLabelLeading}{12}
+\newcommand{\QRURLSize}{10}
+\newcommand{\QRURLLeading}{12}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% QR overlay placement
+\newcommand{\QRXOffset}{0.0in}
+\newcommand{\QRYOffset}{-0.6in}
+
+% Footer controls
+\newcommand{\FooterLogoWidth}{0.5}
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+% Note: using \\ instead of \newline helps keep centering tight
+\newcommand{\SubheadSuffix}{\\[0.2em]\PublishPunch}
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage[letterpaper,margin=\PageMargin]{geometry}
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{000000}
+
+\pagecolor{white}
+\color{dgBlack}
+
+% NUCLEAR OPTION: Kill all paragraph indentation globally
+\setlength{\parindent}{0pt}
+
+% ----- Headline styles
+\newcommand{\FlyerHeadline}[1]{%
+  \begin{center}%
+    \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+    #1\unskip\par % \unskip eats accidental spaces at end of input
+  \end{center}%
+}
+
+\newcommand{\FlyerSubhead}[1]{%
+  \begin{center}%
+    \vspace{0em}%
+    \fontsize{\SubheadSize}{\SubheadLeading}\selectfont
+    #1\unskip\SubheadSuffix\par % \unskip ensures no gap before suffix
+  \end{center}%
+}
+
+% Divider line
+\newcommand{\HR}{%
+  \vspace{\RuleVSpace}%
+  \noindent\color{dgGray}\rule{\linewidth}{\RuleThickness}%
+  \vspace{\RuleVSpace}%
+}
+
+% ----- URL display helper
+\usepackage{xstring}
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- QR block
+\newcommand{\QRBlock}{%
+  \begin{center}%
+    {\fontsize{\QRLabelSize}{\QRLabelLeading}\selectfont\bfseries \QRLabelText}\par
+    \vspace{\QRGap}%
+    \qrcode[height=\QRSize]{\WriteURL}\par
+    \vspace{\QRGap}%
+    {\fontsize{\QRURLSize}{\QRURLLeading}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}%
+  \end{center}%
+}
+
+% ----- Overlay QR placement
+\newcommand{\PlaceQR}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at ($(current page.center)+(\QRXOffset,\QRYOffset)$) {%
+      \begin{minipage}{0.6\linewidth}
+        \centering
+        \QRBlock
+      \end{minipage}
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Footer
+\newcommand{\Footer}{%
+  \vfill
+  \HR
+  \begin{center}%
+    \includegraphics[width=\FooterLogoWidth\linewidth]{DG_logo.pdf}%
+  \end{center}%
+}
+
+% ----- One-command flyer builder
+\newcommand{\MakeFlyer}[2]{%
+  \thispagestyle{empty}%
+  \vspace*{\HeadlineTopShift}%
+  \FlyerHeadline{#1}%
+  \HR
+  \FlyerSubhead{#2}%
+  \PlaceQR
+  \Footer
+  \newpage
+}
+
+\begin{document}
+% ---------------------------------------------------------------
+% PUBLIC HEALTH (4 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Public Health but 3-week clinic wait?}
+  {Tell us about student health access, appointment delays, and institutional priorities.}
+
+\MakeFlyer
+  {Studying epidemics while living through one?}
+  {Tell us about COVID lessons, public health relevance, and what the pandemic taught us.}
+
+\MakeFlyer
+  {Public Health but no one listens?}
+  {Tell us about misinformation, science communication, and trust in institutions.}
+
+\MakeFlyer
+  {Health promotion but the campus promotes burnout?}
+  {Tell us about wellness rhetoric vs. reality, institutional hypocrisy, and student wellbeing.}
+
+% ---------------------------------------------------------------
+% EXERCISE SCIENCE (4 flyers)
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Strom Thurmond Wellness crowded at every hour?}
+  {Tell us about gym access, equipment waits, and space for student fitness.}
+
+\MakeFlyer
+  {Kinesiology but the treadmills are broken?}
+  {Tell us about facility maintenance, equipment quality, and practicing what we study.}
+
+\MakeFlyer
+  {ExSci but only personal training jobs?}
+  {Tell us about career paths, graduate school pressure, and what the degree actually leads to.}
+
+\MakeFlyer
+  {Sport Psych but athletes won't talk?}
+  {Tell us about access, stigma, and mental health in athletics.}
+
+\end{document}

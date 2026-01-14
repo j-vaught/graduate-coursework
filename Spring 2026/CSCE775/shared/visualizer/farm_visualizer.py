@@ -4,7 +4,7 @@ import tkinter
 from tkinter import Canvas
 from tkinter import LEFT
 
-from environments.farm_grid_world import FarmState, FarmGridWorld, mask_to_idxs
+from shared.environments.farm_grid_world import FarmState, FarmGridWorld, mask_to_idxs
 
 from PIL import ImageTk, Image
 
@@ -228,7 +228,7 @@ class InteractiveFarm:
         self.text_offset: int = 17
 
         # load pictures
-        path = os.getcwd() + "/visualizer/images/"
+        path = os.getcwd() + "/shared/visualizer/images/"
         self.goal_pic = ImageTk.PhotoImage(file=path + 'goal.png')
         self.plant_pic = ImageTk.PhotoImage(file=path + 'plant.png')
         self.robot_pic = ImageTk.PhotoImage(file=path + 'robot.png')
