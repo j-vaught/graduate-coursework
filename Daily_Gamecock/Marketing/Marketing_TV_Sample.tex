@@ -1,0 +1,194 @@
+%=== file: Marketing_TV_Sample.tex ==========================================
+% TV SCREEN VERSION - 16:9 horizontal format for digital signage
+% Centered layout
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% PAGE SETUP - 16:9 Aspect Ratio
+% ---------------------------------------------------------------
+\usepackage[paperwidth=16in, paperheight=9in, margin=0.3in]{geometry}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Headline sizes
+\newcommand{\HeadlineSize}{82}
+\newcommand{\HeadlineLeading}{88}
+
+% Description text sizes
+\newcommand{\DescSize}{40}
+\newcommand{\DescLeading}{48}
+
+% QR block controls
+\newcommand{\QRSize}{4.2in}
+\newcommand{\QRLabelSize}{26}
+\newcommand{\QRLabelLeading}{30}
+\newcommand{\QRURLSize}{18}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{2pt}
+
+% Fixed layout positions (from page edges)
+\newcommand{\HeadlineY}{6.6in}      % Headline baseline from bottom
+\newcommand{\TopLineY}{6.35in}      % Line under headline from bottom
+\newcommand{\MiddleY}{3.5in}        % Middle content center from bottom
+\newcommand{\BottomLineY}{0.85in}   % Bottom line from bottom
+\newcommand{\LogoY}{0.15in}         % Logo from bottom
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+\newcommand{\EmailAddr}{sagckopinion@mailbox.sc.edu}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+
+% ---------------------------------------------------------------
+% REFERENCE ID SETTINGS
+% ---------------------------------------------------------------
+\newcommand{\RefIDFontSize}{10}
+\newcommand{\RemoveDateText}{02/15/26}
+\newcommand{\RefIDPrefix}{TV-UNI}
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\usepackage{xstring}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- URL display helper (strips https://www.)
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{333333}
+\definecolor{dgLightGray}{HTML}{666666}
+
+\pagecolor{white}
+\color{dgBlack}
+
+\setlength{\parindent}{0pt}
+
+% ----- Counter for Reference IDs
+\newcounter{flyercount}
+\setcounter{flyercount}{0}
+
+% Helper to pad numbers
+\newcommand{\padnum}[1]{\ifnum#1<10 00#1\else\ifnum#1<100 0#1\else#1\fi\fi}
+
+% ----- Reference ID overlay (always bottom-right)
+\newcommand{\PlaceRefID}{%
+  \stepcounter{flyercount}%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=south east, text=dgLightGray] at ($(current page.south east)+(-0.4in,0.15in)$) {%
+      \fontsize{\RefIDFontSize}{12}\selectfont
+      Ref: \RefIDPrefix-\padnum{\theflyercount} ~|~ Remove after: \RemoveDateText
+    };
+  \end{tikzpicture}%
+}
+
+% ----- QR Code block (no label, just code)
+\newcommand{\QRCodeOnly}{%
+  \qrcode[height=\QRSize]{\WriteURL}%
+}
+
+%========================================================================
+% CENTERED LAYOUT - All elements at fixed positions
+%========================================================================
+\newcommand{\MakeTVCentered}[2]{%
+  \thispagestyle{empty}%
+  \begin{tikzpicture}[remember picture,overlay]
+    %
+    % --- Headline (top, centered, fixed position) ---
+    \node[anchor=south] at ($(current page.south)+(0,\HeadlineY)$) {%
+      \begin{minipage}{15in}%
+        \centering
+        \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+        #1\par
+      \end{minipage}%
+    };
+    %
+    % --- Line under headline (fixed position) ---
+    \draw[line width=\RuleThickness]
+      ($(current page.south west)+(0.3in,\TopLineY)$) -- ($(current page.south east)+(-0.3in,\TopLineY)$);
+    %
+    % --- Middle content: QR + Description (fixed center position) ---
+    \node[anchor=center] at ($(current page.south)+(0,\MiddleY)$) {%
+      \begin{minipage}{15in}%
+        \centering
+        % QR Code on left
+        \begin{minipage}[c]{0.38\linewidth}%
+          \centering
+          \QRCodeOnly\\[\QRGap]
+          {\fontsize{\QRURLSize}{22}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}
+        \end{minipage}%
+        \hspace{0.06\linewidth}%
+        % Description text on right
+        \begin{minipage}[c]{0.5\linewidth}%
+          \centering
+          \fontsize{\DescSize}{\DescLeading}\selectfont
+          #2\\[0.5em]
+          \PublishPunch\par
+        \end{minipage}%
+      \end{minipage}%
+    };
+    %
+    % --- Bottom line (fixed position) ---
+    \draw[line width=\RuleThickness]
+      ($(current page.south west)+(0.3in,\BottomLineY)$) -- ($(current page.south east)+(-0.3in,\BottomLineY)$);
+    %
+    % --- Logo (fixed position) ---
+    \node[anchor=south] at ($(current page.south)+(0,\LogoY)$) {%
+      \includegraphics[width=3in]{DG_logo.pdf}%
+    };
+  \end{tikzpicture}%
+  \PlaceRefID
+  \newpage
+}
+
+\begin{document}
+%========================================================================
+% TV SLIDES - 3 sample pages
+%========================================================================
+
+\MakeTVCentered
+  {Honors College promises vs.\ reality?}
+  {Tell us about priority registration myths, housing that's not better, and the prestige gap.}
+
+\MakeTVCentered
+  {Registration crashed at 7:00:01 AM?}
+  {Tell us about server failures, panicked refreshing, and systems that can't handle demand.}
+
+\MakeTVCentered
+  {Something bothering you? Tell us.}
+  {We'll publish your complaints, hot takes, unpopular opinions, and everything in between.}
+
+\end{document}

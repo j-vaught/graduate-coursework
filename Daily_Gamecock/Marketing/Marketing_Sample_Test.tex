@@ -1,0 +1,217 @@
+%=== file: Marketing_Sample_Test.tex =========================================
+% SAMPLE TEST FILE - 3 pages for experimenting with Reference IDs
+% This is a sandbox - feel free to mess with it!
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Page & margins
+\newcommand{\PageMargin}{0.9in}
+
+% Vertical adjustments
+\newcommand{\HeadlineTopShift}{-0.6in}
+
+% Headline / subhead sizes (pt)
+\newcommand{\HeadlineSize}{44}
+\newcommand{\HeadlineLeading}{48}
+\newcommand{\SubheadSize}{20}
+\newcommand{\SubheadLeading}{24}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{0.6pt}
+\newcommand{\RuleVSpace}{-1em}
+
+% QR block controls
+\newcommand{\QRSize}{4in}
+\newcommand{\QRLabelSize}{16}
+\newcommand{\QRLabelLeading}{12}
+\newcommand{\QRURLSize}{10}
+\newcommand{\QRURLLeading}{12}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% QR overlay placement
+\newcommand{\QRXOffset}{0.0in}
+\newcommand{\QRYOffset}{-0.6in}
+
+% Footer controls
+\newcommand{\FooterLogoWidth}{0.5}
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+\newcommand{\SubheadSuffix}{\\[0.2em]\PublishPunch}
+
+% ---------------------------------------------------------------
+% REFERENCE ID SETTINGS - ADJUST THESE!
+% ---------------------------------------------------------------
+\newcommand{\RefIDFontSize}{6}        % Font size in pt (try 5-8)
+\newcommand{\RemoveDateText}{02/15/25} % Remove after date
+\newcommand{\RefIDPrefix}{DG-UNI}     % Prefix for this batch (UNI = Universal)
+
+% Position options: try different corners
+% Bottom-right: (current page.south east)
+% Bottom-left:  (current page.south west)
+% Top-right:    (current page.north east)
+% Top-left:     (current page.north west)
+\newcommand{\RefCorner}{current page.south east}
+\newcommand{\RefXOffset}{-0.5in}  % negative = left, positive = right
+\newcommand{\RefYOffset}{0.3in}   % negative = down, positive = up
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage[letterpaper,margin=\PageMargin]{geometry}
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{000000}
+\definecolor{dgLightGray}{HTML}{888888}  % For subtle reference text
+
+\pagecolor{white}
+\color{dgBlack}
+
+% NUCLEAR OPTION: Kill all paragraph indentation globally
+\setlength{\parindent}{0pt}
+
+% ----- Counter for auto-incrementing Reference IDs
+\newcounter{flyercount}
+\setcounter{flyercount}{0}
+
+% ----- Headline styles
+\newcommand{\FlyerHeadline}[1]{%
+  \begin{center}%
+    \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+    #1\unskip\par
+  \end{center}%
+}
+
+\newcommand{\FlyerSubhead}[1]{%
+  \begin{center}%
+    \vspace{0em}%
+    \fontsize{\SubheadSize}{\SubheadLeading}\selectfont
+    #1\unskip\SubheadSuffix\par
+  \end{center}%
+}
+
+% Divider line
+\newcommand{\HR}{%
+  \vspace{\RuleVSpace}%
+  \noindent\color{dgGray}\rule{\linewidth}{\RuleThickness}%
+  \vspace{\RuleVSpace}%
+}
+
+% ----- URL display helper
+\usepackage{xstring}
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- QR block
+\newcommand{\QRBlock}{%
+  \begin{center}%
+    {\fontsize{\QRLabelSize}{\QRLabelLeading}\selectfont\bfseries \QRLabelText}\par
+    \vspace{\QRGap}%
+    \qrcode[height=\QRSize]{\WriteURL}\par
+    \vspace{\QRGap}%
+    {\fontsize{\QRURLSize}{\QRURLLeading}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}%
+  \end{center}%
+}
+
+% ----- Overlay QR placement
+\newcommand{\PlaceQR}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at ($(current page.center)+(\QRXOffset,\QRYOffset)$) {%
+      \begin{minipage}{0.6\linewidth}
+        \centering
+        \QRBlock
+      \end{minipage}
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Reference ID overlay (NEW!)
+\newcommand{\PlaceRefID}{%
+  \stepcounter{flyercount}%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=south east, text=dgLightGray] at ($(\RefCorner)+(\RefXOffset,\RefYOffset)$) {%
+      \fontsize{\RefIDFontSize}{7}\selectfont
+      Ref: \RefIDPrefix-\padnum{\theflyercount} ~|~ Remove after: \RemoveDateText
+    };
+  \end{tikzpicture}%
+}
+
+% Helper to pad numbers (001, 002, etc.)
+\newcommand{\padnum}[1]{\ifnum#1<10 00#1\else\ifnum#1<100 0#1\else#1\fi\fi}
+
+% ----- Footer
+\newcommand{\Footer}{%
+  \vfill
+  \HR
+  \begin{center}%
+    \includegraphics[width=\FooterLogoWidth\linewidth]{DG_logo.pdf}%
+  \end{center}%
+}
+
+% ----- One-command flyer builder (with Reference ID!)
+\newcommand{\MakeFlyer}[2]{%
+  \thispagestyle{empty}%
+  \vspace*{\HeadlineTopShift}%
+  \FlyerHeadline{#1}%
+  \HR
+  \FlyerSubhead{#2}%
+  \PlaceQR
+  \PlaceRefID  % <-- This adds the reference ID!
+  \Footer
+  \newpage
+}
+
+\begin{document}
+% ---------------------------------------------------------------
+% TEST FLYERS - Just 3 pages to experiment with
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Honors College promises vs. reality?}
+  {Tell us about priority registration myths, housing that's not better, and the prestige gap.}
+
+\MakeFlyer
+  {First-year seminar: useful or filler?}
+  {Tell us about University 101, mandatory courses, and what freshmen actually need.}
+
+\MakeFlyer
+  {Orientation sold you a dream?}
+  {Tell us about expectations vs. reality, marketing vs. truth, and campus life as-advertised.}
+
+\end{document}
