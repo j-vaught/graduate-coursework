@@ -1,0 +1,359 @@
+%=== file: Marketing_Athletics.tex =========================================
+% Gamecocks Athletics Flyers - 30 Flyers
+% Distribution: Williams-Brice Stadium, Colonial Life Arena, Founders Park
+%=========================================================================
+\documentclass[12pt]{article}
+
+% ---------------------------------------------------------------
+% CONTROL PANEL
+% ---------------------------------------------------------------
+% Page & margins
+\newcommand{\PageMargin}{0.9in}
+
+% Vertical adjustments
+\newcommand{\HeadlineTopShift}{-0.6in}
+
+% Headline / subhead sizes (pt)
+\newcommand{\HeadlineSize}{44}
+\newcommand{\HeadlineLeading}{48}
+\newcommand{\SubheadSize}{20}
+\newcommand{\SubheadLeading}{24}
+
+% Horizontal rule styling
+\newcommand{\RuleThickness}{0.6pt}
+\newcommand{\RuleVSpace}{-1em}
+
+% QR block controls
+\newcommand{\QRSize}{4in}
+\newcommand{\QRLabelSize}{16}
+\newcommand{\QRLabelLeading}{12}
+\newcommand{\QRURLSize}{10}
+\newcommand{\QRURLLeading}{12}
+\newcommand{\QRGap}{0.4em}
+\newcommand{\QRLabelText}{Scan or email sagckopinion@mailbox.sc.edu}
+
+% QR overlay placement
+\newcommand{\QRXOffset}{0.0in}
+\newcommand{\QRYOffset}{-0.6in}
+
+% Footer controls
+\newcommand{\FooterLogoWidth}{0.5}
+
+% Main font
+\newcommand{\MainFont}{TeX Gyre Pagella}
+
+% Constants
+\newcommand{\WriteURL}{https://www.dailygamecock.com/page/opinion-policy}
+
+% Subhead suffix
+\newcommand{\PublishPunch}{\textbf{We'll publish it.}}
+\newcommand{\SubheadSuffix}{\\[0.2em]\PublishPunch}
+
+% ---------------------------------------------------------------
+% REFERENCE ID SETTINGS
+% ---------------------------------------------------------------
+\newcommand{\RefIDFontSize}{6}        % Font size in pt (try 5-8)
+\newcommand{\RemoveDateText}{02/15/26} % Remove after date
+
+% Position options
+\newcommand{\RefCorner}{current page.south east}
+\newcommand{\RefXOffset}{-0.5in}  % negative = left, positive = right
+\newcommand{\RefYOffset}{0.3in}   % negative = down, positive = up
+% ---------------------------------------------------------------
+
+% ----- Page + typography
+\usepackage[letterpaper,margin=\PageMargin]{geometry}
+\usepackage{fontspec}
+\setmainfont{\MainFont}
+\usepackage{microtype}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\setlist{nosep}
+
+% ----- Graphics & layout
+\usepackage{graphicx}
+\usepackage{svg}
+\usepackage{tikz}
+\usepackage{qrcode}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{ebgaramond}
+\hypersetup{hidelinks,pdfauthor={The Daily Gamecock}}
+\usetikzlibrary{calc}
+
+% ----- Colors
+\usepackage{xcolor}
+\definecolor{dgBlack}{HTML}{000000}
+\definecolor{dgGray}{HTML}{000000}
+\definecolor{dgLightGray}{HTML}{888888}  % For subtle reference text
+
+\pagecolor{white}
+\color{dgBlack}
+
+% NUCLEAR OPTION: Kill all paragraph indentation globally
+\setlength{\parindent}{0pt}
+
+% ----- Headline styles
+\newcommand{\FlyerHeadline}[1]{%
+  \begin{center}%
+    \fontsize{\HeadlineSize}{\HeadlineLeading}\selectfont\bfseries
+    #1\unskip\par
+  \end{center}%
+}
+
+\newcommand{\FlyerSubhead}[1]{%
+  \begin{center}%
+    \vspace{0em}%
+    \fontsize{\SubheadSize}{\SubheadLeading}\selectfont
+    #1\unskip\SubheadSuffix\par
+  \end{center}%
+}
+
+% Divider line
+\newcommand{\HR}{%
+  \vspace{\RuleVSpace}%
+  \noindent\color{dgGray}\rule{\linewidth}{\RuleThickness}%
+  \vspace{\RuleVSpace}%
+}
+
+% ----- URL display helper
+\usepackage{xstring}
+\newcommand{\DisplayURL}[1]{%
+  \begingroup
+    \def\base{#1}%
+    \StrSubstitute{\base}{https://}{}[\base]%
+    \StrSubstitute{\base}{http://}{}[\base]%
+    \StrSubstitute{\base}{www.}{}[\base]%
+    \IfEndWith{\base}{/}{\StrGobbleRight{\base}{1}[\base]}{}%
+    \texttt{\base}%
+  \endgroup
+}
+
+% ----- QR block
+\newcommand{\QRBlock}{%
+  \begin{center}%
+    {\fontsize{\QRLabelSize}{\QRLabelLeading}\selectfont\bfseries \QRLabelText}\par
+    \vspace{\QRGap}%
+    \qrcode[height=\QRSize]{\WriteURL}\par
+    \vspace{\QRGap}%
+    {\fontsize{\QRURLSize}{\QRURLLeading}\selectfont \href{\WriteURL}{\DisplayURL{\WriteURL}}}%
+  \end{center}%
+}
+
+% ----- Overlay QR placement
+\newcommand{\PlaceQR}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node at ($(current page.center)+(\QRXOffset,\QRYOffset)$) {%
+      \begin{minipage}{0.6\linewidth}
+        \centering
+        \QRBlock
+      \end{minipage}
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Reference ID overlay (takes reference code as parameter)
+\newcommand{\PlaceRefID}[1]{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=south east, text=dgLightGray] at ($(\RefCorner)+(\RefXOffset,\RefYOffset)$) {%
+      \fontsize{\RefIDFontSize}{7}\selectfont
+      #1 ~|~ Remove after: \RemoveDateText
+    };
+  \end{tikzpicture}%
+}
+
+% ----- Footer
+\newcommand{\Footer}{%
+  \vfill
+  \HR
+  \begin{center}%
+    \includegraphics[width=\FooterLogoWidth\linewidth]{DG_logo.pdf}%
+  \end{center}%
+}
+
+% ----- One-command flyer builder
+% Usage: \MakeFlyer{Headline}{Subhead}{LOC.TOP##.MAJ.YR.x#.SEM}
+\newcommand{\MakeFlyer}[3]{%
+  \thispagestyle{empty}%
+  \vspace*{\HeadlineTopShift}%
+  \FlyerHeadline{#1}%
+  \HR
+  \FlyerSubhead{#2}%
+  \PlaceQR
+  \PlaceRefID{#3}%
+  \Footer
+  \newpage
+}
+
+\begin{document}
+% ---------------------------------------------------------------
+% FOOTBALL (8 flyers)
+% Location: RH (Russell House) | Topic: FTB | Major: UNI | Year: ALL
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Is Beamer on borrowed time?}
+  {Tell us about your confidence in Shane Beamer after a 4-8 season, the coaching staff, and what the program needs.}
+  {RH.FTB01.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {4th quarter collapses: who's to blame?}
+  {Tell us about play-calling, late-game failures, and why we can't finish games.}
+  {RH.FTB02.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Transfer portal chaos: rebuilding or falling apart?}
+  {Tell us about the 16 players who left, incoming transfers, and roster turnover.}
+  {RH.FTB03.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Was Sellers' return worth \$2M+?}
+  {Tell us about LaNorris Sellers' NIL deal, quarterback play, and whether the money is deserved.}
+  {RH.FTB04.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Can Kendal Briles fix this offense?}
+  {Tell us about the new OC hire, play-calling changes, and your expectations for 2026.}
+  {RH.FTB05.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Clemson: still our biggest game?}
+  {Tell us about the Palmetto Bowl rivalry, losing 7 of the last 10, and what Tiger Burn means to you.}
+  {RH.FTB06.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {NIL arms race: can we compete?}
+  {Tell us about Garnet Trust, NIL funding, and whether South Carolina can keep up with SEC powerhouses.}
+  {RH.FTB07.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Is loyalty enabling mediocrity?}
+  {Tell us about showing up despite losing, fan expectations, and what winning means to you.}
+  {RH.FTB08.UNI.ALL.x1.SP26}
+
+% ---------------------------------------------------------------
+% BASKETBALL (6 flyers)
+% Location: COL (Coliseum) | Topics: BBL | Major: UNI | Year: ALL
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Dead last in the SEC: fire Paris?}
+  {Tell us about Lamont Paris, the complete roster overhaul, and whether he deserves another chance.}
+  {COL.BBL01.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {108-74 blowout: rock bottom?}
+  {Tell us about the Arkansas loss, Colonial Life attendance, and what would bring you back.}
+  {COL.BBL02.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Picked last. Deserve better?}
+  {Tell us about being picked to finish last, what the program needs, and your basketball memories.}
+  {COL.BBL03.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Dawn Staley: worth every penny?}
+  {Tell us about what Dawn Staley means to this university, women's basketball games, and paying coaches.}
+  {COL.BBL04.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Injuries derailing another title run?}
+  {Tell us about losing Watkins and Kitts, team depth, and your gameday experience.}
+  {COL.BBL05.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Women's basketball sells out. Men's doesn't.}
+  {Tell us about attendance disparity, which games you attend, and what draws a crowd.}
+  {COL.BBL06.UNI.ALL.x1.SP26}
+
+% ---------------------------------------------------------------
+% GAMEDAY EXPERIENCE (10 flyers)
+% Location: RH | Topics: ATH, TGT | Major: UNI | Year: ALL
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {\$350M stadium renovations: worth it?}
+  {Tell us about Williams-Brice renovation plans, student section upgrades, and what changes you want.}
+  {RH.ATH01.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Did you notice the extra \$300?}
+  {Tell us about the athletics fee surprise, what your money funds, and whether students should subsidize sports.}
+  {RH.ATH02.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Denied a ticket again?}
+  {Tell us about the Cockpit lottery, gaming the points system, and why paying \$400 doesn't guarantee a seat.}
+  {RH.ATH03.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Too hot to cheer?}
+  {Tell us about early-season heat conditions, leaving at halftime, and why students have no shade.}
+  {RH.ATH04.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {\$8 for a hot dog?}
+  {Tell us about Williams-Brice prices, water running out by halftime, and why gameday costs a fortune.}
+  {RH.ATH05.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Still there in the 4th quarter?}
+  {Tell us about why students leave early, blowout boredom, and whether loyalty should be unconditional.}
+  {RH.ATH06.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Miss the touchdown waiting in line?}
+  {Tell us about bathroom lines, cramped concourses, and student section conditions.}
+  {RH.ATH07.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Can't even post the Sandstorm?}
+  {Tell us about dead cell service, no stadium wifi, and missing the moment.}
+  {RH.ATH08.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Missed the shuttle again?}
+  {Tell us about gameday transportation, packed buses, and walking miles to Williams-Brice.}
+  {RH.TRN02.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Is gameday only for rich kids?}
+  {Tell us about the true cost of being a fan---fees, tickets, food, and everything in between.}
+  {RH.ATH09.UNI.ALL.x1.SP26}
+
+% ---------------------------------------------------------------
+% OTHER SPORTS (6 flyers)
+% Location: RH | Topics: ATH | Major: UNI | Year: ALL
+% ---------------------------------------------------------------
+
+\MakeFlyer
+  {Softball's best season ever: did you notice?}
+  {Tell us about hosting the first-ever Super Regional, attending games, and supporting women's sports.}
+  {RH.ATH10.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Volleyball: 10-16 acceptable?}
+  {Tell us about the volleyball program, attending matches, and what resources they need.}
+  {RH.ATH11.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Equestrian SEC champs: did anyone care?}
+  {Tell us about the historic championship, non-revenue sports attention, and what winning means.}
+  {RH.ATH12.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Nike over Under Armour: finally?}
+  {Tell us about the Nike switch, new uniform designs, and A'ja Wilson signature gear.}
+  {RH.ATH13.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Athletes get millions. You get the bill?}
+  {Tell us about NIL, revenue sharing, and whether students should fund athletics.}
+  {RH.ATH14.UNI.ALL.x1.SP26}
+
+\MakeFlyer
+  {Where's the charcoal?}
+  {Tell us about tailgate rules, propane-only policies, and student lot restrictions.}
+  {RH.TGT01.UNI.ALL.x1.SP26}
+
+\end{document}
