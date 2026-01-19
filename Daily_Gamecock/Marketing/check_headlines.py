@@ -13,9 +13,50 @@ import re
 import sys
 import glob
 
-# Approximate characters per line at 44pt font on letter paper with 0.9in margins
-# Calibrated against actual PDF output - word-wrap occurs around 25 chars
-CHARS_PER_LINE = 25
+# Proportional character widths for serif fonts like TeX Gyre Pagella (Palatino).
+# Values are relative to lowercase 'm' = 1.0, derived from averaged AFM metrics
+# across multiple serif fonts. Narrower letters (i, l, t, f, j, 1, punctuation)
+# have smaller values; wider letters (m, w, W, M, capitals) have larger values.
+# Source: https://pschanely.github.io/2022/04/11/relative-per-character-widths.html
+CHAR_WIDTHS = {
+    # Lowercase letters
+    'a': 0.619, 'b': 0.655, 'c': 0.585, 'd': 0.655, 'e': 0.619,
+    'f': 0.381, 'g': 0.655, 'h': 0.655, 'i': 0.312, 'j': 0.312,
+    'k': 0.621, 'l': 0.312, 'm': 1.0,   'n': 0.655, 'o': 0.655,
+    'p': 0.655, 'q': 0.655, 'r': 0.414, 's': 0.55,  't': 0.346,
+    'u': 0.655, 'v': 0.621, 'w': 0.897, 'x': 0.621, 'y': 0.621,
+    'z': 0.585,
+    # Uppercase letters
+    'A': 0.864, 'B': 0.829, 'C': 0.862, 'D': 0.897, 'E': 0.793,
+    'F': 0.724, 'G': 0.931, 'H': 0.897, 'I': 0.381, 'J': 0.55,
+    'K': 0.864, 'L': 0.726, 'M': 1.071, 'N': 0.897, 'O': 0.931,
+    'P': 0.758, 'Q': 0.931, 'R': 0.862, 'S': 0.758, 'T': 0.759,
+    'U': 0.897, 'V': 0.864, 'W': 1.173, 'X': 0.864, 'Y': 0.864,
+    'Z': 0.759,
+    # Numbers (uniform width in most fonts)
+    '0': 0.655, '1': 0.655, '2': 0.655, '3': 0.655, '4': 0.655,
+    '5': 0.655, '6': 0.655, '7': 0.655, '8': 0.655, '9': 0.655,
+    # Punctuation and special characters
+    ' ': 0.328,  # Space
+    '.': 0.328, ',': 0.328, ':': 0.328, ';': 0.328,
+    '!': 0.381, '?': 0.619,
+    "'": 0.347, '"': 0.5,
+    '-': 0.4,   '$': 0.655, '%': 0.9, '&': 0.8,
+}
+# Default width for characters not in the table
+DEFAULT_CHAR_WIDTH = 0.6
+
+# Line width threshold calibrated for 44pt TeX Gyre Pagella on letter paper
+# with 0.9in margins. Adjusted so that:
+#   - "Did you notice softball had their best season ever?" fits in 2 lines
+#   - "Did you know equestrian won the SEC Championship?" wraps to 3 lines
+#   - "Why does women's basketball sell out but men's doesn't?" wraps to 3 lines
+LINE_WIDTH_THRESHOLD = 15.0
+
+
+def get_text_width(text):
+    """Calculate proportional width of text using character width table."""
+    return sum(CHAR_WIDTHS.get(c, DEFAULT_CHAR_WIDTH) for c in text)
 
 def extract_flyers(filepath):
     """Extract all headlines and subheads from MakeFlyer commands."""
@@ -38,26 +79,32 @@ def clean_latex(text):
     clean = re.sub(r'\\&', '&', clean)   # escaped ampersand
     return clean
 
-def simulate_word_wrap(text, chars_per_line=CHARS_PER_LINE):
+def simulate_word_wrap(text, line_width=LINE_WIDTH_THRESHOLD):
     """
-    Simulate word-wrap and return number of lines.
+    Simulate word-wrap using proportional character widths.
     Words don't break mid-word, just like in the actual PDF.
     """
     words = text.split()
     lines = []
     current_line = ""
+    current_width = 0.0
 
     for word in words:
-        # Check if adding this word would exceed line width
-        test_line = current_line + (" " if current_line else "") + word
+        word_width = get_text_width(word)
+        space_width = CHAR_WIDTHS.get(' ', DEFAULT_CHAR_WIDTH)
 
-        if len(test_line) <= chars_per_line:
-            current_line = test_line
+        # Check if adding this word would exceed line width
+        test_width = current_width + (space_width if current_line else 0) + word_width
+
+        if test_width <= line_width:
+            current_line = current_line + (" " if current_line else "") + word
+            current_width = test_width
         else:
             # Start new line
             if current_line:
                 lines.append(current_line)
             current_line = word
+            current_width = word_width
 
     # Don't forget the last line
     if current_line:
@@ -107,7 +154,7 @@ def main():
     print(f"Files checked: {len(files)}")
     print(f"Total flyers: {total_flyers}")
     print(f"Max lines allowed: 2")
-    print(f"Chars per line (approx): {CHARS_PER_LINE}")
+    print(f"Line width threshold: {LINE_WIDTH_THRESHOLD} (proportional units)")
     print(f"{'='*70}\n")
 
     if warnings:
