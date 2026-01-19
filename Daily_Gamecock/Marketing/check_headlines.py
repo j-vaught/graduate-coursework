@@ -47,11 +47,9 @@ CHAR_WIDTHS = {
 DEFAULT_CHAR_WIDTH = 0.6
 
 # Line width threshold calibrated for 44pt TeX Gyre Pagella on letter paper
-# with 0.9in margins. Adjusted so that:
-#   - "Did you notice softball had their best season ever?" fits in 2 lines
-#   - "Did you know equestrian won the SEC Championship?" wraps to 3 lines
-#   - "Why does women's basketball sell out but men's doesn't?" wraps to 3 lines
-LINE_WIDTH_THRESHOLD = 15.0
+# with 0.9in margins. Set conservatively to catch borderline cases - better
+# to flag a headline that fits than miss one that doesn't.
+LINE_WIDTH_THRESHOLD = 14.5
 
 
 def get_text_width(text):
