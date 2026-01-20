@@ -1,0 +1,36 @@
+# Column: Engineering leadership hoards millions while students work on broken equipment
+
+**Published:** [Leave blank]
+**Link:** [Leave blank]
+
+I used to believe that university administrators genuinely prioritized student success. I thought the massive donations and record-breaking research grants flowing into the Molinaroli College of Engineering would translate into better labs, modern equipment, and hands-on learning opportunities. I was wrong.
+
+Last June, former Johnson Controls CEO Alex Molinaroli donated $30 million to USC's engineering college. The college proudly announced the funds would support "new programs, faculty recruitment, student opportunities, and high-technology equipment." This came on top of the $77 million in research awards the college received in fiscal year 2025, a 12 percent increase that led all USC colleges. With a total operating budget of $138 million serving roughly 4,000 students, you would think we would be studying in state-of-the-art facilities with cutting-edge equipment.
+
+Instead, I walk into Swearingen Engineering Center every day, a building constructed in 1987, nearly 40 years ago. The equipment in our labs predates most of us. Circuit boards malfunction mid-experiment. Oscilloscopes require percussive maintenance. 3D printers sit broken for weeks. And here is the most insulting part: of that $30 million donation, only $20,000 was allocated to facility renovations. Twenty thousand dollars. That is 0.067 percent of the gift.
+
+Meanwhile, engineering students pay an additional $1,500 in program fees every semester, generating approximately $9.7 million annually from students alone. Combined with tuition, the total cost of an engineering degree at USC reaches $46,252 per year, higher than the national average. We are paying premium prices for a discount education.
+
+Where does all this money actually go? The college's travel budget has ballooned to nearly $2 million. The administrative structure includes 16 high-level positions: one dean, eight associate or assistant deans, and seven department chairs. Nationally, universities now employ one administrator for every 68 students, compared to one for every 84 students in 1975. Engineering deans across the country earn between $213,930 and $316,431 on average. I am not suggesting our administrators do not work hard, but when administrative salaries consume resources while students study with outdated equipment, priorities have clearly shifted away from education.
+
+This is not just about comfort or aesthetics. This is about our futures. A 2023 survey by the National Association of Colleges and Employers found that 77 percent of employers had difficulty finding qualified engineering candidates. Seventy-five percent of employers say college graduates are unprepared for the workforce. On the student side, 48 percent of recent graduates feel unprepared to apply for entry-level positions, and only 40 percent report receiving practical problem-solving training during their education.
+
+These statistics should terrify anyone in engineering leadership. We are graduating students who employers do not want to hire and who do not feel ready to work. And we are doing this while sitting on $138 million in annual funding.
+
+The Accreditation Board for Engineering and Technology, which certifies our programs, explicitly requires modern, well-maintained facilities and equipment. ABET standards exist because engineering is not a theoretical discipline. You cannot learn circuit design without building circuits. You cannot understand materials science without testing materials. You cannot develop manufacturing expertise through PowerPoint presentations. A meta-analysis published in PLOS ONE confirmed what every engineering student instinctively knows: virtual labs cannot replace hands-on experience.
+
+Yet here we are, paying premium tuition and fees to work with equipment that should have been replaced a decade ago, in a building that has seen minimal updates in nearly four decades, while our college leadership celebrates record funding and research awards. The disconnect is staggering.
+
+The college loves to promote its successes. There is the $107 million Department of Energy collaboration on fusion research. There is the new Battery Innovation Center being developed. There is the Siemens partnership for HVAC and lighting efficiency improvements at Swearingen. Record freshman enrollment hit 1,000 deposits this year. But walk through the undergraduate labs and ask students about their experience. Ask if they feel prepared for industry. Ask if the equipment works reliably. Ask if they believe their $1,500-per-semester engineering fees are being invested in their education.
+
+The university is currently renovating the Science and Technology Building with a $25 million investment, but that project is not engineering-specific. Swearingen, where most engineering students spend most of their time, remains largely untouched. Despite all this funding, despite all these awards and partnerships, USC engineering ranks between 451st and 500th globally. For $138 million annually, we should be doing better.
+
+I understand that research funding generates prestige. I understand that faculty recruitment requires competitive packages. I understand that administrative overhead exists. But when only 3 percent of the yearly budget goes to scholarships, when $20,000 of a $30 million donation goes to facility improvements, when students pay nearly $10 million in fees annually and still work with broken equipment, something is fundamentally wrong with our priorities.
+
+Engineering leadership needs to remember who they serve. We are not here to pad research metrics or justify administrative positions. We are here to learn, to develop skills, to become the engineers that industry desperately needs. Every dollar that goes to travel budgets instead of lab equipment is a dollar that diminishes our education. Every administrative position created while equipment sits broken is a choice that prioritizes bureaucracy over learning.
+
+The solution is not complicated. Take a meaningful portion of that $138 million budget and invest it directly in undergraduate facilities and equipment. Create a transparent process for students to report broken equipment and track repair timelines. Establish minimum standards for lab functionality and enforce them. Redirect even 5 percent of administrative overhead to hands-on learning resources. Make facility improvements a priority in major donations, not an afterthought receiving 0.067 percent of the funds.
+
+We deserve better. We are paying for better. The funding exists for better. Engineering leadership just needs to decide whether their legacy will be measured in research awards and administrative positions, or in graduates who are actually prepared to succeed. Right now, they are choosing the former while we pay the price for the latter.
+
+The question engineering leadership needs to answer is simple: are we an investment worth making, or just a revenue stream to fund other priorities?
