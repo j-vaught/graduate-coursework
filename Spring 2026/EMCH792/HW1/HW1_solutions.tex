@@ -1,0 +1,497 @@
+% ============================================================================
+% EMCH 792: Optimal State Estimation - Homework 1 (Enhanced Solutions)
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{bm}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage\ of \pageref{LastPage}}
+\fancyhead[C]{EMCH 792}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% USC BRAND COLORS
+% ============================================================================
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{565656}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+
+% ============================================================================
+% BOLD COLORED MATH COMMANDS
+% ============================================================================
+\newcommand{\Ag}{{\color{USC_Garnet}\bm{A}}}
+\newcommand{\Bb}{{\color{USC_Atlantic}\bm{B}}}
+\newcommand{\Cc}{{\color{USC_Congaree}\bm{C}}}
+\newcommand{\Iv}{{\color{USC_Honeycomb}\bm{I}}}
+\newcommand{\vv}{{\color{USC_Honeycomb}\bm{v}}}
+\newcommand{\Tr}{{\color{USC_Rose}\textbf{Tr}}}
+
+% Colored matrices (no bold for environments)
+\newcommand{\matg}[1]{{\color{USC_Garnet}#1}}
+\newcommand{\matb}[1]{{\color{USC_Atlantic}#1}}
+\newcommand{\matc}[1]{{\color{USC_Congaree}#1}}
+\newcommand{\mH}[1]{{\color{USC_Honeycomb}#1}}
+\newcommand{\matr}[1]{{\color{USC_Rose}#1}}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{problembox}{
+  colback=USC_Sandstorm,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=Problem Statement,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{stepbox}{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=Step,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION COMMAND
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{EMCH 792: Optimal State Estimation \\ Homework 1 \\ \large{Written Portion Solutions}}
+\author{Instructor: Dr.\ Yimin Zhang, Department of Mechanical Engineering \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\date{Due: January 2026}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1.2: Commuting Matrices} \dotfill & \textbf{\pageref{quest:1.2}} \\[0.3em]
+\textbf{Problem 1.3: Matrix Identities} \dotfill & \textbf{\pageref{quest:1.3}} \\[0.3em]
+\textbf{Problem 1.4: Trace Derivative} \dotfill & \textbf{\pageref{quest:1.4}} \\[0.3em]
+\textbf{Problem 1.6: Block Matrix Equation} \dotfill & \textbf{\pageref{quest:1.6}} \\[0.3em]
+\textbf{Problem 1.7: Symmetric Matrix Product} \dotfill & \textbf{\pageref{quest:1.7}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1.2
+% ============================================================================
+
+\question{Problem 1.2: Commuting Matrices}\label{quest:1.2}
+
+\begin{problembox}
+Find two $2 \times 2$ matrices $A$ and $B$ such that $A \neq B$, neither $A$ nor $B$ are diagonal, $A \neq cB$ for any scalar $c$, and $AB = BA$. Find the eigenvectors of $A$ and $B$. Note that they share an eigenvector. Interestingly, every pair of commuting matrices shares at least one eigenvector.
+\end{problembox}
+
+\begin{stepbox}
+\textbf{Part (a): Finding Commuting Matrices}
+
+We seek two $2 \times 2$ matrices $\Ag$ and $\Bb$ such that $\Ag \neq \Bb$, neither is diagonal, $\Ag \neq c\Bb$ for any scalar $c$, and $\Ag\Bb = \Bb\Ag$.
+
+Consider upper triangular matrices with the same diagonal entries:
+\begin{equation}
+\Ag = \matg{\begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}}, \quad \Bb = \matb{\begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}}
+\end{equation}
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Verification of Commutativity}
+
+Compute $\Ag\Bb$:
+\begin{equation}
+\Ag\Bb = \matg{\begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}} \matb{\begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}} = \matc{\begin{bmatrix} 1 & 3 \\ 0 & 1 \end{bmatrix}}
+\end{equation}
+
+Compute $\Bb\Ag$:
+\begin{equation}
+\Bb\Ag = \matb{\begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}} \matg{\begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}} = \matc{\begin{bmatrix} 1 & 3 \\ 0 & 1 \end{bmatrix}}
+\end{equation}
+
+Therefore, $\Ag\Bb = \Bb\Ag$. Also: $\Ag \neq \Bb$, neither is diagonal, and $\Ag \neq c\Bb$ for any scalar $c$.
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Part (b): Finding Eigenvectors}
+
+\textbf{For matrix $\Ag$:} Solve $(\Ag - \lambda \Iv)\vv = \mH{0}$:
+\begin{equation}
+\det(\Ag - \lambda \Iv) = \det \begin{bmatrix} 1-\lambda & 1 \\ 0 & 1-\lambda \end{bmatrix} = \matg{(1-\lambda)^2 = 0}
+\end{equation}
+
+Thus, $\matg{\lambda = 1}$ is a repeated eigenvalue. For $\lambda = 1$:
+\begin{equation}
+(\Ag - \Iv)\vv = \begin{bmatrix} 0 & 1 \\ 0 & 0 \end{bmatrix} \begin{bmatrix} v_1 \\ v_2 \end{bmatrix} = \mH{\begin{bmatrix} 0 \\ 0 \end{bmatrix}}
+\end{equation}
+
+This gives $v_2 = 0$, so the eigenvector is $\vv_{\Ag} = \mH{\begin{bmatrix} 1 \\ 0 \end{bmatrix}}$.
+
+\textbf{For matrix $\Bb$:} Similarly, $\matb{\lambda = 1}$ is a repeated eigenvalue, and $\vv_{\Bb} = \mH{\begin{bmatrix} 1 \\ 0 \end{bmatrix}}$.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Final Answers:}
+
+\textbf{Commuting Matrices:}
+\[
+\Ag = \matg{\begin{bmatrix} 1 & 1 \\ 0 & 1 \end{bmatrix}}, \quad \Bb = \matb{\begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}}
+\]
+
+\textbf{Shared Eigenvector:}
+\[
+\boxed{\vv = \mH{\begin{bmatrix} 1 \\ 0 \end{bmatrix}}}
+\]
+
+This demonstrates the fundamental result that commuting matrices share at least one eigenvector.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 1.3
+% ============================================================================
+
+\question{Problem 1.3: Matrix Identities}\label{quest:1.3}
+
+\begin{problembox}
+Prove the three identities of Equation (1.26):
+\begin{enumerate}
+    \item $(AB)^T = B^T A^T$
+    \item $(AB)^{-1} = B^{-1} A^{-1}$
+    \item $\text{Tr}(AB) = \text{Tr}(BA)$
+\end{enumerate}
+\end{problembox}
+
+\begin{stepbox}
+\textbf{Identity 1: $\matg{(\Ag\Bb)^T} = \Bb^T \Ag^T$}
+
+Let $\Ag$ be an $m \times n$ matrix and $\Bb$ be an $n \times p$ matrix. Let $\Cc = \Ag\Bb$.
+
+By definition of matrix multiplication and transpose:
+\begin{equation}
+\matc{C_{ij}} = \sum_{k=1}^{n} \matg{A_{ik}} \matb{B_{kj}}
+\end{equation}
+
+\begin{equation}
+(\Ag\Bb)^T_{ij} = \matc{C_{ji}} = \sum_{k=1}^{n} \matg{A_{jk}} \matb{B_{ki}}
+\end{equation}
+
+For $\Bb^T \Ag^T$:
+\begin{equation}
+(\Bb^T \Ag^T)_{ij} = \sum_{k=1}^{n} \matb{B^T_{ik}} \matg{A^T_{kj}} = \sum_{k=1}^{n} \matb{B_{ki}} \matg{A_{jk}} = \sum_{k=1}^{n} \matg{A_{jk}} \matb{B_{ki}}
+\end{equation}
+
+Comparing: $(\Ag\Bb)^T_{ij} = (\Bb^T \Ag^T)_{ij}$ for all $i,j$. Therefore: $\boxed{\matg{(\Ag\Bb)^T = \Bb^T \Ag^T}}$
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Identity 2: $\matg{(\Ag\Bb)^{-1}} = \Bb^{-1} \Ag^{-1}$}
+
+Assume $\Ag$ and $\Bb$ are invertible square matrices. We verify that $\Bb^{-1} \Ag^{-1}$ is the inverse of $\Ag\Bb$:
+
+\begin{equation}
+(\Ag\Bb)(\Bb^{-1} \Ag^{-1}) = \Ag(\Bb\Bb^{-1})\Ag^{-1} = \Ag \Iv \Ag^{-1} = \Ag\Ag^{-1} = \Iv
+\end{equation}
+
+\begin{equation}
+(\Bb^{-1} \Ag^{-1})(\Ag\Bb) = \Bb^{-1}(\Ag^{-1}\Ag)\Bb = \Bb^{-1} \Iv \Bb = \Bb^{-1}\Bb = \Iv
+\end{equation}
+
+Since both products equal the identity: $\boxed{\matg{(\Ag\Bb)^{-1} = \Bb^{-1} \Ag^{-1}}}$
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Identity 3: $\Tr(\Ag\Bb) = \Tr(\Bb\Ag)$}
+
+Let $\Ag$ be $m \times n$ and $\Bb$ be $n \times m$.
+
+\begin{equation}
+\Tr(\Ag\Bb) = \sum_{i=1}^{m} (\Ag\Bb)_{ii} = \sum_{i=1}^{m} \sum_{j=1}^{n} \matg{A_{ij}} \matb{B_{ji}}
+\end{equation}
+
+\begin{equation}
+\Tr(\Bb\Ag) = \sum_{j=1}^{n} (\Bb\Ag)_{jj} = \sum_{j=1}^{n} \sum_{i=1}^{m} \matb{B_{ji}} \matg{A_{ij}}
+\end{equation}
+
+Since scalar multiplication is commutative and summation order can be exchanged:
+\begin{equation}
+\Tr(\Bb\Ag) = \sum_{i=1}^{m} \sum_{j=1}^{n} \matg{A_{ij}} \matb{B_{ji}} = \Tr(\Ag\Bb)
+\end{equation}
+
+Therefore: $\boxed{\matr{\Tr(\Ag\Bb) = \Tr(\Bb\Ag)}}$
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Summary of Proven Identities:}
+\begin{enumerate}
+    \item $\boxed{(AB)^T = B^T A^T}$ --- Transpose of a product reverses order
+    \item $\boxed{(AB)^{-1} = B^{-1} A^{-1}}$ --- Inverse of a product reverses order
+    \item $\boxed{\text{Tr}(AB) = \text{Tr}(BA)}$ --- Trace is invariant under cyclic permutations
+\end{enumerate}
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 1.4
+% ============================================================================
+
+\question{Problem 1.4: Trace Derivative}\label{quest:1.4}
+
+\begin{problembox}
+Find the partial derivative of the trace of $AB$ with respect to $A$.
+\end{problembox}
+
+\begin{stepbox}
+\textbf{Setup}
+
+Let $\Ag$ be $m \times n$ and $\Bb$ be $n \times m$. The trace of $\Ag\Bb$ is:
+\begin{equation}
+\Tr(\Ag\Bb) = \sum_{i=1}^{m} (\Ag\Bb)_{ii} = \sum_{i=1}^{m} \sum_{j=1}^{n} \matg{A_{ij}} \matb{B_{ji}}
+\end{equation}
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Computing the Derivative}
+
+To find the derivative with respect to $\Ag$, compute the derivative with respect to each element $\matg{A_{kl}}$:
+\begin{equation}
+\frac{\partial \Tr(\Ag\Bb)}{\partial \matg{A_{kl}}} = \frac{\partial}{\partial \matg{A_{kl}}} \sum_{i=1}^{m} \sum_{j=1}^{n} \matg{A_{ij}} \matb{B_{ji}}
+\end{equation}
+
+Since only the term with $i=k$ and $j=l$ contains $\matg{A_{kl}}$:
+\begin{equation}
+\frac{\partial \Tr(\Ag\Bb)}{\partial \matg{A_{kl}}} = \matb{B_{lk}}
+\end{equation}
+
+This is precisely the $(k,l)$ element of $\Bb^T$.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Final Answer:}
+\[
+\boxed{\frac{\partial \Tr(\Ag\Bb)}{\partial \Ag} = \Bb^T}
+\]
+
+The gradient of $\Tr(\Ag\Bb)$ with respect to $\Ag$ is the transpose of $\Bb$.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 1.6
+% ============================================================================
+
+\question{Problem 1.6: Block Matrix Equation}\label{quest:1.6}
+
+\begin{problembox}
+Suppose that $A$ is invertible and
+\[
+\begin{bmatrix} A & A \\ B & A \end{bmatrix} \begin{bmatrix} A \\ C \end{bmatrix} = \begin{bmatrix} 0 \\ I \end{bmatrix}
+\]
+Find $B$ and $C$ in terms of $A$.
+\end{problembox}
+
+\begin{stepbox}
+\textbf{Expanding the Block Matrix Multiplication}
+
+\textbf{First row:}
+\[
+\Ag \cdot \Ag + \Ag \cdot \Cc = \mH{0} \quad \Rightarrow \quad \Ag^2 + \Ag\Cc = \mH{0}
+\]
+
+\textbf{Second row:}
+\[
+\Bb \cdot \Ag + \Ag \cdot \Cc = \Iv \quad \Rightarrow \quad \Bb\Ag + \Ag\Cc = \Iv
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Solving for $\Cc$}
+
+From the first row: $\Ag\Cc = -\Ag^2$
+
+Since $\Ag$ is invertible, multiply both sides by $\Ag^{-1}$ on the left:
+\[
+\Cc = -\Ag
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Solving for $\Bb$}
+
+Substituting $\Cc = -\Ag$ into the second row:
+\[
+\Bb\Ag + \Ag(-\Ag) = \Iv \quad \Rightarrow \quad \Bb\Ag - \Ag^2 = \Iv \quad \Rightarrow \quad \Bb\Ag = \Iv + \Ag^2
+\]
+
+Multiplying both sides by $\Ag^{-1}$ on the right:
+\[
+\Bb = (\Iv + \Ag^2)\Ag^{-1} = \Ag^{-1} + \Ag
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Verification}
+
+Check: $\Bb\Ag = (\Ag^{-1} + \Ag)\Ag = \Ag^{-1}\Ag + \Ag^2 = \Iv + \Ag^2$ \checkmark
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Final Answers:}
+\[
+\boxed{\matb{\Bb = \Ag^{-1} + \Ag}}
+\]
+\[
+\boxed{\matc{\Cc = -\Ag}}
+\]
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 1.7
+% ============================================================================
+
+\question{Problem 1.7: Symmetric Matrix Product}\label{quest:1.7}
+
+\begin{problembox}
+Show that $AB$ may not be symmetric even though both $A$ and $B$ are symmetric.
+\end{problembox}
+
+\begin{stepbox}
+\textbf{Counterexample Construction}
+
+We need to find symmetric matrices $\Ag$ and $\Bb$ such that $\Ag\Bb \neq (\Ag\Bb)^T$.
+
+Let:
+\[
+\Ag = \matg{\begin{bmatrix} 1 & 1 \\ 1 & 0 \end{bmatrix}}, \quad \Bb = \matb{\begin{bmatrix} 0 & 1 \\ 1 & 1 \end{bmatrix}}
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Verifying Symmetry of $\Ag$ and $\Bb$}
+
+\[
+\Ag^T = \matg{\begin{bmatrix} 1 & 1 \\ 1 & 0 \end{bmatrix}} = \Ag \quad \checkmark
+\]
+
+\[
+\Bb^T = \matb{\begin{bmatrix} 0 & 1 \\ 1 & 1 \end{bmatrix}} = \Bb \quad \checkmark
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Computing the Product}
+
+\[
+\Ag\Bb = \matg{\begin{bmatrix} 1 & 1 \\ 1 & 0 \end{bmatrix}} \matb{\begin{bmatrix} 0 & 1 \\ 1 & 1 \end{bmatrix}} = \matc{\begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}}
+\]
+
+\[
+(\Ag\Bb)^T = \matr{\begin{bmatrix} 1 & 0 \\ 2 & 1 \end{bmatrix}}
+\]
+\end{stepbox}
+
+\begin{stepbox}
+\textbf{Comparison}
+
+\[
+\Ag\Bb = \matc{\begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix}} \neq \matr{\begin{bmatrix} 1 & 0 \\ 2 & 1 \end{bmatrix}} = (\Ag\Bb)^T
+\]
+
+Therefore, $\Ag\Bb \neq (\Ag\Bb)^T$, demonstrating that $\Ag\Bb$ is \textbf{not symmetric}.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Conclusion:}
+
+Although both $\Ag$ and $\Bb$ are symmetric matrices, their product $\Ag\Bb$ is \textbf{not symmetric}.
+
+\textbf{Counterexample:}
+\[
+\Ag = \begin{bmatrix} 1 & 1 \\ 1 & 0 \end{bmatrix}, \quad \Bb = \begin{bmatrix} 0 & 1 \\ 1 & 1 \end{bmatrix}, \quad \Ag\Bb = \begin{bmatrix} 1 & 2 \\ 0 & 1 \end{bmatrix} \neq (\Ag\Bb)^T
+\]
+
+\textbf{Note:} The product $\Ag\Bb$ is symmetric if and only if $\Ag\Bb = \Bb\Ag$, i.e., if $\Ag$ and $\Bb$ commute.
+\end{resultsbox}
+
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
