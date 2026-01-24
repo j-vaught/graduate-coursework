@@ -37,7 +37,7 @@ The Greek community candidate tried to raise fraud concerns through official cha
 
 Meanwhile, the Tkacs campaign had been working the Greek system long before the official campaign period opened. The campaign allegedly maneuvered for speaking time at sororities like Delta Zeta and Phi Mu. Even the Greek candidate's own fraternity got dragged into the crossfire. The fight was never just about votes—it was about controlling access before the rules even kicked in.
 
-The Constitutional Council's ruling confirmed the damage. They found sufficient evidence of election fraud. They acknowledged the TikTok had created a climate of uncertainty, tainting the voting process and causing lasting harm throughout the polling period. By their own assessment, the process was compromised.
+The [Constitutional Council's ruling](https://www.dailygamecock.com/article/2025/02/constitutional-council-rules-sufficient-evidence-of-fraud-dismisses-other-cases-news-flowe) confirmed the damage. They found sufficient evidence of election fraud. They acknowledged the TikTok had created a climate of uncertainty, tainting the voting process and causing lasting harm throughout the polling period. By their own assessment, the process was compromised.
 
 The penalty was a 24-hour campaigning ban—imposed when only hours remained in the polling period. Even after finding fraud and acknowledging that the process was compromised, the Council let the result stand. Tkacs became president. The Greek community candidate filed an appeal, and the appeal was denied.
 
