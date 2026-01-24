@@ -12,9 +12,9 @@ Alpha Phi Omega and the Interfraternity Council planned [Greek Jam](https://www.
 
 Student Government was asked to fund the event. What did they do? They happily approved it, let the organizers move forward on that promise, and then turned around and branded it "fraudulent," suspending Greek Life from accessing funds meant for kids with cancer.
 
-Greek Jam had university administration backing and Student Government's initial approval. Columbia Mayor Daniel Rickenmann also put his support in writing, endorsing Greek Jam to the Five Points Association and explicitly stating he wanted the event to happen.
+Greek Jam had Student Government's initial approval. Columbia Mayor Daniel Rickenmann also put his support in writing, endorsing Greek Jam to the Five Points Association and explicitly stating he wanted the event to happen.
 
-The finance committee approved Greek Jam with university administration support and a written mayoral endorsement already on file. By any reasonable standard, Greek Jam had earned its legitimacy before it ever tipped off. But Student Government doesn't operate by reasonable standards, and when Greek Jam succeeded without needing them beyond the initial approval, they retroactively called it fraud.
+The finance committee approved Greek Jam with a written mayoral endorsement already on file. By any reasonable standard, Greek Jam had earned its legitimacy before it ever tipped off. But Student Government doesn't operate by reasonable standards, and when Greek Jam succeeded without needing them beyond the initial approval, they retroactively called it fraud.
 
 The Student Government Finance Committee [approved Greek Jam](StudentGov/SG_24-25/116th Student Senate/Committee Minutes/Finance/Finance_10-04-2024.txt), just 22 days before the event. The ask was simple and specific - help cover the core costs required to run a charity tournament for Camp Cole, so the focus could stay on the mission instead of the bills.
 
@@ -37,7 +37,7 @@ The Greek community candidate tried to raise fraud concerns through official cha
 
 The Tkacs campaign wasn't just playing defense—they went on offense with [formal accusations](StudentGov/SG_24-25/Constitutional Council/OPINIONS/Rotondo v. Henao Opinion (Greek Speaking Events).pdf) that the Greek candidate's team had improperly courted sororities like Delta Zeta and Phi Mu before the official campaign period. The Constitutional Council reviewed the evidence and dismissed the complaints entirely. The very campaign that committed proven election fraud tried to accuse their opponent of violations that never happened.
 
-The [Constitutional Council's ruling](https://www.dailygamecock.com/article/2025/02/constitutional-council-rules-sufficient-evidence-of-fraud-dismisses-other-cases-news-flowe) confirmed the damage. They found sufficient evidence of election fraud. They acknowledged the TikTok had created a climate of uncertainty, tainting the voting process and causing lasting harm throughout the polling period. By their own assessment, the process was compromised.
+The [Constitutional Council's ruling](https://www.dailygamecock.com/article/2025/02/constitutional-council-rules-sufficient-evidence-of-fraud-dismisses-other-cases-news-flowe) confirmed the damage. They found sufficient evidence of election fraud. They acknowledged the TikTok had created a climate of uncertainty, tainting the voting process and causing lasting harm throughout the voting period. By their own assessment, the process was compromised.
 
 The remedy? A [24-hour social media ban](StudentGov/SG_24-25/Constitutional Council/DECISIONS/CC Decisions 2_25.pdf). [Tkacs became president](https://www.dailygamecock.com/article/2025/03/courtney-tkacs-will-become-next-student-body-president-news-beckman). Election fraud got a slap on the wrist, and the Greek candidate got nothing.
 
