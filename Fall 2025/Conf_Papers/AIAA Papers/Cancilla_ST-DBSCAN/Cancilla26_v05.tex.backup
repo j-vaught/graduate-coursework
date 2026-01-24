@@ -51,16 +51,13 @@ $\tau_{\text{gap}}$ & maximum gap duration for cluster reconnection (frames)
 %% ============================================================================
 \section{Introduction}
 
-When a small vessel enters a wave trough off the South Carolina coast, its radar return vanishes for two or three antenna sweeps. A conventional tracking system, seeing no detections, increments the track's age counter; after several more dropouts caused by wave shadowing and radar cross-section fluctuations, the system deletes the track entirely. Moments later, the vessel reappears---but now as a new track with a fresh identifier, its previous history lost. This scenario, repeated across dozens of vessels during a typical harbor approach, degrades situational awareness precisely when it matters most.
+Maritime domain awareness is essential for navigation safety, port security, and search-and-rescue operations. Commercial X-band marine radars operating at 9.3--9.5~GHz provide reliable all-weather sensing of surface vessels and other objects of interest. However, extracting consistent object tracks from raw radar data remains challenging due to sea clutter, multipath reflections, and intermittent target visibility caused by wave shadowing and vessel motion.
 
-Maritime domain awareness is essential for navigation safety, port security, and search-and-rescue operations. Commercial X-band marine radars operating at 9.3--9.5~GHz provide reliable all-weather sensing of surface vessels and other objects of interest. However, extracting consistent object tracks from raw radar data remains challenging due to sea clutter, multipath reflections, and the intermittent target visibility illustrated above.
+Traditional radar processing pipelines employ Constant False Alarm Rate (CFAR) detection followed by kinematic filtering using Kalman or alpha-beta trackers~\cite{rohling1983radar, bar2011tracking}. While effective for isolated targets in open water, these methods struggle with dense vessel traffic and the nonstationary clutter conditions common in coastal waters. CFAR detectors require careful threshold tuning for each environment, and single-frame detection discards valuable temporal information.
 
-Traditional radar processing pipelines employ Constant False Alarm Rate (CFAR) detection followed by kinematic filtering using Kalman or alpha-beta trackers~\cite{rohling1983radar, bar2011tracking}. While effective for isolated targets in open water, these methods struggle with dense vessel traffic and the nonstationary clutter conditions common in coastal waters. CFAR detectors require careful threshold tuning for each environment, and single-frame detection discards valuable temporal information that could link fragmented returns across sweeps.
-
-The increasing availability of solid-state marine radars with high range resolution (sub-meter) and fast scan rates (24--48 RPM) motivates point-cloud-based processing approaches that exploit both spatial and temporal coherence. Unlike traditional plot extraction, which reduces each target to a single position estimate per scan, point cloud methods preserve the spatial extent of radar returns, enabling better discrimination of closely spaced targets and more robust association across frames.
+The increasing availability of solid-state marine radars with high range resolution (sub-meter) and fast scan rates (24--48 RPM) motivates the development of point-cloud-based processing approaches that exploit both spatial and temporal coherence. Unlike traditional plot extraction, point cloud methods preserve the spatial extent of radar returns, enabling better discrimination of closely spaced targets.
 
 This paper presents an end-to-end detection and tracking system based on an adaptive variant of Spatio-Temporal DBSCAN (ST-DBSCAN) clustering. The main contributions include an adaptive ST-DBSCAN formulation where neighborhood radii are estimated automatically from k-nearest-neighbor distance statistics, eliminating manual parameter tuning for different clutter environments; a gap-recovery mechanism that reconnects clusters across brief temporal dropouts caused by intermittent radar returns; an efficient implementation combining spatial hashing for $O(1)$ average-case neighbor queries with union-find for cluster merging; and experimental evaluation on synthetic scenarios with ground-truth trajectories and real coastal radar data, characterizing tracking behavior under varying conditions.
-
 
 %% ============================================================================
 %% RELATED WORK
@@ -238,16 +235,6 @@ We created three synthetic scenarios of increasing difficulty to systematically 
 
 We compare three methods: (1) single-frame DBSCAN, (2) standard ST-DBSCAN with fixed $\varepsilon_s = 10$, and (3) adaptive ST-DBSCAN with gap recovery.
 
-We evaluate clustering and tracking quality using two metrics. \textbf{Purity} measures the fraction of points in each cluster belonging to a single ground-truth object:
-\begin{equation}
-\text{Purity} = \frac{1}{N} \sum_{k=1}^{K} \max_j |C_k \cap G_j|
-\end{equation}
-where $N$ is the total number of points, $K$ is the number of clusters, $C_k$ is the set of points in cluster $k$, and $G_j$ is the set of points belonging to ground-truth object $j$. \textbf{Continuity} measures the fraction of each ground-truth trajectory covered by a single track without fragmentation:
-\begin{equation}
-\text{Continuity} = \frac{1}{M} \sum_{j=1}^{M} \frac{\max_k |T_k \cap G_j|}{|G_j|}
-\end{equation}
-where $M$ is the number of ground-truth objects, $T_k$ is the set of points assigned to track $k$, and $|G_j|$ is the total number of points in ground-truth trajectory $j$.
-
 \begin{table}[hbt!]
 \caption{Synthetic Dataset: Cluster Purity and Track Continuity}
 \label{tab:synthetic}
@@ -290,7 +277,14 @@ Real data was collected from a shore-mounted Furuno DRS-NXT radar at a coastal s
 \label{fig:realdata}
 \end{figure}
 
-Figure~\ref{fig:realdata} shows a representative frame with color-coded clusters. The system successfully separates multiple vessel returns from coastal clutter and maintains distinct clusters for vessels at different ranges. Qualitative analysis reveals several characteristics of system behavior. Adaptive $\varepsilon_s$ estimation produces values in the range 8--15 pixels depending on local clutter density, compared to a fixed value of 10 pixels. Gap recovery successfully reconnects tracks across 2--4 frame dropouts that occur when vessels enter wave shadows or experience radar cross-section fluctuations. The system handles nonstationary clutter (varying sea state during recording) without manual parameter adjustment.
+Figure~\ref{fig:realdata} shows a representative frame with color-coded clusters. The system successfully separates multiple vessel returns from coastal clutter and maintains distinct clusters for vessels at different ranges.
+
+\textbf{Qualitative Observations}:
+\begin{itemize}
+\item Adaptive $\varepsilon_s$ estimation produces values in the range 8--15 pixels depending on local clutter density, compared to a fixed value of 10 pixels.
+\item Gap recovery reconnects tracks across 2--4 frame dropouts that occur when vessels enter wave shadows or experience radar cross-section fluctuations.
+\item The system handles nonstationary clutter (varying sea state during recording) without manual parameter adjustment.
+\end{itemize}
 
 Note: Quantitative tracking metrics (MOTA, MOTP) are not reported for real data as ground-truth annotations were not available for this recording.
 
@@ -342,26 +336,44 @@ The primary advantage of adaptive $\varepsilon_s$ estimation is robustness to va
 
 \subsection{Limitations}
 
-The current approach has several limitations. The exponential smoothing predictor assumes approximately linear motion, causing temporary tracking loss during sharp maneuvers. The system detects and tracks all above-threshold returns without distinguishing vessels from debris, buoys, or large waves. The single-radar processing architecture could benefit from multi-radar fusion to improve coverage and resolve ambiguities in overlapping surveillance regions. Finally, the current gap recovery uses simple centroid proximity; more sophisticated approaches such as motion-consistent gap bridging could improve reconnection accuracy.
+The current approach has several limitations:
 
-\subsection{Failure Modes}
+\begin{itemize}
+\item \textbf{Linear motion model}: The exponential smoothing predictor assumes approximately linear motion. Sharp maneuvers cause temporary tracking loss.
 
-Analysis of tracking failures reveals three primary failure modes. First, \textbf{close formation tracking} fails when vessels travel within $2\varepsilon_s$ of each other for extended periods; the adaptive clustering may merge their returns into a single cluster, causing track identity switches or merges. In Scenario C, convoy configurations caused 60\% of the observed ID switches. Second, \textbf{sharp maneuvers} cause temporary track loss because the linear velocity predictor cannot anticipate sudden direction changes; recovery typically occurs within 3--5 frames as the track age threshold allows persistence through the maneuver. Third, \textbf{extreme clutter gradients} at the boundary between near-shore and open-water regions can cause the global adaptive $\varepsilon_s$ estimate to be suboptimal for one region or the other; future work could address this with spatially-varying parameter estimation.
+\item \textbf{No target classification}: The system detects and tracks all above-threshold returns without distinguishing vessels from debris, buoys, or large waves.
+
+\item \textbf{Single-radar processing}: Multi-radar fusion could improve coverage and resolve ambiguities in overlapping surveillance regions.
+
+\item \textbf{Gap recovery heuristics}: The current gap recovery uses simple centroid proximity. More sophisticated approaches (e.g., motion-consistent gap bridging) could improve reconnection accuracy.
+\end{itemize}
 
 \subsection{Future Work}
 
-Planned extensions include integration with AIS (Automatic Identification System) data for track validation, Interacting Multiple Model (IMM) filters for maneuvering targets, multi-radar track fusion, and embedded platform validation on NVIDIA Jetson Orin.
+Planned extensions include:
+\begin{itemize}
+\item Integration with AIS (Automatic Identification System) data for track validation
+\item Interacting Multiple Model (IMM) filters for maneuvering targets
+\item Multi-radar track fusion
+\item Embedded platform validation on NVIDIA Jetson Orin
+\end{itemize}
 
 %% ============================================================================
 %% CONCLUSION
 %% ============================================================================
 \section{Conclusion}
 
-Reliable vessel tracking from commercial marine radar requires algorithms that adapt to nonstationary clutter conditions without manual parameter tuning. This paper presented an adaptive ST-DBSCAN-based pipeline that addresses this challenge through automatic neighborhood radius estimation via k-nearest-neighbor distance statistics and a gap-recovery mechanism for handling intermittent radar returns.
+This paper presented an adaptive ST-DBSCAN-based pipeline for detecting and tracking surface objects from commercial marine radar. Key findings:
 
-Evaluation on synthetic scenarios demonstrates that spatio-temporal clustering improves track continuity by 8--28\% over single-frame DBSCAN, with the adaptive parameter estimation providing robustness across varying clutter densities. Real-world coastal radar data confirms that the system handles nonstationary sea clutter without manual intervention.
+\begin{enumerate}
+\item Spatio-temporal clustering links fragmented detections across frames, improving cluster continuity compared to single-frame DBSCAN.
 
-The Rust implementation achieves 21 sweeps per second on desktop hardware, far exceeding the 0.8 sweeps/s real-time requirement for 48 RPM radar. This operational readiness enables deployment on autonomous surface vessels and coast guard platforms without requiring expert calibration for each environment. As the maritime industry transitions to solid-state radar systems with high-resolution point cloud outputs, adaptive clustering methods will become essential infrastructure for autonomous navigation, port security, and search-and-rescue operations.
+\item Adaptive parameter estimation via k-NN distance statistics eliminates manual tuning and improves robustness to varying clutter environments.
+
+\item Gap recovery reconnects clusters across brief temporal dropouts, reducing track fragmentation.
+
+\item The Rust implementation achieves real-time performance on desktop hardware, with embedded platform validation pending.
+\end{enumerate}
 
 \section*{Acknowledgments}
 
