@@ -8,7 +8,7 @@ Fraudulent.
 
 That's the label Student Government slapped on a charity event for children with cancer.
 
-Alpha Phi Omega and the Interfraternity Council planned Greek Jam, a charity basketball tournament in Five Points, benefiting Camp Cole, a camp that gives kids with cancer a few days where they're not patients first.
+Alpha Phi Omega and the Interfraternity Council planned [Greek Jam](https://www.abccolumbia.com/local-events/?_evDiscoveryPath=/event/2699042-greek-jam-2024-a-usc-ifc-event-supporting-camp-cole), a charity basketball tournament in Five Points, benefiting [Camp Cole](https://www.campcole.org/), a camp that gives kids with cancer a few days where they're not patients first.
 
 Student Government was asked to fund the event. What did they do? They happily approved it, let the organizers move forward on that promise, and then turned around and branded it "fraudulent," suspending Greek Life from accessing funds meant for kids with cancer.
 
