@@ -22,7 +22,7 @@ For a moment, it looked like Student Government was going to take the free PR Gr
 
 Just six days after the event, Student Government flipped. They branded Greek Jam fraudulent and voted to suspend all funding, turning what had been unanimous approval into a retroactive crackdown. If the original vote was support, the reversal made it look like a setup.
 
-At the same time, when Student Government defunded another student organization's event, they acted swiftly to re-fund them again after some public backlash. While a small bit of public backlash got Student Government to act, a charity event for kids with cancer instead got scrutiny, suspicion, and a funding shutdown.
+At the same time, when Student Government [defunded another student organization's event](https://www.dailygamecock.com/article/2024/09/student-senate-denies-funding-for-uncensored-america-passes-bill-to-increase-security-at-event-news-woodson), they acted swiftly to [re-fund them again](https://www.dailygamecock.com/article/2024/10/uncensored-america-sues-usc-days-after-student-senate-grants-funding-for-roast-elam-news) after some public backlash. While a small bit of public backlash got Student Government to act, a charity event for kids with cancer instead got scrutiny, suspicion, and a funding shutdown.
 
 But this trend of backstabbing Greek Life after first being friendly is not isolated to funding. Greek Life represents a massive share of this campus – nearly XX percent. That's thousands of students who vote, volunteer, and bankroll philanthropy for the university and students on campus.
 
