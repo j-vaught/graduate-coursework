@@ -39,7 +39,7 @@ Meanwhile, the Tkacs campaign had been working the Greek system long before the 
 
 The [Constitutional Council's ruling](https://www.dailygamecock.com/article/2025/02/constitutional-council-rules-sufficient-evidence-of-fraud-dismisses-other-cases-news-flowe) confirmed the damage. They found sufficient evidence of election fraud. They acknowledged the TikTok had created a climate of uncertainty, tainting the voting process and causing lasting harm throughout the polling period. By their own assessment, the process was compromised.
 
-The penalty was a 24-hour campaigning ban—imposed when only hours remained in the polling period. Even after finding fraud and acknowledging that the process was compromised, the Council let the result stand. Tkacs became president. The Greek community candidate filed an appeal, and the appeal was denied.
+The penalty was a 24-hour campaigning ban—imposed when only hours remained in the polling period. Even after finding fraud and acknowledging that the process was compromised, the Council let the result stand. [Tkacs became president](https://www.dailygamecock.com/article/2025/03/courtney-tkacs-will-become-next-student-body-president-news-beckman). The Greek community candidate filed an appeal, and the appeal was denied.
 
 The Council's legal reasoning tried to split the difference. They found insufficient evidence that the claims were knowingly false under one section of the code, but still found fraud under a broader provision. Four justices signed the opinion. The result was a ruling that acknowledged the process had been tainted while allowing the outcome to stand unchanged.
 
