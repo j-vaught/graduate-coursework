@@ -28,7 +28,7 @@ But this trend of backstabbing Greek Life after first being friendly is not isol
 
 If Student Government would sabotage a charity event for sick kids, what would they do to a campaign that actually threatened their power? Greek Life found out in 2025.
 
-In 2025, Student Government repaid that goodwill with a backstab to a Greek candidate in their elections. Candidates from the Greek community ran against Student Government's handpicked Courtney Tkacs and Jordan Richardson. Instead of contesting the race on ideas, the Tkacs-Richardson campaign attempted to ruin the candidate's entire life, not just the election.
+In 2025, Student Government repaid that goodwill with a backstab to a Greek candidate in their elections. Candidates from the Greek community ran against Student Government's handpicked [Courtney Tkacs and Jordan Richardson](https://www.dailygamecock.com/article/2025/02/meet-the-2025-student-government-executive-candidates-news-swenson). Instead of contesting the race on ideas, the Tkacs-Richardson campaign attempted to ruin the candidate's entire life, not just the election.
 
 
 The Tkacs-Richardson campaign's Communications Director, Morgan Poirier, posted a TikTok that skipped policy entirely and accused the opposing Greek community candidate of doing "the same thing that almost killed me to another girl." Whether or not the claim was true, the format guaranteed it would spread before anyone could verify it. The damage would land before any defense could be mounted.
