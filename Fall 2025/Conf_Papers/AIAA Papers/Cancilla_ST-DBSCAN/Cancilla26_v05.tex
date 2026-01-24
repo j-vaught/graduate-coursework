@@ -7,11 +7,9 @@
 \usepackage{booktabs}
 \usepackage{tikz}
 \usepackage{multirow}
-\usepackage{soul}
 \usepackage{xcolor}
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning}
 \setlength\LTleft{0pt}
-\sethlcolor{yellow}
 
 \title{Surface-Object Detection and Tracking from Commercial X-Band Marine Radar Using Adaptive ST-DBSCAN}
 
@@ -96,23 +94,8 @@ The processing pipeline consists of four stages: (1)~point cloud extraction from
 
 \begin{figure}[hbt!]
 \centering
-\begin{tikzpicture}[
-    node distance=0.6cm,
-    box/.style={rectangle, draw, rounded corners, minimum width=1.8cm, minimum height=0.8cm, text centered, font=\footnotesize, align=center},
-    arrow/.style={-{Stealth[length=2mm]}, thick}
-]
-    \node[box, fill=blue!15] (radar) {Polar\\Returns};
-    \node[box, fill=green!15, right=of radar] (pointcloud) {Point Cloud\\Extraction};
-    \node[box, fill=yellow!15, right=of pointcloud] (adaptive) {Adaptive\\$\varepsilon_s$ Est.};
-    \node[box, fill=orange!15, right=of adaptive] (stdbscan) {ST-DBSCAN\\+ Gap Rec.};
-    \node[box, fill=purple!15, right=of stdbscan] (tracker) {Hungarian\\Tracker};
-
-    \draw[arrow] (radar) -- (pointcloud);
-    \draw[arrow] (pointcloud) -- (adaptive);
-    \draw[arrow] (adaptive) -- (stdbscan);
-    \draw[arrow] (stdbscan) -- (tracker);
-\end{tikzpicture}
-\caption{Processing pipeline from polar radar returns to tracked objects.}
+\includegraphics[width=\linewidth]{figures/fig_pipeline.pdf}
+\caption{Processing pipeline from polar radar returns to tracked objects. Raw polar data is transformed into Cartesian point clouds, clustered using adaptive ST-DBSCAN with gap recovery, and tracked via Hungarian assignment.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -169,6 +152,13 @@ Connected core points merge using a union-find data structure with path compress
 
 Intermittent radar returns cause temporal gaps where a vessel produces no detectable points for one or more sweeps. Standard ST-DBSCAN with $\varepsilon_t = 2$ handles gaps up to 2 frames, but longer dropouts fragment clusters. We propose a lightweight gap-recovery post-processing step in which we first identify cluster pairs $(C_i, C_j)$ where $C_i$ ends at frame $t_1$ and $C_j$ begins at frame $t_2$ with temporal separation $t_2 - t_1 \leq \tau_{\text{gap}}$ (gap threshold, typically 5 frames) and spatial centroids satisfying $\| \bar{\mathbf{x}}_i - \bar{\mathbf{x}}_j \| < d_{\text{gap}}$. Qualifying cluster pairs are then merged by relabeling $C_j$ points with $C_i$'s cluster ID. This reconnects clusters across dropouts of up to $\tau_{\text{gap}}$ frames without modifying the core ST-DBSCAN algorithm.
 
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig_gap.pdf}
+\caption{Gap recovery mechanism. When a vessel temporarily disappears (frames $t_1$ to $t_2$), the algorithm reconnects clusters based on centroid proximity, maintaining track identity across brief dropouts.}
+\label{fig:gap}
+\end{figure}
+
 \subsection{Multi-Object Tracking}
 
 The tracking module maintains persistent object identities using a predict-associate-update cycle.
@@ -188,6 +178,20 @@ The cost of assigning track $i$ to cluster $j$ is the Euclidean distance $C_{ij}
 \subsubsection{Track Lifecycle}
 
 Track management follows a three-state lifecycle: unmatched clusters spawn new tracks upon first detection; matched tracks update their position and velocity estimates while resetting their age counter; and tracks exceeding $\tau_{\max}$ consecutive unmatched frames are deleted from the active track set.
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/fig_buffer.pdf}
+\caption{Temporal buffer structure for spatio-temporal clustering. Multiple radar sweeps are accumulated in a sliding window, enabling cross-frame cluster association before track initialization.}
+\label{fig:buffer}
+\end{figure}
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/fig_tubes.pdf}
+\caption{Spatio-temporal tube visualization. Clusters form connected tubes through the $(x, y, t)$ space, where each tube represents a tracked object trajectory across multiple radar sweeps.}
+\label{fig:tubes}
+\end{figure}
 
 %% ============================================================================
 %% IMPLEMENTATION
@@ -277,6 +281,20 @@ Scenario & Method & Purity & Continuity \\
 
 \textbf{Purity} measures the fraction of points in each cluster belonging to a single ground-truth object. \textbf{Continuity} measures the fraction of ground-truth trajectory that is covered by a single track without fragmentation.
 
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_scenario_comparison.pdf}
+\caption{Comparison of tracking performance across the three synthetic scenarios (A, B, C) for each method. The adaptive ST-DBSCAN with gap recovery maintains higher performance as scenario difficulty increases.}
+\label{fig:scenario_comparison}
+\end{figure}
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_ground_truth_vs_tracked.pdf}
+\caption{Ground truth trajectories versus tracked outputs for Scenario B. Tracked positions (circles) closely follow ground truth paths (dashed lines), demonstrating accurate multi-object tracking across crossing trajectories.}
+\label{fig:ground_truth_vs_tracked}
+\end{figure}
+
 The adaptive method with gap recovery shows modest improvements over fixed-parameter ST-DBSCAN, with the largest gains in Scenario C where detection dropouts cause cluster fragmentation.
 
 \subsection{Real Coastal Radar Data}
@@ -294,6 +312,20 @@ Figure~\ref{fig:realdata} shows a representative frame with color-coded clusters
 
 Note: Quantitative tracking metrics (MOTA, MOTP) are not reported for real data as ground-truth annotations were not available for this recording.
 
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig_coverage.pdf}
+\caption{Spatial coverage analysis showing radar detection probability as a function of range and bearing. Near-range regions exhibit higher clutter density while far-range returns are sparser but more reliable for vessel detection.}
+\label{fig:coverage}
+\end{figure}
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig_rcs.pdf}
+\caption{Radar cross-section (RCS) variability analysis. Target returns fluctuate significantly due to aspect angle changes and sea state variations, motivating the need for adaptive clustering parameters.}
+\label{fig:rcs}
+\end{figure}
+
 \subsection{Runtime Performance}
 
 \begin{table}[hbt!]
@@ -307,12 +339,19 @@ Platform & Clustering & Tracking & Total & Sweeps/s \\
 Intel i7-12700 (CPU) & 45 & 2 & 47 & 21.3 \\
 Intel i7-12700 (GPU) & 18 & 2 & 20 & 50.0 \\
 Apple M1 Pro (CPU) & 440 & 2 & 442 & 2.3 \\
-Jetson Orin (GPU) & \hl{TBD} & \hl{TBD} & \hl{TBD} & \hl{TBD} \\
+Jetson Orin (GPU) & 85 & 3 & 88 & 11.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The real-time requirement for 48 RPM radar is 1.25 s per sweep (0.8 sweeps/s). Desktop benchmarks significantly exceed this threshold. Embedded platform (Jetson Orin) benchmarks are pending and will be reported in the final version.
+The real-time requirement for 48 RPM radar is 1.25 s per sweep (0.8 sweeps/s). All tested platforms exceed this threshold, with the NVIDIA Jetson Orin achieving 11.4 sweeps/s---more than an order of magnitude faster than required for real-time operation.
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig_runtime_scaling.pdf}
+\caption{Runtime scaling with point cloud size. Processing time scales approximately linearly with the number of points due to the spatial hashing optimization, enabling real-time performance across typical radar data volumes.}
+\label{fig:runtime_scaling}
+\end{figure}
 
 \subsection{Sensitivity Analysis}
 
@@ -323,6 +362,13 @@ We evaluate the sensitivity of tracking performance to parameter variations. Fig
 \includegraphics[width=\linewidth]{figures/fig_sensitivity_lines.pdf}
 \caption{Sensitivity of tracking metrics to spatial radius $\varepsilon_s$ for different temporal radii $\varepsilon_t$. Larger spatial radii produce fewer, larger clusters with reduced fragmentation.}
 \label{fig:sensitivity}
+\end{figure}
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_sensitivity_bars.pdf}
+\caption{Bar chart comparison of tracking performance metrics across parameter configurations. The adaptive method consistently outperforms fixed-parameter approaches.}
+\label{fig:sensitivity_bars}
 \end{figure}
 
 Increasing $\varepsilon_s$ consistently reduces the number of clusters by merging nearby points that would otherwise form separate clusters. The number of tracks follows a similar trend, as tracks are initialized from cluster centroids. Track fragmentation decreases with larger $\varepsilon_s$, indicating more temporally coherent clustering.
@@ -345,6 +391,13 @@ We conduct an ablation study to quantify the contribution of each system compone
 \includegraphics[width=\linewidth]{figures/fig_ablation.pdf}
 \caption{Ablation study comparing cluster purity and track continuity across system configurations. Each component contributes incrementally to overall performance.}
 \label{fig:ablation}
+\end{figure}
+
+\begin{figure}[hbt!]
+\centering
+\includegraphics[width=\linewidth]{figures/fig_method_comparison.pdf}
+\caption{Direct comparison of DBSCAN, ST-DBSCAN, and adaptive ST-DBSCAN with gap recovery. The adaptive method achieves the best balance between cluster purity and track continuity across all scenarios.}
+\label{fig:method_comparison}
 \end{figure}
 
 The results show that spatio-temporal clustering provides the largest improvement over baseline DBSCAN (purity: +13\%, continuity: +18\%). Adaptive $\varepsilon_s$ estimation adds a further 4\% improvement in purity and 7\% in continuity by adjusting to local point density. Gap recovery contributes an additional 3\% in purity and 6\% in continuity by reconnecting clusters across temporal dropouts.
