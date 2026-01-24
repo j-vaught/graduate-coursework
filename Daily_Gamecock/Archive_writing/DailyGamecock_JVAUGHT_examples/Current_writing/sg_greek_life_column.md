@@ -24,7 +24,7 @@ Just six days after the event, Student Government flipped. They branded Greek Ja
 
 At the same time, when Student Government [defunded another student organization's event](https://www.dailygamecock.com/article/2024/09/student-senate-denies-funding-for-uncensored-america-passes-bill-to-increase-security-at-event-news-woodson), they acted swiftly to [re-fund them again](https://www.dailygamecock.com/article/2024/10/uncensored-america-sues-usc-days-after-student-senate-grants-funding-for-roast-elam-news) after some public backlash. While a small bit of public backlash got Student Government to act, a charity event for kids with cancer instead got scrutiny, suspicion, and a funding shutdown.
 
-But this trend of backstabbing Greek Life after first being friendly is not isolated to funding. Greek Life represents a massive share of this campus – nearly XX percent. That's thousands of students who vote, volunteer, and bankroll philanthropy for the university and students on campus.
+But this trend of backstabbing Greek Life after first being friendly is not isolated to funding. Greek Life represents a massive share of this campus – [over 10,000 students](https://sc.edu/about/offices_and_divisions/fraternity_and_sorority_life/index.php). That's thousands of students who vote, volunteer, and bankroll philanthropy for the university and students on campus.
 
 If Student Government would sabotage a charity event for sick kids, what would they do to a campaign that actually threatened their power? Greek Life found out in 2025.
 
