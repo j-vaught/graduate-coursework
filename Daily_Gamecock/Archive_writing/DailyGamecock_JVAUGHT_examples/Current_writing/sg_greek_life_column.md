@@ -33,7 +33,7 @@ In 2025, Student Government repaid that goodwill with a backstab to a Greek cand
 
 The Tkacs-Richardson campaign's Communications Director, Morgan Poirier, [posted a TikTok](https://www.dailygamecock.com/article/2025/02/election-violation-hearing) that skipped policy entirely and accused the opposing Greek community candidate of doing "the same thing that almost killed me to another girl." Whether or not the claim was true, the format guaranteed it would spread before anyone could verify it. The damage would land before any defense could be mounted.
 
-The Greek community candidate tried to raise fraud concerns through official channels and was shut down. According to their account, the very structures responsible for policing the election discouraged and blocked their attempts to report what had happened. The system that was supposed to ensure fairness became part of the problem.
+The Greek community candidate tried to raise fraud concerns through official channels and was shut down. According to [their account](https://www.dailygamecock.com/article/2025/02/constitutional-council-rules-sufficient-evidence-of-fraud-dismisses-other-cases-news-flowe), the very structures responsible for policing the election discouraged and blocked their attempts to report what had happened. The system that was supposed to ensure fairness became part of the problem.
 
 Meanwhile, the Tkacs campaign had been working the Greek system long before the official campaign period opened. The campaign allegedly maneuvered for speaking time at sororities like Delta Zeta and Phi Mu. Even the Greek candidate's own fraternity got dragged into the crossfire. The fight was never just about votes—it was about controlling access before the rules even kicked in.
 
