@@ -16,11 +16,11 @@ Greek Jam had university administration backing and Student Government's initial
 
 The finance committee approved Greek Jam with university administration support and a written mayoral endorsement already on file. By any reasonable standard, Greek Jam had earned its legitimacy before it ever tipped off. But Student Government doesn't operate by reasonable standards, and when Greek Jam succeeded without needing them beyond the initial approval, they retroactively called it fraud.
 
-The Student Government Finance Committee approved Greek Jam, just 22 days before the event. The ask was simple and specific - help cover the core costs required to run a charity tournament for Camp Cole, so the focus could stay on the mission instead of the bills.
+The Student Government Finance Committee [approved Greek Jam](Finance Committee Minutes, October 4, 2024), just 22 days before the event. The ask was simple and specific - help cover the core costs required to run a charity tournament for Camp Cole, so the focus could stay on the mission instead of the bills.
 
 For a moment, it looked like Student Government was going to take the free PR Greek Life handed them. But they just couldn't stand the idea of a good thing happening to sick kids – so they heroically stepped in and pulled funding for the event after Greek Jam had already happened and had been paid for.
 
-Just six days after the event, Student Government flipped. They branded Greek Jam fraudulent and voted to suspend all funding, turning what had been unanimous approval into a retroactive crackdown. If the original vote was support, the reversal made it look like a setup.
+Just six days after the event, Student Government flipped. They [branded Greek Jam fraudulent](Finance Committee Minutes, November 1, 2024) and voted to suspend all funding, turning what had been unanimous approval into a retroactive crackdown. If the original vote was support, the reversal made it look like a setup.
 
 At the same time, when Student Government [defunded another student organization's event](https://www.dailygamecock.com/article/2024/09/student-senate-denies-funding-for-uncensored-america-passes-bill-to-increase-security-at-event-news-woodson), they acted swiftly to [re-fund them again](https://www.dailygamecock.com/article/2024/10/uncensored-america-sues-usc-days-after-student-senate-grants-funding-for-roast-elam-news) after some public backlash. While a small bit of public backlash got Student Government to act, a charity event for kids with cancer instead got scrutiny, suspicion, and a funding shutdown.
 
