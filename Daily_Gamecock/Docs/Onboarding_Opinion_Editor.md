@@ -80,19 +80,24 @@ See **Section 7.3 (Pushed Columns)** for delay/cancellation procedures.
 
 ### Getting Started
 
-1. **Log in** to CEO3.
+1. **Log in** at [https://ceo3.getsnworks.com](https://ceo3.getsnworks.com)
+   - Username: `sagckopinion@mailbox.sc.edu`
+   - Password: `Opinion1908`
+   - Select **CEO3** if prompted (CEO2 is deprecated).
 2. Click **New** > **New Article** to create a piece.
 3. To find an existing article, use the **search bar** and type the article name.
 
 ### Setting Up an Article
 
+- **Title**: Format as `Column: headline headline`
+- **Slug**: Format as `column-headline-headline-author_name`
 - **Tag**: Set an `Opinion` tag.
 - **Author**: Set the writer as author.
 - **Status**: Set to match the current stage (mirrors the Budget sheet status).
-- **Abstract**: Click the Abstract field to set the **subheading**.
+- **Abstract**: Click the Abstract field to set the **subheading** (2-sentence summary).
 - **Meta tab**:
   - **Infobox** -- set pull quotes here.
-  - **Social media summary** -- set here as well.
+  - **Social media summary** -- set here as well (Twitter/Instagram-length).
 
 ### Editing in CEO3
 
@@ -282,3 +287,154 @@ If a writer misses the draft deadline, the piece will likely need to be pushed (
 | Time | Meeting | Who |
 |------|---------|-----|
 | **5:00 PM** | Senior Staff | All section leaders/editors, paid staff |
+
+---
+
+## 15. Headline Writing (Opinion)
+
+Opinion headlines **argue** -- they do not report. The headline must convey WHY it matters and WHO is responsible. See `Docs/DG_Headlines` for the full guide; key rules below.
+
+### Seven Principles
+
+| Rule | Do | Don't |
+|------|----|-------|
+| **No colons** | Write fluid, declarative sentences | "USC parking: students pay the price" |
+| **No false urgency** | Opinions are timeless; skip temporal words | "just," "now," "recently" |
+| **No explainers** | Deliver the verdict immediately | "Why USC's parking policy fails students" |
+| **Opinion as fact** | State opinions as objective truths | "Students feel parking is unfair" |
+| **No names** | Use roles/actions (unless an iconic figure like the President) | "John Smith's policy fails students" |
+| **Active blame** | Name the actor | "Mistakes were made" (passive) |
+| **So what?** | Predict future consequences | Only describing the present problem |
+
+### Approved Headline Structures
+
+**Analysis pieces:**
+1. Dead/Over Declaration -- "The era of X is dead"
+2. Comparative Value -- "X matters more than Y"
+3. Action/Consequence -- "A acts as / leads to B"
+4. Inverse/Reframe -- Flip the common narrative
+
+**Activism pieces:**
+1. "It Is Time" Ultimatum -- for total overhauls
+2. Mandate -- use "must," not "should," for powerful entities
+3. "A, Not B" Responsibility Shift -- push blame up the ladder
+
+---
+
+## 16. Editing Tiers
+
+Choose the appropriate level of intervention based on how much work the draft needs:
+
+| Tier | When to Use | What You Do |
+|------|-------------|-------------|
+| **Level 1: Full Rewrite** | Draft needs complete reconstruction | Rewrite while preserving the writer's research; ask them which original parts to keep |
+| **Level 2: Sectional Rewrite** | Specific sections are weak | Targeted fixes to problem areas only |
+| **Level 3: Comment Pass** | Draft is mostly solid | Strategic inline comments; writer retains full authorship |
+
+---
+
+## 17. Source Verification & Statements
+
+### When You MUST Request a Statement
+
+- Criticism or allegations against a person or institution
+- Claims of negligence, incompetence, or discrimination
+- Potentially harmful assertions affecting someone's reputation
+
+### Recording Requirements
+
+Interview recordings **must** be sent to **copydesktdg@gmail.com** with the following:
+- Interviewee name (confirm spelling)
+- Title/year
+- Position/major
+
+### Attribution Rules
+
+- Default is **on the record**. The Daily Gamecock does not accept "off the record" without editor approval.
+- **Email interviews are not allowed** -- phone or Zoom required for interviews.
+- Email **statements** are accepted from universities and government only.
+- Use `"said"` for attribution. Avoid `"stated"` or `"mentioned"`.
+
+### If a Source Doesn't Respond
+
+- Follow up **once** with a polite reminder before your deadline.
+- Try alternative channels (phone if email fails).
+- Write: *"did not respond to a request for comment"* -- **never** *"refused to comment."*
+- Typical response window: 48-72 hours. Don't delay indefinitely.
+
+### Source Quality (most to least reliable)
+
+1. Government documents / official records
+2. Peer-reviewed academic research
+3. Established news organizations
+4. Official institutional statements
+5. Expert interviews
+6. Personal interviews with affected individuals
+7. Organizational websites
+8. Verified social media accounts
+9. Unverified social media / personal blogs
+
+---
+
+## 18. Article Structure
+
+### Target Word Count
+
+| Type | Words |
+|------|-------|
+| Standard column | ~800 (minimum 500) |
+| Print piece | 1,000-1,300 |
+
+### Anatomy of an Opinion Piece
+
+**Introduction:**
+- **Lede** (1st paragraph): Strong, arguable statement. State the opinion, introduce the topic, convey significance.
+- **Nutgraf** (2nd paragraph): Essential context in 75 words max. Answer who, when, where. Must appear within the first three paragraphs.
+
+**Body** (in any order):
+- **Diagnosis**: Layer the problem with data, statistics, quotes, anecdotes.
+- **Prescription**: A solution (direct proposal), alternative (better path), or rationale (explain the flawed logic).
+- **Counter-arguments**: Concede valid opposing points, then refute -- explain why your argument is still stronger.
+
+**Closing** (choose one or combine):
+- **Conclusion**: Restate main point in new words + summarize key evidence.
+- **Call-to-Action**: Tell readers what to do (vote, petition, contact, think differently).
+- **Coda**: A final reflective thought or anecdote.
+
+### Subhead Rules
+
+- First subhead after the lede must be **factual, not tonal**.
+- Place subheads every **3-4 paragraphs**.
+- Keep to **2-7 words**.
+- Must reflect the content that follows.
+
+---
+
+## 19. AP Style Quick Reference
+
+### Dates
+- Abbreviate months with dates: `Aug. 15, 2024` (comma around year)
+- Never abbreviate **March, May, June, July** when standing alone
+- Ranges: `Oct. 15-18`
+- Month + year only: `August 2024` (no comma)
+
+### Names & Titles
+- First reference: full name, title, credentials
+- Subsequent references: last name only
+- Student format: *"Jane Doe, a third-year engineering student, said..."*
+- Never call a student a "major" (e.g., not "engineering major")
+- Capitalize formal titles before names, lowercase after
+- Verify spelling via: (1) university directory, (2) LinkedIn + university bio, (3) ask the source directly
+
+### General
+- Paragraphs: **1-4 sentences max**
+- Periods go **inside** quotation marks
+- Use `"said"` for attribution
+
+### Statements Hierarchy
+
+| Type | Example | Source Required? |
+|------|---------|-----------------|
+| **Definitive** | "USC is increasing housing prices" | Yes |
+| **Qualified** | "It seems USC is increasing housing costs" | Not necessarily |
+| **Personal** | "I think USC is increasing housing prices" | No (but discouraged in opinion writing) |
