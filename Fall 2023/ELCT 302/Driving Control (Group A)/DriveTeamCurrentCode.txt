@@ -1,0 +1,171 @@
+#include "mbed.h"
+
+
+#define BLINKING_RATE       500ms
+#define TARGET_BAUD RATE    9600
+#define TARGET_TX_PIN       USBTX
+#define TARGET_RX_PIN       USBRX
+
+//Constants for Controller
+#define TI 0.001 
+#define KP 23.7260f
+#define KI 3331.3f
+
+//Interupt to sample current speed
+Ticker curentSpeed;
+
+// Voltage into the microcontroller from the voltage divider
+AnalogIn potV(A0);
+// Voltage into the microcontroller from the right motor speed
+AnalogIn rmV(A1);
+// Voltage into the microcontroller from the right motor speed
+AnalogIn lmV(A2);
+// Pulse width to the right motor 
+PwmOut poutRM(D0);
+// Pulse width to the right motor 
+PwmOut poutLM(D1);
+
+// Blinky
+DigitalOut led(LED1);
+
+// Instantiate variables
+// Analog reference voltage
+float avref = 0.0;
+// Digital reference voltage
+float dvref = 0.0;
+// Analog feedback voltage from right motor
+float avrm = 0.0;
+// Digital feedback voltage from right motor
+float dvrm =0.0;
+// Analog feedback voltage from left motor
+float avlm = 0.0;
+// Digital feedback voltage from right motor
+float dvlm = 0.0;
+
+
+// Code for print function on tera term
+//static BufferedSerial serial_port(USBTX, USBRX, 9600);
+FileHandle *mbed::mbed_override_console(int fd)
+{
+    static BufferedSerial serial_port(USBTX, USBRX, 9600);
+    return &serial_port;
+}
+
+
+//Functions
+// Function to get reference voltage
+float getDigitalReferenceVoltage() {
+    dvref = potV.read();  
+    return dvref;
+}// End of getRefernceVoltage
+
+// Function to get reference voltage
+float getAnalogReferenceVoltage() {
+    avref = potV.read_voltage();
+    return avref;    
+}// End of getRefernceVoltage
+
+void setLeftDutyCycle() {
+    poutLM.write(1.0f-dvref);
+}// End of sendLeftDutyCycle
+
+void setRightDutyCycle() {
+    poutRM.write(1.0f-dvref);
+}// End of sendLeftDutyCycle
+
+// Function to read digital feedback voltage
+float getLeftDigitalFeedbackVoltage() {
+    dvlm = lmV.read();
+    return dvlm;
+}// End of getLeftFeedbackVoltage
+
+// Function to read digital feedback voltage
+float getRightDigitalFeedbackVoltage() {
+    dvrm = rmV.read();
+    return dvrm;
+}// End of getRightFeedbackVoltage
+
+// Function to read digital feedback voltage
+float getLeftAnalogFeedbackVoltage() {
+    avlm = lmV.read();
+    return avlm;
+}// End of getLeftFeedbackVoltage
+
+// Function to read digital feedback voltage
+float getRightAnalogFeedbackVoltage() {
+    avrm = rmV.read();
+    return avrm;
+}// End of getRightFeedbackVoltage
+
+// Fuction to calculate error for left motor
+float calculateErrorLM() {
+    float currentErrorLM = getDigitalReferenceVoltage() - getLeftDigitalFeedbackVoltage();
+
+    float previousErrorLM = currentErrorLM;
+}// End of calculateError
+
+// Fuction to calculate error for right motor
+float calculateErrorRM() {
+    float currentErrorRM = getDigitalReferenceVoltage() - getRightDigitalFeedbackVoltage();
+
+    float previousErrorRM = currentErrorRM;
+}// End of calculateError
+
+// PI Controller with Eular forward approximation
+    //errorArea(i) = TI*error(i) + errorArea(i-1);
+    //controllerOutput(i) = KP*error(i)+KI*errorArea(i);
+
+// Main code
+int main() {
+
+    // Set period of pulse widths
+    //poutRM.period_us(40);
+    //poutLM.period_us(40);
+    poutLM.period(1.0f/25E3f);
+    poutRM.period(1.0f/25E3f);
+
+    // While motor running
+    while (1) {
+    
+        //Blinky
+        led = !led;
+        ThisThread::sleep_for(BLINKING_RATE);
+
+        // Read the incoming reference voltage 
+        getDigitalReferenceVoltage();
+        getAnalogReferenceVoltage();
+        //dvref = potV.read();
+        //avref = potV.read_voltage();
+       
+        // Print reference voltage input
+        printf("Analog voltage input %f1.4\n", avref);
+        printf("Digital voltage input %f1.4\n", dvref);
+
+        //Send pulse width according to inverted duty cycle. The waveform is flipped at the gate driver.
+        setLeftDutyCycle();
+        setRightDutyCycle();
+        //poutRM.write(1.0f-dvref);
+        //poutLM.write(1.0f-dvref);
+
+        // Read the incoming feedback voltage 
+        getLeftAnalogFeedbackVoltage();
+        getRightAnalogFeedbackVoltage();
+        getLeftDigitalFeedbackVoltage();
+        getRightDigitalFeedbackVoltage();
+        //dvrm = rmV.read();
+        //avrm = rmV.read_voltage();
+        //dvlm = lmV.read();
+        //avlm = lmV.read_voltage();
+
+        // Print wheel speed voltage values
+        printf("Analog voltage right motor %1.4f\n", avrm);
+        printf("Digital voltage right motor %1.4f\n", dvrm);
+        printf("Analog voltage left motor %1.4f\n", avlm);
+        printf("Digital voltage left motor %1.4f\n", dvlm);
+
+        //Interupt at time ti to sample current speed
+        //curentSpeed.attach(&, TI);
+
+    }// End of while loop
+    
+}// End of main
