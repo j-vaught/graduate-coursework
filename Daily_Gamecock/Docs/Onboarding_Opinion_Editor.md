@@ -243,3 +243,42 @@ Writer -> Assistant Editor -> Editor -> Copy -> Managing Editor -> EIC -> Photo 
 | *"Clearly, Student Government seems to love cutting costs, even at the expense of children."* | Channels the same energy, legally defensible as rhetorical opinion |
 
 The goal is to preserve the writer's conviction while ensuring the language is protected opinion rather than stated fact. When in doubt, reframe claims as clearly rhetorical rather than removing them.
+
+---
+
+## 12. Legal & University Review
+
+- **SNworks** is only the platform host -- they have no editorial role.
+- **The university** generally does not intervene unless:
+  1. **Someone complains** about a published piece, OR
+  2. **You are writing about USC itself** (e.g., "USC is letting nazis speak on campus"). In this case, the university will require you to **get a statement from them** before publication.
+- **DG legal review**: If a piece is particularly aggressive or legally risky, the **Editor-in-Chief** may send it to legal for review. This is the EIC's call, not yours.
+
+---
+
+## 13. Writer Deadlines
+
+| Milestone | Minimum Lead Time Before Publication |
+|-----------|--------------------------------------|
+| **Idea on the Budget** | 7-8 days |
+| **Draft submitted** | 3 days (2 days absolute worst case) |
+
+If a writer misses the draft deadline, the piece will likely need to be pushed (see Section 7.3).
+
+---
+
+## 14. Recurring Meetings
+
+### Sunday
+
+| Time | Meeting | Who |
+|------|---------|-----|
+| **1:00 PM** | Senior Staff | All section leaders/editors, paid staff |
+| **2:00 PM** | Full Staff | Every member of The Daily Gamecock |
+| **2:30 PM** | Opinion Section | Opinion writers and opinion leadership |
+
+### Wednesday
+
+| Time | Meeting | Who |
+|------|---------|-----|
+| **5:00 PM** | Senior Staff | All section leaders/editors, paid staff |
