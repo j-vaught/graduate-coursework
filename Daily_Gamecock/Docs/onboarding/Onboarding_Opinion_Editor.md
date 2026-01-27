@@ -15,7 +15,7 @@ No other tools are strictly required. Most editors use **Google Docs** for draft
 
 ## 2. First Reading
 
-Start with **`Docs/DG_editor_training`** -- it covers editorial policy and training specific to your role. The other documents in `Docs/` (`DG_Headlines`, `Writer_Resources`, `DG_statements`) are general advice useful for all writers and worth reading when you have time, but not urgent.
+Start with **`Docs/onboarding/DG_editor_training`** -- it covers editorial policy and training specific to your role. The other documents in `Docs/style_guides/` (`DG_Headlines`, `Writer_Resources`, `DG_statements`) are general advice useful for all writers and worth reading when you have time, but not urgent.
 
 ---
 
@@ -143,7 +143,7 @@ We assume the writer knows how to use CEO and has already uploaded their draft. 
 
 You will typically give feedback **twice**:
 
-1. **First pass** -- Write inline comments in CEO (bold text, optionally signed with initials) or do full rewrites of problem sections. Reference `Docs/DG_editor_training` for comment formatting.
+1. **First pass** -- Write inline comments in CEO (bold text, optionally signed with initials) or do full rewrites of problem sections. Reference `Docs/onboarding/DG_editor_training` for comment formatting.
 2. **Second pass** -- Check in the article and message the writer about remaining changes.
 
 **General philosophy**: Do as much of the work yourself as possible. This gives you more control, speeds up the process, and reduces the burden on writers.
@@ -292,7 +292,7 @@ If a writer misses the draft deadline, the piece will likely need to be pushed (
 
 ## 15. Headline Writing (Opinion)
 
-Opinion headlines **argue** -- they do not report. The headline must convey WHY it matters and WHO is responsible. See `Docs/DG_Headlines` for the full guide; key rules below.
+Opinion headlines **argue** -- they do not report. The headline must convey WHY it matters and WHO is responsible. See `Docs/style_guides/DG_Headlines` for the full guide; key rules below.
 
 ### Seven Principles
 
