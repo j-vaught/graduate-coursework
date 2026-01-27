@@ -1,0 +1,59 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{bold-extra}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\definecolor{garnet}{HTML}{73000A}
+
+\setlength{\parindent}{0.25in}
+\setlength{\parskip}{0.4em}
+
+\newcommand{\sect}[1]{\noindent{\color{garnet}\textbf{\textsc{#1}}.}}
+\newcommand{\subsect}[1]{\noindent{\color{garnet}\textit{#1.}}}
+
+\begin{document}
+\sloppy
+
+\noindent{\color{garnet}\large\textbf{\textsc{Validated Terrain-Occluded Radar Simulation for Autonomous Navigation}}}\\[-0.8em]
+{\color{garnet}\rule{\textwidth}{0.5pt}}\\[0.2em]
+\sect{Project Overview} Radar simulation has advanced substantially in recent years. High-fidelity electromagnetic solvers now model wave propagation with remarkable physical accuracy~\cite{meyer2024}, while automotive researchers have developed sophisticated sensor models for ADAS validation~\cite{muckenhuber2023, holder2018}. NASA's own Terrain Relative Navigation (TRN) system -- achieving 5-meter landing accuracy on Mars 2020 Perseverance, far exceeding its 60-meter requirement -- demonstrated that rigorous simulation validation enables breakthrough autonomous navigation~\cite{chen2023mars, bruzzone2016trn}. Open-source tools like RadaRays~\cite{mock2024radarays} have begun democratizing radar simulation, and validation frameworks like the double validation metric~\cite{elster2024dvm} provide principled approaches for assessing simulator fidelity.
+
+However, these advances leave a critical gap. High-fidelity solvers require expensive licenses, expert RF knowledge, and hours of computation per scenario -- inaccessible to most researchers. Simplified point-target models run fast but ignore terrain interactions critical for low-altitude systems. RadaRays provides valuable capabilities but lacks integrated DEM support and systematic validation against real terrain-radar interactions. Most fundamentally, no existing tool validates geometric approximations against measured returns from actual terrain. This forces researchers into expensive field campaigns before basic algorithm feasibility can be established. A comprehensive survey confirms that ``the shielding, attenuation, and multipath effects of electromagnetic waves in complex terrain environments have increased the difficulty'' of algorithm development without validated simulation~\cite{khawaja2025uav, wu2022uav}.
+
+This project develops an open-source terrain-occluded radar simulator with validation against measured returns. Extending ray-casting prototypes from this semester, the simulator establishes quantitative accuracy bounds for geometric approximation. The approach accepts lower fidelity than physics-based methods but compensates through real-data validation to determine when simplified models suffice~\cite{bialer2024radsimreal}.
+
+\sect{Research Methods} The simulator models radar returns using ray--terrain intersection with digital elevation models (DEMs), following principles established in Entry, Descent, and Landing (EDL) simulation methodology. Terrain is represented as height-map surfaces derived from SRTM or NASADEM data, which recent global evaluation shows achieves 1.5m vertical accuracy in bare-ground conditions~\cite{simard2024dem}. Rays intersecting terrain are terminated to replicate real-world occlusion effects observed in low-altitude flight. This geometric approach provides interpretable results while achieving computational efficiency suitable for rapid iteration -- a critical advantage over physics-based simulators that require hours per scenario~\cite{mock2024radarays}. The methodology draws from atmospheric radar forward modeling techniques demonstrated in the Cloud-resolving model Radar SIMulator (CR-SIM), which integrates terrain-dependent scattering calculations~\cite{oue2020crsim}.
+
+The radar emitter is modeled as a configurable finite-width beam with adjustable parameters including range resolution, beam width, scan pattern, and platform orientation -- all matched to our X-band radar specifications. Targets of interest are represented as point scatterers with configurable radar cross-section (RCS) values, while extended terrain features are modeled using polygon contours or dense point clouds derived from elevation data. The simulator supports both monostatic configurations for our primary use case and bistatic geometries for future multi-platform scenarios.
+
+\subsect{Validation Framework} What distinguishes this work is systematic validation against real data. Using radar data collected by lab colleagues during offshore campaigns, measured returns are processed into geometry-comparable representations and quantitatively compare with simulated outputs. Error metrics include mean absolute error (MAE), root-mean-square error (RMSE), and spatial correlation coefficients -- methodology adapted from the double validation metric for sensor models~\cite{elster2024dvm}. This produces documented accuracy bounds: ``geometric simulation achieves X\% fidelity to measured returns under terrain conditions Y.'' Unlike existing tools that validate only against other simulators~\cite{rossler2022validation}, this framework establishes ground truth through real-world measurement.
+
+\sect{Goals and Expected Results}
+Goal 1: integrate SRTM/NASADEM terrain data with ray-casting and replicate documented scenarios from literature for baseline validation. Goal 2: develop configurable radar parameters matching our X-band radar specifications with scenario editor GUI enabling non-programmer configuration. Goal 3: validate simulator against 4--5 real radar scenarios spanning coastal, open water, and harbor environments, achieving $<$20\% mean geometric error relative to measured returns (comparable to automotive radar simulation benchmarks~\cite{holder2018}), with documented error metrics and sensitivity analysis. Goal 4: demonstrate $>$10,000 ray-terrain intersections/second via C++ acceleration.
+
+Deliverables include an open-source Python/C++ simulator released on GitHub under MIT license with documented API, a validation dataset comparing simulated versus measured returns with full error analysis, and a poster presentation at the USC Summer Research Symposium.
+
+\sect{Timeline}
+The 14-week research period (approximately 400 hours at 28 hours/week) proceeds as follows. Weeks 1--3: extend existing ray-casting prototype, integrate terrain elevation data, and replicate documented literature scenarios for baseline comparison. Weeks 4--7: implement configurable radar parameters matching our X-band radar specifications, develop scenario editor and visualization tools, establish unit test suite. Weeks 8--11: implement validation framework, process 4--5 real radar scenarios from offshore data, compute error metrics and sensitivity analysis across terrain types. Weeks 12--14: C++ acceleration of critical path, comprehensive documentation, and symposium presentation preparation.
+
+\sect{NASA Relevance} This research directly supports NASA Aeronautics Research Mission Directorate (ARMD) Strategic Thrust~6: Assured Autonomy for Aviation Transformation, providing simulation infrastructure to validate detect-and-avoid algorithms for UAS operations prior to flight testing. The project aligns with NASA Space Technology Mission Directorate (STMD) Technology Taxonomy areas TX08 (Sensors and Instruments), TX10 (Autonomous Systems), and TX11 (Software, Modeling, Simulation). These terrain sensing methodologies transfer directly to lunar navigation under the Artemis program, where vehicles require autonomous operation in GPS-denied environments. The Mars 2020 TRN success proves that rigorous simulation validation enables assured autonomy -- this project makes that validation capability accessible to the broader research community.
+
+\bibliographystyle{ieeetr}
+\begin{thebibliography}{99}
+\bibitem{chen2023mars} S.~Chen \textit{et al.}, ``Mars 2020 Lander Vision System performance,'' \textit{J.\ Field Robotics}, 2023.
+\bibitem{bruzzone2016trn} L.~Bruzzone \textit{et al.}, ``Real-time TRN field testing at Mars analog sites,'' \textit{AIAA GNC}, 2016.
+\bibitem{meyer2024} M.~Meyer \textit{et al.}, ``mmWave radar modeling methods,'' \textit{Sensors}, 24(11), 2024.
+\bibitem{muckenhuber2023} S.~Muckenhuber \textit{et al.}, ``Automotive radar sensor simulation,'' \textit{Sensors}, 23(6), 2023.
+\bibitem{holder2018} M.~Holder \textit{et al.}, ``Radar sensor modeling challenges,'' \textit{IEEE IV Symp.}, 2018.
+\bibitem{elster2024dvm} L.~Elster \textit{et al.}, ``Double validation metric for radar sensor models,'' \textit{Auto.\ Engine Tech.}, 2024.
+\bibitem{khawaja2025uav} W.~Khawaja \textit{et al.}, ``Survey on UAV detection using radar,'' \textit{IEEE Comm.\ Surveys}, 2025.
+\bibitem{wu2022uav} Z.~Wu \textit{et al.}, ``UAV detection in low altitude clutter,'' \textit{IET Signal Proc.}, 2022.
+\bibitem{mock2024radarays} A.~Mock \textit{et al.}, ``RadaRays: Real-time FMCW radar simulation,'' \textit{IEEE RA-L}, 2024.
+\bibitem{bialer2024radsimreal} O.~Bialer \textit{et al.}, ``RadSimReal: Bridging synthetic and real data,'' \textit{CVPR}, 2024.
+\bibitem{simard2024dem} M.~Simard \textit{et al.}, ``Global evaluation of SRTM, NASADEM, GLO-30,'' \textit{JGR Biogeosci.}, 2024.
+\bibitem{oue2020crsim} M.~Oue \textit{et al.}, ``CR-SIM: Cloud-resolving radar simulator,'' \textit{Geosci.\ Model Dev.}, 13, 2020.
+\bibitem{rossler2022validation} Z.~Magosi \textit{et al.}, ``Evaluation methodology for radar models,'' \textit{Energies}, 15(7), 2022.
+\end{thebibliography}
+
+\end{document}
