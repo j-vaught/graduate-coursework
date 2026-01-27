@@ -1,95 +1,86 @@
 # Graduate Coursework
 
-This repository organizes graduate course materials, conference papers, research projects, and extracurricular work by semester and topic.
+This repository organizes graduate and undergraduate course materials, conference papers, research projects, and extracurricular work by semester.
 
 ## Repository Structure
 
 ```text
 .
-├── Daily_Gamecock/
-│   ├── Archive_writing/                      # Past articles
-│   ├── Article_Ideas/                        # Story pitches
-│   ├── Docs/                                 # Style guides and references
-│   └── Marketing/                            # Flyer campaigns with tracking codes
+├── Sp26/                                    # Current semester (Spring 2026)
+│   ├── CSCE763/                             # Digital Image Processing
+│   ├── CSCE775/                             # Deep Reinforcement Learning
+│   ├── EMCH792/                             # Optimal State Estimation
+│   ├── NASA_Space_Grant/                    # NASA SC Space Grant Fellowship
+│   │   ├── Altomare/
+│   │   ├── Cancilla/
+│   │   ├── Vaught/
+│   │   └── Young/
+│   └── Papers/
+│       ├── AIAA_SciTech/VRIFA/              # VARTM Flow Front Analysis
+│       ├── Devon_surf_current/              # Surface current analysis
+│       ├── ExposureCorrectionReport_Input4/ # Exposure correction report
+│       └── Paper_General/
 │
-├── Fall 2025/
-│   ├── Conf_Papers/
-│   │   ├── AIAA Papers/
-│   │   │   ├── Jackie_cue_to_slew/           # Dual-Camera Active Acquisition Paper
-│   │   │   ├── cancilla_submission_proposal.tex
-│   │   │   ├── kirk_submission_proposal.tex
-│   │   │   ├── mateo_submission_proposal.tex
-│   │   │   └── Entropy_gain_scheduler_draft1.tex
-│   │   ├── IEEE Papers/
-│   │   │   ├── Annotation_Literature_Review/
-│   │   │   ├── Echo_trails/
-│   │   │   ├── One-Click_DEAD/
-│   │   │   ├── SouthEast_NON_submission/
-│   │   │   └── Ideas.txt
-│   │   └── random figures/
-│   ├── EMCH 501/                             # Engineering Analysis 1
-│   │   ├── HW1/
-│   │   ├── HW2/
-│   │   ├── HW3/
-│   │   ├── HW4/
-│   │   └── Final_Project/
-│   └── EMCH_721/                             # Aeroelasticity
-│       ├── HW1/
-│       ├── HW2/
-│       ├── HW3/
-│       └── Exam/
+├── Prior_Semesters/
+│   ├── Fa25/                                # Fall 2025
+│   │   ├── Conf_Papers/                     # AIAA & IEEE conference papers
+│   │   ├── EMCH501/                         # Engineering Analysis 1
+│   │   ├── EMCH721/                         # Aeroelasticity
+│   │   └── NSF_Submission/                  # NSF fellowship application
+│   ├── Sp25/                                # Spring 2025
+│   │   ├── AFAM200, HIST108, MUSC113
+│   │   ├── EMCH428/                         # Capstone Design
+│   │   └── Mechatronics_24/
+│   ├── Fa24/                                # Fall 2024
+│   │   ├── ELCT403, EMCH362, EMCH367, EMCH371
+│   ├── Sp24/                                # Spring 2024
+│   │   ├── ELCT562, EMCH354
+│   ├── Fa23/                                # Fall 2023
+│   │   ├── CSCE350, ELCT302, ELCT331, ELCT432
+│   │   ├── EMCH360, MATH374
+│   ├── Sp23/                                # Spring 2023
+│   │   ├── CSCE240, CSCE313, ELCT321, ELCT371
+│   ├── Fa22/                                # Fall 2022
+│   │   ├── CSCE190, CSCE212, CSCE215
+│   │   ├── ELCT201, ELCT222
+│   │   ├── EMCH290_TA, EMCH332, EMCH361, EMCH368
+│   ├── Sp22/                                # Spring 2022
+│   │   ├── CSCE211, ELCT221, ELCT361, ELCT363
+│   │   ├── EMCH308, EMCH327
+│   └── Fa21/                                # Fall 2021
+│       ├── EMCH201, EMCH260, EMCH290, EMCH310, EMCH380
 │
 ├── Research/
-│   ├── beamer/                               # LaTeX presentation slides
-│   └── *.md                                  # Agentic coding tools research
+│   └── beamer/                              # LaTeX presentation templates
 │
-└── Spring 2026/
-    ├── Papers/
-    │   ├── AIAA_SciTech/
-    │   │   └── VRIFA/                        # VARTM Flow Front Analysis
-    │   └── Devon_surf_current/               # Surface current analysis paper
-    ├── CSCE763/                              # Digital Image Processing
-    ├── CSCE775/                              # Deep Reinforcement Learning
-    ├── EMCH792/                              # Optimal State Estimation
-    └── NASA_Space_Grant/                     # NASA SC Space Grant Fellowship
-        ├── Altomare/
-        ├── Cancilla/
-        ├── Vaught/
-        └── Young/
+└── Daily_Gamecock/
+    ├── Archive_writing/                     # Past articles
+    ├── Article_Ideas/                       # Story pitches
+    ├── Docs/                                # Style guides and references
+    └── Marketing/                           # Flyer campaigns with tracking codes
 ```
 
-## Key Projects
+## Current Semester -- Spring 2026
 
-### Dual-Camera Active Acquisition (`Jackie_cue_to_slew/`)
-Research paper on automated small-object dataset construction using an active dual-camera system with PTZ (Pan-Tilt-Zoom) control. Submitted to AIAA Southeast Regional Conference.
+| Course   | Title                        |
+|----------|------------------------------|
+| CSCE 763 | Digital Image Processing     |
+| CSCE 775 | Deep Reinforcement Learning  |
+| EMCH 792 | Optimal State Estimation     |
 
-**Main Files:**
-- `paper_AIAA.pdf` - AIAA conference format (final)
-- `paper.pdf` - IEEE format
-- `draft_introduction.md` - Introduction with verified citations and DOI links
-- `Feedback_intro_v1.md` - Peer review feedback from multiple perspectives
+### Active Projects
 
-### NASA Space Grant Fellowship (`NASA_Space_Grant/`)
-Research team materials for the South Carolina NASA Space Grant Consortium fellowship program. Contains individual researcher folders and shared templates.
+- **NASA Space Grant Fellowship** -- Research team materials for the SC NASA Space Grant Consortium fellowship program.
+- **AIAA SciTech / VRIFA** -- VARTM resin infusion flow front analysis paper.
+- **Exposure Correction Report** -- Image exposure correction study.
 
-### Daily Gamecock Marketing (`Daily_Gamecock/Marketing/`)
-Campus marketing flyer campaigns for the student newspaper. Includes a reference code schema for tracking distribution across campus locations.
+## Tools and Technologies
 
-### Course Descriptions
-
-- **EMCH 501**: Engineering Analysis 1 - Advanced mathematical methods for engineering applications
-- **EMCH_721**: Aeroelasticity - Study of interaction between aerodynamic forces and structural flexibility
-- **CSCE763**: Digital Image Processing (Spring 2026)
-- **CSCE775**: Deep Reinforcement Learning (Spring 2026)
-- **EMCH792**: Optimal State Estimation (Spring 2026)
-
-## Tools & Technologies
-
-- **LaTeX**: Primary documentation format with custom AIAA/IEEE templates
-- **TikZ/PGF**: Technical diagrams and schematics
-- **MATLAB**: Numerical simulations and analysis
-- **Python**: Data processing and machine learning
-- **Git**: Version control for all coursework
+- **LaTeX** -- Primary documentation format with AIAA/IEEE templates
+- **TikZ/PGF** -- Technical diagrams and schematics
+- **MATLAB** -- Numerical simulations and analysis
+- **Python** -- Data processing and machine learning
+- **Git** -- Version control for all coursework
 
 ## Author
 
