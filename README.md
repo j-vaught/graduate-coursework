@@ -1,11 +1,17 @@
 # Graduate Coursework
 
-This repository organizes graduate course materials, conference papers, and research projects by semester and topic.
+This repository organizes graduate course materials, conference papers, research projects, and extracurricular work by semester and topic.
 
 ## Repository Structure
 
 ```text
 .
+├── Daily_Gamecock/
+│   ├── Archive_writing/                      # Past articles
+│   ├── Article_Ideas/                        # Story pitches
+│   ├── Docs/                                 # Style guides and references
+│   └── Marketing/                            # Flyer campaigns with tracking codes
+│
 ├── Fall 2025/
 │   ├── Conf_Papers/
 │   │   ├── AIAA Papers/
@@ -32,6 +38,11 @@ This repository organizes graduate course materials, conference papers, and rese
 │       ├── HW2/
 │       ├── HW3/
 │       └── Exam/
+│
+├── Research/
+│   ├── beamer/                               # LaTeX presentation slides
+│   └── *.md                                  # Agentic coding tools research
+│
 └── Spring 2026/
     ├── Papers/
     │   ├── AIAA_SciTech/
@@ -39,8 +50,12 @@ This repository organizes graduate course materials, conference papers, and rese
     │   └── Devon_surf_current/               # Surface current analysis paper
     ├── CSCE763/                              # Digital Image Processing
     ├── CSCE775/                              # Deep Reinforcement Learning
-    └── EMCH792/                              # Optimal State Estimation
-
+    ├── EMCH792/                              # Optimal State Estimation
+    └── NASA_Space_Grant/                     # NASA SC Space Grant Fellowship
+        ├── Altomare/
+        ├── Cancilla/
+        ├── Vaught/
+        └── Young/
 ```
 
 ## Key Projects
@@ -53,6 +68,12 @@ Research paper on automated small-object dataset construction using an active du
 - `paper.pdf` - IEEE format
 - `draft_introduction.md` - Introduction with verified citations and DOI links
 - `Feedback_intro_v1.md` - Peer review feedback from multiple perspectives
+
+### NASA Space Grant Fellowship (`NASA_Space_Grant/`)
+Research team materials for the South Carolina NASA Space Grant Consortium fellowship program. Contains individual researcher folders and shared templates.
+
+### Daily Gamecock Marketing (`Daily_Gamecock/Marketing/`)
+Campus marketing flyer campaigns for the student newspaper. Includes a reference code schema for tracking distribution across campus locations.
 
 ### Course Descriptions
 
@@ -72,10 +93,10 @@ Research paper on automated small-object dataset construction using an active du
 
 ## Author
 
-JC Vaught  
-Graduate Student, Department of Mechanical Engineering  
+J.C. Vaught
+Graduate Student, Department of Mechanical Engineering
 University of South Carolina
 
 ---
 
-*Last updated: December 2025*
+*Last updated: January 2026*
