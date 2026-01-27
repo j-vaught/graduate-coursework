@@ -1,0 +1,157 @@
+\documentclass{article}
+\usepackage{geometry} % Required for customizing margins
+\geometry{margin=1in} % Sets 1-inch margins on all sides
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{titlesec}  % For customizing section/subsection titles
+
+% Custom format for sections and subsections
+\titleformat{\section}[block]{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}[block]{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+% Page layout settings
+\geometry{
+    top=1.0in,
+    bottom=1.0in,
+    left=1.0in,
+    right=1.0in
+}
+
+\begin{document}
+
+% Horizontal line
+\hrule
+\vspace{0.2cm}
+
+% Centered title
+\begin{center}
+    \LARGE \textbf{CSCE 350} \\
+    \Large Data Structures and Algorithms \\
+    \large HW \#1
+\end{center}
+
+% Horizontal line
+\hrule
+\vspace{0.2cm}
+
+% Author and semester info
+\begin{center}
+    \textbf{Author:} Jacob Vaught \\
+    \vspace{0.2cm}
+    \textbf{Semester:} Fall 2023 \\
+\end{center}
+
+% Another horizontal line
+\hrule
+\vspace{0.5cm}
+
+\newpage
+\section*{Problem \#1}
+\newcommand{\drawstack}[2]{%
+  \begin{minipage}[b]{0.1\textwidth}
+    \centering
+    \begin{tikzpicture}[baseline={(current bounding box.south)}]
+      \ifx&#1&
+        \draw (0,0) rectangle ++(1,1);
+        \node at (0.5,0.5) {null};
+      \else
+        \foreach \x [count=\xi] in {#1}
+        {
+          \draw (0,\xi-1) rectangle ++(1,1);
+          \node at (0.5,\xi-0.5) {\x};
+        }
+      \fi
+    \end{tikzpicture} \\
+    #2
+  \end{minipage}%
+  \vspace{0.05cm}% <-- Adjust this value to change vertical spacing
+}
+
+Assume you have an empty stack, a sequence of operations are
+performed on it as shown below. Show all intermediate steps and the final stack.
+\newline Operations: push(a), pop(), push(b), push(c), pop, push(d), pop, push(e), pop, pop
+\newline \newline
+\noindent
+\drawstack{}{Initial Stack}
+\drawstack{a}{After push(a)}
+\drawstack{}{After pop()}
+\drawstack{b}{After push(b)}
+\drawstack{b,c}{After push(c)}
+\drawstack{b}{After pop()}
+\drawstack{b,d}{After push(d)}
+\drawstack{b}{After pop()}
+\drawstack{b,e}{After push(e)}
+\drawstack{b}{After pop()}
+\drawstack{}{Final Stack}
+
+\newpage
+\section*{Problem \#2}
+\newcommand{\drawqueue}[2]{%
+  \begin{minipage}[b]{0.25\textwidth}
+    \centering
+    \begin{tikzpicture}[baseline={(current bounding box.south)}]
+      \ifx&#1&
+        \draw (0,0) circle [radius=0.5];
+        \node at (0,0) {0};
+      \else
+        \foreach \x [count=\xi] in {#1}
+        {
+          \draw (\xi,0) circle [radius=0.5];
+          \node at (\xi,0) {\x};
+        }
+      \fi
+    \end{tikzpicture} \\
+    #2
+  \end{minipage}%
+  \vspace{0.05cm}% <-- Adjust this value to change vertical spacing
+}
+
+
+
+Assume you have an empty queue, and a sequence of operations are performed on it.
+\newline\newline
+\noindent
+\drawqueue{}{Initial Queue}
+\drawqueue{a}{After enqueue(a)}
+\drawqueue{a,b}{After enqueue(b)}
+\drawqueue{b}{After dequeue}
+\drawqueue{b,c}{After enqueue(c)}
+\drawqueue{b,c,d}{After enqueue(d)}
+\drawqueue{b,c,d,e}{After enqueue(e)}
+\drawqueue{c,d,e}{After dequeue}
+\drawqueue{d,e}{After dequeue}
+\drawqueue{d,e,f}{After enqueue(f)}
+
+\newpage
+\section*{Question 3}
+
+\subsection*{Solution Description}
+For solving the locker toggling problem, I followed my preferred development method: I initially implemented the algorithm in Python, which is my go-to language for prototyping. Once I verified that the algorithm worked as intended, I proceeded to convert it into C++. The following C++ code snippet illustrates the core logic:
+
+\begin{lstlisting}[language=C++, basicstyle=\ttfamily]
+std::vector<std::string> lockers(n + 1, "closed");
+for(int i = 1; i <= r; ++i) {
+    for(int j = i; j <= n; j += i) {
+        if(lockers[j] == "closed") {
+            lockers[j] = "open";
+        } else {
+            lockers[j] = "closed";
+        }
+    }
+}
+\end{lstlisting}
+This C++ implementation uses a vector of strings to track each locker's status, as either 'open' or 'closed'. The two nested for-loops are responsible for the toggling operation according to the defined rules.
+
+\subsection*{Challenges and Solutions}
+The initial challenge was in deciding the most efficient way to toggle the locker status. Initially, I thought about using integers (0 for 'closed' and 1 for 'open'), but I opted for strings for better readability and code maintenance. Since I first implemented the solution in Python, transitioning to C++ was rather smooth, and any challenges in the logic were easily tackled using conditional statements, as you can see in the above code snippet.
+
+\subsection*{Special Compilation Instructions}
+To compile the C++ code, first save it as \texttt{LockerDoors\_Vaught\_Jacob.cpp}. Then, use the following shell commands:
+
+\begin{verbatim}
+g++ LockerDoors_Vaught_Jacob.cpp -o LockerDoors_Vaught_Jacob
+./LockerDoors_Vaught_Jacob
+\end{verbatim}
+Executing these commands will create an executable named \texttt{LockerDoors\_Vaught\_Jacob}. Running this executable will prompt the user to input the number of lockers and the number of passes. The program will then display the final status of each locker.
+
+\end{document}

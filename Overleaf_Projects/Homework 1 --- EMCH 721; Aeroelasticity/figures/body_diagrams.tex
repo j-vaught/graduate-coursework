@@ -1,0 +1,119 @@
+% This file contains only the TikZ picture code.
+% It can be included in any main LaTeX document.
+
+\begin{tikzpicture}
+
+% Third diagram (shifted right by another 9 units to avoid overlap)
+    \begin{scope}[shift={(0,6)}]
+        \tikzset{
+            offset_line_vert/.style={thin, dashed, gray!70}, % Vertical dashed lines
+            offset_arrow/.style={<->, thick, black},       % Double-headed arrows for offsets
+            label_text/.style={font=\small, align=left},
+        }
+        % --- Define Coordinates for reference points ---
+        \coordinate (LE) at (0.2,0);
+        \coordinate (TE) at (7,0);
+        % Points C and P along the chord line
+        \coordinate (C_ref) at ($(LE)!0.45!(TE)$);
+        \coordinate (P_ref) at ($(LE)!0.65!(TE)$);
+        \coordinate (Q_ref) at ($(LE)!0.25!(TE)$);
+
+        % --- Horizontal reference lines ---
+        \draw[black, thin] (-0.5, 1.3) -- (7.5, 1.3); % Top line
+
+        % --- Offset Labels ---
+        \node[label_text, anchor=west] at (P_ref |- 0, 2.1) {aerodynamic offset};
+        \node[label_text, anchor=west] at (P_ref |- 0, 1.8) {static offset};
+
+        % --- x_QP Measurement ---
+        % Vertical dashed lines from Q_ref and P_ref to the top measurement line
+        \draw[offset_line_vert] (Q_ref |- 0, -4.5) -- (Q_ref |- 0, 2.5);
+        \draw[offset_line_vert] (P_ref |- 0, -4.2) -- (P_ref |- 0, 2.5);
+        % Double-headed arrow for x_QP
+        \draw[offset_arrow] (Q_ref |- 0, 2.1) -- node[above, font=\small] {$x_{QP}$} (P_ref |- 0, 2.1);
+
+        % --- x_CP Measurement ---
+        % Vertical dashed lines from C_ref to the lower measurement line
+        \draw[offset_line_vert] (C_ref |- 0, -4.2) -- (C_ref |- 0, 2.1);
+        % Double-headed arrow for x_CP
+        \draw[offset_arrow] (C_ref |- 0, 1.8) -- node[below, font=\small] {$x_{CP}$} (P_ref |- 0, 1.8);
+    \end{scope}
+    % First diagram (left position)
+    \begin{scope}[shift={(0,2)}]
+        \tikzset{
+            foil/.style={thick, fill=blue!5!white, draw=black},
+            accel_arrow/.style={-Latex, very thick, blue!80!black},
+            label_text/.style={font=\sffamily\small, align=left},
+            point/.style={circle, fill=black, inner sep=1.5pt},
+        }
+        % --- Define Coordinates ---
+        \coordinate (LE) at (0.2,0);
+        \coordinate (TE) at (7,0);
+        \coordinate (TopMid) at (0.8, 0.6);
+        \coordinate (BottomMid) at (0.8, -0.6);
+
+        % Points Q, C, and P along the chord line
+        \coordinate (Q) at ($(LE)!0.25!(TE)$);
+        \coordinate (C) at ($(LE)!0.45!(TE)$);
+        \coordinate (P) at ($(LE)!0.65!(TE)$);
+
+        % --- Draw the Airfoil and Points ---
+        \draw[foil] (TE) -- (BottomMid) arc (270:90:0.6) -- cycle;
+
+        % Draw points Q, C, and P
+        \node[point, label=right:$Q$] at (Q) {};
+        \node[point, label=right:$C$] at (C) {};
+        \node[point, label=right:$P$] at (P) {};
+
+        % --- Draw Accelerations ---
+        \draw[accel_arrow] (C) -- ($(C)+(0,-1.2)$) node[right=2pt] {$\ddot{u}_y = \ddot{h} - x_{CP} \ddot{\theta}$};
+
+        % Angular acceleration (theta_dot_dot) around P, now dashed and reversed
+        % Draws a shorter arc
+        \draw[accel_arrow, dashed] ($(P)+({-0.7*cos(45)},{0.7*sin(45)})$) arc (150:20:0.7) node[midway, above] {$\ddot{\theta}$};
+
+    \end{scope}
+
+    % Second diagram (shifted right by 9 units to avoid overlap)
+    \begin{scope}[shift={(0,5)}]
+        \tikzset{
+            foil/.style={thick, fill=blue!5!white, draw=black},
+            force_arrow/.style={-Latex, very thick, black},
+            accel_arrow/.style={-Latex, very thick, black, dashed},
+            label_text/.style={font=\sffamily\small, align=left},
+            point/.style={circle, fill=black, inner sep=1.5pt},
+        }
+        % --- Define Coordinates ---
+        \coordinate (LE) at (0.2,0);
+        \coordinate (TE) at (7,0);
+        \coordinate (TopMid) at (0.8, 0.6);
+        \coordinate (BottomMid) at (0.8, -0.6);
+
+        % Points Q, C, and P along the chord line
+        \coordinate (Q) at ($(LE)!0.25!(TE)$);
+        \coordinate (C) at ($(LE)!0.45!(TE)$);
+        \coordinate (P) at ($(LE)!0.65!(TE)$);
+
+        % --- Draw the Airfoil and Points ---
+        \draw[foil] (TE) -- (BottomMid) arc (270:90:0.6) -- cycle;
+
+        % Draw points Q, C, and P
+        \node[point, label=right:$Q$] at (Q) {};
+        \node[point, label=right:$C$] at (C) {};
+        \node[point, label=right:$P$] at (P) {};
+
+        % --- Draw Forces and Accelerations ---
+
+        % Lift Force (L) at Q
+        \draw[force_arrow] (Q) -- ($(Q)+(0,1.5)$) node[right] {$L$};
+
+        % Vertical Force (K_h*h) at P, with label at the bottom
+        \draw[force_arrow] ($(P)+(0,-1.5)$) node[left] {$K_h h$} -- ($(P)-(0,0.1)$);
+
+        % Acceleration (h_dot_dot) at C, pointing DOWN
+        \draw[accel_arrow] ($(C)+(-0.3,0)$)  -- ($(C)+(-0.3,-1.2)$) node[left] {$\ddot{h}$};
+        
+        \draw[force_arrow] ($(P)+({0.65},{0.5*sin(45)})$) arc (20:150:0.7) node[midway, above] {$K_\theta \theta$};
+    \end{scope}
+
+\end{tikzpicture}

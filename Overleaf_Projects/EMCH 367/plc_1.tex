@@ -1,0 +1,214 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\geometry{margin=1in}
+
+\title{Implementation of an Off-Dominant Holding Function Using CLICK PLC: A Two-Rung Approach}
+\author{Your Name}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report presents the development and implementation of an Off-Dominant Holding function using the CLICK C0-10DD2E-D Programmable Logic Controller (PLC). The system employs a Normally Open (NO) pushbutton to initiate the operation and a Normally Closed (NC) pushbutton to terminate it. By utilizing a two-rung ladder logic method, the program ensures reliable control with prioritized safety features. The report includes an introduction to PLCs, a comparison with microcontrollers like Arduino and Raspberry Pi, detailed methodology, comprehensive testing results, and discussions on potential future enhancements.
+\end{abstract}
+
+\tableofcontents
+
+\section{Introduction}
+
+Programmable Logic Controllers (PLCs) have become indispensable in industrial automation, providing robust and reliable control over machinery and processes. Unlike general-purpose microcontrollers such as Arduino or Raspberry Pi, PLCs are specifically engineered to withstand harsh industrial environments, ensuring consistent performance and safety. This report focuses on implementing an Off-Dominant Holding function using the CLICK C0-10DD2E-D PLC, leveraging ladder logic programming to control an output device based on inputs from two pushbuttons. The objective is to demonstrate a two-rung ladder logic approach that ensures the Stop command has precedence over the Start command, thereby enhancing system safety and reliability.
+
+\section{Background}
+
+\subsection{Programmable Logic Controllers (PLCs)}
+
+PLCs are specialized digital computers designed for real-time control of industrial processes. They are favored in manufacturing and automation due to their durability, reliability, and ability to operate continuously without failure. PLCs are equipped with multiple input and output (I/O) modules, enabling them to interface seamlessly with various sensors, actuators, and other control devices. The inherent robustness of PLCs allows them to function effectively in environments with significant electrical noise, temperature fluctuations, and mechanical vibrations.
+
+\subsection{Comparison with Arduino and Raspberry Pi}
+
+While Arduino and Raspberry Pi are popular choices for hobbyist and educational projects, they lack the industrial-grade features that PLCs offer. Arduino is excellent for simple, small-scale projects but lacks the processing power and I/O capabilities required for complex industrial applications. Raspberry Pi, on the other hand, provides greater computational power and networking capabilities but still falls short in terms of reliability and real-time performance necessary for industrial environments. PLCs, with their deterministic timing, extensive I/O support, and compliance with safety standards, present a superior solution for industrial automation tasks.
+
+\subsection{Ladder Logic}
+
+Ladder logic is a graphical programming language that visually resembles electrical relay circuits. It is the most widely used language for PLC programming due to its intuitive nature, especially for those with a background in electrical engineering. Ladder logic consists of rungs, each representing a specific control operation. These rungs are scanned sequentially by the PLC to determine the state of outputs based on the current state of inputs. The simplicity and clarity of ladder logic make it ideal for designing and troubleshooting control systems in industrial settings.
+
+\section{Methodology}
+
+\subsection{System Overview}
+
+The system under consideration involves controlling an output device (such as a motor or LED) using two pushbuttons:
+
+\begin{itemize}
+    \item \textbf{X1 (Start Button)}: A Normally Open (NO) pushbutton connected to input X1.
+    \item \textbf{X2 (Stop Button)}: A Normally Closed (NC) pushbutton connected to input X2.
+    \item \textbf{Y1 (Output)}: The output device to be controlled.
+\end{itemize}
+
+The primary objective is to design a control logic where pressing the Start button (\textbf{X1}) turns the output (\textbf{Y1}) ON, and pressing the Stop button (\textbf{X2}) turns the output OFF. Importantly, the Stop button must have priority over the Start button, ensuring that if both are pressed simultaneously, the output remains OFF.
+
+\subsection{Hardware Setup}
+
+The hardware configuration involves connecting the pushbuttons and the output device to the PLC:
+
+\begin{itemize}
+    \item The NO Start button (\textbf{X1}) is wired to input terminal \textbf{X1}.
+    \item The NC Stop button (\textbf{X2}) is wired to input terminal \textbf{X2}.
+    \item The output device is connected to output terminal \textbf{Y1}.
+\end{itemize}
+
+An Ethernet cable is used to establish communication between the PLC and the programming computer, facilitating the download of the ladder logic program.
+
+\subsection{Ladder Logic Development}
+
+Given the constraints of not using parallel branches, a two-rung ladder logic approach is employed to achieve the desired Off-Dominant Holding function.
+
+\subsubsection{Rung 1: Setting the Output}
+
+The first rung is responsible for setting the output \textbf{Y1} when the Start button is pressed and the Stop button is not activated. This is achieved using a combination of NO and NC contacts.
+
+\begin{lstlisting}[language={}, frame=single]
+|----[ X1 ]----[ /X2 ]----( S Y1 )
+\end{lstlisting}
+
+\paragraph{Explanation:} 
+The NO contact \textbf{[ X1 ]} closes when the Start button is pressed, and the NC contact \textbf{[ /X2 ]} remains closed when the Stop button is not pressed. When both conditions are true, the Set instruction \textbf{( S Y1 )} is executed, turning the output \textbf{Y1} ON.
+
+\subsubsection{Rung 2: Resetting the Output}
+
+The second rung ensures that the output \textbf{Y1} is turned OFF when the Stop button is pressed, regardless of the state of the Start button.
+
+\begin{lstlisting}[language={}, frame=single]
+|----[ X2 ]----( R Y1 )
+\end{lstlisting}
+
+\paragraph{Explanation:} 
+The NO contact \textbf{[ X2 ]} opens when the Stop button is pressed, activating the Reset instruction \textbf{( R Y1 )}. This command turns the output \textbf{Y1} OFF, ensuring that the Stop command takes precedence over the Start command.
+
+\subsection{Programming in CLICK Software}
+
+The programming process involves the following steps:
+
+\begin{enumerate}
+    \item \textbf{Launching the Software:} Open the CLICK programming software on the computer connected to the PLC.
+    \item \textbf{Creating a New Project:} Initiate a new project and select the appropriate PLC model, \textbf{C0-10DD2E-D}.
+    \item \textbf{Configuring I/O:} Assign the physical inputs and outputs to their respective terminal designations within the software.
+    \item \textbf{Developing Ladder Logic:} Input the two rungs as detailed above, ensuring correct assignment of contacts and instructions.
+    \item \textbf{Validation:} Use the software's validation tools to check for any programming errors or inconsistencies.
+    \item \textbf{Downloading the Program:} Connect the PLC to the computer using the supplied Ethernet cable and transfer the program to the PLC.
+\end{enumerate}
+
+\section{Results and Discussion}
+
+\subsection{Truth Table}
+
+To elucidate the behavior of the system under various input conditions, the following truth table is constructed:
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|l|l|c|}
+\hline
+\textbf{X1 (Start)} & \textbf{X2 (Stop)} & \textbf{Condition} & \textbf{Action} & \textbf{Y1 (Output)} \\ \hline
+OFF                 & ON                 & Neither pressed    & No action       & OFF                  \\ \hline
+ON                  & ON                 & Start pressed      & Set Y1          & ON                   \\ \hline
+OFF                 & OFF                & Stop pressed       & Reset Y1        & OFF                  \\ \hline
+ON                  & OFF                & Both pressed       & Reset Y1        & OFF                  \\ \hline
+\end{tabular}
+\caption{Truth Table for the Off-Dominant Holding Function}
+\end{table}
+
+\subsection{Scenario Walk-Through}
+
+\subsubsection{Neither Start nor Stop Pressed}
+
+When both \textbf{X1} and \textbf{X2} are in their inactive states (\textbf{X1 OFF} and \textbf{X2 ON}), neither rung conditions are met. Consequently, no actions are taken, and the output \textbf{Y1} remains OFF.
+
+\subsubsection{Start Pressed, Stop Not Pressed}
+
+Pressing the Start button (\textbf{X1 ON}) while keeping the Stop button unpressed (\textbf{X2 ON}) satisfies the condition in Rung 1. The NO contact \textbf{[ X1 ]} closes, and the NC contact \textbf{[ /X2 ]} remains closed, triggering the Set instruction \textbf{( S Y1 )}. As a result, the output \textbf{Y1} is turned ON.
+
+\subsubsection{Stop Pressed}
+
+Activating the Stop button (\textbf{X2 OFF}) overrides any other input state. Regardless of whether the Start button is pressed or not, the condition in Rung 2 is met. The NO contact \textbf{[ X2 ]} closes upon pressing, activating the Reset instruction \textbf{( R Y1 )}, which turns the output \textbf{Y1} OFF. This ensures that the Stop command takes precedence, maintaining system safety.
+
+\subsubsection{Both Start and Stop Pressed}
+
+When both the Start and Stop buttons are pressed simultaneously (\textbf{X1 ON} and \textbf{X2 OFF}), both rungs are evaluated. However, Rung 2's Reset instruction takes effect after Rung 1's Set instruction due to the sequential scan order of the PLC. Consequently, \textbf{Y1} is reset to OFF, adhering to the Off-Dominant behavior where the Stop command supersedes the Start command.
+
+\subsection{Testing and Validation}
+
+After programming the PLC using the two-rung method, comprehensive testing was conducted to validate the system's functionality:
+
+\begin{enumerate}
+    \item \textbf{Test 1: Start Button Pressed Alone}
+    \begin{itemize}
+        \item Action: Pressed \textbf{X1} while keeping \textbf{X2} unpressed.
+        \item Expected Result: \textbf{Y1} turns ON.
+        \item Outcome: \textbf{Y1} successfully turned ON.
+    \end{itemize}
+    
+    \item \textbf{Test 2: Stop Button Pressed Alone}
+    \begin{itemize}
+        \item Action: Pressed \textbf{X2} while keeping \textbf{X1} unpressed.
+        \item Expected Result: \textbf{Y1} remains OFF.
+        \item Outcome: \textbf{Y1} remained OFF as expected.
+    \end{itemize}
+    
+    \item \textbf{Test 3: Both Start and Stop Buttons Pressed}
+    \begin{itemize}
+        \item Action: Pressed both \textbf{X1} and \textbf{X2} simultaneously.
+        \item Expected Result: \textbf{Y1} remains OFF due to Off-Dominant behavior.
+        \item Outcome: \textbf{Y1} remained OFF, confirming the desired behavior.
+    \end{itemize}
+    
+    \item \textbf{Test 4: Holding Function}
+    \begin{itemize}
+        \item Action: Pressed and released \textbf{X1} while ensuring \textbf{X2} is not pressed.
+        \item Expected Result: \textbf{Y1} remains ON without needing to continuously press \textbf{X1}.
+        \item Outcome: \textbf{Y1} remained ON, demonstrating the holding function's effectiveness.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Discussion}
+
+The two-rung ladder logic approach effectively implements the Off-Dominant Holding function. Rung 1 handles the initiation of the output based on the Start button while ensuring the Stop button is not pressed. Rung 2 enforces the priority of the Stop command by resetting the output regardless of other conditions. This separation of concerns not only enhances the clarity and maintainability of the program but also ensures that safety is uncompromised.
+
+Compared to the single-rung method, the two-rung approach avoids potential conflicts and complexities arising from handling multiple instructions within a single rung. By clearly delineating the Set and Reset operations, the program becomes more straightforward to debug and extend. Additionally, this method aligns well with PLC programming best practices, promoting modularity and scalability.
+
+\section{Conclusion and Future Work}
+
+\subsection{Conclusion}
+
+The implementation of an Off-Dominant Holding function using a two-rung ladder logic approach on the CLICK C0-10DD2E-D PLC proved to be successful and reliable. The system effectively controls an output device based on the states of a Start and Stop button, ensuring that the Stop command always takes precedence. This approach not only simplifies the ladder logic diagram but also enhances the system's safety and maintainability, making it well-suited for industrial automation applications.
+
+\subsection{Future Work}
+
+Future enhancements to this system could involve:
+
+\begin{enumerate}
+    \item \textbf{Integrating Additional Safety Features:} Incorporating emergency stop buttons, safety interlocks, and fault detection mechanisms to further enhance system safety.
+    
+    \item \textbf{Expanding Control Logic:} Adding more inputs and outputs to handle more complex control scenarios, such as multi-speed motors or automated sequencing of operations.
+    
+    \item \textbf{Implementing Timers and Counters:} Utilizing timers and counters to introduce delays, time-based operations, or count-based control actions.
+    
+    \item \textbf{Remote Monitoring and Control:} Enabling remote access and control of the PLC via network communication protocols, allowing for centralized monitoring and management.
+    
+    \item \textbf{User Interface Development:} Developing a user-friendly interface for operators to interact with the PLC system, providing real-time feedback and control capabilities.
+\end{enumerate}
+
+\section*{References}
+
+\begin{enumerate}
+    \item AutomationDirect. \textit{CLICK PLC User Manual}. Retrieved from \url{https://www.automationdirect.com}
+    \item Siemens AG. \textit{PLC Programming with Ladder Logic}.
+    \item Rockwell Automation. \textit{Introduction to PLCs and Ladder Logic}.
+\end{enumerate}
+
+\end{document}

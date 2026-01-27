@@ -1,0 +1,157 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[margin=1in]{geometry}
+
+\title{ELCT 562 PA9}
+\author{J. Vaught}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This document provides an analysis of a specific linear block code defined by a generator matrix and explains the process and results of simulating encoding and decoding operations, including error correction.
+
+\section{Code Specifications}
+The linear block code used in this simulation has the following properties:
+\begin{itemize}
+    \item Message Length ($k$): 11
+    \item Codeword Length ($n$): 15
+    \item Minimum Distance of the code ($d$): 3
+    \item Number of bits that can be corrected ($t$): 1
+    \item Systematic: Yes
+    \item Number of codewords in the received bits: 40
+\end{itemize}
+
+\section{Generator and Parity Check Matrix}
+The code is defined by the generator matrix $G$ and the parity check matrix $H$. The generator matrix $G$ is an $11 \times 15$ matrix, and the parity check matrix $H$, derived from $G$, is a $4 \times 15$ matrix:
+\[
+H = \left[ \begin{array}{ccccccccccccccc}
+    1 & 0 & 0 & 1 & 1 & 0 & 1 & 0 & 1 & 1 & 1 & 1 & 0 & 0 & 0 \\
+    1 & 1 & 0 & 1 & 0 & 1 & 1 & 1 & 1 & 0 & 0 & 0 & 1 & 0 & 0 \\
+    0 & 1 & 1 & 0 & 1 & 0 & 1 & 1 & 1 & 1 & 0 & 0 & 0 & 1 & 0 \\
+    0 & 0 & 1 & 1 & 0 & 1 & 0 & 1 & 1 & 1 & 1 & 0 & 0 & 0 & 1
+\end{array} \right]
+\]
+
+\section{Decoding and Error Correction}
+The decoding and error correction process is a critical part of the operation of linear block codes. This process involves the following key steps:
+
+\subsection{Syndrome Calculation}
+The first step in decoding received codewords is to calculate the syndrome. The syndrome is a vector that results from multiplying the received codeword vector by the transpose of the parity check matrix $H$:
+\[
+S = r \cdot H^T \mod 2
+\]
+where $r$ is the received codeword. The syndrome tells us whether there are errors in the received codeword (a non-zero syndrome indicates errors).
+
+\subsection{Error Detection}
+The syndrome $S$ is used to detect errors in the codeword. If $S$ is the zero vector, the codeword has either no errors or the errors are not detectable by the code. However, if $S$ is non-zero, it indicates that one or more errors have occurred in specific positions corresponding to the syndrome pattern.
+
+\subsection{Error Correction}
+Once an error has been detected (i.e., if the syndrome is non-zero), the next step is to correct the error. For single-bit error correction:
+\begin{enumerate}
+    \item For each bit position $j$ in the codeword $r$, create a test vector by flipping the $j$-th bit of $r$.
+    \item Calculate the syndrome of this test vector.
+    \item If the syndrome of the test vector is zero, the error has been located at bit $j$, and the test vector with the corrected bit is the correct codeword.
+\end{enumerate}
+This method assumes that there is only one error in the codeword. If the minimum distance of the code is greater than 3, more sophisticated techniques (not covered here) would be needed for multi-bit error correction.
+
+\subsection{Decoding the Corrected Codeword}
+After correcting any errors, the message part of the codeword can be extracted directly from the corrected codeword if the code is systematic. For a systematic code, the first $k$ bits of the codeword represent the original message.
+
+\subsection{Message Reconstruction}
+The final step is to convert the binary message into a human-readable format or into its original form, depending on the application. In this case, the binary message is converted to decimal numbers to represent the digits of pi:
+\begin{verbatim}
+3.14159265358979323846264338327950288419716939937510582
+\end{verbatim}
+
+\section{Appendix: Code}
+\begin{verbatim}
+clear;
+close all;
+clc;
+
+% Define the generator matrix G
+G = [
+    1 0 0 0 0 0 0 0 0 0 0 1 1 0 0;
+    0 1 0 0 0 0 0 0 0 0 0 0 1 1 0;
+    0 0 1 0 0 0 0 0 0 0 0 0 0 1 1;
+    0 0 0 1 0 0 0 0 0 0 0 1 1 0 1;
+    0 0 0 0 1 0 0 0 0 0 0 1 0 1 0;
+    0 0 0 0 0 1 0 0 0 0 0 0 1 0 1;
+    0 0 0 0 0 0 1 0 0 0 0 1 1 1 0;
+    0 0 0 0 0 0 0 1 0 0 0 0 1 1 1;
+    0 0 0 0 0 0 0 0 1 0 0 1 1 1 1;
+    0 0 0 0 0 0 0 0 0 1 0 1 0 1 1;
+    0 0 0 0 0 0 0 0 0 0 1 1 0 0 1
+];
+[k, n] = size(G);
+fprintf('1) Message Length: %d\n', k);
+fprintf('2) Codeword Length: %d\n', n);
+
+% Calculate the parity check matrix H
+p = n - k;
+H = [G(:, k+1:end)', eye(p)];
+
+% Check if the code is systematic
+isSystematic = all(all(G(:,1:k) == eye(k)));
+
+% Calculate minimum distance
+minDist = inf;
+for i = 1:2^k-1
+    message = de2bi(i, k, 'left-msb');
+    codeword = mod(message * G, 2);
+    weight = sum(codeword);
+    if weight > 0 && weight < minDist
+        minDist = weight;
+    end
+end
+fprintf('3) Minimum Distance of the code: %d\n', minDist);
+t = floor((minDist - 1) / 2);
+fprintf('4) Number of bits that can be corrected: %d\n', t);
+
+fprintf('5) Is the code systematic? %s\n', bool2str(isSystematic));
+% Load received bits
+load('receivedBits.mat'); % Assuming the variable inside is named receivedBits
+numCodewords = numel(receivedBits) / n;
+fprintf('6) Number of codewords in the received bits: %d\n', numCodewords);
+
+fprintf('7) Parity Check Matrix H:\n');
+disp(H);
+% Error correction process and decoding
+decodedMessages = [];
+for idx = 1:numCodewords
+    startBit = (idx - 1) * n + 1;
+    endBit = startBit + n - 1;
+    rcodeword = receivedBits(startBit:endBit);
+    syndrome = mod(rcodeword' * H', 2);
+    if any(syndrome)
+        for j = 1:n
+            testVector = rcodeword;
+            testVector(j) = mod(testVector(j) + 1, 2);
+            if all(mod(testVector' * H', 2) == 0)
+                rcodeword = testVector;
+                break;
+            end
+        end
+    end
+    message = rcodeword(1:k);
+    decodedMessages = [decodedMessages; message];
+end
+messageChars = char(bin2dec(reshape(char(decodedMessages(:) + '0'), 8, []).')).';
+fprintf('Decoded Messages: %s\n', messageChars);
+
+function str = bool2str(b)
+    if b
+        str = 'Yes';
+    else
+        str = 'No';
+    end
+end
+
+\end{verbatim}
+
+
+\end{document}

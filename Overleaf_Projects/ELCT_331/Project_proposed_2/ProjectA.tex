@@ -1,0 +1,194 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref} % Package for hyperlinks
+\usepackage[margin=1in]{geometry}
+
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+\lstset{
+    language=Matlab,
+    basicstyle=\fontfamily{pcr}\selectfont\small, % Changed to Courier New
+    keywordstyle=\color{blue},
+    commentstyle=\color{darkgreen},
+    morecomment=[l][\color{magenta}]{\#},
+    frame=none,
+    breaklines=true,
+    showspaces=false
+}
+
+\title{DC Motor Speed Control Using PID}
+\author{Electrical Engineering at USC}
+\date{Spring 2024}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+DC motors are ubiquitous in engineering applications due to their simplicity and ease of control. They are used in various applications ranging from household appliances to industrial machinery. Modeling DC motors is crucial for designing control systems that can accurately predict and manage their performance.
+
+\subsection{Derivation of the DC Motor Transfer Function}
+To control a DC motor accurately, we need to understand how it responds to voltage changes. This response is captured by the motor's transfer function, which we derive using the Laplace Transform—a method that simplifies the analysis of systems described by differential equations.
+
+A DC motor's behavior is governed by three fundamental equations:
+
+\begin{enumerate}
+    \item The \textbf{Voltage Equation} represents the electrical dynamics of the motor and is given by:
+    \begin{equation}
+    V(t) = L \frac{di(t)}{dt} + Ri(t) + K_b \omega(t)
+    \end{equation}
+    where \( V(t) \) is the input voltage, \( L \) is the inductance, \( R \) is the resistance, \( i(t) \) is the current, \( K_b \) is the back EMF constant, and \( \omega(t) \) is the angular velocity.
+    
+    \item The \textbf{Torque Equation} relates the electrical input to the mechanical output:
+    \begin{equation}
+    T(t) = K_t i(t)
+    \end{equation}
+    where \( T(t) \) is the generated torque and \( K_t \) is the torque constant.
+    
+    \item The \textbf{Motion Equation with Viscous Friction} describes how the generated torque affects the motor's rotation:
+    \begin{equation}
+    J \frac{d\omega(t)}{dt} = T(t) - B\omega(t)
+    \end{equation}
+    where \( J \) is the moment of inertia and \( B \) is the viscous friction coefficient.
+\end{enumerate}
+
+Applying the Laplace Transform to these equations and assuming zero initial conditions (since the motor starts from rest), we convert them into the s-domain (Laplace domain). The transformed equations are as follows:
+
+\begin{enumerate}
+    \item The transformed Voltage Equation becomes:
+    \begin{equation}
+    V(s) = LsI(s) + RI(s) + K_b \Omega(s)
+    \end{equation}
+    
+    \item The transformed Torque Equation is:
+    \begin{equation}
+    T(s) = K_t I(s)
+    \end{equation}
+    
+    \item The transformed Motion Equation is:
+    \begin{equation}
+    Js\Omega(s) = K_t I(s) - B\Omega(s)
+    \end{equation}
+\end{enumerate}
+
+Next, we eliminate \( I(s) \) from the equations by substituting the Torque Equation into the Motion Equation, resulting in:
+\begin{equation}
+Js\Omega(s) + B\Omega(s) = K_t I(s)
+\end{equation}
+
+Now, substituting \( I(s) \) from the Voltage Equation into the above equation, we get:
+\begin{equation}
+Js\Omega(s) + B\Omega(s) = K_t \left( \frac{V(s) - K_b \Omega(s)}{Ls + R} \right)
+\end{equation}
+
+To combine these terms into a single fraction on the left side, we need to get a common denominator for the terms involving \( \Omega(s) \):
+
+\begin{equation}
+\Omega(s) ((Js + B)(Ls + R) + K_t K_b) = K_t V(s)
+\end{equation}
+
+Divide both sides by the common denominator to solve for \( G(s) \):
+\begin{equation}
+G(s) = \frac{\Omega(s)}{V(s)} = \frac{K_t}{(Js + B)(Ls + R) + K_t K_b}
+\end{equation}
+
+This transfer function \( G(s) \) represents the mathematical model of our DC motor and allows us to predict how the motor's speed will change in response to any given voltage input. In the next section, you will use this transfer function to design a PID controller in MATLAB to achieve the desired motor speed characteristics.
+
+
+\section{Project Requirements}
+The objective of this project is to design and implement a PID controller in MATLAB to control the speed of a DC motor with the given parameters:
+
+\begin{itemize}
+    \item Inductance (\(L\)): \(320 \times 10^{-9}\) H
+    \item Resistance (\(R\)): \(3 \Omega\)
+    \item Torque constant (\(K_t\)): \(0.0085\) Nm/A
+    \item Back EMF constant (\(K_b\)): \(0.0085\) V/(rad/s)
+    \item Moment of inertia (\(J\)): \(1.35 \times 10^{-11}\) kg·m\(^2\)
+    \item Viscous friction coefficient (\(B\)): \(1.715 \times 10^{-5}\) Nm/(rad/s)
+\end{itemize}
+
+\subsection{Part 1: Step Input Response [30\%]}
+In this part of the project, you are required to configure the DC motor to achieve a specific operational speed in response to a step input. The criteria for this part are as follows:
+\begin{itemize}
+    \item The motor should reach and maintain a speed of \(9\) rad/s in response to a step input signal.
+    \item The PID controller must be tuned to ensure there is zero steady-state error.
+\end{itemize}
+This part of the project evaluates the controller's ability to bring the motor to a specific speed efficiently and accurately.
+
+\subsection{Part 2: Multi-Step Input [70\%]}
+The system's response to a multi-step input is as follows:
+\begin{itemize}
+    \item At time \(t=1\) s, speed changes from \(0\) rad/s to \(10\) rad/s.
+    \item At time \(t=10\) s, speed changes from \(10\) rad/s to \(20\) rad/s.
+    \item At time \(t=15\) s, speed changes from \(20\) rad/s to \(5\) rad/s.
+\end{itemize}
+The system should have no steady-state error and a settling time of \(2\) second for each step.
+\subsection{Part 3: 10\% Bonus Challenge}
+For an additional 10\% bonus, address both parts of the project using the same PID controller configuration. The requirements for the bonus challenge are:
+\begin{itemize}
+    \item Zero overshoot in the motor's response.
+    \item Zero steady-state error, ensuring the motor speed settles to the desired value.
+    \item A rise time of no more than 0.3 seconds, meaning the motor speed must reach the desired value within this time frame.
+\end{itemize}
+This bonus challenge tests the robustness and versatility of your PID controller design across different input scenarios.
+
+
+\section{Expected Outcomes}
+For both parts of the project, students are required to plot:
+\begin{itemize}
+    \item The system response
+    \item The desired system input
+    \item The controller output (voltage applied to the motor)
+    \item The error between the desired and actual motor output
+\end{itemize}
+
+\section{Submission Guidelines}
+Each student is required to compile and submit a comprehensive report covering the following aspects of the project:
+
+\begin{enumerate}
+    \item \textbf{Plots}: For each part of the project (excluding the bonus challenge), include either four separate plots or one overlaid plot that illustrates:
+    \begin{itemize}
+        \item The system response.
+        \item The desired system input.
+        \item The controller output (voltage applied to the motor).
+        \item The error between the desired and the actual output of the motor.
+    \end{itemize}
+    These plots are crucial for visualizing and understanding the system's performance under different conditions. \textit{*These plots will suffice if they show that the bonus challenge requirements were met.}
+
+    \item \textbf{Discussion of Results}: Provide a detailed analysis of the outcomes observed in each part of the project. Discuss how the system responded to the inputs, the effectiveness of the PID controller, and any discrepancies between expected and observed results.
+
+    \item \textbf{Explanation of MATLAB Code}: Include a thorough explanation of the MATLAB code developed for this project. Describe the purpose of each section of the code and how it contributes to the overall functionality of the controller.
+
+    \item \textbf{Complete MATLAB Code}: Ensure that the full MATLAB code used for the simulations is included in the report. The code should be well-documented and easy to understand.
+\end{enumerate}
+
+This comprehensive report will serve as a reflection of your understanding and application of control systems principles in a practical scenario. It should demonstrate not only your technical skills but also your ability to analyze and interpret the behavior of complex systems.
+
+\newpage
+\section{Starter MATLAB Code}
+\begin{lstlisting}[language=Matlab]
+% Define the system parameters
+L = 320e-9; R = 3; Kt = 0.0085; Kb = 0.0085; J = 1.35e-11; B = 1.715e-5;
+
+% Define your PID parameters here (Kp, Ki, Kd)
+Kp = ; Ki = ; Kd = ;
+
+% Define the s variable for transfer functions
+s = tf('s');
+
+% Define the transfer function G(s) of the motor
+G_motor = Kt / ((J*s + B)*(L*s + R) + Kt*Kb);
+
+% Define the PID controller
+PID = Kp + Ki/s + Kd*s;
+
+% Define the closed-loop system
+sys_cl = feedback(G_motor*PID, 1);
+
+% Perform the simulation with step input
+% Add your simulation and plotting code here
+\end{lstlisting}
+
+\end{document}
