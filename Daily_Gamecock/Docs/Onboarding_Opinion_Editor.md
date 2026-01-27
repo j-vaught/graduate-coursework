@@ -19,15 +19,110 @@ Start with **`Docs/DG_editor_training`** -- it covers editorial policy and train
 
 ---
 
-## 3. Standard Workflow
+## 3. Slack Channels
 
-### 3.1 Idea to Budget (Pre-editing)
+You should be added to the following channels:
+
+### Core Channels
+
+| Channel | Who's In It | Purpose |
+|---------|-------------|---------|
+| **tdg-opinion** | All opinion writers, managing editors | Main opinion section chat |
+| **tdg-opinionteam** | Managing editors, Editor-in-Chief, opinion leaders, Creative Director | Opinion leadership coordination |
+| **tdg-opinionmultimedia-20XX** | Artists, photographers, illustrators | Figures, illustrations, and visuals for the opinion section. Channel name updates yearly. |
+
+### Cross-Section Channels
+
+| Channel | Purpose |
+|---------|---------|
+| **tdg-artsopinion** | Arts & Culture leaders + Opinion leaders in one chat |
+| **tdg-newsopinion** | News leaders + Opinion leaders |
+| **tdg-sportsopinion** | Sports leaders + Opinion leaders |
+
+### Organization-Wide Channels
+
+| Channel | Who's In It | Purpose |
+|---------|-------------|---------|
+| **tdg-fullstaff** | Every member of The Daily Gamecock | General announcements |
+| **tdg-seniorstaff** | All section leaders/editors + beat writers (basically anyone who is paid) | Leadership coordination, contains the **Budget sheet** in bookmarks |
+| **#ready-for-editing** | All section leaders | Post here when a piece is ready for the next stage (e.g., copy editing) |
+
+---
+
+## 4. The Budget Sheet
+
+The Budget is a **Google Sheet** found in the **bookmarks** at the top of the **tdg-seniorstaff** channel.
+
+### Columns You Use
+
+| Column | Format / Notes |
+|--------|----------------|
+| **Story** | `(Opinion) Column: TITLE HERE` -- always prefix with your section |
+| **Author** | Writer's name |
+| **Status** | Current stage: `In writing`, `Up for section editors`, `Up for copy`, etc. |
+
+### Color Coding
+
+| Color | Meaning |
+|-------|---------|
+| **Yellow** | On schedule / standard |
+| **Red** | Pushed, delayed, or cancelled |
+
+### Scheduling
+
+Add articles **at least 7 days** before the target publication date to give Copy and Design enough lead time.
+
+See **Section 7.3 (Pushed Columns)** for delay/cancellation procedures.
+
+---
+
+## 5. CEO3 (SNworks) -- Article Management
+
+### Getting Started
+
+1. **Log in** to CEO3.
+2. Click **New** > **New Article** to create a piece.
+3. To find an existing article, use the **search bar** and type the article name.
+
+### Setting Up an Article
+
+- **Tag**: Set an `Opinion` tag.
+- **Author**: Set the writer as author.
+- **Status**: Set to match the current stage (mirrors the Budget sheet status).
+- **Abstract**: Click the Abstract field to set the **subheading**.
+- **Meta tab**:
+  - **Infobox** -- set pull quotes here.
+  - **Social media summary** -- set here as well.
+
+### Editing in CEO3
+
+| Action | How |
+|--------|-----|
+| **Add hyperlink** | Select text, then `Cmd+K` (Mac) or `Ctrl+K` (Windows) |
+| **Leave a comment for Copy** | Select text, click the **Comment** button, and write your note (e.g., "Source for this claim is in recording ABC") |
+| **Leave a comment for the writer** | Write **bold inline text** within the article body, or add a **bold paragraph**. Optionally sign with your initials (e.g., **-JC**). |
+| **Preview** | Click the **Preview** button at the top |
+
+### Saving & Checking In/Out
+
+| Action | What It Does |
+|--------|--------------|
+| **Save and Check In** | Saves the article and locks it (you're done editing for now) |
+| **Check Out** | Re-opens the article for further editing |
+
+Always **check in** before handing off to Copy.
+
+---
+
+## 6. Standard Workflow
+
+### 6.1 Idea to Budget (Pre-editing)
 
 1. **Idea surfaces** -- could come from a writer, from you, or from pitch meetings. Source doesn't matter.
-2. **Add to the Budget** -- In the **Senior Staff** Slack channel there is a shared Google Sheet with publication dates. Add the piece **at least 7 days out** from the target pub date to give Copy and Design enough lead time.
+2. **Add to the Budget** -- Add the piece to the Budget sheet in **tdg-seniorstaff** at least 7 days before target pub date.
 3. **Submit a Visuals Form** -- This is a workflow in the Senior Staff Slack channel. Ask the writer if they have any specific visual ideas or references before submitting.
 
-### 3.2 Editing (in CEO3)
+### 6.2 Editing (in CEO3)
 
 We assume the writer knows how to use CEO and has already uploaded their draft. Edit in this order of priority:
 
@@ -37,28 +132,44 @@ We assume the writer knows how to use CEO and has already uploaded their draft. 
 | **B** | **AP Style** | Ensure general AP Style compliance. Opinion pieces have some flexibility, but the basics should be followed. |
 | **C** | **Opinion consistency** | Watch for the thesis or opinion drifting mid-piece. If it shifts, clarify with the writer before proceeding. |
 | **D** | **Readability** (optional) | Ask yourself: would a person actually want to read this, or is it dry? Flag if needed, but this is not a hard requirement. |
-| **E** | **Add metadata** | Add: **subhead**, **social media summary**, and a **pull quote** (if applicable). Sometimes you will also need to add an **SEO headline** and **SEO summary**. |
+| **E** | **Add metadata** | Add: **subhead** (abstract), **social media summary** (Meta tab), and a **pull quote** in the Infobox (if applicable). Sometimes you will also need to add an **SEO headline** and **SEO summary**. |
 
-### 3.3 Handoff to Copy
+### 6.3 Giving Feedback to Writers
+
+You will typically give feedback **twice**:
+
+1. **First pass** -- Write inline comments in CEO (bold text, optionally signed with initials) or do full rewrites of problem sections. Reference `Docs/DG_editor_training` for comment formatting.
+2. **Second pass** -- Check in the article and message the writer about remaining changes.
+
+**General philosophy**: Do as much of the work yourself as possible. This gives you more control, speeds up the process, and reduces the burden on writers.
+
+### 6.4 Handoff to Copy
 
 1. **Check in** the piece in CEO (save and exit).
 2. **Update the Budget** -- Change the article's status in the Google Sheet.
-3. **Notify Copy** -- Post in the **#ready-for-editing** Slack channel, e.g.:
+3. **Notify Copy** -- Post in **#ready-for-editing**, e.g.:
    > Column: *Article Title* is ready for @copy
-4. **Wait** for feedback from Copy and Design before publication.
+4. **Wait** for feedback from Copy and Design.
+
+### 6.5 After Copy Review
+
+- Copy will reach out to **you and the writer** if they have additional concerns.
+- Fix as many issues as you can yourself so the writer has less to deal with. The split is at your discretion.
+- Often Copy will not require another review from you if the piece is clean.
+- If you need to make **last-minute changes**, let Copy know ASAP so you can coordinate.
 
 ---
 
-## 4. Edge Cases
+## 7. Edge Cases
 
-### 4.1 Guest Columns
+### 7.1 Guest Columns
 
 - **Less strict** overall: relaxed AP Style enforcement, less pressure on opinion consistency and readability.
 - **Factuality** still applies fully -- verify sources the same way.
 - **Shorter timeline** for visuals, but you still must submit a Visuals Form. Guest columns use a **standardized image** (no custom illustration).
 - Pull quote is always **optional**.
 
-### 4.2 Fast-Track Columns
+### 7.2 Fast-Track Columns
 
 For breaking or time-sensitive events (e.g., a death, mass shooting):
 
@@ -66,7 +177,7 @@ For breaking or time-sensitive events (e.g., a death, mass shooting):
 - Expect **no illustrations** -- only simple images.
 - Visuals Form may not be needed since coordination will happen by word of mouth.
 
-### 4.3 Pushed (Delayed) Columns
+### 7.3 Pushed (Delayed) Columns
 
 If a piece needs to be delayed:
 
