@@ -1,0 +1,79 @@
+// Copyright 2023 Jacob Christopher Vaught
+// Copyright 2023 Madelyn Leire Hines [Heinz]
+// Project 5: Rotating an image utilizing C code and the Intel Quartus Platorm with a Altera DE2-115 Board
+
+#include "sys/alt_stdio.h"
+#include "alt_types.h"
+#include <math.h>
+#include <string.h>
+#include <altera_up_avalon_video_pixel_buffer_dma.h>
+#include "system.h"
+#include <sys/alt_alarm.h>
+#include "myfile.h"
+#include "myfile.c" //comment out if reference error to "myimage" is present
+
+const int ROWS = 240;
+const int COLS = 320;
+const double PI = 3.14159265358979323846;
+const int HALF_ROWS = 120;
+const int HALF_COLS = 160;
+double theta, thetaCOS, thetaSIN, original_row, original_col;
+int shifted_row, shifted_col;
+alt_up_pixel_buffer_dma_dev *pixel_buffer;
+
+void frame_function() {
+  for (int k = 0; k < ROWS * COLS; k++) {
+	int i = k / COLS;
+	int j = k % COLS;
+
+	shifted_row = i - HALF_ROWS;
+	shifted_col = j - HALF_COLS;
+	original_row = round((shifted_row * thetaCOS - shifted_col * thetaSIN) + HALF_ROWS);
+	original_col = round((shifted_row * thetaSIN + shifted_col * thetaCOS) + HALF_COLS);
+	if (i >= ROWS || j >= COLS || i < 0 || j < 0) {
+	  if (original_row < 0) i = 0;
+	  if (original_col < 0) j = 0;
+	}
+	int base_index = (i * COLS * 3) + (j * 3);
+	int pixel_value = (myimage[base_index + 2]) + (myimage[base_index + 1] << 8) + (myimage[base_index] << 16);
+	alt_up_pixel_buffer_dma_draw(pixel_buffer, pixel_value, original_col, original_row);
+  }
+}
+
+
+int main() {
+  alt_putstr("Project 5 Jacob Vaught & Madelyn Hines\n");
+  int ticks_per_second = alt_ticks_per_second();
+  printf("TPS: %d\n", ticks_per_second);
+
+  pixel_buffer = alt_up_pixel_buffer_dma_open_dev("/dev/dma_buffer");
+  if (!pixel_buffer) {
+    printf("Error opening pixel buffer\n");
+  }
+
+  alt_up_pixel_buffer_dma_clear_screen(pixel_buffer, 0);
+
+  while (1) {
+    unsigned long long fps_sum = 0;
+    for (int t = 0; t > -360; t -= 90) {
+      theta = t * PI / 180.0;
+      thetaCOS=cos(theta);
+      thetaSIN=sin(theta);
+
+      alt_up_pixel_buffer_dma_clear_screen(pixel_buffer, 0);
+      int ticks_start = alt_nticks();
+      frame_function();
+      int ticks_end = alt_nticks();
+      int ticks_delta = ticks_end - ticks_start;
+      printf("End Tic: %d \n", ticks_end);//delete later
+      printf("Delta Tics: %d \n", ticks_delta);//delete later
+      unsigned long long time_delta = (unsigned long long) ticks_delta / (unsigned long long) ticks_per_second;
+      printf("Total duration: %llu seconds\n", time_delta);
+      fps_sum += time_delta;
+    }
+    unsigned long long fps_avg = 4 * ticks_per_second / fps_sum;
+    printf("FPS avg over previous 4 frames: %llu fps\n\n", fps_avg);
+  }
+
+  return 0;
+}
