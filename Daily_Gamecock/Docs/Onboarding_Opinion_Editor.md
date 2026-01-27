@@ -192,3 +192,54 @@ When rescheduling:
 - Use the **standard yellow** cell coloring.
 
 If a piece is **cancelled**: leave it as PUSHED and simply do not re-add it to the calendar.
+
+---
+
+## 8. Publication Schedule
+
+- Opinion publishes on **Wednesday** and **Friday**.
+- Minimum **1 piece per day** on each of those days.
+- Pieces can be either regular columns or guest columns.
+- Guest columns are preferred when possible -- they can be received and published within a **2-day window** versus the **8-9 day window** for regular columns.
+
+---
+
+## 9. Recruiting Writers
+
+- The Daily Gamecock holds **pitch meetings** organized centrally. You may only get notice about a day beforehand.
+- For recruiting, **prioritize prior guest columnists** over brand-new writers. They already know the process and have demonstrated they can deliver.
+
+---
+
+## 10. Approval Chain
+
+The full approval pipeline for a piece:
+
+```
+Writer -> Assistant Editor -> Editor -> Copy -> Managing Editor -> EIC -> Photo & Design
+```
+
+### Key People to Know
+
+| Role | Why |
+|------|-----|
+| **Your writers** | You work with them most directly |
+| **Copy desk** | They review everything after you; maintain a good relationship |
+| **Managing Editor** | Approves pieces after Copy; your direct report in the chain |
+| **Design lead** | Coordinates visuals and illustrations for your pieces |
+| **Editor-in-Chief** | Final editorial authority; go to them for fast-track approvals and escalations |
+
+---
+
+## 11. Common Pitfalls
+
+**Don't dilute the voice.** The most common mistake new opinion editors make is playing it too safe -- softening a writer's raw emotion until the piece loses its punch. Your job is not to neutralize the opinion. Your job is to **channel and amplify** it while keeping the piece legally safe.
+
+**Example:**
+
+| Version | Assessment |
+|---------|------------|
+| *"Student Government hates children and likes cutting costs more."* | Legally unsafe -- presents opinion as fact, potentially defamatory |
+| *"Clearly, Student Government seems to love cutting costs, even at the expense of children."* | Channels the same energy, legally defensible as rhetorical opinion |
+
+The goal is to preserve the writer's conviction while ensuring the language is protected opinion rather than stated fact. When in doubt, reframe claims as clearly rhetorical rather than removing them.
