@@ -1,0 +1,110 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+\title{ELCT 562 PA4}
+\author{Jacob Vaught}
+\date{}
+
+\begin{document}
+\maketitle
+
+Suppose a transmitter maps bit to data symbols as 
+\begin{itemize}
+    \item \{00\} $\Rightarrow e^{i\frac{\pi}{4}}$,
+    \item \{01\} $\Rightarrow e^{i\frac{3\pi}{4}}$,
+    \item \{10\} $\Rightarrow e^{i\frac{5\pi}{4}}$,
+    \item \{11\} $\Rightarrow e^{i\frac{7\pi}{4}}$,
+\end{itemize}
+and uses the basis (waveform or filter) $\mathbf{X}$ to generate the transmitted IQ data samples: 
+\[ \mathbf{X} = 0.5 \begin{bmatrix} 1 & 1 \\ 1 & -j \\ 1 & -1 \\ 1 & j \end{bmatrix} \]
+
+Assume the channel is noisy, and received IQ samples are given by: 
+\[ \mathbf{r} = \begin{bmatrix} 0.8j \\ 0.8 + 0.8j \\ 0.8 \\ 0.1 \end{bmatrix} \]
+
+\textbf{Q1)} Is $\mathbf{X}$ an orthogonal basis? Why?
+
+\textbf{Q2)} If you use a matched filter at the receiver, how should you use $\mathbf{X}$ at the receiver to estimate the data symbols?
+
+\textbf{Q3)} Obtain the estimates of the data symbols. Discuss your approach.
+
+\textbf{Q4)} Obtain the detected bits at the receiver. Discuss your approach.
+
+\textbf{Answers:} 
+\begin{enumerate}
+  \item No, \(\mathbf{X}\) is not an orthogonal basis. This is because the inner product of different rows of \(\mathbf{X}\) is not zero, which is a requirement for orthogonality.
+  \item At the receiver, the matched filter corresponding to \(\mathbf{X}\) is actually \(\mathbf{X}^H\), the Hermitian transpose of \(\mathbf{X}\). We use this to maximize the signal-to-noise ratio.
+  \item The estimates of the data symbols are obtained by multiplying the received vector \(\mathbf{r}\) with \(\mathbf{X}^H\):
+  \[\text{receivedSymbols} = \mathbf{X}^H \mathbf{r} = \begin{bmatrix} 0.8500 + 0.8000i \\ -0.8000 + 0.7500i \end{bmatrix}\]
+  \item The detected bits are '00' for the first symbol and '01' for the second symbol. This is determined by finding the symbol in the mapping that is closest to each estimated symbol.
+\end{enumerate}
+
+\newpage
+\textbf{MATLAB Code:}
+\begin{verbatim}
+clc;
+clear;
+close all;
+format compact;
+
+% Define the bit sequence
+bitSeq = '0001';
+
+% Mapping the bit sequence to data symbols
+symbolMap = {'00', exp(1i*pi/4); '01', exp(1i*3*pi/4); ...
+             '10', exp(1i*5*pi/4); '11', exp(1i*7*pi/4)};
+symbols = [];
+for k = 1:2:length(bitSeq)
+    bits = bitSeq(k:k+1);
+    symbol = symbolMap{strcmp(symbolMap(:,1), bits), 2};
+    symbols = [symbols, symbol];
+end
+symbols
+% Define the matrix H
+H = 1/2 * [1 1; 1 -1i; 1 -1; 1 1i];
+
+symbols=symbols';
+% Apply matrix H to the symbols
+transmittedSignal = H * symbols;
+
+% Extract I and Q components
+I = real(transmittedSignal);
+Q = imag(transmittedSignal);
+
+% Plotting the I and Q components
+figure;
+subplot(2,1,1);
+plot(I, 'b-o');
+title('In-phase (I) Component');
+xlabel('Symbol Index');
+ylabel('Amplitude');
+
+subplot(2,1,2);
+plot(Q, 'r-o');
+title('Quadrature (Q) Component');
+xlabel('Symbol Index');
+ylabel('Amplitude');
+
+% Decoding (assuming perfect transmission and reception)
+receivedSignal = [0.8j;0.8+0.8j;0.8;0.1]
+receivedSymbols = H'*receivedSignal
+
+% Map back to bit sequence
+decodedBits = '';
+for k = 1:length(receivedSymbols)
+    sym = receivedSymbols(k);
+    % Calculate the distance of the current symbol from each symbol in the map
+    distances = abs(sym - cell2mat(symbolMap(:,2)));
+    % Find the index of the closest symbol
+    [~, idx] = min(distances);
+    % Append the corresponding bits to the decoded bit sequence
+    decodedBits = [decodedBits, symbolMap{idx, 1}];
+end
+
+% Display the original and decoded bit sequences
+disp(['Original Bits: ', bitSeq]);
+disp(['Decoded Bits:
+\end{verbatim}
+\end{document}

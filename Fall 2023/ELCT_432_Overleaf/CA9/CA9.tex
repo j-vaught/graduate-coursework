@@ -1,0 +1,156 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\title{ELCT 432 Computer Assignment \#9}
+\author{Jacob C. Vaught}
+\date{12-03-2023}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+This document presents a comprehensive analysis of a binary symmetric channel (BSC), a fundamental model in information theory. The BSC is characterized by its input and output alphabets, both consisting of binary digits \{0, 1\}. In this analysis, the channel is defined by a bit-flip probability of 0.25, with the input bit probabilities being \( P(X=0) = 0.2 \) and \( P(X=1) = 0.8 \). The objective is to compare the theoretical calculations of various entropic measures with results obtained from a Monte Carlo simulation executed in MATLAB.
+
+\section{Theoretical Analysis}
+The theoretical analysis involves calculating the entropy of the source \( H(X) \), the entropy of the output \( H(Y) \), the joint entropy \( H(X, Y) \), the conditional entropy \( H(X|Y) \), and the mutual information \( I(X; Y) \).
+
+\subsection{Entropy of the Source}
+The entropy of the source, \( H(X) \), represents the average uncertainty in the source's output. It is calculated using the formula:
+\[ H(X) = -P(X=0)\log_2(P(X=0)) - P(X=1)\log_2(P(X=1)) \]
+Given \( P(X=0) = 0.2 \) and \( P(X=1) = 0.8 \), we calculate:
+\[ H(X) = -(0.2 \log_2 0.2 + 0.8 \log_2 0.8) \approx 0.722 \text{ bits} \]
+
+\subsection{Entropy of the Output}
+The entropy of the output, \( H(Y) \), is calculated by first determining the probabilities \( P(Y=0) \) and \( P(Y=1) \). These probabilities account for the bit-flip characteristic of the BSC. The calculations are as follows:
+\[ P(Y=0) = P(X=0)(1-P_{\text{flip}}) + P(X=1)P_{\text{flip}} \]
+\[ P(Y=1) = P(X=1)(1-P_{\text{flip}}) + P(X=0)P_{\text{flip}} \]
+\[ H(Y) = -P(Y=0)\log_2(P(Y=0)) - P(Y=1)\log_2(P(Y=1)) \]
+Substituting \( P_{\text{flip}} = 0.25 \), \( P(X=0) = 0.2 \), and \( P(X=1) = 0.8 \), we get:
+\[ H(Y) \approx 0.934 \text{ bits} \]
+
+\subsection{Joint Entropy}
+The joint entropy \( H(X, Y) \) quantifies the uncertainty of the combined system of \( X \) and \( Y \). It is given by:
+\[ H(X, Y) = -\sum_{x \in \{0,1\}} \sum_{y \in \{0,1\}} P(X=x, Y=y) \log_2 P(X=x, Y=y) \]
+For a BSC, the joint probabilities can be computed as follows:
+\[ P(X=0, Y=0) = P(X=0)(1 - P_{\text{flip}}) \]
+\[ P(X=0, Y=1) = P(X=0)P_{\text{flip}} \]
+\[ P(X=1, Y=0) = P(X=1)P_{\text{flip}} \]
+\[ P(X=1, Y=1) = P(X=1)(1 - P_{\text{flip}}) \]
+Substituting the values, we calculate \( H(X, Y) \approx 1.533 \text{ bits} \).
+
+\subsection{Conditional Entropy}
+The conditional entropy \( H(X|Y) \) represents the average uncertainty of \( X \) given the knowledge of \( Y \). It is calculated as:
+\[ H(X|Y) = H(X, Y) - H(Y) \]
+From our previous calculations, we get:
+\[ H(X|Y) \approx 1.533 - 0.934 = 0.599 \text{ bits} \]
+
+\subsection{Mutual Information}
+The mutual information \( I(X; Y) \) measures the reduction in uncertainty of \( X \) due to the knowledge of \( Y \) (and vice versa). It is calculated as:
+\[ I(X; Y) = H(X) - H(X|Y) \]
+Using the previously calculated values, we find:
+\[ I(X; Y) \approx 0.722 - 0.599 = 0.123 \text{ bits} \]
+
+\section{Monte Carlo Simulation in MATLAB}
+The Monte Carlo simulation was conducted in MATLAB to empirically estimate the entropic measures for the BSC. A sequence of 10000 bits was generated according to the defined probabilities, and the channel was simulated to incorporate the bit-flip behavior.
+
+\subsection{Simulation Results}
+The results obtained from the MATLAB simulation are as follows:
+\begin{itemize}
+    \item \(H(X)\): 0.7219 bits
+    \item \(H(Y)\): 0.9419 bits
+    \item \(H(X, Y)\): 1.5416 bits
+    \item \(H(X|Y)\): 0.5996 bits
+    \item \(I(X; Y)\): 0.1223 bits
+\end{itemize}
+
+\section{Discussion}
+A comparison of the theoretical and simulated results reveals a close match, indicating the accuracy of the Monte Carlo simulation in MATLAB. Minor discrepancies can be attributed to the finite sample size in the simulation and the inherent randomness in generating the binary sequence.
+
+\section{Explanation of the MATLAB Code}
+The MATLAB code provided is designed to perform a Monte Carlo simulation of a binary symmetric channel (BSC) and to calculate various entropic measures. Here is a breakdown of the code's main components:
+
+\subsection{Initialization}
+\begin{verbatim}
+clc;
+close all;
+clear;
+\end{verbatim}
+This section clears the MATLAB command window, closes all figures, and clears all existing variables in the workspace. It ensures a clean start for the simulation.
+
+\subsection{Parameters Setup}
+\begin{verbatim}
+%% Parameters %%
+P_X0 = 0.2; % Probability of X = 0
+P_X1 = 0.8; % Probability of X = 1
+P_Eps = 0.25; % Probability of bit flip in the channel
+N = 10000; % Number of bits
+\end{verbatim}
+This part defines the essential parameters for the BSC. `P\_X0` and `P\_X1` represent the probabilities of the input bit being 0 and 1, respectively, while `P\_Eps` denotes the probability of a bit flip in the channel. `N` sets the number of bits to be simulated.
+
+\subsection{Monte-Carlo Simulation}
+\begin{verbatim}
+%% Monte-Carlo Simulation %%
+% Generate input sequence based on P(X)
+M_X = rand(1, N) < P_X1;
+\end{verbatim}
+Here, a random binary sequence `M\_X` of length `N` is generated according to the probability `P\_X1`. Each bit is independently set to 1 with a probability of `P\_X1` (0.8), and 0 otherwise.
+
+\begin{verbatim}
+% Simulate binary symmetric channel (BSC)
+flipIndices = rand(1, N) < P_Eps;
+M_Y = M_X;
+M_Y(flipIndices) = ~M_Y(flipIndices);
+\end{verbatim}
+The BSC is simulated by randomly flipping bits in `M\_X`. The `flipIndices` array is a logical array where bits are marked for flipping based on `P\_Eps` (0.25). The corresponding bits in `M\_Y` are then flipped.
+
+\subsection{Probability and Entropy Calculations}
+\begin{verbatim}
+%% Calculating Probabilities %%
+% Empirical probabilities
+P_Y0 = mean(M_Y == 0);
+P_Y1 = 1 - P_Y0;
+
+% Empirical joint probabilities
+P_X0Y0 = mean((M_X == 0) & (M_Y == 0));
+P_X0Y1 = mean((M_X == 0) & (M_Y == 1));
+P_X1Y0 = mean((M_X == 1) & (M_Y == 0));
+P_X1Y1 = mean((M_X == 1) & (M_Y == 1));
+
+\end{verbatim}
+This section calculates the empirical probabilities of different outcomes and joint probabilities of `X` and `Y`.
+
+\begin{verbatim}
+%% Entropy Calculations %%
+% Empirical probabilities
+P_Y0 = mean(M_Y == 0);
+P_Y1 = 1 - P_Y0;
+
+% Empirical joint probabilities
+P_X0Y0 = mean((M_X == 0) & (M_Y == 0));
+P_X0Y1 = mean((M_X == 0) & (M_Y == 1));
+P_X1Y0 = mean((M_X == 1) & (M_Y == 0));
+P_X1Y1 = mean((M_X == 1) & (M_Y == 1));
+
+\end{verbatim}
+Based on the calculated probabilities, the entropies of `X`, `Y`, their joint entropy, conditional entropy of `X` given `Y`, and mutual information are computed.
+
+\subsection{Displaying Results}
+\begin{verbatim}
+%% Display Results %%
+fprintf('H(X): %.4f bits\n', H_X);
+fprintf('H(Y): %.4f bits\n', H_Y);
+fprintf('H(X,Y): %.4f bits\n', H_XY);
+fprintf('H(X|Y): %.4f bits\n', H_X_given_Y);
+fprintf('I(X;Y): %.4f bits\n', I_XY);
+
+\end{verbatim}
+Finally, the results for the entropic measures are printed to the MATLAB command window. This section provides a direct comparison between the theoretical and simulated values.
+
+\section{Conclusion}
+This analysis successfully demonstrates the application of theoretical concepts in information theory to a practical simulation scenario. The Monte Carlo simulation in MATLAB effectively mirrored the theoretical expectations of a binary symmetric channel, reinforcing the fundamental principles of entropy and information theory.
+
+\end{document}

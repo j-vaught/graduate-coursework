@@ -1,0 +1,892 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{circuitikz}
+\usepackage{longtable}
+
+
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric}
+
+% Set header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{USC Facilities: Rain Barrel Water Pump System}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+\title{
+    \vspace{2in}
+    \textbf{EMCH427-002} \\[1ex]
+    \textbf{Engineering Analysis} \\[1ex]
+    \textbf{Sponsor: USC Facilities} \\[1ex]
+    \vspace{2in}
+}
+
+\author{
+    \textbf{Team Members:} \\[2ex]
+    Tanner Harmon\\[1ex]
+    Presston McConnell\\[1ex]
+    William Wenzel\\[1ex]
+    J.C. Vaught\\[2ex]
+}
+
+\date{}
+
+\maketitle
+\thispagestyle{fancy}
+\newpage
+\begin{itemize}
+    \item This summarized report is a collection of analyses on the Rain Water pressurization system.
+    \item There are 3 types of expected failure:
+    \begin{itemize}
+        \item (Most Likely) DC power system failing (solar panel, inverter, battery, battery charger)
+        \item (Somewhat Likely) AC power system failing (pressure switch, pump, low water detector)
+        \item (Not Likely) Mechanical failure (pipes, housing)
+    \end{itemize}
+    \item The FMEA method helped identify the most critical failures for analysis. It rates Severity, Detection, and Occurrence on a 1--10 scale, then multiplies these values to determine a total risk score.
+    
+\begin{longtable}{|c|p{4cm}|p{8cm}|c|}
+\hline
+\textbf{S,D,O} & \textbf{Failure Mode} & \textbf{Causes} & \textbf{Sum} \\
+\hline
+6,10,1 & Solar Panels Provide Insufficient Power & Panels damaged or dirty; Not enough sunlight due to poor weather or incorrect panel orientation & 60 \\
+\hline
+7,2,5 & Charge Controller Malfunction & Fails to regulate battery charging/discharging; Possible overcharging or undercharging of battery & 70 \\
+\hline
+6,4,1 & Battery Failure & Battery does not hold charge (degraded cells, internal short, etc.); Battery overcharges or overheats & 24 \\
+\hline
+8,1,7 & Inverter Malfunction & Fails to produce correct AC voltage for the pump and switches; Internal component failure or wiring fault & 56 \\
+\hline
+5,5,4 & Low Water Sensor/Switch Failure & Sensor fails to detect low water in rain barrel, allowing the pump to run dry; Sensor triggers prematurely, preventing the pump from running when water is available & 100 \\
+\hline
+5,3,2 & Pressure Switch Failure & Switch does not trigger at the correct pressure (either fails to turn pump on or off); Incorrect calibration or internal mechanical/electrical fault & 30 \\
+\hline
+4,2,1 & Pump Fails to Start & Electrical fault, motor damage, or wiring issue; Stuck impeller or mechanical seizing & 8 \\
+\hline
+7,3,4 & Pump Fails to Stop (Runs Continuously) & Pressure switch stuck “on”; Relay or switch not opening & 84 \\
+\hline
+10,1,6 & Over-Pressurization of System & Pump continues to run beyond safe pressure ratings; Pressure tank or piping at risk of bursting or leaking & 60 \\
+\hline
+3,7,7 & Leaks in Piping or Fittings & Loose, damaged, or improperly sealed joints; Damaged hoses or cracked pipes & 147 \\
+\hline
+8,1,1 & Pressure Tank Failure / Rupture & Excessive internal pressure or manufacturing defect; Leads to potential water hammer or catastrophic tank failure & 8 \\
+\hline
+3,6,6 & Pressure Gauge Inaccurate or Malfunctioning & Misleading pressure readings cause incorrect system adjustments; Operators may not realize the true pressure in the system & 108 \\
+\hline
+4,4,1 & Manual Valve Misuse or Failure & Valve left closed or open at the wrong time, preventing flow or causing overflow; Mechanical seizing or handle breaking & 16 \\
+\hline
+4,5,1 & Spigot Failure (Hose / Drain Outlets) & Spigot stuck open, leading to water loss; Spigot stuck closed or clogged, preventing usage & 20 \\
+\hline
+8,2,6 & Wiring or Electrical Connection Failure & Corrosion, weather damage, or poor cable routing leads to open/short circuits; Connectors not waterproofed, causing intermittent or total power loss & 96 \\
+\hline
+2,9,1 & Insufficient Rainwater Supply & Extended drought or poor collection from building’s gutters; System underperforms simply due to lack of input water & 18 \\
+\hline
+6,4,6 & Incorrect System Assembly or Maintenance & Errors in installation (miswired or misaligned components); Lack of periodic checks leading to progressive failures & 144 \\
+\hline
+7,3,5 & Environmental / Weather Damage & Flooding of pump house, storm damage to equipment; Extreme cold causing freezing/rupture of pipes & 105 \\
+\hline
+2,5,1 & Contaminated Water & Algae or debris in the rain barrel clogs pump or piping; May reduce flow rate or damage the pump & 10 \\
+\hline
+\end{longtable}
+    
+    \item For all mechanical failures, FEA or physics-based equations were used to derive the solutions, and for electrical failures, standard formulas were used to calculate failure outcomes.
+\item Summary of key outcomes, observations, optimizations, and recommendations:
+    \begin{itemize}
+        \item Pipe explosions due to pressure cutoff failure are highly unlikely or impossible, as the explosion pressure far exceeds the pump’s rated pressure.
+        \item Pipe implosion from improper operation would not damage the piping but could cause long-term pump failure if continuously run in this condition.
+        \item The housing roof can support a load of 600 lb without issue. Additionally, it can withstand wind speeds of up to 90 mph without breaking.
+        \item At an ambient temperature of 10°F, pipes will freeze after 1 hour. With insulation, they will last up to 7 hours before freezing. Frozen pipes are likely to rupture, so system draining procedures will be developed.
+    \end{itemize}
+
+
+\end{itemize}
+
+\newpage
+\section*{Failure Analysis \#1}
+
+\subsection*{1. Qualitative Description of the Analysis}
+We analyze the failure of a 3/4 Schedule 40 pipe due to an unexpected internal pressure surge (possibly caused by a faulty pressure switch or blockage). The analysis uses thin-walled pressure vessel theory to determine the burst pressure, i.e., the pressure at which the pipe will fail.
+
+\noindent
+\textbf{Theory:}
+\begin{itemize}
+    \item \textbf{Thin-Walled Assumption:} The wall thickness is much less than the internal diameter ($t \ll d_i$).
+    \item \textbf{Failure Criterion:} Failure occurs when the hoop (circumferential) stress, $\sigma_h$, exceeds the material's failure stress, $\sigma_{\text{failure}}$.
+    \item \textbf{Reference:} See \emph{Mechanics of Materials} by Beer \& Johnston.
+\end{itemize}
+
+\subsection*{2. Governing Equations}
+\textbf{Equation (1): Hoop Stress Equation}
+\begin{equation}
+    \sigma_h = \frac{P \, r_i}{t}
+    \tag{1}
+\end{equation}
+
+Alternatively, using the internal diameter $d_i$:
+\begin{equation}
+    \sigma_h = \frac{P \, d_i}{2t}
+    \tag{1a}
+\end{equation}
+
+\noindent\textbf{Equation (2): Burst Pressure}
+Assuming failure when $\sigma_h = \sigma_{\text{failure}}$:
+\begin{equation}
+    P_{\text{burst}} = \frac{2t\, \sigma_{\text{failure}}}{d_i}
+    \tag{2}
+\end{equation}
+
+\subsection*{3. Definition of Variables}
+
+\begin{center}
+\begin{tabular}{|>{\raggedright}p{2cm}|>{\raggedright}p{6cm}|>{\raggedright\arraybackslash}p{2cm}|}
+\hline
+\textbf{Variable Symbol} & \textbf{Description} & \textbf{Units} \\
+\hline
+$P$ & Internal pressure & psi \\
+\hline
+$r_i$ & Internal radius of the pipe & inches \\
+\hline
+$t$ & Wall thickness & inches \\
+\hline
+$d_i$ & Internal diameter of the pipe & inches \\
+\hline
+$\sigma_h$ & Hoop stress in the pipe wall & psi \\
+\hline
+$\sigma_{\text{failure}}$ & Material failure stress (yield or ultimate) & psi \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection*{4. Assumptions, Loading, and Boundary Conditions}
+\textbf{Assumptions:}
+\begin{itemize}
+    \item The pipe is treated as a thin-walled cylinder ($t \ll d_i$).
+    \item Material properties are homogeneous and isotropic.
+    \item Internal pressure is uniformly distributed along the inner wall.
+    \item Effects of stress concentrations, corrosion, or imperfections are neglected.
+\end{itemize}
+
+\noindent\textbf{Loading and Boundary Conditions:}
+\begin{itemize}
+    \item Loading: An internal pressure load.
+    \item The pipe ends are assumed to be free or adequately supported so that longitudinal stresses are secondary.
+    \item The analysis is static (pressure is applied gradually).
+\end{itemize}
+
+\subsection*{5. Input Values for a 3/4 Schedule 40 Pipe}
+\begin{itemize}
+    \item \textbf{Outer Diameter,} $d_o = 1.05$ inches
+    \item \textbf{Wall Thickness,} $t = 0.113$ inches
+    \item \textbf{Material Property:} Assume $\sigma_{\text{failure}} \approx 60,000$ psi
+\end{itemize}
+
+\subsection*{6. Calculation of Burst Pressure}
+Using Equation (2):
+\[
+P_{\text{burst}} = \frac{2t\, \sigma_{\text{failure}}}{d_i}
+\]
+Substitute the input values:
+\[
+P_{\text{burst}} = \frac{2 \times 0.113\,\text{in} \times 60,000\,\text{psi}}{0.824\,\text{in}} \approx \frac{13,560\,\text{psi}\cdot\text{in}}{0.824\,\text{in}} \approx 16,468\,\text{psi}
+\]
+Since the pump is rated for 140 psi, the pipe exploding is highly unlikely.
+
+\subsection*{7. Visual Aid}
+\begin{figure}[!ht]
+\centering
+\resizebox{0.1\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\LARGE]
+\draw  (22.5,20.25) circle (1.25cm);
+\draw [->, >=Stealth] (22.5,20.25) -- (22.5,21.5);
+\draw [->, >=Stealth] (22.5,20.25) -- (22.5,19);
+\draw [->, >=Stealth] (22.5,20.25) -- (23.5,19.5);
+\draw [->, >=Stealth] (22.5,20.25) -- (23.5,21);
+\draw [->, >=Stealth] (22.5,20.25) -- (21.5,19.5);
+\draw [->, >=Stealth] (22.5,20.25) -- (21.5,21);
+\end{circuitikz}
+}%
+\label{fig:expo_pipe}
+\caption{Pipe Internal Force}
+\end{figure}
+\newpage
+
+\section*{Failure Analysis \#2}
+
+\subsection*{1. Qualitative Description of the Analysis}
+This analysis considers the failure mode where a closed upstream valve causes the pump to run continuously, creating a vacuum inside a PVC Schedule 40 3/4 pipe. With the internal pressure near zero, the external atmospheric pressure (approximately 14.7 psi) acts on the pipe. Under these conditions, the thin-walled pipe may collapse (i.e., buckle) if the applied external pressure reaches the critical buckling pressure. The analysis employs elastic buckling theory for thin-walled cylindrical shells.
+
+\noindent\textbf{Theory Summary:}
+\begin{itemize}
+    \item \textbf{Buckling of Thin-Walled Cylinders:} A cylindrical shell under external pressure may collapse elastically due to buckling.
+    \item \textbf{Failure Criterion:} Collapse occurs when the external pressure equals or exceeds the critical buckling pressure, \(P_{\text{cr}}\).
+    \item \textbf{Reference:} See \emph{Theory of Elastic Stability} by Timoshenko and Gere.
+\end{itemize}
+
+\subsection*{2. Governing Equation}
+A commonly used expression for the critical buckling pressure of a thin-walled cylindrical shell under external pressure is:
+\begin{equation}
+    P_{\text{cr}} = \frac{2E}{\sqrt{3(1-\nu^2)}} \left(\frac{t}{r_i}\right)^3
+    \tag{1}
+\end{equation}
+
+\subsection*{3. Definition of Variables}
+
+\begin{center}
+\begin{tabular}{|>{\raggedright}p{2cm}|>{\raggedright}p{6cm}|>{\raggedright\arraybackslash}p{3cm}|}
+\hline
+\textbf{Variable Symbol} & \textbf{Description} & \textbf{Units} \\
+\hline
+\(P_{\text{cr}}\) & Critical buckling (collapse) pressure & psi \\
+\hline
+\(E\) & Young's modulus of PVC & psi \\
+\hline
+\(\nu\) & Poisson's ratio & (dimensionless) \\
+\hline
+\(t\) & Wall thickness of the pipe & inches \\
+\hline
+\(r_i\) & Internal radius of the pipe & inches \\
+\hline
+\(d_i\) & Internal diameter of the pipe & inches \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection*{4. Assumptions, Loading, and Boundary Conditions}
+\textbf{Assumptions:}
+\begin{itemize}
+    \item The pipe is modeled as a thin-walled cylindrical shell (\(t \ll d_i\)).
+    \item Material properties are homogeneous and isotropic.
+    \item External pressure is uniformly applied on the pipe's exterior.
+    \item Geometric imperfections, residual stresses, and material non-idealities are neglected.
+    \item The analysis assumes static conditions.
+\end{itemize}
+
+\noindent\textbf{Loading and Boundary Conditions:}
+\begin{itemize}
+    \item \textbf{Loading:} A near-complete vacuum inside the pipe creates an effective external pressure equal to atmospheric pressure (approximately 14.7 psi).
+    \item The pipe is assumed to be sufficiently long so that end effects are negligible.
+\end{itemize}
+
+\subsection*{5. Input Values for a 3/4 Schedule 40 PVC Pipe}
+For a typical 3/4 Schedule 40 PVC pipe:
+\begin{itemize}
+    \item \textbf{Outer Diameter,} \(d_o = 1.05\) inches
+    \item \textbf{Internal Diameter,} \(d_i = 0.957\) inches (per manufacturer specifications)
+    \item \textbf{Wall Thickness,} 
+    \[
+    t = \frac{d_o - d_i}{2} = \frac{1.05 - 0.957}{2} \approx 0.0465 \text{ inches} \quad (\approx 0.047 \text{ in})
+    \]
+    \item \textbf{Internal Radius,} 
+    \[
+    r_i = \frac{d_i}{2} \approx \frac{0.957}{2} \approx 0.4785 \text{ inches}
+    \]
+    \item \textbf{Material Properties for PVC:}
+    \begin{itemize}
+        \item Young's Modulus, \(E \approx 400{,}000\) psi
+        \item Poisson's Ratio, \(\nu \approx 0.4\)
+    \end{itemize}
+\end{itemize}
+
+\subsection*{6. Calculation of Critical Buckling Pressure}
+Substitute the input values into Equation (1):
+\[
+P_{\text{cr}} = \frac{2E}{\sqrt{3(1-\nu^2)}} \left(\frac{t}{r_i}\right)^3
+\]
+First, calculate the ratio and its cube:
+\[
+\frac{t}{r_i} = \frac{0.047}{0.4785} \approx 0.0983, \quad \left(\frac{t}{r_i}\right)^3 \approx (0.0983)^3 \approx 0.00095
+\]
+Calculate the denominator term:
+\[
+\sqrt{3(1-\nu^2)} = \sqrt{3(1-0.16)} = \sqrt{3 \times 0.84} = \sqrt{2.52} \approx 1.587
+\]
+Now, compute \(P_{\text{cr}}\):
+\[
+P_{\text{cr}} = \frac{2 \times 400{,}000\,\text{psi}}{1.587} \times 0.00095 \approx \frac{800{,}000}{1.587} \times 0.00095 \approx 503{,}160 \times 0.00095 \approx 478\,\text{psi}
+\]
+\textbf{Discussion:}  
+The calculated critical buckling pressure is approximately 478 psi. Under a full vacuum inside the pipe, the effective external pressure is atmospheric (approximately 14.7 psi), which is far below the calculated collapse pressure. Thus, under ideal conditions, the PVC pipe is unlikely to collapse due to vacuum. 
+
+\subsection*{7. Visual Aid}
+\begin{figure}[!ht]
+\centering
+\resizebox{0.16\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\LARGE]
+\draw  (22.5,20.25) circle (0cm);
+\draw  (22.5,20.25) circle (1.25cm);
+\draw [->, >=Stealth] (20.25,18.75) -- (21.5,19.5);
+\draw [->, >=Stealth] (20.25,22) -- (21.5,21);
+\draw [->, >=Stealth] (22.5,22.75) -- (22.5,21.5);
+\draw [->, >=Stealth] (24.75,22) -- (23.5,21);
+\draw [->, >=Stealth] (24.75,18.5) -- (23.5,19.5);
+\draw [->, >=Stealth] (22.5,17.75) -- (22.5,19);
+\draw [->, >=Stealth] (19.75,20.25) -- (21.25,20.25);
+\draw [->, >=Stealth] (24.75,20.25) -- (23.75,20.25);
+\end{circuitikz}
+}%
+
+\label{fig:inpo_pipe}
+\caption{Pipe External Force}
+\end{figure}
+\newpage
+\section*{Failure Analysis \#3}
+
+\subsection*{1. Qualitative Description of the Analysis}
+The housing is a small wood structure with:
+\begin{itemize}
+    \item A footprint of 3 ft $\times$ 5 ft and a height of 4 ft.
+    \item Vertical support provided by 4x4 posts (nominal, actual dimensions $\approx$ 3.5 in $\times$ 3.5 in) at each corner.
+    \item Lateral and roof framing provided by 2x4 members (nominal, actual dimensions $\approx$ 1.5 in $\times$ 3.5 in) arranged along the short (3 ft) span to support the roof.
+    \item A 0.5 in plywood covering on all sides (walls and roof).
+\end{itemize}
+Loads considered include:
+\begin{enumerate}
+    \item \textbf{Roof Loads:} A dead load of 15 psf (self-weight of the plywood and framing) and a live load of 40 psf (due to occupancy or stored items), resulting in a total roof load of 825 lbs over 15 ft\(^2\).
+    \item \textbf{Wind Loads:} A wind speed of 90 mph produces an estimated wind force on the walls, distributed to the posts.
+\end{enumerate}
+The analysis compares the applied loads to the capacities of the wood elements to determine if the members will serve.
+
+\subsection*{2. Governing Equations}
+\textbf{(a) Compressive Capacity of a Post:}
+\begin{equation}
+    C_{\text{post}} = A_{\text{post}} \, f'_c
+    \tag{1}
+\end{equation}
+
+\textbf{(b) Maximum Bending Moment for a Simply Supported Beam (Uniform Load):}
+\begin{equation}
+    M_{\text{max}} = \frac{w L^2}{8}
+    \tag{2}
+\end{equation}
+\textbf{(c) Bending Stress in a Beam:}
+\begin{equation}
+    \sigma = \frac{M_{\text{max}}}{S}
+    \tag{3}
+\end{equation}
+\subsection*{3. Definition of Variables}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Symbol} & \textbf{Description} & \textbf{Units} \\ \midrule
+\(A_{\text{post}}\) & Cross-sectional area of a post & in\(^2\) \\
+\(f'_c\) & Allowable compressive stress for lumber & psi \\
+\(C_{\text{post}}\) & Compressive capacity of a post & lbs \\[6pt]
+\(w\) & Uniform load per unit length on a beam & lbs/ft \\
+\(L\) & Span length of a beam & ft \\
+\(M_{\text{max}}\) & Maximum bending moment & ft-lbs (or in-lbs) \\
+\(S\) & Section modulus of the beam & in\(^3\) \\
+\(\sigma\) & Bending stress in the beam & psi \\ \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{4. Assumptions and Boundary Conditions}
+\textbf{Assumptions:}
+\begin{itemize}
+    \item \textbf{Material Properties:}
+    \begin{itemize}
+        \item Treated lumber allowable compressive stress, \(f'_c \approx 500\) psi.
+        \item Allowable bending stress for 2x4 lumber, \(\approx 600\) psi.
+    \end{itemize}
+    \item \textbf{Member Dimensions:}
+    \begin{itemize}
+        \item 4x4 posts: actual size $\approx$ 3.5 in $\times$ 3.5 in.
+        \item 2x4 members: actual size $\approx$ 1.5 in $\times$ 3.5 in, with the 3.5 in dimension oriented vertically (for greater bending resistance).
+    \end{itemize}
+    \item Loads are assumed to be uniformly distributed.
+    \item The structure is properly braced to resist lateral wind loads.
+\end{itemize}
+
+\textbf{Boundary Conditions:}
+\begin{itemize}
+    \item \emph{Roof Area:} 15 ft\(^2\) (3 ft $\times$ 5 ft) carrying a total load of 825 lbs.
+    \item \emph{Vertical Load Distribution:} The roof load is equally distributed among the four posts.
+    \item \emph{Beam Span:} 2x4 roof framing spans the 3 ft dimension.
+\end{itemize}
+
+\subsection*{5. Calculation of Wood Member Capacities}
+
+\subsubsection*{5.1. Vertical Load Check on 4x4 Posts}
+\textbf{Applied Load per Post:}
+\[
+L_{\text{post}} = \frac{825\,\text{lbs}}{4} \approx 206\,\text{lbs}
+\]
+
+\noindent\textbf{Post Capacity Calculation:}
+\begin{itemize}
+    \item Cross-sectional area of a 4x4 post:
+    \[
+    A_{\text{post}} = 3.5\,\text{in} \times 3.5\,\text{in} = 12.25\,\text{in}^2
+    \]
+    \item Compressive capacity:
+    \[
+    C_{\text{post}} = A_{\text{post}} \times f'_c = 12.25\,\text{in}^2 \times 500\,\text{psi} \approx 6125\,\text{lbs}
+    \]
+\end{itemize}
+\textbf{Comparison:}
+\[
+206\,\text{lbs} \ll 6125\,\text{lbs}
+\]
+Thus, the 4x4 posts are more than adequate to support the vertical loads.
+
+\subsubsection*{5.2. Bending Check on 2x4 Roof Beams}
+\textbf{Load on Each Beam:}  
+Assuming the roof load is supported by three equally spaced 2x4 beams spanning the 3 ft width:
+\[
+L_{\text{beam}} \approx \frac{825\,\text{lbs}}{3} \approx 275\,\text{lbs}
+\]
+The uniformly distributed load per unit length is:
+\[
+w = \frac{275\,\text{lbs}}{3\,\text{ft}} \approx 91.7\,\text{lbs/ft}
+\]
+
+\noindent\textbf{Maximum Bending Moment:}
+For a simply supported beam of span \(L = 3\,\text{ft}\):
+\[
+M_{\text{max}} = \frac{w L^2}{8} = \frac{91.7 \times 3^2}{8} \approx \frac{91.7 \times 9}{8} \approx 103.1\,\text{ft-lbs}
+\]
+Converting to inch-lbs:
+\[
+M_{\text{max}} \approx 103.1 \times 12 \approx 1237\,\text{in-lbs}
+\]
+
+\noindent\textbf{Section Modulus of a 2x4:}  
+Assuming the 2x4 is oriented with the 3.5 in depth (vertical):
+\[
+S = \frac{b \, d^2}{6} = \frac{1.5 \times (3.5)^2}{6} \approx \frac{1.5 \times 12.25}{6} \approx 3.06\,\text{in}^3
+\]
+
+\[
+\sigma = \frac{M_{\text{max}}}{S} \approx \frac{1237\,\text{in-lbs}}{3.06\,\text{in}^3} \approx 404\,\text{psi}
+\]
+
+\[
+404\,\text{psi} < 600\,\text{psi}
+\]
+Thus, the 2x4 roof beams are adequate in bending.
+
+\subsubsection*{5.3. Lateral (Wind) Load Check}
+The wind load analysis (from the prior load analysis) estimated a total wind force on the walls of approximately 1344 lbs. Assuming a worst-case even distribution:
+\[
+F_{\text{wind, post}} \approx \frac{1344\,\text{lbs}}{4} \approx 336\,\text{lbs} \quad \text{per post.}
+\]
+
+\subsection*{6. Discussion and Conclusion}
+\begin{itemize}
+    \item \textbf{Vertical Loads:} Each 4x4 post carries approximately 206 lbs, which is negligible compared to its estimated compressive capacity of 6125 lbs.
+    \item \textbf{Bending Loads:} The 2x4 beams spanning 3 ft develop a maximum bending stress of about 404 psi, well within an allowable limit of 600 psi.
+    \item \textbf{Lateral Loads:} The estimated wind-induced force of 336 lbs per post is small compared to the post capacity, and the overall lateral system is supported by the 2x4 bracing.
+\end{itemize}
+
+\textbf{Conclusion:}  
+The calculations indicate that both the 4x4 posts and the 2x4 roof/brace members have ample capacity to safely support the applied vertical and lateral loads under the assumed conditions. The wood, as specified, will serve adequately for the structure.
+
+\subsection*{7. Visual Aid}
+\begin{figure}[!ht]
+\centering
+\resizebox{0.3\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\LARGE]
+\draw [short] (20,17.75) -- (25,16.5);
+\draw [short] (25,16.5) -- (25,10.25);
+\draw [short] (20,17.75) -- (20,10.25);
+\draw [short] (20,10.25) -- (19.5,10.25);
+\draw [short] (19.5,10.25) -- (19.5,18);
+\draw [short] (19.5,18) -- (25.5,16.5);
+\draw [short] (25.5,16.5) -- (25.5,10.25);
+\draw [short] (25.5,10.25) -- (25,10.25);
+\draw [->, >=Stealth] (25,19.25) -- (25,16.75);
+\draw [->, >=Stealth] (23,19.25) -- (23,17.25);
+\draw [->, >=Stealth] (21,19.25) -- (21,17.75);
+\draw [->, >=Stealth] (22,19.25) -- (22,17.5);
+\draw [->, >=Stealth] (24,19.25) -- (24,17);
+\draw [->, >=Stealth] (28.25,16.25) -- (25.5,16.25);
+\draw [->, >=Stealth] (28.25,15.5) -- (25.5,15.5);
+\draw [->, >=Stealth] (28.25,14.75) -- (25.5,14.75);
+\draw [->, >=Stealth] (28.25,14) -- (25.5,14);
+\draw [->, >=Stealth] (17.75,17.25) -- (19.5,17.25);
+\draw [->, >=Stealth] (17.75,16.5) -- (19.5,16.5);
+\draw [->, >=Stealth] (17.75,15.75) -- (19.5,15.75);
+\draw [->, >=Stealth] (17.75,15) -- (19.5,15);
+\draw [->, >=Stealth] (17.75,14.25) -- (19.5,14.25);
+\node [font=\LARGE] at (21.25,18) {};
+\draw [->, >=Stealth] (20,19.25) -- (20,18);
+\end{circuitikz}
+}%
+
+\label{fig:house}
+\caption{Pump House with Force being applied from wind/snow}
+\end{figure}
+\newpage
+\section*{Failure Analysis \#4}
+\subsection*{Qualitative Description of Scenario}
+A 3/4 Schedule 40 PVC pipe, filled with water, is exposed to an ambient temperature of 10\,\textdegree F. The concern is that water inside the pipe will freeze, causing a buildup of internal pressure. If the water is fully confined (no expansion space), the pressure may exceed the pipe's yield stress, causing rupture.
+
+Two cases are considered:
+\begin{enumerate}
+    \item \textbf{Uninsulated pipe:} Directly exposed to air at 10\,\textdegree F.
+    \item \textbf{Insulated pipe:} Wrapped with 1/2\textquotedbl{} thick insulation.
+\end{enumerate}
+
+\subsection*{Analysis Required (Qualitative Description of Theory, Conditions, Assumptions)}
+\begin{itemize}
+    \item \textbf{Theory:} 
+    \begin{itemize}
+        \item Heat removal until the water freezes: uses Newton's law of cooling (for the uninsulated case) and radial conduction (for the insulated case).
+        \item Latent heat of fusion for water is included to account for phase change at 32\,\textdegree F.
+        \item Thin-walled pressure vessel theory to estimate the hoop stress from internal pressure.
+    \end{itemize}
+    \item \textbf{Conditions:}
+    \begin{itemize}
+        \item Ambient temperature is 10\,\textdegree F.
+        \item Pipe is 1\,ft long; water is initially near 32--40\,\textdegree F and is stagnant (no flow).
+    \end{itemize}
+    \item \textbf{Assumptions:}
+    \begin{itemize}
+        \item The pipe is horizontal and exposed to modest forced convection (uninsulated case).
+        \item The insulated case has conduction through the insulation as the dominant resistance to heat loss.
+        \item Water is fully confined such that any freezing expansion raises internal pressure.
+        \item Material properties are uniform and constant near the freezing temperature.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Reference to Where Theory Is Explained}
+\begin{itemize}
+    \item Incropera \& DeWitt, \emph{Fundamentals of Heat and Mass Transfer} (for convective and conductive heat transfer models).
+    \item ASHRAE Handbook of Fundamentals (for typical values of $h$ and insulation conductivity).
+    \item ASM Data Sheets (for typical yield stress of PVC pipe).
+\end{itemize}
+
+\subsection*{Governing Equations (Numbered in Order of Use)}
+
+\begin{enumerate}
+    \item \textbf{Volume of Water (Eq. 1)}  
+    \[
+    V_{\text{water}} 
+    = \pi \left(\frac{d_i}{2}\right)^2 L
+    \tag{1}
+    \]
+    
+    \item \textbf{Mass of Water (Eq. 2)}  
+    \[
+    m_{\text{water}}
+    = \rho_{\text{water}} \times V_{\text{water}}
+    \tag{2}
+    \]
+
+    \item \textbf{Total Heat to Remove (Cooling + Fusion) (Eq. 3)}  
+    \[
+    Q_{\text{total}} 
+    = m_{\text{water}}\,c_{p,\text{water}}\,(T_{\text{initial}} - T_{\text{freeze}})
+      \;+\; m_{\text{water}}\,L_f
+    \tag{3}
+    \]
+    
+    \item \textbf{Uninsulated: Convective Heat Transfer Rate (Eq. 4)}  
+    \[
+    Q_{\text{rate}} 
+    = h\,A_{\text{outer}}\,\Delta T
+    \tag{4}
+    \]
+    
+    \item \textbf{Insulated: Radial Conduction Resistance (Eq. 5)}  
+    \[
+    R_{\text{cond}}
+    = \frac{\ln\Bigl(\tfrac{r_2}{r_1}\Bigr)}{2\pi \, k_{\text{ins}} \, L}
+    \quad\longrightarrow\quad
+    Q_{\text{rate,ins}} 
+    = \frac{\Delta T}{R_{\text{cond}}}
+    \tag{5}
+    \]
+    
+    \item \textbf{Time to Freeze (Eq. 6)}  
+    \[
+    t_{\text{freeze}} 
+    = \frac{Q_{\text{total}}}{Q_{\text{rate}}}
+    \tag{6}
+    \]
+    
+    \item \textbf{Pipe Hoop Stress from Internal Pressure (Eq. 7)}  
+    \[
+    \sigma_h 
+    = \frac{P\,d_i}{2\,t_{\text{pipe}}}
+    \tag{7}
+    \]
+    
+    \item \textbf{Failure Pressure (Eq. 8)}  
+    \[
+    P_{\text{failure}} 
+    = \frac{2\,t_{\text{pipe}}\,\sigma_{\text{yield}}}{d_i}
+    \tag{8}
+    \]
+\end{enumerate}
+
+\subsection*{Definition of Variables}
+
+\begin{center}
+\begin{tabular}{|c|p{7cm}|c|}
+\hline
+\textbf{Symbol} & \textbf{Name/Description} & \textbf{Units} \\
+\hline
+$d_i$ & Internal diameter of the pipe & in, ft \\
+\hline
+$L$ & Length of pipe analyzed & ft \\
+\hline
+$V_{\text{water}}$ & Volume of water in the pipe & ft$^3$ \\
+\hline
+$m_{\text{water}}$ & Mass of water & lbm \\
+\hline
+$\rho_{\text{water}}$ & Density of water & lbm/ft$^3$ \\
+\hline
+$c_{p,\text{water}}$ & Specific heat of water & Btu/(lbm\,\textdegree F) \\
+\hline
+$L_f$ & Latent heat of fusion (water) & Btu/lbm \\
+\hline
+$Q_{\text{total}}$ & Total heat to remove & Btu \\
+\hline
+$h$ & Convection heat transfer coeff. & Btu/(hr\,ft$^2$\,\textdegree F) \\
+\hline
+$A_{\text{outer}}$ & Outer surface area of pipe & ft$^2$ \\
+\hline
+$\Delta T$ & Temperature difference & \textdegree F \\
+\hline
+$k_{\text{ins}}$ & Thermal conductivity of insulation & Btu/(hr\,ft\,\textdegree F) \\
+\hline
+$R_{\text{cond}}$ & Thermal resistance for conduction & hr\,\textdegree F/Btu \\
+\hline
+$t_{\text{freeze}}$ & Time to freeze water & hr \\
+\hline
+$\sigma_h$ & Hoop (circumferential) stress & psi \\
+\hline
+$P$ & Internal pressure & psi \\
+\hline
+$t_{\text{pipe}}$ & Pipe wall thickness & in \\
+\hline
+$\sigma_{\text{yield}}$ & Yield stress of pipe material & psi \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection*{Qualitative Description of Assumptions, Loading(s), Initial Conditions, Boundary Conditions, Materials}
+
+\begin{itemize}
+    \item \textbf{Pipe Material:} PVC, $\sigma_{\text{yield}} \approx 30,000\,\text{psi}$.
+    \item \textbf{Pipe Dimensions:}
+    \begin{itemize}
+        \item Outer diameter $\approx 1.05\,\text{in}$
+        \item Inner diameter $d_i \approx 0.824\,\text{in}$
+        \item Wall thickness $t_{\text{pipe}} \approx 0.113\,\text{in}$
+    \end{itemize}
+    \item \textbf{Water Properties:}
+    \begin{itemize}
+        \item $\rho_{\text{water}} \approx 62.4\,\text{lbm/ft}^3$
+        \item $c_{p,\text{water}} \approx 1\,\text{Btu/(lbm\,\textdegree F)}$
+        \item $L_f \approx 144\,\text{Btu/lbm}$
+    \end{itemize}
+    \item \textbf{Boundary/Initial Conditions:}
+    \begin{itemize}
+        \item Ambient air at $10\,\textdegree F$.
+        \item Water initially near $32-40\,\textdegree F$; fully stagnant.
+        \item 1\,ft pipe length analyzed for simplicity.
+    \end{itemize}
+    \item \textbf{Loading:}
+    \begin{itemize}
+        \item Thermal loading due to cold ambient.
+        \item Potential internal expansion pressure if water freezes solid.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Corresponding Variable Symbols, Numeric Values, and Units}
+
+\begin{itemize}
+    \item $d_i = 0.824\,\text{in}, \quad L = 1\,\text{ft}$
+    \item $\rho_{\text{water}} = 62.4\,\text{lbm/ft}^3, \quad c_{p,\text{water}} = 1\,\text{Btu/(lbm\,\textdegree F)}$
+    \item $L_f = 144\,\text{Btu/lbm}$
+    \item $h \approx 5\,\text{Btu/(hr\,ft}^2\,\textdegree F)}$ (moderate forced convection)
+    \item $k_{\text{ins}} \approx 0.025\,\text{Btu/(hr\,ft\,\textdegree F)}$
+    \item $t_{\text{pipe}} = 0.113\,\text{in}, \quad \sigma_{\text{yield}} \approx 30,000\,\text{psi}$
+\end{itemize}
+
+\subsection*{Calculations and Results}
+
+\paragraph{1. Total Heat Removal to Freeze Water}
+Using \textbf{Eq. (1)--(3)}:
+\[
+V_{\text{water}} 
+= \pi \left(\frac{0.824\,\text{in}}{2}\right)^2 \times 1\,\text{ft}
+\quad
+(\text{convert inches to feet as needed}),
+\]
+for clarity we convert $0.824\,\text{in} = 0.0687\,\text{ft}$, so
+\[
+V_{\text{water}} 
+= \pi \times (0.03435\,\text{ft})^2 \times 1\,\text{ft}
+\;\approx\; 0.0037\,\text{ft}^3.
+\]
+\[
+m_{\text{water}} 
+= 62.4\,\frac{\text{lbm}}{\text{ft}^3} 
+\times 0.0037\,\text{ft}^3
+\;\approx\; 0.23\,\text{lbm}.
+\]
+Assume cooling from $40\,\textdegree F$ down to $32\,\textdegree F$, plus latent heat of fusion:
+\[
+Q_{\text{total}} 
+= 0.23\,\text{lbm} \times 1\,\frac{\text{Btu}}{\text{lbm\,}\textdegree F}
+\times (40 - 32)\,\textdegree F
+\;+\; 0.23\,\text{lbm} 
+\times 144\,\frac{\text{Btu}}{\text{lbm}}
+\;\approx\; 1.8 + 33.1 
+= 34.9\,\text{Btu}.
+\]
+
+\paragraph{2. Time to Freeze (Uninsulated)}
+Using \textbf{Eq. (4) \& (6)} with $h \approx 5\,\text{Btu/(hr\,ft}^2\,\textdegree F)}$ and $\Delta T \approx 22\,\textdegree F$ (from 32\,\textdegree F water to 10\,\textdegree F ambient). Outer surface area:
+\[
+d_o \approx 1.05\,\text{in} = 0.0875\,\text{ft}, 
+\quad
+\text{Circumference} 
+= \pi \times 0.0875 \approx 0.275\,\text{ft},
+\quad
+A_{\text{outer}} 
+= 0.275\,\text{ft}^2 \times 1\,\text{ft} 
+= 0.275\,\text{ft}^2.
+\]
+Hence,
+\[
+Q_{\text{rate}} 
+= h\,A_{\text{outer}}\,\Delta T
+= 5 \times 0.275 \times 22
+\approx 30.25\,\text{Btu/hr}.
+\]
+\[
+t_{\text{freeze, uninsulated}} 
+= \frac{Q_{\text{total}}}{Q_{\text{rate}}}
+= \frac{34.9}{30.25}
+\approx 1.15\,\text{hr} 
+\approx 1 \text{ hour } 9 \text{ minutes}.
+\]
+
+\paragraph{3. Time to Freeze (Insulated with 1/2\textquotedbl{} Thickness)}
+Using \textbf{Eq. (5) \& (6)}. Let:
+\[
+r_1 \approx 0.04375\,\text{ft}
+\quad (\text{outer radius of pipe}),
+\quad
+\delta_{\text{ins}} 
+= 0.0417\,\text{ft} 
+\;(\text{1/2'' insulation}),
+\]
+\[
+r_2 = r_1 + \delta_{\text{ins}}
+= 0.04375 + 0.0417
+= 0.08545\,\text{ft}.
+\]
+Thermal conductivity $k_{\text{ins}} \approx 0.025\,\text{Btu/(hr\,ft\,}\textdegree F)}$, $L=1\,\text{ft}$. Then:
+\[
+R_{\text{cond}}
+= \frac{\ln(r_2 / r_1)}{2\pi\,k_{\text{ins}}\,L}
+= \frac{\ln(0.08545 / 0.04375)}{2\pi \times 0.025 \times 1}
+\approx \frac{\ln(1.954)}{0.15707}
+\approx \frac{0.669}{0.15707}
+\approx 4.26\,\text{hr\,}\textdegree\text{F/Btu}.
+\]
+\[
+Q_{\text{rate,ins}} 
+= \frac{\Delta T}{R_{\text{cond}}}
+= \frac{22\,\textdegree F}{4.26\,\text{hr\,}\textdegree F/\text{Btu}}
+\approx 5.16\,\text{Btu/hr}.
+\]
+\[
+t_{\text{freeze, ins}} 
+= \frac{34.9\,\text{Btu}}{5.16\,\text{Btu/hr}}
+\approx 6.8\,\text{hr}.
+\]
+
+\paragraph{4. Internal Pressure from Freezing (Pipe Rupture Potential)}
+From \textbf{Eq. (7) \& (8)}, the hoop stress at yield is:
+\[
+\sigma_h = \sigma_{\text{yield}} \quad (\approx 30{,}000\,\text{psi}).
+\]
+Solving for $P_{\text{failure}}$:
+\[
+P_{\text{failure}}
+= \frac{2\,t_{\text{pipe}}\,\sigma_{\text{yield}}}{d_i}
+= \frac{2 \times 0.113\,\text{in} \times 30{,}000\,\text{psi}}{0.824\,\text{in}}
+\approx 8{,}218\,\text{psi}.
+\]
+Freezing water can generate pressures in this range if totally confined. Thus, the pipe could rupture due to ice expansion.
+
+\subsection*{Visual Aid}
+\begin{figure}[!ht]
+\centering
+\resizebox{0.2\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\LARGE]
+\draw [ fill={rgb,255:red,146; green,146; blue,146} ] (20,15.25) circle (2.5cm);
+\draw [ fill={rgb,255:red,235; green,235; blue,235} ] (20,15.25) circle (1.25cm);
+\draw [ fill={rgb,255:red,202; green,240; blue,254} ] (20,15.25) circle (1cm);
+\begin{scope}[rotate around={-135:(22.75,18)}]
+\draw[domain=22.75:25.25,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -22.75 r ) +18});
+\end{scope}
+\begin{scope}[rotate around={-90:(20,19)}]
+\draw[domain=20:22.25,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -20 r ) +19});
+\end{scope}
+\begin{scope}[rotate around={143.25:(19,16.25)}]
+\draw[domain=19:21.5,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -19 r ) +16.25});
+\end{scope}
+\begin{scope}[rotate around={-135:(19,14.25)}]
+\draw[domain=19:21.5,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -19 r ) +14.25});
+\end{scope}
+\begin{scope}[rotate around={143.25:(23.25,13)}]
+\draw[domain=23.25:25.75,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -23.25 r ) +13});
+\end{scope}
+\begin{scope}[rotate around={-90:(20,13.75)}]
+\draw[domain=20:22.25,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -20 r ) +13.75});
+\end{scope}
+\draw[domain=16.25:18.5,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -16.25 r ) +15.25});
+\draw[domain=21.5:23.75,samples=100,smooth color={rgb,255:red,4; green,51; blue,255}, ] plot (\x,{0.2*sin(10*\x r -21.5 r ) +15.25});
+\end{circuitikz}
+}%
+
+\label{fig:my_label}
+\caption{Heat Analysis of pipe with insulation}
+\end{figure}
+
+\newpage
+
+\section*{4. Conclusion and/or Recommendations}
+
+\begin{itemize}
+    \item The failure modes investigated included potential freezing and overpressure in the piping, housing load capacity, vacuum-induced pipe implosion, and pipe explosion from failed pressure regulation.
+    \item Based on calculations, the product (pump, piping, and housing) is adequate in its current design. However, adding pipe insulation is recommended as a precautionary measure, especially in cold climates.
+    \item Key outcomes and recommendations are summarized below:
+    \begin{itemize}
+        \item Freezing Analysis:
+        \begin{itemize}
+            \item Uninsulated pipes at 10\textdegree F freeze in approximately 1 hour and are prone to rupture if completely frozen.
+            \item Insulated pipes extend the freeze time to about 7 hours, reducing the likelihood of rupture.
+            \item A system-draining procedure is advisable to eliminate any water that might freeze during prolonged low temperatures.
+        \end{itemize}
+        \item Pressure Failure Analysis:
+        \begin{itemize}
+            \item The pump’s maximum pressure (about 140 psi) is well below the pipe’s burst pressure (exceeding 8,000 psi for the analyzed PVC).
+            \item A complete vacuum inside the pipe (about 14.7 psi external) is also insufficient to collapse the pipe due to its high critical buckling pressure.
+        \end{itemize}
+        \item Housing Structural Analysis:
+        \begin{itemize}
+            \item The wooden housing can safely support a 600 lb roof load and withstand wind speeds near 90 mph.
+            \item The corner posts and roof framing are well within their allowable stress limits.
+        \end{itemize}
+    \end{itemize}
+    \item In summary, the existing design meets critical performance requirements. If the system will be exposed to freezing conditions, insulation or draining procedures are strongly recommended to prevent pipe rupture.
+\end{itemize}
+\end{document}

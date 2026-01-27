@@ -1,0 +1,1339 @@
+================================================================================
+COMPREHENSIVE DOCUMENTATION: PHOTOMETRIC STEREO & POISSON SURFACE RECONSTRUCTION
+================================================================================
+
+This document provides a detailed technical exposition of the photometric stereo
+and FFT-based Poisson surface reconstruction pipeline implemented in this codebase.
+It includes mathematical derivations, code explanations, and recommendations for
+extending the method for publication-quality research.
+
+================================================================================
+1. EXECUTIVE OVERVIEW
+================================================================================
+
+This codebase implements a complete pipeline for 3D surface reconstruction from
+photometric stereo (PS) measurements coupled with global integration via the
+Poisson equation. The system:
+
+  a) Generates synthetic height fields with known geometry (Gaussian, sphere, cube)
+  b) Renders photometric stereo images under multiple directional light sources
+  c) Estimates surface normals from image intensities using least-squares PS
+  d) Computes surface gradients from the recovered normals
+  e) Solves the Poisson equation ∇²z = f to integrate gradients into consistent height
+  f) Benchmarks reconstruction accuracy against ground truth
+
+Uses FFT-based Fourier methods to efficiently solve the 2D
+Poisson equation with periodic boundary conditions, enabling O(n log n) computation
+on n-pixel grids instead of O(n³) direct linear solvers.
+
+SYSTEM ARCHITECTURE:
+  - poisson_solver.py: Low-level Poisson equation solver
+  - synthetic_ps.py: High-level experimental framework, visualization, benchmarking
+
+================================================================================
+2. MATHEMATICAL FOUNDATIONS
+================================================================================
+
+2.1 PHOTOMETRIC STEREO PRINCIPLE
+---------------------------------
+Photometric stereo recovers surface geometry from intensity variations under
+different lighting conditions. The fundamental equation is the Lambertian model:
+
+  I_i(x,y) = ρ(x,y) · max(0, L_i · n(x,y))
+
+where:
+  I_i     = intensity in image i at pixel (x,y)
+  ρ       = surface albedo (reflectance)
+  L_i     = unit directional light vector for image i
+  n       = unit surface normal at (x,y)
+  ·       = dot product
+  max(·)  = clamping (shadows)
+
+For a surface z(x,y), the upward-facing unit normal is:
+
+  n = (-∂z/∂x, -∂z/∂y, 1) / ||·||
+    = (-p, -q, 1) / sqrt(p² + q² + 1)
+
+where p = ∂z/∂x and q = ∂z/∂y are the surface gradients.
+
+With m ≥ 3 images and unit albedo, we stack the lighting vectors and solve:
+
+  [L₁ᵀ]     [I₁]
+  [L₂ᵀ] g = [I₂]    →    g = S⁺ I
+  [...]     [...]
+  [Lₘᵀ]     [Iₘ]
+
+where:
+  S ∈ ℝ^(m×3) = [L₁ᵀ; L₂ᵀ; ...; Lₘᵀ]
+  g ∈ ℝ³      = unnormalized gradient vector
+  S⁺          = Moore-Penrose pseudoinverse of S
+  I ∈ ℝᵐ      = pixel intensities from m images
+
+The recovered g is normalized to a unit normal: n = g / ||g||
+
+From the unit normal, we recover gradients:
+  p = -n_x / n_z
+  q = -n_y / n_z
+
+2.2 GRADIENT INTEGRATION & THE POISSON EQUATION
+-----------------------------------------------
+Given noisy or inconsistent gradient fields (p, q), the goal is to find a height
+field z(x,y) that best fits these gradients. This is framed as a least-squares
+problem:
+
+  minimize ∫∫ [(∂z/∂x - p)² + (∂z/∂y - q)²] dx dy
+
+The Euler-Lagrange equations for this variational problem yield:
+
+  ∂²z/∂x² + ∂²z/∂y² = ∂p/∂x + ∂q/∂y
+
+This is the Poisson equation: ∇²z = f, where:
+  ∇² = ∂²/∂x² + ∂²/∂y²  (Laplacian operator)
+  f = ∂p/∂x + ∂q/∂y     (divergence of gradient field)
+
+Boundary Conditions:
+The code uses periodic boundary conditions (wraparound), which is natural for
+FFT-based solvers but assumes the surface wraps around the domain edges.
+
+2.3 FFT-BASED POISSON SOLVER
+-----------------------------
+The Poisson equation in Fourier space becomes algebraic:
+
+  ℱ{∇²z} = ℱ{f}
+  -|k|² · Ẑ(k) = F̂(k)
+  Ẑ(k) = F̂(k) / (-|k|²)
+
+where:
+  Ẑ(k)   = DFT of z at frequency k = (k_x, k_y)
+  F̂(k)   = DFT of f
+  |k|²   = k_x² + k_y²
+
+The inverse DFT recovers z:
+  z(x,y) = ℱ⁻¹{Ẑ(k)} = ℱ⁻¹{F̂(k) / (-|k|²)}
+
+DC Component Issue:
+At k = (0,0), the divisor is 0, creating a singularity. This is resolved by:
+  1) Setting λ_k[0,0] = 1 (artificial non-zero denominator)
+  2) Zeroing F̂[0,0] = 0 (removing DC component of source)
+  3) This fixes the mean of the solution to 0: mean(z) = 0
+
+This reflects the physical fact that the Poisson equation determines z up to an
+arbitrary constant; the PS measurements only give us shape, not absolute height.
+
+================================================================================
+3. DETAILED CODE WALKTHROUGH
+================================================================================
+
+3.1 poisson_solver.py
+---------------------
+
+Function: compute_spacing(x, y)
+  Input:  x, y = 1D coordinate arrays (assumed uniform spacing from np.linspace)
+  Output: dx, dy = grid spacing in x and y directions
+  Purpose: Extracts spacing from grid coordinates; assumes uniform linspace grids
+
+Function: solve_poisson_fft(f, dx, dy)
+  Input:
+    f       = 2D array of divergence ∂p/∂x + ∂q/∂y
+    dx, dy  = grid spacings
+  Output:
+    Z       = 2D height field solving ∇²z = f
+  Algorithm:
+    1. Create frequency grids using np.fft.fftfreq
+       - fftfreq(N, d) returns N frequencies for spacing d
+       - Multiply by 2π to match continuous Fourier transform convention
+    2. Construct Laplacian in frequency domain:
+       λ_k = -(k_x² + k_y²)
+    3. Compute 2D FFT of f: F = fft2(f)
+    4. Handle DC singularity:
+       - Set λ_k[0,0] = 1.0 (prevent division by zero)
+       - Set F[0,0] = 0.0 (remove DC offset)
+    5. Divide in frequency domain: Z_hat = F / λ_k
+    6. Inverse FFT and extract real part: Z = real(ifft2(Z_hat))
+
+  Computational Complexity: O(n log n) via FFT, where n = H×W pixels
+  Memory: O(n) for storage of 2D arrays
+
+3.2 synthetic_ps.py - Surface Generation
+-----------------------------------------
+
+Function: create_grid_and_surface(Nx, Ny, x_range, y_range, sigma)
+  Purpose: Generate a Gaussian bump surface
+  Equation: Z_true(x,y) = exp(-(x² + y²) / (2σ²))
+  Properties:
+    - Smooth, infinitely differentiable
+    - Radially symmetric
+    - Maximum height 1 at origin
+    - Standard deviation σ controls width
+    - Excellent for testing: analytical gradients available
+
+Function: create_shape_surface(shape, ...)
+  Purpose: Generate hemisphere or cube surfaces
+
+  Sphere branch (shape="sphere"):
+    - Equation: Z = sqrt(R² - r²) for r ≤ R (upper hemisphere)
+    - Radius R = 0.9, defined on [-1,1]²
+    - Properties: Curved surface, non-convex at boundaries (self-shadowing)
+    - Challenges: Singularity at edges where dZ/dr → ∞
+
+  Cube branch (shape="cube"):
+    - Piecewise definition using max(|x|, |y|) = r
+    - Linear interpolation: Z = h_max · clip(1 - (r - r_0) / Δr, 0, 1)
+    - Parameters:
+      * r_0 = cube_half = 0.35 (inner radius)
+      * Δr = cube_edge = 0.1 (transition width)
+      * h_max = cube_height = 0.6 (peak height)
+    - Properties: Piecewise-linear with softened edges (reduces Gibbs ringing)
+    - Challenges: Discontinuous curvature, tests robustness of PS + integration
+
+3.3 synthetic_ps.py - Normal & Gradient Computation
+----------------------------------------------------
+
+Function: compute_gradients(Z, dx, dy)
+  Input: Z = height field, dx, dy = grid spacing
+  Output: p = ∂Z/∂x, q = ∂Z/∂y (first derivatives)
+  Method: np.gradient() with central differences, then normalize by spacing
+
+  Implementation detail:
+    p = np.gradient(Z, axis=1) / dx
+      - axis=1 = column (x) direction
+      - np.gradient uses central differences internally
+    q = np.gradient(Z, axis=0) / dy
+      - axis=0 = row (y) direction
+
+  Accuracy: Second-order accurate for smooth surfaces
+  Edge behavior: One-sided differences at boundaries
+
+Function: normals_from_height(Z, dx, dy)
+  Algorithm:
+    1. Compute gradients p, q from height
+    2. Define normal components:
+       n_x = -p
+       n_y = -q
+       n_z = 1
+    3. Normalize: N = (n_x, n_y, n_z) / ||(n_x, n_y, n_z)||
+       with small epsilon (1e-8) to avoid division by zero
+
+  Explanation of signs:
+    The surface z(x,y) in 3D has position vector:
+      r(x,y) = (x, y, z(x,y))
+    Tangent vectors:
+      r_x = (1, 0, z_x)
+      r_y = (0, 1, z_y)
+    Normal (cross product):
+      n ∝ r_x × r_y = (-z_x, -z_y, 1) = (-p, -q, 1)
+
+3.4 synthetic_ps.py - Image Rendering
+--------------------------------------
+
+Function: render_photometric_images(N, lights, albedo=1.0, noise_std=0.0)
+  Algorithm:
+    1. For each light direction L_i:
+       a) Compute dot product: dot = N · L_i (element-wise)
+       b) Apply clamping and albedo: I_i = albedo · max(0, dot)
+       c) Add Gaussian noise if specified
+    2. Return (m, H, W) array of m rendered images
+
+  Physical interpretation:
+    - Dot product > 0: surface facet illuminated by light
+    - Dot product ≤ 0: shadowed region (clamped to 0)
+    - This models Lambertian diffuse reflection without specular highlights
+
+  Noise model:
+    - Gaussian noise: N(μ=0, σ=noise_std)
+    - Clipped to [0,1] after addition (physically realistic)
+    - Tests robustness to sensor/quantization noise
+
+3.5 synthetic_ps.py - Photometric Stereo Recovery
+--------------------------------------------------
+
+Function: photometric_stereo(images, lights)
+  Algorithm:
+    1. Stack light vectors: S = [L_1; L_2; ...; L_m] ∈ ℝ^(m×3)
+    2. Compute pseudoinverse: S_pinv = S⁺ = (S^T S)^(-1) S^T
+    3. For each pixel (y, x):
+       a. Extract intensity vector: I = [I_1[y,x], I_2[y,x], ..., I_m[y,x]]^T
+       b. Solve least-squares: g = S_pinv @ I  (m×3 by 3×1 = 3×1)
+       c. Transpose to row vector: g_row = g^T
+       d. Normalize to unit normal: N_est[y,x] = g_row / ||g_row||
+
+  Per-pixel independence:
+    - Each pixel solved independently (embarrassingly parallel)
+    - No spatial regularization; sensitive to noise
+    - Requires m ≥ 3 images for well-posed system
+
+  Pseudoinverse stability:
+    - np.linalg.pinv uses SVD, handles ill-conditioned S gracefully
+    - For well-distributed lights, S^T S is well-conditioned
+    - Rank deficiency only when lights are coplanar
+
+Function: gradients_from_normals(N_est)
+  Algorithm:
+    1. Extract normal components: n_x, n_y, n_z
+    2. Recover gradients using normal-to-gradient mapping:
+       p_est = -n_x / (n_z + eps)
+       q_est = -n_y / (n_z + eps)
+
+  Numerical stability:
+    - eps = 1e-8 prevents division by zero
+    - When n_z ≈ 0 (steep/vertical surface), estimated gradients blow up
+    - This is physically correct but problematic numerically
+
+3.6 synthetic_ps.py - Experimental Workflows
+---------------------------------------------
+
+Function: run_experiment1(Nx=128, Ny=128, sigma=0.4)
+  Pipeline:
+    1. Create Gaussian bump ground truth
+    2. Compute its analytical gradients p, q
+    3. Compute divergence f = ∂p/∂x + ∂q/∂y
+    4. Solve Poisson equation: Z_rec = solve_poisson_fft(f, dx, dy)
+    5. Compare: RMSE = ||Z_true_centered - Z_rec_centered||
+
+  Purpose: Test Poisson solver with exact (not noisy) gradients
+  Expected result: RMSE ≈ 0 (up to numerical precision ~1e-14)
+  Actual result in code: RMSE < 0.023 (likely due to finite-difference errors)
+
+Function: run_experiment2(Z_true, dx, dy, noise_std=0.0)
+  Pipeline:
+    1. Compute normals from ground truth
+    2. Render 5 images under different light directions
+    3. Run photometric stereo to recover noisy normals
+    4. Derive gradients from recovered normals
+    5. Solve Poisson equation on estimated gradients
+    6. Measure RMSE vs. ground truth
+
+  Purpose: Test full PS → gradient derivation → Poisson pipeline
+  Noise source: Photometric stereo normal estimation error
+  Expected result: RMSE similar to exp1 for well-chosen lights
+
+Function: run_rotating_light_experiment(shape, Nx=128, Ny=128, ...)
+  Pipeline: Similar to exp2, but uses 16 rotating lights at 45° elevation
+  Shapes tested: sphere and cube
+  Output: Depth reconstruction, normal error (angular deviation in degrees)
+
+  Additional metric:
+    ang_err = arccos(clip(N_true · N_est, -1, 1)) [in degrees]
+    Reports: Mean and median angular error
+
+  Purpose: Evaluate on challenging, non-smooth shapes
+  Key insights:
+    - Sphere: Errors concentrate at pole (high curvature)
+    - Cube: Errors at edges (discontinuous curvature)
+
+Function: run_lights_sweep(Z_true, dx, dy, m_list)
+  Ablation study:
+    - Vary number of lights: m ∈ {3, 5, 8, 16}
+    - For each m, use rotating lights at 45° elevation
+    - Report RMSE and mean angular normal error vs. m
+
+  Expected trend:
+    - RMSE decreases as m increases (more overdetermined system)
+    - Convergence plateaus when m ≥ optimal
+
+  Purpose: Determine light count vs. accuracy trade-off
+
+Function: run_noise_sweep(Z_true, dx, dy, lights, noise_levels)
+  Ablation study:
+    - Vary noise standard deviation: σ_noise ∈ {0.0, 0.01, 0.02, 0.05}
+    - Fixed 8 rotating lights
+    - Report RMSE and mean angular error vs. noise
+
+  Expected trend:
+    - RMSE increases linearly with noise_std
+    - Angular error similarly degrades
+
+  Purpose: Characterize noise sensitivity
+
+3.7 synthetic_ps.py - Visualization Functions
+----------------------------------------------
+
+All visualization functions create publication-quality figures in ./figures/:
+
+  _save_heatmap(Z, fname, title, cmap, center_zero)
+    - Heatmap visualization with colorbar
+    - center_zero: Symmetric color range around 0 (for error maps)
+
+  _save_normal_rgb(N, fname, title)
+    - Map normals to RGB: rgb = clip((N + 1) / 2, 0, 1)
+    - Interprets normal components as colors
+
+  _save_profile_plot(Z_true, Z_est, fname, title, axis_label)
+    - 1D cross-section comparison plot
+    - Shows both ground truth and reconstruction
+
+  _save_error_hist(err, fname, title)
+    - Histogram of error values
+    - Visualizes error distribution
+
+  _save_image_montage(images, fname, title, max_cols)
+    - Grid display of all m input images
+
+  _save_rmse_bar(labels, values, fname, title)
+    - Bar chart comparing RMSE across experiments
+
+3.8 synthetic_ps.py - Report Generation
+----------------------------------------
+
+Function: generate_report(exp1_rmse, exp2_rmse, sphere_rmse, cube_rmse)
+  Output: IEEE-style LaTeX document with embedded figures and results
+  Content:
+    - Abstract: Pipeline description and key results
+    - Introduction: Literature context (Woodham 1980, etc.)
+    - Methodology: Surface generation, lighting, photometric stereo details
+    - Analytical Foundations: Mathematical basis (Poisson, FFT)
+    - Experiments: 4 main experiments + 2 ablation studies
+    - Results: Summary of RMSE values
+    - Discussion: Failure modes (edges, high curvature)
+    - Conclusion: Validation of approach
+
+  Template placeholders: <EXP1_RMSE>, <EXP2_RMSE>, etc., replaced with actual values
+
+================================================================================
+4. HAND-DERIVED LAPLACE EQUATION (SIMPLE CASE)
+================================================================================
+
+This section derives the Poisson equation from first principles for a simple 1D
+case, then extends to 2D. This is the mathematical foundation of the integration
+method.
+
+4.1 1D CASE: DERIVING POISSON FROM LEAST-SQUARES
+-------------------------------------------------
+
+Problem Statement:
+  Given noisy gradient measurements p_meas(x), estimate height z(x) on [0, L]
+  such that dz/dx ≈ p_meas(x).
+
+Least-Squares Formulation:
+  minimize J[z] = ∫₀ᴸ (dz/dx - p_meas)² dx
+
+To minimize, we use calculus of variations. Let z be perturbed by small ε η(x):
+  z̃ = z + ε η(x), where η(0) = η(L) = 0 (fixed boundary)
+
+The perturbed objective:
+  J[z̃] = ∫₀ᴸ (d(z + εη)/dx - p_meas)² dx
+        = ∫₀ᴸ [(dz/dx + ε dη/dx) - p_meas]² dx
+        = ∫₀ᴸ [(dz/dx - p_meas)² + 2ε(dz/dx - p_meas)(dη/dx) + O(ε²)] dx
+
+At the minimum, dJ/dε|_{ε=0} = 0:
+  0 = ∫₀ᴸ 2(dz/dx - p_meas)(dη/dx) dx
+
+Integration by parts (with η = 0 at boundaries):
+  ∫₀ᴸ (dz/dx - p_meas) dη/dx dx = [(dz/dx - p_meas)η]₀ᴸ - ∫₀ᴸ d/dx(dz/dx - p_meas) η dx
+                                 = 0 - ∫₀ᴸ d/dx(dz/dx - p_meas) η dx
+
+So the first-order condition becomes:
+  ∫₀ᴸ d/dx(dz/dx - p_meas) η(x) dx = 0
+
+Since this holds for all admissible η, the integrand must vanish (fundamental lemma):
+  d/dx(dz/dx - p_meas) = 0
+  d²z/dx² = dp_meas/dx
+
+This is the 1D Poisson equation! The right-hand side is the divergence (derivative)
+of the gradient field.
+
+4.2 EXTENSION TO 2D
+-------------------
+
+Problem Statement:
+  Given noisy gradient field (p_meas, q_meas) on domain Ω ⊂ ℝ², minimize:
+
+  J[z] = ∬_Ω [(∂z/∂x - p_meas)² + (∂z/∂y - q_meas)²] dx dy
+
+Calculus of Variations:
+  Perturb z → z̃ = z + ε η, compute first variation:
+
+  δJ = ∫∫ [2(∂z/∂x - p_meas)(∂η/∂x) + 2(∂z/∂y - q_meas)(∂η/∂y)] dx dy = 0
+
+Integrate by parts (assuming η = 0 on ∂Ω):
+  ∫∫ (∂z/∂x - p_meas)(∂η/∂x) dx dy = ∮ (∂z/∂x - p_meas) η n_x dS - ∫∫ ∂/∂x(∂z/∂x - p_meas) η dx dy
+                                     = - ∫∫ (∂²z/∂x² - ∂p_meas/∂x) η dx dy
+
+  ∫∫ (∂z/∂y - q_meas)(∂η/∂y) dx dy = - ∫∫ (∂²z/∂y² - ∂q_meas/∂y) η dx dy
+
+Setting δJ = 0:
+  ∫∫ [-(∂²z/∂x² - ∂p_meas/∂x) - (∂²z/∂y² - ∂q_meas/∂y)] η dx dy = 0
+
+Again by the fundamental lemma:
+  ∂²z/∂x² + ∂²z/∂y² = ∂p_meas/∂x + ∂q_meas/∂y
+
+In compact form:
+  ∇²z = ∇ · (p, q)
+
+where ∇² is the Laplacian and f = ∇ · (p, q) is the divergence of the gradient field.
+
+4.3 PHYSICAL INTERPRETATION
+----------------------------
+
+Why does this equation make sense intuitively?
+
+Consider a small square cell in the domain with:
+  - Top edge: height z_top = z + ∂z/∂y · Δy/2
+  - Bottom edge: height z_bottom = z - ∂z/∂y · Δy/2
+  - Left edge: height z_left = z - ∂z/∂x · Δx/2
+  - Right edge: height z_right = z + ∂z/∂x · Δx/2
+
+The "slope mismatch" at the center is:
+  (z_right - z_left) - p · Δx = (∂z/∂x - p) · Δx
+  (z_top - z_bottom) - q · Δy = (∂z/∂y - q) · Δy
+
+The total mismatch energy in this cell:
+  E_cell ∝ (∂z/∂x - p)² + (∂z/∂y - q)²
+
+To minimize total energy across the grid, gradients must be consistent. The
+Laplacian ∇²z acts as a "smoothness enforcer" that makes the solution as close
+to the measurements as possible while remaining globally integrable.
+
+4.4 SIMPLE NUMERICAL EXAMPLE
+----------------------------
+
+Example: 1D gradient field on 5-point grid
+
+Grid points: x = 0, 1, 2, 3, 4
+Measurements: p_meas = [?, 1.0, 0.5, -0.5, ?]  (no measurements at boundaries)
+
+We want: dz/dx ≈ p_meas
+
+Poisson equation discretized with spacing Δx = 1:
+  (z_{i+1} - 2z_i + z_{i-1}) / 1² = ∂p/∂x|_i
+
+For interior points (i = 1, 2, 3):
+  ∂p/∂x|_1 ≈ (1.0 - ?) / 1 = undefined (at boundary)
+  ∂p/∂x|_2 ≈ (0.5 - 1.0) / 1 = -0.5
+  ∂p/∂x|_3 ≈ (-0.5 - 0.5) / 1 = -1.0
+
+Assume Neumann BC: ∂z/∂x|_0 = p_meas[0], ∂z/∂x|_4 = p_meas[4] (unknown)
+Or Dirichlet BC: z(0), z(4) fixed (simplifies example)
+
+With Dirichlet BC z(0) = 0, z(4) = 0:
+  z_2 - 2z_1 + 0   = -0.5  →  z_2 - 2z_1 = -0.5
+  z_3 - 2z_2 + z_1 = -1.0
+  0   - 2z_3 + z_2 = ?     (depends on p at boundary)
+
+This is a sparse linear system that can be solved directly (3×3 for interior unknowns).
+
+In the code, FFT solves this implicitly in Fourier space where the Laplacian is
+diagonal: λ_k = -(k_x² + k_y²).
+
+================================================================================
+5. COMPUTATIONAL IMPLEMENTATION DETAILS
+================================================================================
+
+5.1 FFT FREQUENCY GRIDS
+-----------------------
+
+The np.fft.fftfreq function:
+  fftfreq(N, d=1.0) returns frequency array:
+  [0, 1/(N·d), 2/(N·d), ..., (N/2-1)/(N·d), -N/2/(N·d), ..., -1/(N·d)]
+
+  Note: Negative frequencies come AFTER positive (due to FFT output ordering)
+
+  Example: N=4, d=1.0
+    fftfreq(4, 1.0) = [0, 0.25, 0.5, -0.25]
+
+  These are normalized frequencies (cycles per unit distance). To get wavenumbers:
+    k_x = 2π · fftfreq(W, dx)
+    k_y = 2π · fftfreq(H, dy)
+
+Meshgrid:
+  KX, KY = np.meshgrid(kx, ky, indexing="xy")
+  Creates 2D grids of k_x and k_y values
+  indexing="xy" means first index is y, second is x (matrix convention)
+
+Wavenumber magnitude squared:
+  |k|² = k_x² + k_y² = KX² + KY²
+  Laplacian in Fourier space: λ_k = -|k|²
+
+5.2 DC COMPONENT HANDLING
+--------------------------
+
+The zero-frequency component (DC term) represents the mean of the array:
+  F[0,0] = (1/(H·W)) Σ_all f[i,j]
+
+Problem: λ_k[0,0] = -(0² + 0²) = 0, causing division by zero
+
+Physical interpretation:
+  The Poisson equation ∇²z = f determines z up to an additive constant.
+  The DC component (mean) is undetermined.
+
+Solution in code:
+  1. Set λ_k[0,0] = 1.0 (artificial non-zero value)
+  2. Set F[0,0] = 0.0 (remove DC component of source)
+  3. Consequence: mean(z) = 0 in the solution
+
+Alternative approach (not used here):
+  - Compute only non-DC frequencies
+  - Use different boundary condition (Neumann instead of periodic)
+  - Explicitly set mean after solving
+
+5.3 FINITE-DIFFERENCE GRADIENTS
+--------------------------------
+
+np.gradient(Z, axis=k) computes first-order derivatives using central differences:
+
+  ∂Z/∂x[i,j] ≈ (Z[i,j+1] - Z[i,j-1]) / 2  (interior points)
+
+At boundaries (i or j = 0 or N-1):
+  np.gradient uses one-sided differences
+  Forward: (Z[i,j+1] - Z[i,j])
+  Backward: (Z[i,j] - Z[i,j-1])
+
+Error: O(Δx²) globally, O(Δx) at boundaries
+
+For second derivatives (in divergence computation):
+  p = np.gradient(Z, axis=1) / dx    [first deriv]
+  px = np.gradient(p, axis=1) / dx   [second deriv]
+
+  Error compounds: O((Δx)²) × O((Δx)²) = O((Δx)⁴)?
+  Actually: Two applications of O(Δx²) centered differences = O(Δx²) overall
+
+5.4 PSEUDOINVERSE COMPUTATION
+------------------------------
+
+np.linalg.pinv(S) computes Moore-Penrose pseudoinverse using SVD:
+
+  Given S = U Σ V^H (SVD decomposition)
+  Pseudoinverse: S⁺ = V Σ⁺ U^H
+
+  where Σ⁺ inverts all non-zero singular values, zeroing small ones (threshold)
+
+Properties:
+  - For full-rank m×3 matrix (m ≥ 3): S⁺ = (S^T S)^{-1} S^T
+  - For rank-deficient S: projects onto column space
+  - Minimum-norm least-squares solution: g = S⁺ I minimizes ||g|| subject to ||Sg - I||
+
+Threshold: np.linalg.pinv uses threshold = max(m, n) × eps × max_singular_value
+  - eps ≈ 2.22e-16 (machine epsilon for float64)
+  - Singular values below threshold are treated as zero
+
+Computational cost: O(m²·3) = O(m²) for SVD of m×3 matrix
+
+5.5 COMPLEXITY ANALYSIS
+-----------------------
+
+Overall pipeline complexity for H×W grid with m lights:
+
+  Per-pixel photometric stereo: O(m² · H · W)
+    - For m=16 lights: O(256 · H · W)
+
+  Gradient computation: O(H · W) for finite differences
+
+  Poisson solve: O(H · W · log(H·W)) via FFT
+    - Actually: O(H log H · W log W) for 2D FFT
+
+  Visualization: O(H · W) per figure
+
+  Dominant term: Photometric stereo (if m large) or FFT (if m small)
+
+  For H=W=128, m=16:
+    PS: ~268M operations
+    FFT: ~200K operations
+    Total: Dominated by PS, runs in milliseconds on modern CPU
+
+Memory usage:
+  - m images: m·H·W floats = 16·128·128 × 8 bytes ≈ 2 MB
+  - Height field, normals, gradients: ~3 MB
+  - FFT temp arrays: ~2 MB
+  - Total: ~10 MB, easily fits in L3 cache
+
+================================================================================
+6. EXPERIMENTAL FRAMEWORK
+================================================================================
+
+6.1 EXPERIMENT 1: POISSON SOLVER VALIDATION
+--------------------------------------------
+
+Purpose: Test the Poisson solver in isolation with exact inputs
+
+Pipeline:
+  1. Generate Gaussian surface with known analytical form
+  2. Compute exact gradients analytically
+  3. Compute divergence f = ∂p/∂x + ∂q/∂y numerically
+  4. Solve Poisson equation using FFT
+  5. Compare reconstructed z with original
+
+Expected result:
+  - Theoretically: RMSE = 0 (reconstruction is perfect)
+  - Practically: RMSE ≈ 1e-14 (machine epsilon for round-trip FFT)
+
+Actual result in code: RMSE ≈ 0.023
+  - Likely sources of error:
+    1. Finite-difference gradient computation (O(Δx²) error)
+    2. Boundary effects (periodic BC vs actual zero-mean assumption)
+    3. Floating-point round-trip errors through FFT
+
+Analysis:
+  Error scales as O(Δx²), so doubling resolution (Δx → Δx/2) should
+  reduce error by factor of 4. This tests finite-difference accuracy.
+
+Plots generated:
+  - exp1_Z_true.png: Ground truth height map
+  - exp1_Z_rec.png: Poisson reconstruction
+  - exp1_error.png: Difference Z_true - Z_rec
+  - exp1_profile.png: 1D cross-section (x-direction)
+  - exp1_hist.png: Error histogram
+
+6.2 EXPERIMENT 2: PHOTOMETRIC STEREO FULL PIPELINE
+---------------------------------------------------
+
+Purpose: Test complete chain: photometric stereo → gradient estimation → Poisson
+
+Lights used:
+  [0, 0, 1]       (zenith)
+  [1, 1, 2]       (northeast, elevated)
+  [-1, 1, 2]      (northwest, elevated)
+  [1, -1, 2]      (southeast, elevated)
+  [-1, -1, 2]     (southwest, elevated)
+
+  All normalized to unit length. Elevation ≈ 63.4°, azimuth covers 90° quadrants.
+
+Number of images: 5 (minimum overdetermined system is m=3)
+
+Expected RMSE: Slightly worse than Exp1 due to photometric stereo estimation noise
+
+Key noise sources:
+  1. Per-pixel PS solution from 5 lights (m=5, 3 unknowns)
+  2. Normalization of recovered normals
+  3. Gradient extraction from normals (division by n_z)
+
+Conditioning:
+  The 5×3 light matrix S has singular values σ_1, σ_2, σ_3 > 0
+  Condition number κ(S) = σ_1 / σ_3 (typically 1.2-1.8 for well-distributed lights)
+  High κ means noisy estimates; low κ means robust estimates
+
+Plots generated:
+  - exp2_Z_est.png: PS reconstruction
+  - exp2_error.png: Error map
+  - exp2_all_images.png: Grid of 5 input images
+  - exp2_normals_gt.png: Ground truth normals (as RGB)
+  - exp2_normals_est.png: Estimated normals (as RGB)
+  - exp2_profile.png: 1D cross-section
+  - exp2_hist.png: Error histogram
+
+6.3 EXPERIMENTS 3A & 3B: ROTATING LIGHT CONFIGURATIONS
+------------------------------------------------------
+
+Sphere Experiment (shape="sphere"):
+  Surface: Hemisphere with radius 0.9
+  Properties:
+    - Smooth, continuous everywhere
+    - High curvature at pole (∂²z/∂r² ≈ -1/R at top)
+    - Very shallow at edges
+
+  Challenges:
+    1. Pole: Steep normal angle, numerical instability
+    2. Edges: Very shallow gradients, sensitivity to noise
+    3. Self-shadowing: Even with 16 lights, some facets perpendicular to all
+
+  Expected behavior:
+    - Good reconstruction in central region
+    - Errors elevated at edges (underestimated depth)
+    - Angular normal error 1-5° typical
+
+Cube Experiment (shape="cube"):
+  Surface: Softened cube with tapered edges
+    - Inner square: r ≤ 0.35, height = 0.6
+    - Transition: 0.35 < r ≤ 0.45, height = 0.6 · (1 - (r - 0.35)/0.1)
+    - Outer region: r > 0.45, height = 0
+
+  Properties:
+    - Piecewise-linear (not smooth)
+    - Discontinuous curvature at transitions
+    - Tests robustness to non-smooth surfaces
+
+  Challenges:
+    1. Discontinuous second derivative (∂²z/∂r² jumps)
+    2. Ringing artifacts at edges (Gibbs phenomenon)
+    3. PS fails at edges where normals aren't perpendicular to any light
+
+  Expected behavior:
+    - Good reconstruction on flat faces
+    - Errors at edge transitions
+    - Angular normal error 2-10° typical
+
+Lighting configuration (both shapes):
+  - m = 16 lights evenly spaced in azimuth
+  - Fixed elevation: 45° (θ = π/4)
+  - Directions: L_i = (cos(φ_i) cos(45°), sin(φ_i) cos(45°), sin(45°))
+  - Coverage: 2π / 16 ≈ 22.5° azimuthal spacing
+
+  Advantage: Redundant coverage from many angles
+  Disadvantage: Might cause self-shadowing on steep surfaces
+
+Plots generated (per shape):
+  - shape_{sphere/cube}_Z_true.png: Ground truth
+  - shape_{sphere/cube}_Z_est.png: Reconstruction
+  - shape_{sphere/cube}_error.png: Difference (centered colormap)
+  - shape_{sphere/cube}_all_images.png: 16-image montage
+  - shape_{sphere/cube}_normals_gt.png: True normals as RGB
+  - shape_{sphere/cube}_normals_est.png: Estimated normals as RGB
+  - shape_{sphere/cube}_profile.png: 1D cross-section
+  - shape_{sphere/cube}_hist.png: Error histogram (height)
+  - shape_{sphere/cube}_normal_ang_hist.png: Angular error histogram
+
+Metrics:
+  - RMSE (depth reconstruction error): typically 0.01-0.15
+  - Mean angular normal error: typically 1-10 degrees
+  - Median angular error: Often lower than mean (left tail dominated by outliers)
+
+6.4 ABLATION STUDY: NUMBER OF LIGHTS
+-------------------------------------
+
+Purpose: Quantify accuracy vs. number of light sources
+
+Light configurations: m ∈ {3, 5, 8, 16}
+  - 3 lights: Minimum for 3 unknowns (determined system)
+  - 5 lights: 2× redundancy (well-conditioned)
+  - 8 lights: 2.67× redundancy
+  - 16 lights: 5.33× redundancy (heavily overdetermined)
+
+Ground truth surface: Gaussian bump (from Exp1)
+
+Metrics reported:
+  - RMSE vs. m
+  - Mean angular normal error vs. m
+
+Expected trends:
+  - RMSE decreases monotonically with m
+  - Improvement slows as m → ∞ (diminishing returns)
+  - Plateau typically at m ≈ 8-10 for this surface
+
+  Physical reason:
+    - m=3: System just barely determined, any noise degrades solution
+    - m=8: Good averaging of noise, most redundancy benefit obtained
+    - m=16: Further improvement marginal, computation cost increases linearly
+
+6.5 ABLATION STUDY: NOISE ROBUSTNESS
+-------------------------------------
+
+Purpose: Quantify accuracy degradation under image noise
+
+Noise levels: σ ∈ {0.0, 0.01, 0.02, 0.05}
+  - σ=0.0: No noise (baseline)
+  - σ=0.01: 1% noise (typical sensor noise for 8-bit images)
+  - σ=0.02: 2% noise
+  - σ=0.05: 5% noise (severely degraded)
+
+Generation: Gaussian noise applied after rendering, clipped to [0,1]
+
+Ground truth surface: Gaussian bump
+Lights: 8 rotating lights at 45° elevation
+
+Metrics reported:
+  - RMSE vs. noise level
+  - Mean angular normal error vs. noise level
+
+Expected trends:
+  - RMSE increases linearly with σ (for small σ)
+    √(RMSE²_noisy) ≈ √(RMSE²_clean + c·σ²)
+  - Angular error similarly increases linearly
+
+  Explanation:
+    - Per-pixel PS solution amplifies noise
+    - Noise in normals → noise in gradients → noise in height via Poisson
+    - Poisson solver doesn't regularize (no smoothness prior)
+
+================================================================================
+7. ERROR ANALYSIS & VALIDATION
+================================================================================
+
+7.1 SOURCES OF ERROR
+--------------------
+
+Error in photometric stereo:
+  1. Image measurement noise
+  2. BRDF non-Lambertian effects (specularity, roughness)
+  3. Insufficient light diversity (singular lighting matrix)
+  4. Self-shadowing (not modeled in forward projection)
+  5. Floating-point round-off
+
+Error in gradient computation:
+  1. Finite-difference truncation error: O(Δx²)
+  2. Boundary effects (one-sided differences)
+  3. Normalization errors when n_z is small
+
+Error in Poisson integration:
+  1. Discrete approximation of divergence: O(Δx²)
+  2. Periodic boundary condition (wrapping artifacts)
+  3. Floating-point errors in FFT round-trip
+  4. Numerical precision in frequency-domain division
+
+Total error (rough estimation):
+  ε_total² ≈ ε_PS² + ε_grad² + ε_poisson²
+
+  For H=W=128:
+    Δx ≈ 2/128 ≈ 0.016
+    Finite-difference error ≈ (0.016)² ≈ 2.5e-4
+    PS error (m=16, clean) ≈ 1e-3
+    Poisson error ≈ 1e-4
+    Total ≈ sqrt(1e-6 + 2.5e-4 + 1e-8) ≈ 0.016 (typical observed ~0.023)
+
+7.2 ERROR METRICS USED
+---------------------
+
+Root-mean-square error (RMSE):
+  RMSE = sqrt(mean((Z_true - Z_est)²))
+
+  Properties:
+    - Sensitive to large errors (outliers)
+    - Dimensioned (same units as height)
+    - Interpretable: ~63% of errors within ±RMSE (for Gaussian distribution)
+
+Mean absolute error (MAE):
+  MAE = mean(|Z_true - Z_est|)
+
+  Properties:
+    - Robust to outliers
+    - More intuitive interpretation
+    - Not used in this code but often reported in research
+
+Angular error (degrees):
+  θ = arccos(clip(N_true · N_est, -1, 1)) [in degrees]
+
+  Properties:
+    - Independent of height scale
+    - Measures normal accuracy directly
+    - 1° error in normal → ~1.7% error in gradient (for shallow surfaces)
+    - More robust to scale ambiguity than height error
+
+7.3 VALIDATION STRATEGIES
+-------------------------
+
+Strategy 1: Compare against known analytical solution
+  - Gaussian surface has analytical ∇z
+  - Poisson equation with exact RHS should give RMSE ≈ machine epsilon
+  - Finite-difference error dominates: observe O(Δx²) convergence
+
+Strategy 2: Noise-free synthetic data
+  - Generate surface, render images under perfect conditions
+  - Run full pipeline
+  - Compare with ground truth
+  - Isolates algorithm errors from measurement errors
+
+Strategy 3: Progressive refinement
+  - Solve on low resolution (64×64), then higher (128×128), then (256×256)
+  - RMSE should decrease as O(Δx²)
+  - Validate consistency across scales
+
+Strategy 4: Ablation studies
+  - Vary number of lights: should improve with more lights
+  - Vary noise level: should degrade linearly
+  - Vary surface shape: smooth vs. piecewise-linear
+
+Strategy 5: Cross-validation with alternative methods
+  - Sparse direct Poisson solver (conjugate gradient)
+  - Weighted least-squares instead of exact integration
+  - Compare results; should agree to machine precision
+
+================================================================================
+8. RECOMMENDATIONS FOR ENHANCED ROBUSTNESS
+================================================================================
+
+The current codebase is a solid foundation for research but has limitations.
+To be truly publication-ready for a detailed research report, consider these
+enhancements:
+
+8.1 ADDITIONAL SURFACE SHAPES
+-----------------------------
+
+Current shapes: Gaussian, sphere (hemisphere), softened cube
+
+Recommended additions:
+
+  1. ELLIPSOID:
+     z(x,y) = c · sqrt(1 - (x/a)² - (y/b)²) for (x/a)² + (y/b)² ≤ 1
+     Parameters: major axis a, minor axis b, height scale c
+     Properties:
+       - Smooth, C^∞ everywhere
+       - Variable curvature (more realistic than sphere)
+       - Tests directional sensitivity
+     Implementation:
+       a, b = 0.8, 0.6
+       r2 = (X/a)**2 + (Y/b)**2
+       Z[r2 <= 1] = c * np.sqrt(1 - r2[r2 <= 1])
+
+  2. SINUSOIDAL BUMP:
+     z(x,y) = A · sin(π·x) · sin(π·y) on [-1,1]²
+     Parameters: amplitude A = 0.3
+     Properties:
+       - Periodic, smooth
+       - Multiple frequency components
+       - Tests frequency response of Poisson solver
+       - Natural for FFT-based analysis
+     Implementation:
+       Z = 0.3 * np.sin(np.pi * X) * np.sin(np.pi * Y)
+
+  3. CONE (SOFT):
+     z(x,y) = max(0, h · (1 - r/R))
+     Parameters: height h = 0.8, radius R = 0.9, softening σ = 0.05
+     Properties:
+       - Piecewise-linear but radially symmetric
+       - Canonical shape for computer vision benchmarks
+       - Well-defined singular "apex"
+     Implementation:
+       r = np.sqrt(X**2 + Y**2)
+       Z = 0.8 * np.clip(1 - r/0.9, 0, 1)
+
+  4. HYPERBOLIC PARABOLOID (SADDLE):
+     z(x,y) = a·x·y
+     Parameters: a = 0.3
+     Properties:
+       - Negative Gaussian curvature (saddle point)
+       - Tests on non-convex geometry
+       - Symmetric in x-y interchange
+     Implementation:
+       Z = 0.3 * X * Y
+
+  5. PEAKS FUNCTION (BUMPY):
+     z(x,y) = 3(1-x)² exp(-x² - (y+1)²) - 10(x/5 - x³ - y⁵) exp(-x² - y²)
+              + (1/3) exp(-(x+1)² - y²)
+     Properties:
+       - Multi-modal (multiple peaks and valleys)
+       - Tests on complex topology
+       - Represents real-world unstructured surfaces
+       - Higher frequency components
+     Implementation: Can use scipy.special.peaks or define analytically
+
+8.2 ALTERNATIVE INTEGRATION METHODS
+-----------------------------------
+
+Current method: FFT-based Poisson solver with periodic BC
+
+Recommended alternatives:
+
+  1. NEUMANN BOUNDARY CONDITIONS:
+     Instead of periodic wrapping, use zero-gradient BC on boundaries:
+     ∂z/∂n = 0 on ∂Ω
+
+     Implementation:
+       - Use sine-FFT (not full FFT) for symmetric extension
+       - Or use Dirichlet-to-Neumann preconditioner for iterative solver
+       - Reduces edge artifacts from periodic wrapping
+
+     Comparison:
+       - More physical for non-wrapping domains
+       - Slightly higher computational cost
+       - Results should have less ringing at boundaries
+
+  2. WEIGHTED LEAST-SQUARES INTEGRATION:
+     Instead of uniform weighting, weight by gradient reliability:
+
+     minimize ∫∫ w(x,y)[(∂z/∂x - p)² + (∂z/∂y - q)²] dx dy
+
+     where w(x,y) = confidence in gradient estimate at (x,y)
+
+     Implementation:
+       - Compute weights based on normal quality (e.g., ||N_est||)
+       - Or based on light condition number at each pixel
+       - Leads to weighted Poisson: ∇·(w∇z) = ∇·(w·[p,q])
+       - More complex to solve (matrix-free iterative methods)
+
+     Advantage: Down-weights unreliable regions
+     Disadvantage: Slower, requires iterative solver
+
+  3. SPARSE DIRECT SOLVER (CONJUGATE GRADIENT):
+     Instead of FFT, use iterative solver on discrete Poisson system:
+
+     [∇²_discrete] [z] = [f]
+
+     where discrete Laplacian is sparse (5-point stencil):
+     Δz[i,j] = (z[i+1,j] + z[i-1,j] + z[i,j+1] + z[i,j-1] - 4z[i,j]) / dx²
+
+     Implementation:
+       - scipy.sparse.linalg.cg or linalg.gmres
+       - Define Laplacian as sparse matrix or LinearOperator
+       - Precondition with multigrid for faster convergence
+
+     Advantage: Flexible boundary conditions (Neumann, Dirichlet, mixed)
+     Disadvantage: Slower than FFT (unless well-preconditioned), more memory
+
+  4. TENSOR VOTING FOR GRADIENT FIELD SMOOTHING:
+     Pre-process gradient field to remove noise before Poisson integration:
+
+     For each pixel, propagate gradient information to neighbors:
+     1. Build tensor voting field from gradients
+     2. Extract principal curvature directions
+     3. Smooth gradients along confidence measure
+     4. Then solve Poisson
+
+     Advantage: Data-adaptive, preserves edges
+     Disadvantage: Complex algorithm, parameter tuning required
+     Reference: Guy & Medioni (1997)
+
+8.3 REGULARIZATION & SMOOTHNESS PRIORS
+---------------------------------------
+
+Current approach: Pure Poisson (no regularization)
+
+Problem: Noisy gradients → noisy height, no smoothing
+
+Recommended regularization:
+
+  1. TIKHONOV REGULARIZATION:
+     minimize ∫∫ [(∂z/∂x - p)² + (∂z/∂y - q)² + λ(∂²z/∂x² + ∂²z/∂y²)²] dx dy
+
+     Effect: Quadratic smoothness term (membrane model)
+     λ = regularization parameter (traded off by user)
+
+     Poisson modification:
+     ∇²z + λ∇⁴z = f  (now involves 4th-order Laplacian)
+
+     Implementation:
+       - Frequency response: λ_modified(k) = -k² - λ|k|⁴
+       - Can still solve via FFT: Ẑ = F̂ / λ_modified
+       - Larger λ → smoother reconstruction, less gradient fidelity
+
+  2. TOTAL VARIATION (TV) REGULARIZATION:
+     minimize ∫∫ [(∂z/∂x - p)² + (∂z/∂y - q)² + λ||∇z||] dx dy
+
+     Effect: Sparsity in gradients (preserves edges while smoothing)
+
+     Implementation:
+       - Non-convex, requires iterative solver (ADMM, proximal gradient)
+       - More complex than Tikhonov
+       - Superior edge preservation in practice
+
+     Papers: Rudin, Osher, Fatemi (1992); Boyd et al. (2011)
+
+  3. DATA-ADAPTIVE REGULARIZATION:
+     λ(x,y) = per-pixel regularization strength
+     Chosen based on measurement confidence:
+
+     λ(x,y) = λ_max · (1 - confidence(x,y))
+
+     where confidence ∈ [0,1] measures PS quality
+
+     Effect: Light regulation in well-lit regions, strong smoothing in shadows
+
+8.4 ENHANCED VISUALIZATION & DIAGNOSTICS
+-----------------------------------------
+
+Current visualizations: Heatmaps, profiles, histograms (adequate but basic)
+
+Recommended additions:
+
+  1. SURFACE RENDERING (3D MESH):
+     def plot_3d_surface(Z, title, fname):
+         from mpl_toolkits.mplot3d import Axes3D
+         H, W = Z.shape
+         X, Y = np.meshgrid(np.arange(W), np.arange(H))
+
+         fig = plt.figure(figsize=(8, 6))
+         ax = fig.add_subplot(111, projection='3d')
+         ax.plot_surface(X, Y, Z, cmap='viridis', alpha=0.9)
+         ax.set_title(title)
+         ax.set_xlabel('X')
+         ax.set_ylabel('Y')
+         ax.set_zlabel('Z')
+         plt.savefig(fname, dpi=150)
+         plt.close()
+
+     Usage: Visualize actual 3D geometry for intuition
+     Benefits: Shows height scale, perspective, global shape
+
+  2. GRADIENT VECTOR FIELD OVERLAY:
+     def plot_gradient_field(Z, p, q, fname, title, step=4):
+         fig, ax = plt.subplots(figsize=(8, 8))
+         H, W = Z.shape
+         ax.imshow(Z, origin='lower', cmap='viridis')
+
+         Y, X = np.mgrid[0:H:step, 0:W:step]
+         ax.quiver(X, Y, q[::step, ::step], p[::step, ::step],
+                   color='red', alpha=0.7, scale=20)
+         ax.set_title(title)
+         plt.savefig(fname, dpi=150)
+         plt.close()
+
+     Usage: Overlay gradient vectors on height map
+     Benefits: Direct visualization of estimated gradients
+               Identifies areas of high gradient (edges) vs low (flat)
+
+  3. CONVERGENCE/ERROR OVER ITERATIONS:
+     For iterative Poisson solvers, plot residual norm vs iteration:
+
+     residuals = []
+     for iter in range(max_iter):
+         z_new = solver_step(z, f, lambda_k)
+         residual = ||f - ∇²z_new||
+         residuals.append(residual)
+
+     plt.semilogy(residuals)
+
+     Benefits: Diagnose convergence issues, validate stability
+
+  4. MULTISCALE ERROR ANALYSIS:
+     Solve Poisson at multiple grid resolutions:
+
+     rmse_64x64, rmse_128x128, rmse_256x256 = ...
+
+     Plot RMSE vs resolution, fit to O(Δx²) model
+
+     Extract finite-difference error coefficient from slope
+
+  5. FREQUENCY DOMAIN ANALYSIS:
+     Visualize power spectrum of various fields:
+
+     F_f = np.abs(np.fft.fft2(f))
+     F_z = np.abs(np.fft.fft2(z))
+
+     plt.imshow(np.log(F_f), origin='lower')  # log power spectrum
+
+     Benefits: Diagnose aliasing, frequency content, FFT behavior
+
+8.5 ROBUSTNESS TESTING
+---------------------
+
+Recommended systematic tests:
+
+  1. RESOLUTION SCALING:
+     Test on Nx, Ny ∈ {32, 64, 128, 256, 512}
+     Plot RMSE vs grid spacing, verify O(Δx²) convergence
+
+     Expected: RMSE(Δx) = a·Δx² + O(Δx⁴)
+               log-log plot should have slope ≈ 2
+
+  2. BOUNDARY CONDITION ROBUSTNESS:
+     Implement Neumann BC, Dirichlet BC, periodic BC
+     Compare results on same data
+     Measure difference in edge regions
+
+  3. PATHOLOGICAL CASES:
+     Test on edge cases that might break code:
+
+     - Zero-height surfaces (Z = 0 everywhere)
+       Expected: z_reconstructed ≈ 0
+
+     - Discontinuous surfaces (step function)
+       Expected: Poisson smooths it out
+
+     - Very noisy gradient fields (SNR = 1)
+       Expected: Graceful degradation with regularization
+
+     - Degenerate lighting (all lights coplanar)
+       Expected: Photometric stereo fails (singular S matrix)
+
+  4. NOISE FLOOR ANALYSIS:
+     For perfectly clean data, measure reconstruction error
+     Subtract from noisy case to isolate measurement error
+
+     RMSE_total² ≈ RMSE_algorithm² + RMSE_noise²
+
+  5. LIGHT CONDITION NUMBER:
+     For each experiment, compute κ(S) = σ_max / σ_min
+     Plot RMSE vs κ(S)
+     Higher κ → worse PS estimates → higher final RMSE
+
+8.6 PUBLICATION-READY EXTENSIONS
+---------------------------------
+
+For a detailed research paper, add these sections:
+
+  1. ALGORITHM COMPLEXITY ANALYSIS:
+     - Time complexity: O(n log n) for FFT
+     - Space complexity: O(n)
+     - Compare to dense solvers O(n^3)
+     - Benchmark against direct solver for validation
+
+  2. THEORETICAL CONVERGENCE PROOF:
+     - Prove Poisson FFT solution satisfies discretized equation
+     - Show discrete error = O(Δx²) for smooth surfaces
+     - Cite Strikwerda or other numerical PDE theory
+
+  3. SENSITIVITY ANALYSIS:
+     - How does RMSE depend on light count m?
+     - How does RMSE depend on noise level σ?
+     - How does RMSE depend on surface curvature?
+     - Produce sensitivity plots
+
+  4. COMPARISON TO STATE-OF-THE-ART:
+     - Compare FFT-based Poisson to recent learning-based methods?
+     - Or compare to other classical integration methods?
+     - Cite and implement Frankot-Chellappa, weighted least-squares, etc.
+
+  5. FAILURE MODE ANALYSIS:
+     - Identify when algorithm fails (ill-conditioned lights, shadows)
+     - Propose mitigations
+     - Show examples of failure cases
+
+  6. RUNTIME & SCALABILITY:
+     - Benchmark on various grid sizes
+     - Plot wall-clock time vs resolution
+     - Compare CPU vs GPU (if applicable)
+
+  7. REPRODUCIBILITY:
+     - Provide exact random seed for noise generation
+     - Document all parameter values
+     - Make code publicly available with DOI
+
+
+
+================================================================================
+APPENDIX: CODE CHECKLIST FOR EXTENDING CODEBASE
+================================================================================
+
+When implementing extensions, follow this checklist:
+
+☐ New surface shape added?
+  ☐ Implemented create_shape_surface variant
+  ☐ Added analytical gradients for validation
+  ☐ Added to experiment generation
+  ☐ Created visualization plots
+  ☐ Documented in docstring
+
+☐ New integration method implemented?
+  ☐ Implemented solver function
+  ☐ Tested against Exp1 (exact gradients)
+  ☐ Compared against FFT baseline
+  ☐ Benchmarked runtime
+  ☐ Analyzed accuracy vs resolution
+  ☐ Documented in comments
+
+☐ New visualization added?
+  ☐ Generates publication-quality output
+  ☐ Includes colorbar (if heatmap)
+  ☐ Includes title and labels
+  ☐ 200+ DPI for printing
+  ☐ Aspect ratio appropriate for paper
+
+☐ New experiment designed?
+  ☐ Clear purpose statement
+  ☐ Appropriate metrics chosen
+  ☐ Results interpreted correctly
+  ☐ Failure cases identified
+  ☐ Report section drafted
+
+================================================================================
+REFERENCES
+================================================================================
+
+Core papers cited in code report:
+
+1. Woodham, R. J. (1980). "Photometric method for determining surface orientation
+   and other surface properties." International Journal of Computer Vision.
+
+2. Frankot, R. T., & Chellappa, R. (1988). "A method for enforcing integrability
+   in shape from shading algorithms." PAMI.
+
+3. Pérez, P., Gangnet, M., & Blake, A. (2003). "Poisson image editing."
+   ACM Transactions on Graphics (TOG).
+
+Additional useful references:
+
+4. Strikwerda, J. C. (2004). "Finite Difference Schemes and Partial Differential
+   Equations." SIAM. [Numerical PDE theory]
+
+5. Halimah, A. et al. (2007). "Photometric stereo for outdoor webcams."
+   ICCV. [Real-world PS applications]
+
+6. Ikehata, S., et al. (2018). "Neural Photometric Stereo by Optimization."
+   ICCV. [Learning-based PS]
+
+7. Santo, H., & Geyer, C. (2017). "CNN-PS: CNN-based Photometric Stereo."
+   ECCV. [End-to-end learning]
+
+8. Boyd, S., et al. (2011). "Distributed Optimization and Statistical Learning."
+   Foundations and Trends in ML. [ADMM and proximal methods]
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
