@@ -1,0 +1,64 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{bold-extra}
+\usepackage{xcolor}
+\definecolor{garnet}{HTML}{73000A}
+
+\setlength{\parindent}{0.25in}
+\setlength{\parskip}{0.3em}
+
+\newcommand{\sect}[1]{\noindent{\color{garnet}\textbf{\textsc{#1}}.}}
+\newcommand{\subsect}[1]{\noindent{\color{garnet}\textit{#1.}}}
+
+\begin{document}
+\sloppy
+
+\noindent{\color{garnet}\large\textbf{\textsc{Learned Depth-Adaptive Registration for Multi-Modal Thermal-Visible Sensor Fusion}}}\\[-0.8em]
+{\color{garnet}\rule{\textwidth}{0.5pt}}\\[0.2em]
+\sect{Project Overview}
+Thermal-visible image fusion requires accurate registration, and deep learning has produced significant advances in this domain. DeTone et al. introduced HomographyNet, demonstrating that convolutional networks can estimate homographies end-to-end without traditional feature matching pipelines \cite{detone2016}. Building on this foundation, Debaque et al. developed the first deep homography model specifically for thermal-visible registration, achieving robust alignment under both supervised and unsupervised training \cite{debaque2022}. Nie et al. advanced the field further with depth-aware multi-grid estimation, predicting spatially-varying transformations that handle parallax in scenes with depth variation \cite{nie2022}.
+
+However, these methods share a fundamental limitation: they either assume planar scenes where a single global homography suffices, or they require depth information from active sensors such as LiDAR or structured light. As Zhang et al. explicitly noted, previous deep homography approaches ignore the importance of handling depth disparities and cannot deal with parallax when the scene contains multiple depth planes \cite{zhang2020}. This creates a critical gap for vision-based autonomous systems that cannot rely on dedicated depth hardware such as LiDAR or structured light projectors.
+
+My prior research on depth-aware linear affine transformations for IR-to-RGB registration demonstrated that conditioning geometric transformations on depth substantially improves registration accuracy. This project proposes a Learned Depth-Adaptive Registration (LDAR) framework that extends my work by developing neural depth estimation from monocular thermal imagery, training a depth-conditioned homography network for spatially-varying pixel-accurate alignment.
+
+\sect{Research Methods}
+
+\subsect{Problem Formalization}
+Standard homography $\mathbf{H}$ assumes all scene points lie on a single plane, but real scenes contain objects at varying depths. My current approach addresses this by calibrating separate transformations for background and foreground. A distant background (where parallax is sub-pixel) is aligned once using a single homography $\mathbf{H}_\infty$. Foreground objects are then captured at distances from 1m to 75m in 0.5m intervals, with each object placed at the corners and center of the image per distance. Interpolating across these samples produces a depth-conditioned transformation $\mathbf{H}(z)$. At runtime, a manual segmentation mask identifies foreground regions and the appropriate transformation is applied based on specified depth. This approach improves upon fixed homographies but requires knowing accurate depth of objects.
+
+\subsect{Proposed Approach}
+The LDAR framework comprises two integrated components. First, a monocular thermal depth estimation network based on MobileNetV3 estimates relative depth from single thermal images. Rather than training from scratch, we employ transfer learning from RGB-pretrained weights and fine-tune on our thermal dataset, supplemented by sparse LiDAR range supervision. Second, a depth-conditioned homography network predicts spatially-varying local transformations $\mathbf{H}_{\text{local}}(x,y)$ conditioned on image patches and their estimated depths, naturally handling multi-plane scenes. This network is similarly fine-tuned from pretrained homography estimation weights using our approximately 750 annotated thermal-visible frame pairs.
+
+\subsect{Implementation and Evaluation}
+Training data consists of approximately 750 annotated frame pairs from our existing 4-channel multi-spectral pipeline, spanning 1m to 75m. The training objective combines photometric reprojection loss, depth smoothness regularization, and keypoint correspondence accuracy. Evaluation quantifies registration accuracy using mean corner error (target: less than 3 pixels) following the HPatches evaluation protocol \cite{detone2016}, depth estimation using absolute relative error against measured ground-truth distances, and generalization on held-out mid-range depths (25-40m), where we target maintaining sub-3-pixel accuracy. Since parallax effects diminish with distance, we prioritize accuracy at close and mid-range depths (1-40m) where registration errors are most significant.
+
+\sect{Goals and Expected Results}
+Goal 1: develop monocular thermal depth estimation with accuracy sufficient to support sub-3-pixel registration across all tested depths. Goal 2: train depth-conditioned registration achieving less than 3 pixel mean corner error across 1m--75m. Goal 3: systematic baseline comparison demonstrating improvement over fixed-homography methods, with accuracy-versus-range characterization showing improved performance at greater depths where parallax effects diminish \cite{nie2022, gonzalez2021}, and failure mode analysis examining low-texture regions \cite{gonzalez2021, debaque2022}, spectral mismatch between modalities \cite{ma2023}, depth discontinuities at object edges \cite{nie2022}, and feature sparsity in thermal imagery \cite{debaque2022}.
+
+Deliverables include trained neural network models with published weights, an annotated evaluation dataset with depth and registration ground truth, a technical report comparing LDAR against baselines, an open-source code repository, a poster presentation at the UofSC Summer Research Symposium, and a manuscript draft targeting fall 2026 conference submission.
+
+\sect{Timeline}
+The 14-week research period (350--400 hours, approximately 25--40 hours/week) proceeds as follows. Week 1: data inventory and environment configuration. Weeks 2--5: implement and train depth estimation network. Weeks 6--9: design and train registration network with hyperparameter optimization. Weeks 10--14: baseline comparison, accuracy-versus-range analysis, failure mode analysis, documentation. Final week: poster preparation and symposium presentation.
+
+\sect{NASA Relevance}
+This research supports three NASA Mission Directorates. Under STMD, the LDAR framework addresses TX04 (Robotic Systems), TX10 (Autonomous Systems), and TX17 (GN\&C). Lunar rover navigation at the South Pole requires obstacle detection across extreme lighting---from direct sunlight to permanently shadowed regions. Diviner measurements show these regions exhibit 25--50K temperature variations from thermal inertia differences \cite{paige2010}, enabling thermal-based perception without active illumination. Under ARMD Strategic Thrust 6 (Assured Autonomy), accurate thermal-visible registration establishes the algorithmic foundation for future detect-and-avoid systems in degraded visual environments. Under ESDMD, Lunar Terrain Vehicle navigation requires terrain-relative positioning without GPS; depth-adaptive fusion algorithms enable hazard detection where lighting varies dramatically.
+
+NASA Technology Taxonomy alignment includes TX04.4 (Mobility and manipulation for surface operations), TX10.1 (Autonomous navigation in unstructured environments), TX11.1 (Software for autonomous decision-making), and TX17.2 (Relative navigation and hazard detection).
+
+\begin{thebibliography}{9}
+\bibitem{detone2016} D. DeTone, T. Malisiewicz, and A. Rabinovich, ``Deep Image Homography Estimation,'' \textit{RSS Workshop: Limits and Potentials of Deep Learning in Robotics}, 2016. arXiv:1606.03798.
+\bibitem{debaque2022} B. Debaque et al., ``Thermal and Visible Image Registration Using Deep Homography,'' \textit{IEEE Int. Conf. Information Fusion}, 2022. DOI: 10.23919/FUSION49751.2022.9841256.
+\bibitem{nie2022} L. Nie et al., ``Depth-Aware Multi-Grid Deep Homography Estimation with Contextual Correlation,'' \textit{IEEE Trans. Circuits Syst. Video Technol.}, vol. 32, no. 7, pp. 4460--4472, 2022. DOI: 10.1109/TCSVT.2021.3125736.
+\bibitem{zhang2020} J. Zhang et al., ``Content-Aware Unsupervised Deep Homography Estimation,'' \textit{ECCV}, pp. 630--646, 2020. DOI: 10.1007/978-3-030-58452-8\_38.
+\bibitem{godard2019} C. Godard et al., ``Digging Into Self-Supervised Monocular Depth Estimation,'' \textit{ICCV}, pp. 3828--3838, 2019. DOI: 10.1109/ICCV.2019.00393.
+\bibitem{shin2023} U. Shin, J. Park, and I. S. Kweon, ``Deep Depth Estimation From Thermal Image,'' \textit{CVPR}, pp. 1043--1053, 2023. DOI: 10.1109/CVPR52729.2023.00107.
+\bibitem{wofk2019} D. Wofk et al., ``FastDepth: Fast Monocular Depth Estimation on Embedded Systems,'' \textit{ICRA}, pp. 6101--6108, 2019. DOI: 10.1109/ICRA.2019.8794182.
+\bibitem{gonzalez2021} S. González-Pérez et al., ``Assessment of Registration Methods for Thermal Infrared and Visible Images,'' \textit{Sensors}, vol. 21, no. 7, 2021. DOI: 10.3390/s21072264.
+\bibitem{ma2023} W. Ma et al., ``Infrared and Visible Image Fusion Technology and Application: A Review,'' \textit{Sensors}, vol. 23, no. 2, 2023. DOI: 10.3390/s23020599.
+\bibitem{paige2010} D. A. Paige et al., ``Diviner Lunar Radiometer Observations of Cold Traps in the Moon's South Polar Region,'' \textit{Science}, vol. 330, no. 6003, pp. 479--482, 2010. DOI: 10.1126/science.1187726.
+\end{thebibliography}
+
+\end{document}
