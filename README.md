@@ -12,18 +12,20 @@ This repository organizes graduate and undergraduate course materials, conferenc
 │   └── EMCH792/                             # Optimal State Estimation
 │
 ├── Research/
-│   ├── beamer/                              # LaTeX presentation templates
-│   ├── Conf_Papers/                         # AIAA & IEEE conference papers
-│   ├── NASA_Space_Grant/                    # NASA SC Space Grant Fellowship
-│   │   ├── Altomare/
-│   │   ├── Cancilla/
-│   │   ├── Vaught/
-│   │   └── Young/
-│   ├── NSF_Submission/                      # NSF fellowship application
-│   ├── Papers/
+│   ├── Grants_Scholarships/
+│   │   ├── NASA_Space_Grant/                # NASA SC Space Grant Fellowship
+│   │   │   ├── Altomare/
+│   │   │   ├── Cancilla/
+│   │   │   ├── Vaught/
+│   │   │   └── Young/
+│   │   └── NSF_Submission/                  # NSF fellowship application
+│   ├── Intro_to_Agents/                     # LaTeX presentation slides
+│   ├── Papers/                              # All conference and research papers
+│   │   ├── AIAA Papers/                     # AIAA conference submissions
 │   │   ├── AIAA_SciTech/VRIFA/             # VARTM Flow Front Analysis
 │   │   ├── Devon_surf_current/             # Surface current analysis
 │   │   ├── ExposureCorrectionReport_Input4/# Exposure correction report
+│   │   ├── IEEE Papers/                     # IEEE conference submissions
 │   │   └── Paper_General/
 │   └── *.md                                 # Agentic coding tools research
 │
@@ -72,10 +74,9 @@ This repository organizes graduate and undergraduate course materials, conferenc
 ### Active Research (see `Research/`)
 
 - **NASA Space Grant Fellowship** -- Research team materials for the SC NASA Space Grant Consortium fellowship program.
+- **NSF Submission** -- NSF fellowship application materials.
 - **AIAA SciTech / VRIFA** -- VARTM resin infusion flow front analysis paper.
 - **Exposure Correction Report** -- Image exposure correction study.
-- **NSF Submission** -- NSF fellowship application materials.
-- **Conference Papers** -- AIAA and IEEE submissions.
 
 ## Tools and Technologies
 
