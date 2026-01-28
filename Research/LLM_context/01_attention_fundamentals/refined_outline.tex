@@ -1,0 +1,533 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+% Define brand colors
+\definecolor{garnet}{RGB}{115,0,10}
+\definecolor{rose}{RGB}{204,46,64}
+\definecolor{atlantic}{RGB}{70,106,159}
+
+% Format section headers in garnet
+\titleformat{\section}
+  {\Large\bfseries\color{garnet}}
+  {\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{garnet}}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{garnet}}
+  {\thesubsubsection}{1em}{}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=garnet,
+    citecolor=atlantic,
+    urlcolor=atlantic
+}
+
+\title{\textbf{\color{garnet}Section 1: Transformer Attention and Context Fundamentals}\\
+\large Refined Outline for Literature Review on LLM Context Management}
+\author{J.C. Vaught}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+This section establishes the foundational understanding of transformer attention mechanisms and their relationship to context management in large language models. We trace the evolution from the original transformer architecture through modern long-context adaptations, examining both the computational constraints and innovations that have enabled dramatic increases in context window sizes.
+
+\section{The Transformer Architecture and Self-Attention}
+
+\subsection{Foundational Work: Attention Is All You Need}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Vaswani et al. (2017)} introduced the transformer architecture in ``Attention Is All You Need'' (NeurIPS 2017)
+    \begin{itemize}
+        \item Full citation: Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, L., \& Polosukhin, I. (2017)
+        \item arXiv: 1706.03762
+        \item Over 173,000 citations as of 2025, among the most cited papers of the 21st century
+    \end{itemize}
+
+    \item \textbf{Quadratic complexity analysis}: Self-attention mechanism exhibits $O(n^2 \cdot d)$ complexity
+    \begin{itemize}
+        \item $n$ = sequence length, $d$ = hidden dimension
+        \item Computational cost quadratic in sequence length
+        \item Benefits: $O(1)$ sequential operations (constant time), enabling full parallelization
+        \item Trade-off: Computational efficiency vs. memory constraints for long sequences
+    \end{itemize}
+
+    \item \textbf{Architecture components}:
+    \begin{itemize}
+        \item Multi-head attention mechanism
+        \item Position-wise feed-forward networks
+        \item Residual connections and layer normalization
+        \item Encoder-decoder structure (though decoder-only models now dominate LLMs)
+    \end{itemize}
+\end{itemize}
+
+\subsection{Computational Complexity Comparisons}
+
+\begin{itemize}[leftmargin=*]
+    \item Self-attention vs. recurrent layers:
+    \begin{itemize}
+        \item RNNs: $O(n)$ sequential operations, preventing parallelization
+        \item Self-attention: $O(1)$ sequential operations, fully parallelizable
+        \item Path length between long-range dependencies: $O(1)$ for self-attention vs. $O(n)$ for RNNs
+    \end{itemize}
+
+    \item Memory constraints become the primary bottleneck as sequence length increases
+\end{itemize}
+
+\section{Positional Encoding: Evolution and Variants}
+
+\subsection{Original Sinusoidal Positional Encodings}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Vaswani et al. (2017)} introduced sinusoidal functions for absolute position encoding
+    \item Mathematical formulation using sine and cosine functions of different frequencies
+    \item Allows model to extrapolate to sequence lengths not seen during training
+    \item Limitation: Does not explicitly encode relative distances between tokens
+\end{itemize}
+
+\subsection{Learned Positional Encodings}
+
+\begin{itemize}[leftmargin=*]
+    \item Alternative to fixed sinusoidal encodings
+    \item Position embeddings learned during training
+    \item Used in GPT-2, GPT-3, and other early large language models
+    \item Limitation: Cannot generalize beyond training sequence length
+\end{itemize}
+
+\subsection{Relative Positional Encodings}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Shaw et al. (2018)}: ``Self-Attention with Relative Position Representations'' (NAACL 2018)
+    \begin{itemize}
+        \item Authors: Peter Shaw, Jakob Uszkoreit, Ashish Vaswani
+        \item Published in Proceedings of NAACL 2018
+        \item Available at ACL Anthology: N18-2074
+    \end{itemize}
+
+    \item \textbf{Key innovation}: Extend self-attention to efficiently consider relative positions or distances between sequence elements
+    \begin{itemize}
+        \item Uses pairwise distances for positional encodings
+        \item Improvements: +1.3 BLEU on WMT 2014 English-German, +0.3 BLEU on English-French
+        \item Combining relative and absolute encodings yielded no further improvement
+    \end{itemize}
+
+    \item \textbf{Impact}: Foundation for most subsequent relative positional encoding work, including Transformer-XL
+\end{itemize}
+
+\subsection{Transformer-XL and Relative Positional Encodings}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Dai et al. (2019)}: ``Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context'' (ACL 2019)
+    \begin{itemize}
+        \item arXiv: 1901.02860
+        \item Published at ACL 2019 (Association for Computational Linguistics)
+    \end{itemize}
+
+    \item \textbf{Segment-level recurrence mechanism}:
+    \begin{itemize}
+        \item Maintains hidden states from previous segments during processing
+        \item Enables context to extend beyond current segment boundaries
+        \item Resolves context fragmentation problem of vanilla transformers
+    \end{itemize}
+
+    \item \textbf{Performance improvements}:
+    \begin{itemize}
+        \item Learns dependencies 80\% longer than RNNs
+        \item Learns dependencies 450\% longer than vanilla transformers
+        \item Up to 1,800+ times faster than vanilla transformers during evaluation
+    \end{itemize}
+
+    \item Novel relative positional encoding scheme compatible with recurrence mechanism
+\end{itemize}
+
+\subsection{Rotary Position Embedding (RoPE)}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Su et al. (2021)}: ``RoFormer: Enhanced Transformer with Rotary Position Embedding''
+    \begin{itemize}
+        \item Author: Jianlin Su and colleagues
+        \item arXiv: 2104.09864
+        \item Published in Neurocomputing (ScienceDirect, 2023)
+    \end{itemize}
+
+    \item \textbf{Key innovation}: Unifies absolute and relative positional encoding approaches
+    \begin{itemize}
+        \item Encodes absolute position with rotation matrix
+        \item Incorporates explicit relative position dependency in self-attention
+        \item Rotates pairs of features by angle depending on token position
+        \item Pre-defined rotation parameters: $\Theta = \{\theta_i = 10000^{-2(i-1)/d}, i \in [1, 2, \ldots, d/2]\}$
+    \end{itemize}
+
+    \item \textbf{Properties}:
+    \begin{itemize}
+        \item Flexibility of sequence length
+        \item Decaying inter-token dependency with increasing relative distances
+        \item Compatible with linear self-attention variants
+    \end{itemize}
+
+    \item \textbf{Adoption}: Used in LLaMA 3.2, most modern transformer architectures, integrated into HuggingFace
+\end{itemize}
+
+\subsection{ALiBi: Attention with Linear Biases}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Press et al. (2021)}: ``Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation''
+    \begin{itemize}
+        \item Authors: Ofir Press, Noah A. Smith, Mike Lewis
+        \item arXiv: 2108.12409
+        \item Published at ICLR 2022
+    \end{itemize}
+
+    \item \textbf{Key innovation}: Bias-based positional encoding scheme
+    \begin{itemize}
+        \item Does not add positional embeddings to word embeddings
+        \item Instead biases query-key attention scores with term proportional to distance
+        \item Bias grows linearly as distance between query and key tokens increases
+        \item Similar to T5's relative positional encoding but simpler implementation
+    \end{itemize}
+
+    \item \textbf{Extrapolation capability}:
+    \begin{itemize}
+        \item Enables inference on sequences longer than training sequences
+        \item Bias formula applies uniformly to any token distance
+        \item Inductive bias towards recency
+    \end{itemize}
+
+    \item Designed for autoregressive decoder-only scenarios with causal attention
+    \item Outperforms multiple strong position methods on WikiText-103 benchmark
+\end{itemize}
+
+\section{Context Window Scaling: Historical Evolution}
+
+\subsection{Early Models (2018-2020)}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{GPT-2 (2019)}: 1,024 token context window
+    \item \textbf{GPT-3 (June 2020)}: 2,048 token context window
+    \item Early transformer models constrained by quadratic attention complexity
+    \item Context length limited by available compute and memory
+\end{itemize}
+
+\subsection{Mid-Generation Scaling (2021-2023)}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{ChatGPT/GPT-3.5 (November 2022)}: 4,096 tokens (4K)
+    \item \textbf{gpt-3.5-turbo-0613 (June 2023)}: 16,384 tokens (16K)
+    \item \textbf{GPT-4 (March 2023)}: Launched with 8K and 32K variants
+    \begin{itemize}
+        \item Standard: 8,192 tokens (8K)
+        \item Extended: 32,768 tokens (32K)
+    \end{itemize}
+    \item \textbf{GPT-4 Turbo}: 128,000 tokens (128K) - 32x improvement over initial GPT-4
+\end{itemize}
+
+\subsection{Long-Context Era (2023-2024)}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Anthropic Claude} context evolution:
+    \begin{itemize}
+        \item \textbf{May 2023}: Claude expanded from 9K to 100K tokens (approximately 75,000 words)
+        \begin{itemize}
+            \item Industry-leading at time of release
+            \item Blog post: ``Introducing 100K Context Windows'' (Anthropic, 2023)
+        \end{itemize}
+        \item \textbf{November 2023}: Claude 2.1 reached 200K tokens (approximately 150,000 words, 500+ pages)
+        \begin{itemize}
+            \item Doubled context from Claude 2.0
+            \item Can absorb technical manuals, financial filings, multiple books
+        \end{itemize}
+        \item \textbf{March 2024}: Claude 3 family launched with 200K standard window
+        \begin{itemize}
+            \item Extended capability: 1M tokens for select customers
+            \item Standard: 200K tokens
+            \item Premium tiers (2025-2026): 500K (Enterprise), 1M tokens (Beta)
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Google Gemini 1.5 (February 2024)}:
+    \begin{itemize}
+        \item \textbf{Breakthrough}: 1 million token context window
+        \item Longest context of any large-scale foundation model at launch
+        \item Capabilities: 1 hour of video, 11 hours of audio, 30,000+ lines of code, 700,000+ words
+        \item Previous record: Claude's 200,000 tokens
+        \item Standard: 128,000 tokens; Extended: up to 1M tokens (private preview)
+        \item Research testing: Successfully processed up to 10 million tokens
+        \item Needle-in-Haystack (NIAH) evaluation: 99\% accuracy at 1M tokens
+        \item Blog: ``Introducing Gemini 1.5, Google's next-generation AI model'' (February 2024)
+    \end{itemize}
+\end{itemize}
+
+\subsection{Context Scaling Progression Summary}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Timeline}: 1,024 $\rightarrow$ 2,048 $\rightarrow$ 4K $\rightarrow$ 8K $\rightarrow$ 16K $\rightarrow$ 32K $\rightarrow$ 128K $\rightarrow$ 1M+ tokens
+    \item \textbf{Growth}: From GPT-2 (2019) to Gemini 1.5 (2024), context windows grew approximately 1000x in 5 years
+    \item \textbf{Current state (2025-2026)}: Multiple models exceeding 1M tokens, with research exploring 10M+ token contexts
+\end{itemize}
+
+\section{Challenges in Long-Context Utilization}
+
+\subsection{The ``Lost in the Middle'' Phenomenon}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Liu et al. (2023/2024)}: ``Lost in the Middle: How Language Models Use Long Contexts''
+    \begin{itemize}
+        \item Authors: Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, Percy Liang
+        \item arXiv: 2307.03172 (July 2023)
+        \item Published: Transactions of the Association for Computational Linguistics (TACL), Vol. 12, 2024, pp. 157-173
+    \end{itemize}
+
+    \item \textbf{Research methodology}:
+    \begin{itemize}
+        \item Analyzed performance on two tasks: multi-document question answering and key-value retrieval
+        \item Varied position of relevant information within input context
+        \item Tested multiple long-context models
+    \end{itemize}
+
+    \item \textbf{Key findings}:
+    \begin{itemize}
+        \item Performance degrades significantly when relevant information appears in middle of context
+        \item \textbf{U-shaped performance curve}: Highest accuracy when information is at beginning or end
+        \item Even explicitly designed long-context models exhibit this limitation
+        \item Models do not robustly utilize information in long input contexts
+        \item Indicates fundamental challenge in long-context attention mechanisms
+    \end{itemize}
+
+    \item \textbf{Implications}:
+    \begin{itemize}
+        \item Having large context window does not guarantee effective use of all information
+        \item Position of critical information matters significantly
+        \item Challenges notion that context scaling alone solves long-document understanding
+    \end{itemize}
+\end{itemize}
+
+\subsection{Context Fragmentation}
+
+\begin{itemize}[leftmargin=*]
+    \item Vanilla transformers process fixed-length segments independently
+    \item Information cannot flow across segment boundaries
+    \item Addressed by Transformer-XL's recurrence mechanism
+\end{itemize}
+
+\subsection{Computational and Memory Constraints}
+
+\begin{itemize}[leftmargin=*]
+    \item Quadratic scaling of attention with sequence length
+    \item Memory consumption for Key-Value (KV) cache in autoregressive generation
+    \item GPU memory limitations constrain practical context lengths
+\end{itemize}
+
+\section{Attention Sinks and Streaming Language Models}
+
+\subsection{Discovery of Attention Sink Phenomenon}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Xiao et al. (2023)}: ``Efficient Streaming Language Models with Attention Sinks''
+    \begin{itemize}
+        \item Authors: Guangxuan Xiao and colleagues from MIT, Meta AI, Carnegie Mellon, NVIDIA
+        \item arXiv: 2309.17453 (September 2023)
+        \item Published at ICLR 2024
+        \item GitHub: mit-han-lab/streaming-llm
+        \item Project page: hanlab.mit.edu/projects/streamingllm
+    \end{itemize}
+
+    \item \textbf{Attention sink phenomenon}:
+    \begin{itemize}
+        \item Initial tokens receive disproportionately strong attention scores
+        \item Occurs even when initial tokens are not semantically important
+        \item Tokens act as ``sink'' for attention weights
+        \item Keeping KV states of initial tokens largely recovers performance of window attention
+    \end{itemize}
+\end{itemize}
+
+\subsection{Challenges in Streaming Deployment}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Memory constraints}: Caching all previous tokens' Key-Value states consumes extensive memory
+    \item \textbf{Length generalization}: Most LLMs cannot generalize beyond training sequence length
+    \item \textbf{Window attention failure}: Standard sliding window fails when text exceeds cache size
+\end{itemize}
+
+\subsection{StreamingLLM Framework}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Key innovation}: Enables LLMs with finite attention window to generalize to infinite sequence lengths
+    \begin{itemize}
+        \item No fine-tuning required
+        \item Combines recent tokens with attention sink tokens
+        \item Maintains stable performance across extremely long sequences
+    \end{itemize}
+
+    \item \textbf{Performance achievements}:
+    \begin{itemize}
+        \item Enables stable language modeling with up to 4 million tokens
+        \item Tested on: LLaMA-2, MPT, Falcon, Pythia
+        \item Up to 22.2x speedup over sliding window recomputation baseline in streaming settings
+    \end{itemize}
+
+    \item \textbf{Design recommendation}: Adding placeholder token as dedicated attention sink during pre-training improves streaming deployment
+\end{itemize}
+
+\section{Efficient Attention Mechanisms for Long Contexts}
+
+\subsection{Sparse Attention Patterns}
+
+\subsubsection{Longformer}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Beltagy et al. (2020)}: ``Longformer: The Long-Document Transformer''
+    \begin{itemize}
+        \item Authors: Iz Beltagy, Matthew E. Peters, Arman Cohan
+        \item arXiv: 2004.05150
+        \item Affiliation: Allen Institute for AI (AI2)
+    \end{itemize}
+
+    \item \textbf{Attention mechanism}: Combination of local and global attention
+    \begin{itemize}
+        \item \textbf{Local windowed attention}: Dilated sliding windows for better long-range coverage
+        \item \textbf{Global attention}: Task-motivated tokens attend to all positions
+        \item Drop-in replacement for standard self-attention
+        \item Scales linearly with sequence length (vs. quadratic for standard attention)
+    \end{itemize}
+
+    \item \textbf{Results}:
+    \begin{itemize}
+        \item State-of-the-art on character-level language modeling (text8, enwik8)
+        \item Consistently outperformed RoBERTa on long document tasks after pretraining and fine-tuning
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{BigBird}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Zaheer et al. (2020)}: ``Big Bird: Transformers for Longer Sequences''
+    \begin{itemize}
+        \item Lead author: Manzil Zaheer and Guru Guruganesh (Google Research)
+        \item Published at NeurIPS 2020
+        \item arXiv: 2007.14062
+        \item GitHub: google-research/bigbird
+    \end{itemize}
+
+    \item \textbf{Sparse attention components}:
+    \begin{itemize}
+        \item \textbf{Global tokens} ($g$): Attend to all parts of sequence
+        \item \textbf{Local tokens} ($w$): All tokens attend to neighboring tokens
+        \item \textbf{Random tokens} ($r$): Each token attends to fixed number of random tokens
+    \end{itemize}
+
+    \item \textbf{Random attention rationale}:
+    \begin{itemize}
+        \item Introduces long-range connections between distant tokens
+        \item Inspired by graph sparsification methods
+        \item Allows discovery of unexpected long-distance dependencies
+    \end{itemize}
+
+    \item \textbf{Properties}:
+    \begin{itemize}
+        \item Reduces quadratic dependency to linear complexity
+        \item Scales to 8x longer sequences than full attention
+        \item Universal approximator of sequence functions
+        \item Turing complete (preserves expressiveness of full attention)
+    \end{itemize}
+\end{itemize}
+
+\subsection{IO-Aware Attention: FlashAttention}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Dao et al. (2022)}: ``FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness''
+    \begin{itemize}
+        \item Authors: Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, Christopher Ré
+        \item Affiliations: Stanford University, University at Buffalo (SUNY)
+        \item Published at NeurIPS 2022
+        \item arXiv: 2205.14135 (May 2022)
+        \item GitHub: Dao-AILab/flash-attention
+    \end{itemize}
+
+    \item \textbf{Key innovation}: IO-aware exact attention algorithm
+    \begin{itemize}
+        \item Accounts for reads/writes between GPU memory levels
+        \item Uses tiling to reduce memory transfers between HBM and SRAM
+        \item Prevents materialization of large $N \times N$ attention matrix on GPU HBM
+    \end{itemize}
+
+    \item \textbf{Algorithm}:
+    \begin{itemize}
+        \item Loop through blocks of K and V matrices, load to fast on-chip SRAM
+        \item Loop over blocks of Q matrix
+        \item Compute attention and write output back to HBM
+        \item No approximation - computes exact attention
+    \end{itemize}
+
+    \item \textbf{Complexity}:
+    \begin{itemize}
+        \item HBM accesses: $O(N^2 d^2 M^{-1})$ where $d$ is head dimension, $M$ is SRAM size
+        \item Standard attention: $\Omega(Nd + N^2)$ HBM accesses
+        \item Memory usage: Linear in sequence length (vs. quadratic for standard)
+    \end{itemize}
+
+    \item \textbf{Performance}:
+    \begin{itemize}
+        \item Up to 7.6x faster on GPT-2
+        \item Significantly reduced memory footprint
+        \item Enables longer sequences on same hardware
+    \end{itemize}
+\end{itemize}
+
+\section{Discussion and Future Directions}
+
+\subsection{Fundamental Trade-offs}
+
+\begin{itemize}[leftmargin=*]
+    \item Computational complexity vs. modeling capability
+    \item Context window size vs. effective utilization
+    \item Exact attention vs. approximation methods
+    \item Memory efficiency vs. information retention
+\end{itemize}
+
+\subsection{Open Research Questions}
+
+\begin{itemize}[leftmargin=*]
+    \item How to ensure uniform attention distribution across entire context?
+    \item Can we overcome the ``lost in the middle'' phenomenon?
+    \item What are the theoretical limits of context scaling?
+    \item How do different positional encodings affect long-context performance?
+    \item What is the optimal balance between sparse and dense attention patterns?
+\end{itemize}
+
+\subsection{Implications for Context Management}
+
+\begin{itemize}[leftmargin=*]
+    \item Architectural innovations (positional encodings, sparse attention) enable longer contexts
+    \item Efficient implementations (FlashAttention) make long contexts practical
+    \item Effective utilization remains challenge even with large context windows
+    \item Understanding attention patterns (sinks, positional biases) critical for optimization
+    \item Future systems must address both capacity and utilization
+\end{itemize}
+
+\section{Summary}
+
+This section establishes the foundational understanding of transformer attention mechanisms and their evolution to support long-context processing. Key developments include:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Architectural foundation}: Vaswani et al.'s transformer with quadratic attention complexity
+    \item \textbf{Positional encoding evolution}: From sinusoidal (Vaswani) to relative (Shaw, Dai) to rotary (Su) and linear bias (Press)
+    \item \textbf{Context scaling}: 1000x growth from 1K tokens (GPT-2) to 1M+ tokens (Gemini 1.5) in 5 years
+    \item \textbf{Utilization challenges}: Liu et al.'s discovery of ``lost in the middle'' phenomenon
+    \item \textbf{Attention sinks}: Xiao et al.'s identification of initial token importance in streaming contexts
+    \item \textbf{Efficiency innovations}: Sparse attention (Longformer, BigBird) and IO-aware algorithms (FlashAttention)
+\end{enumerate}
+
+These fundamentals provide the necessary context for understanding advanced techniques in retrieval-augmented generation, context compression, and prompt engineering covered in subsequent sections.
+
+\end{document}

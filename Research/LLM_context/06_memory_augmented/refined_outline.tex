@@ -1,0 +1,664 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+% Define Garnet color for section headers
+\definecolor{Garnet}{HTML}{73000A}
+
+% Configure section formatting
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{Garnet}}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{Garnet}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{Garnet}}{\thesubsubsection}{1em}{}
+
+\title{\textbf{Section 6: Memory-Augmented and RAG Architectures}\\
+\large Refined Outline for Literature Review on LLM Context Management}
+\author{J.C. Vaught}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Memory-augmented and Retrieval-Augmented Generation (RAG) architectures represent a paradigm shift in extending the effective context window of large language models beyond their architectural limitations. Rather than processing all information within the transformer's fixed context window, these approaches leverage external memory systems, databases, and retrieval mechanisms to dynamically incorporate relevant information during generation. This section examines the foundational architectures, retrieval strategies, advanced RAG variants, and agentic memory systems that enable models to access and utilize information far exceeding their native context capacity.
+
+\section{Foundational Memory Architectures}
+
+\subsection{Neural Turing Machines}
+
+\subsubsection{Architecture and Mechanism}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Graves et al. (2014)} -- ``Neural Turing Machines'' introduces differentiable external memory coupled to neural networks via attentional processes \cite{graves2014neural}
+    \item Combines fuzzy pattern matching capabilities of neural networks with algorithmic power of programmable computers
+    \item Differentiable end-to-end architecture enabling gradient descent training
+    \item Analogous to Turing Machine or Von Neumann architecture
+\end{itemize}
+
+\subsubsection{Capabilities and Results}
+\begin{itemize}[leftmargin=*]
+    \item Demonstrates ability to infer simple algorithms: copying, sorting, associative recall
+    \item Foundation for subsequent memory-augmented architectures
+    \item Establishes attention-based memory read/write operations
+\end{itemize}
+
+\subsection{Memory Networks}
+
+\subsubsection{Original Memory Networks}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Weston et al. (2015)} -- Introduces memory networks with explicit storage and reasoning components
+    \item Four-component architecture: input feature map, generalization, output feature map, response
+\end{itemize}
+
+\subsubsection{End-to-End Memory Networks}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Sukhbaatar et al. (2015)} -- ``End-To-End Memory Networks'' enables fully differentiable training \cite{sukhbaatar2015end}
+    \item Authors: Sainbayar Sukhbaatar, Arthur Szlam, Jason Weston, Rob Fergus (Facebook AI Research \& NYU)
+    \item Recurrent attention model over large external memory
+    \item Multiple computational hops per output symbol
+    \item Extension of attention mechanisms (RNNsearch) to multi-hop reasoning
+\end{itemize}
+
+\subsubsection{Applications and Performance}
+\begin{itemize}[leftmargin=*]
+    \item Synthetic question answering: competitive with supervised Memory Networks
+    \item Language modeling: comparable to RNNs and LSTMs on Penn TreeBank and Text8
+    \item Significantly reduced supervision requirements compared to original Memory Networks
+    \item Published at NIPS 2015
+\end{itemize}
+
+\section{Retrieval-Augmented Generation (RAG)}
+
+\subsection{Foundational RAG Architecture}
+
+\subsubsection{Original RAG Framework}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Lewis et al. (2020)} -- ``Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks'' \cite{lewis2020retrieval}
+    \item Full authors: Patrick Lewis et al. (12 authors total)
+    \item Published at NeurIPS 2020; arXiv: 2005.11401
+    \item Meta AI Research (formerly Facebook AI)
+\end{itemize}
+
+\subsubsection{Core Components}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Parametric memory}: Pre-trained seq2seq transformer model
+    \item \textbf{Non-parametric memory}: Dense vector index of Wikipedia
+    \item \textbf{Retrieval mechanism}: Dense passage retrieval for relevant context
+    \item \textbf{Generation}: Conditions on retrieved passages for output generation
+\end{itemize}
+
+\subsubsection{RAG Formulations}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{RAG-Sequence}: Conditions on same retrieved passages across entire generation
+    \item \textbf{RAG-Token}: Can use different passages per token for dynamic retrieval
+\end{itemize}
+
+\subsubsection{Performance and Impact}
+\begin{itemize}[leftmargin=*]
+    \item State-of-the-art results on three open-domain QA tasks
+    \item Generates more specific, diverse, and factual language than parametric-only baselines
+    \item Foundation for modern RAG systems and retrieval-augmented architectures
+\end{itemize}
+
+\subsection{Dense Passage Retrieval (DPR)}
+
+\subsubsection{Motivation and Architecture}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Karpukhin et al. (2020)} -- ``Dense Passage Retrieval for Open-Domain Question Answering'' \cite{karpukhin2020dpr}
+    \item Authors: Vladimir Karpukhin, Barlas Oguz, Sewon Min, Patrick Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, Wen-tau Yih
+    \item Published at EMNLP 2020; arXiv: 2004.04906
+    \item Facebook AI Research
+\end{itemize}
+
+\subsubsection{Technical Approach}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Dual-encoder framework}: Separate BERT-based encoders for queries and passages
+    \item Question Encoder: Processes input query into dense representation
+    \item Passage Encoder: Encodes documents/passages into dense vectors
+    \item Training: Simple dual-encoder framework with small number of question-passage pairs
+    \item Retrieval: Dense representations alone (no sparse features)
+\end{itemize}
+
+\subsubsection{Performance Improvements}
+\begin{itemize}[leftmargin=*]
+    \item 9-19\% absolute improvement in top-20 passage retrieval accuracy over Lucene-BM25
+    \item State-of-the-art results on multiple open-domain QA benchmarks
+    \item Reduces semantic search time from 65 hours (BERT) to ~5 seconds
+    \item Widely adopted as foundation for RAG retrieval components
+\end{itemize}
+
+\subsection{Retrieval-Enhanced Transformers (RETRO)}
+
+\subsubsection{DeepMind's RETRO Architecture}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Borgeaud et al. (2022)} -- ``Improving Language Models by Retrieving from Trillions of Tokens'' \cite{borgeaud2022retro}
+    \item Authors: Sebastian Borgeaud, Arthur Mensch, Jordan Hoffmann, et al. (DeepMind)
+    \item Published at ICML 2022; arXiv: 2112.04426
+\end{itemize}
+
+\subsubsection{Key Innovation}
+\begin{itemize}[leftmargin=*]
+    \item Retrieval from 2 trillion token database during pre-training and inference
+    \item Achieves GPT-3 / Jurassic-1 performance with 25× fewer parameters
+    \item Performance gain comparable to 10× parametric model size increase
+\end{itemize}
+
+\subsubsection{Technical Architecture}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Frozen BERT retriever}: Retrieves relevant passages from massive database
+    \item \textbf{Differentiable encoder}: Processes retrieved information
+    \item \textbf{Chunked cross-attention}: Integrates retrieved neighbors at passage level
+    \item Interleaves regular self-attention (document level) with cross-attention (passage level)
+\end{itemize}
+
+\subsubsection{Performance Results}
+\begin{itemize}[leftmargin=*]
+    \item 7.5B parameter RETRO outperforms 175B Jurassic-1 on 10/16 datasets
+    \item Outperforms 280B Gopher on 9/16 datasets
+    \item RETROfitting: Pre-trained transformers can be rapidly adapted with retrieval
+\end{itemize}
+
+\subsubsection{Database and Scalability}
+\begin{itemize}[leftmargin=*]
+    \item Training database: Web pages, books, news articles, code
+    \item 2 trillion tokens -- order of magnitude more data than typical training
+    \item Demonstrates scalability of retrieval-augmented approaches
+\end{itemize}
+
+\section{kNN-Augmented Memory Mechanisms}
+
+\subsection{Memorizing Transformers}
+
+\subsubsection{Architecture and Approach}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Wu et al. (2022)} -- ``Memorizing Transformers'' \cite{wu2022memorizing}
+    \item Authors: Yuhuai Wu, Markus N. Rabe, DeLesley Hutchins, Christian Szegedy
+    \item Published at ICLR 2022 (Spotlight); arXiv: 2203.08913
+\end{itemize}
+
+\subsubsection{Core Mechanism}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Approximate kNN lookup}: Non-differentiable memory of recent (key, value) pairs
+    \item Enables reading and memorizing new data at inference time
+    \item Immediate knowledge acquisition without retraining
+    \item Memory size scales up to 262K tokens
+\end{itemize}
+
+\subsubsection{Performance Across Domains}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Generic web text}: C4 dataset improvements
+    \item \textbf{Math papers}: arXiv dataset gains
+    \item \textbf{Books}: PG-19 long-form content
+    \item \textbf{Code}: GitHub repositories
+    \item \textbf{Formal theorems}: Isabelle proof assistant
+    \item Capable of utilizing newly defined functions and theorems during test time
+\end{itemize}
+
+\subsubsection{Scaling Behavior}
+\begin{itemize}[leftmargin=*]
+    \item Performance steadily improves with memory size increase
+    \item Effective for code and mathematical reasoning with dynamic knowledge
+    \item Demonstrates test-time adaptation capabilities
+\end{itemize}
+
+\subsection{ColBERT: Late Interaction Retrieval}
+
+\subsubsection{Late Interaction Architecture}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Khattab \& Zaharia (2020)} -- ``ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT'' \cite{khattab2020colbert}
+    \item Authors: Omar Khattab, Matei Zaharia (Stanford)
+    \item Published at SIGIR 2020; arXiv: 2004.12832
+\end{itemize}
+
+\subsubsection{Technical Innovation}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Independent encoding}: Query and document encoded separately with BERT
+    \item \textbf{Late interaction}: Cheap yet powerful interaction step models fine-grained similarity
+    \item \textbf{MaxSim operator}: Maximum cosine similarity of each query vector with document vectors
+    \item Combines expressiveness of deep LMs with offline document pre-computation
+\end{itemize}
+
+\subsubsection{Efficiency and Performance}
+\begin{itemize}[leftmargin=*]
+    \item Two orders of magnitude faster than BERT-based models
+    \item Four orders of magnitude fewer FLOPs per query
+    \item Competitive effectiveness with existing BERT models
+    \item Outperforms all non-BERT baselines
+    \item Enables end-to-end retrieval from large document collections via vector-similarity indexes
+\end{itemize}
+
+\subsubsection{Extensions: ColBERTv2}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Santhanam et al. (2022)} -- ``ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction''
+    \item Published at NAACL 2022; arXiv: 2112.01488
+    \item Further efficiency improvements and optimizations
+\end{itemize}
+
+\section{Advanced RAG Variants}
+
+\subsection{Self-RAG: Self-Reflective Retrieval}
+
+\subsubsection{Framework Overview}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Asai et al. (2023)} -- ``Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection'' \cite{asai2023selfrag}
+    \item Authors: Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, Hannaneh Hajishirzi
+    \item Published at ICLR 2024 (Oral -- top 1\%); arXiv: 2310.11511
+\end{itemize}
+
+\subsubsection{Key Innovation: Reflection Tokens}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Adaptive retrieval}: On-demand retrieval decisions
+    \item \textbf{Reflection tokens}: Special tokens for self-critique and evaluation
+    \item Model can retrieve multiple times or skip retrieval entirely
+    \item Generates and reflects on retrieved passages and own generations
+\end{itemize}
+
+\subsubsection{Advantages Over Traditional RAG}
+\begin{itemize}[leftmargin=*]
+    \item Traditional RAG: Indiscriminate retrieval of fixed number of passages
+    \item Self-RAG: Adaptive decisions on when and what to retrieve
+    \item Self-critique mechanisms improve relevance filtering
+    \item Enhanced LM versatility and response quality
+\end{itemize}
+
+\subsubsection{Performance Results}
+\begin{itemize}[leftmargin=*]
+    \item Self-RAG (7B, 13B) outperforms ChatGPT on open-domain QA
+    \item Superior performance on reasoning and fact verification tasks
+    \item Significant gains in factuality and citation accuracy for long-form generation
+    \item State-of-the-art among LLMs and retrieval-augmented models
+\end{itemize}
+
+\subsection{Corrective RAG (CRAG)}
+
+\subsubsection{Framework and Approach}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Yan et al. (2024)} -- ``Corrective Retrieval Augmented Generation'' \cite{yan2024crag}
+    \item arXiv: 2401.15884 (submitted January 2024, revised October 2024)
+\end{itemize}
+
+\subsubsection{Core Mechanism: Retrieval Evaluator}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Lightweight retrieval evaluator}: Assesses quality of retrieved documents
+    \item \textbf{Confidence degree}: Triggers different knowledge retrieval actions
+    \item Self-assessment before generation improves accuracy and relevance
+\end{itemize}
+
+\subsubsection{Three Action Types}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Correct}: Reliable retrieval
+    \begin{itemize}
+        \item Decompose-then-recompose technique
+        \item Remove irrelevant information
+        \item Retain key knowledge
+    \end{itemize}
+    \item \textbf{Incorrect}: Unreliable retrieval
+    \begin{itemize}
+        \item Discard faulty retrievals
+        \item Trigger web search for reliable information
+    \end{itemize}
+    \item \textbf{Ambiguous}: Unclear confidence
+    \begin{itemize}
+        \item Combine refined retrieval with web search
+        \item Ensure diverse and robust knowledge integration
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Integration with Other RAG Methods}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Self-CRAG}: Inserts CRAG into Self-RAG framework
+    \item Replaces retrieved items with processed knowledge (Correct), external knowledge (Incorrect), or combined knowledge (Ambiguous)
+    \item Demonstrates adaptability across RAG-based approaches
+\end{itemize}
+
+\subsubsection{Performance}
+\begin{itemize}[leftmargin=*]
+    \item Tested on four datasets: short-form and long-form generation
+    \item Significantly outperforms traditional RAG and Self-RAG
+    \item Improved performance across various benchmarks
+\end{itemize}
+
+\subsection{Graph RAG}
+
+\subsubsection{Microsoft GraphRAG Framework}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Microsoft Research} -- GraphRAG: Structured, hierarchical RAG approach
+    \item Available at: \texttt{github.com/microsoft/graphrag}
+\end{itemize}
+
+\subsubsection{Core Approach}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Knowledge graph extraction}: LLM-generated graphs from raw text
+    \item \textbf{Community hierarchy}: Structured organization of entities and relationships
+    \item \textbf{Community summaries}: Hierarchical abstractions
+    \item \textbf{Graph machine learning}: Augments prompts at query time
+\end{itemize}
+
+\subsubsection{Advantages Over Baseline RAG}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Connecting disparate information}:
+    \begin{itemize}
+        \item Baseline RAG struggles with aggregation queries (e.g., ``What are the top 5 themes?'')
+        \item Vector search limited to semantically similar text snippets
+        \item Graph RAG connects information via relationships
+    \end{itemize}
+    \item \textbf{Better context and hidden connections}:
+    \begin{itemize}
+        \item Captures relationships beyond semantic similarity
+        \item Uncovers hidden but crucial correlations
+        \item More accurate and relevant results
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Technical Components}
+\begin{itemize}[leftmargin=*]
+    \item Text extraction from documents
+    \item Network analysis for relationship modeling
+    \item LLM-based entity and relation extraction
+    \item Community detection and hierarchical clustering
+    \item Query-time graph traversal and augmentation
+\end{itemize}
+
+\subsubsection{Applications and Availability}
+\begin{itemize}[leftmargin=*]
+    \item Complex queries requiring relationship understanding
+    \item Large-scale document analysis
+    \item Scientific research: Microsoft Discovery platform in Azure
+    \item LazyGraphRAG variant for efficiency
+\end{itemize}
+
+\section{Agentic Memory Systems}
+
+\subsection{MemGPT: Virtual Context Management}
+
+\subsubsection{Operating System Analogy}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Packer et al. (2023)} -- ``MemGPT: Towards LLMs as Operating Systems'' \cite{packer2023memgpt}
+    \item Authors: Charles Packer, Vivian Fang, Shishir G. Patil, Kevin Lin, Sarah Wooders, Joseph E. Gonzalez
+    \item arXiv: 2310.08560 (October 2023)
+\end{itemize}
+
+\subsubsection{Core Concept: Hierarchical Memory}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Virtual context management}: Inspiration from OS hierarchical memory systems
+    \item Provides appearance of large memory via data movement between fast and slow memory
+    \item Fixed-context LLM processor augmented with hierarchical memory system
+\end{itemize}
+
+\subsubsection{Memory Architecture}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Main context} (prompt tokens):
+    \begin{itemize}
+        \item System instructions
+        \item Working context
+        \item FIFO queue for recent interactions
+    \end{itemize}
+    \item \textbf{External context}:
+    \begin{itemize}
+        \item Archival storage database
+        \item Recall storage database
+    \end{itemize}
+    \item \textbf{Functions}: LLM manages own memory via function calls
+    \item \textbf{Interrupts}: Manages control flow between system and user
+\end{itemize}
+
+\subsubsection{Applications and Evaluation}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Document analysis}:
+    \begin{itemize}
+        \item Analyze documents far exceeding LLM context window
+        \item Dynamic loading of relevant document sections
+    \end{itemize}
+    \item \textbf{Multi-session chat}:
+    \begin{itemize}
+        \item Conversational agents that remember across sessions
+        \item Reflection and evolution through long-term interactions
+        \item Persistent memory across conversation boundaries
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Implementation and Availability}
+\begin{itemize}[leftmargin=*]
+    \item Open-source implementation: \texttt{memgpt.ai}
+    \item Rebranded as ``Letta'' for production deployment
+    \item Demonstrates unbounded context through memory hierarchy
+\end{itemize}
+
+\section{Retrieval Infrastructure and Optimization}
+
+\subsection{Embedding Models}
+
+\subsubsection{Sentence-BERT (SBERT)}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Reimers \& Gurevych (2019)} -- ``Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks'' \cite{reimers2019sbert}
+    \item Authors: Nils Reimers, Iryna Gurevych
+    \item Published at EMNLP-IJCNLP 2019; arXiv: 1908.10084
+\end{itemize}
+
+\subsubsection{Technical Approach}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Siamese and triplet network structures}: Derive semantically meaningful embeddings
+    \item \textbf{Pooling operation}: Fixed-size sentence embeddings from BERT output
+    \item \textbf{Dual-encoder fine-tuning}: Simultaneous processing of two inputs
+    \item Embeddings comparable via cosine similarity
+\end{itemize}
+
+\subsubsection{Efficiency Gains}
+\begin{itemize}[leftmargin=*]
+    \item BERT: 50M inference computations (~65 hours) for 10K sentence similarity
+    \item SBERT: ~5 seconds for same task
+    \item Maintains BERT-level accuracy with massive speedup
+\end{itemize}
+
+\subsubsection{Applications}
+\begin{itemize}[leftmargin=*]
+    \item Semantic search and information retrieval
+    \item Semantic textual similarity
+    \item Paraphrase mining
+    \item Foundation for RAG embedding components
+    \item Official implementation: \texttt{sbert.net}
+\end{itemize}
+
+\subsubsection{Modern Embedding Models}
+\begin{itemize}[leftmargin=*]
+    \item \texttt{multi-qa-mpnet-base-dot-v1}: Optimized for question-answering
+    \item \texttt{all-MiniLM-L6-v2}: Lightweight general-purpose embeddings
+    \item OpenAI \texttt{text-embedding-ada-002}: Commercial state-of-the-art
+    \item Cohere Embed v3: Multilingual and multi-domain
+    \item Context window constraints: typically 512-8192 tokens
+\end{itemize}
+
+\subsection{Chunking Strategies for RAG}
+
+\subsubsection{Fixed-Size Chunking}
+\begin{itemize}[leftmargin=*]
+    \item Segments text into equal-sized pieces by character, token, or word count
+    \item \textbf{Recommended starting point}: ~250 tokens (~1000 characters)
+    \item \textbf{Overlap}: Maintains continuity across chunk boundaries
+    \item Simple, predictable, widely applicable
+\end{itemize}
+
+\subsubsection{Recursive Character Splitting}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Default choice}: 80\% of RAG applications
+    \item Balances simplicity with structure awareness
+    \item Process:
+    \begin{enumerate}
+        \item Chunk by inherent separators (paragraphs, sections)
+        \item Split further if chunk exceeds size limit
+    \end{enumerate}
+    \item Respects document structure while enforcing size constraints
+\end{itemize}
+
+\subsubsection{Semantic Chunking}
+\begin{itemize}[leftmargin=*]
+    \item Groups sentences by semantic similarity of embeddings
+    \item Analyzes relatedness of consecutive sentences
+    \item Creates chunks where topics shift
+    \item More expensive but preserves semantic coherence
+\end{itemize}
+
+\subsubsection{Page-Level Chunking}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{NVIDIA 2024 benchmark}: Tested 7 strategies across 5 datasets
+    \item Page-level chunking: 0.648 accuracy, lowest std dev (0.107)
+    \item Best for structured documents with clear page boundaries
+\end{itemize}
+
+\subsubsection{Late Chunking}
+\begin{itemize}[leftmargin=*]
+    \item Feed entire document into long-context embedding model
+    \item Create token-level embeddings with full context understanding
+    \item Split into chunks after embedding
+    \item Preserves global context in embeddings
+\end{itemize}
+
+\subsubsection{Hierarchical Chunking}
+\begin{itemize}[leftmargin=*]
+    \item Multiple layers at different granularities
+    \item Top layer: Broad sections/themes
+    \item Lower layers: Fine-grained details
+    \item Enables multi-resolution retrieval
+\end{itemize}
+
+\subsubsection{LLM-Based / Agentic Chunking}
+\begin{itemize}[leftmargin=*]
+    \item LLM determines splitting based on semantic meaning
+    \item Considers paragraph types, section headings, content structure
+    \item Experimental but promising for complex documents
+\end{itemize}
+
+\subsubsection{Query-Type Optimization}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Factoid queries}: 256-512 tokens optimal
+    \item \textbf{Analytical queries}: 1024+ tokens needed
+    \item Chunk size should match query complexity
+\end{itemize}
+
+\subsubsection{Best Practices}
+\begin{itemize}[leftmargin=*]
+    \item Chunking is arguably most important factor for RAG performance
+    \item Test multiple strategies for specific use case
+    \item Consider embedding model context window constraints
+    \item Balance chunk size with retrieval precision/recall
+\end{itemize}
+
+\section{Future Directions and Open Challenges}
+
+\subsection{Scalability}
+\begin{itemize}[leftmargin=*]
+    \item Retrieval from trillion-token+ databases
+    \item Efficient indexing and search at massive scale
+    \item Dynamic knowledge base updates without retraining
+\end{itemize}
+
+\subsection{Integration and Unification}
+\begin{itemize}[leftmargin=*]
+    \item Combining parametric and non-parametric memory
+    \item Unified training objectives for retrieval and generation
+    \item End-to-end differentiable retrieval mechanisms
+\end{itemize}
+
+\subsection{Reliability and Factuality}
+\begin{itemize}[leftmargin=*]
+    \item Improved retrieval relevance assessment
+    \item Handling conflicting information from multiple sources
+    \item Citation accuracy and provenance tracking
+    \item Mitigating retrieval-induced hallucinations
+\end{itemize}
+
+\subsection{Efficiency}
+\begin{itemize}[leftmargin=*]
+    \item Reducing latency of retrieval-augmented inference
+    \item Compression of retrieved context
+    \item Adaptive retrieval frequency and granularity
+    \item On-device RAG for privacy-sensitive applications
+\end{itemize}
+
+\subsection{Multimodal Memory}
+\begin{itemize}[leftmargin=*]
+    \item Retrieval across text, images, audio, video
+    \item Cross-modal memory architectures
+    \item Unified representations for multimodal retrieval
+\end{itemize}
+
+\section{Conclusion}
+
+Memory-augmented and RAG architectures represent a fundamental shift from purely parametric language models to hybrid systems that leverage external knowledge. From foundational work on Neural Turing Machines and Memory Networks to modern systems like RETRO, Self-RAG, and MemGPT, these approaches demonstrate that effective context extension requires not just larger windows but intelligent retrieval, organization, and integration of external information. The progression from basic retrieval to self-reflective, corrective, and graph-based methods shows increasing sophistication in when, what, and how to retrieve. As language models continue to scale, memory-augmented architectures will remain essential for grounding generation in factual knowledge, enabling long-term memory, and providing systems with access to information beyond their training cutoff.
+
+\section*{Key References}
+
+\begin{thebibliography}{99}
+
+\bibitem{graves2014neural}
+Graves, A., Wayne, G., \& Danihelka, I. (2014).
+\textit{Neural Turing Machines}.
+arXiv preprint arXiv:1410.5401.
+
+\bibitem{sukhbaatar2015end}
+Sukhbaatar, S., Szlam, A., Weston, J., \& Fergus, R. (2015).
+\textit{End-To-End Memory Networks}.
+In Advances in Neural Information Processing Systems (NeurIPS) 2015.
+
+\bibitem{lewis2020retrieval}
+Lewis, P., Perez, E., Piktus, A., et al. (2020).
+\textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}.
+In Advances in Neural Information Processing Systems (NeurIPS) 2020.
+arXiv:2005.11401.
+
+\bibitem{karpukhin2020dpr}
+Karpukhin, V., Oguz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., \& Yih, W. (2020).
+\textit{Dense Passage Retrieval for Open-Domain Question Answering}.
+In Proceedings of EMNLP 2020, pp. 6769--6781.
+arXiv:2004.04906.
+
+\bibitem{borgeaud2022retro}
+Borgeaud, S., Mensch, A., Hoffmann, J., et al. (2022).
+\textit{Improving Language Models by Retrieving from Trillions of Tokens}.
+In Proceedings of the 39th International Conference on Machine Learning (ICML) 2022.
+arXiv:2112.04426.
+
+\bibitem{wu2022memorizing}
+Wu, Y., Rabe, M. N., Hutchins, D., \& Szegedy, C. (2022).
+\textit{Memorizing Transformers}.
+In International Conference on Learning Representations (ICLR) 2022 Spotlight.
+arXiv:2203.08913.
+
+\bibitem{khattab2020colbert}
+Khattab, O., \& Zaharia, M. (2020).
+\textit{ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT}.
+In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, pp. 39--48.
+arXiv:2004.12832.
+
+\bibitem{asai2023selfrag}
+Asai, A., Wu, Z., Wang, Y., Sil, A., \& Hajishirzi, H. (2023).
+\textit{Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection}.
+In International Conference on Learning Representations (ICLR) 2024 Oral (top 1\%).
+arXiv:2310.11511.
+
+\bibitem{yan2024crag}
+Yan, S., et al. (2024).
+\textit{Corrective Retrieval Augmented Generation}.
+arXiv preprint arXiv:2401.15884.
+
+\bibitem{packer2023memgpt}
+Packer, C., Fang, V., Patil, S. G., Lin, K., Wooders, S., \& Gonzalez, J. E. (2023).
+\textit{MemGPT: Towards LLMs as Operating Systems}.
+arXiv preprint arXiv:2310.08560.
+
+\bibitem{reimers2019sbert}
+Reimers, N., \& Gurevych, I. (2019).
+\textit{Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks}.
+In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP-IJCNLP), pp. 3982--3992.
+arXiv:1908.10084.
+
+\end{thebibliography}
+
+\end{document}

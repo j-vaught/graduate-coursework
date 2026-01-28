@@ -1,0 +1,422 @@
+\documentclass[11pt,letterpaper]{article}
+
+% Packages
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+% Define brand colors
+\definecolor{garnet}{RGB}{115,0,10}
+\definecolor{black90}{RGB}{54,54,54}
+\definecolor{atlantic}{RGB}{70,106,159}
+
+% Section formatting
+\titleformat{\section}
+  {\Large\bfseries\color{garnet}}
+  {\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\large\bfseries\color{black90}}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{black90}}
+  {\thesubsubsection}{1em}{}
+
+% Hyperlink colors
+\hypersetup{
+    colorlinks=true,
+    linkcolor=atlantic,
+    citecolor=atlantic,
+    urlcolor=atlantic
+}
+
+% Title information
+\title{\textbf{\color{garnet}Section 2: Context Window Extension Techniques\\
+\large Refined Outline for Literature Review}}
+\author{J.C. Vaught}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction to Context Window Extension}
+
+The quadratic time and memory complexity of self-attention mechanisms (O($n^2$) in sequence length $n$) represents a fundamental bottleneck for transformer-based language models. This limitation significantly restricts the length of sequences that can be processed during both training and inference, with computational requirements increasing by 100x when sequence length increases by 10x.
+
+This section examines techniques that extend the effective context window of pre-trained language models beyond their original training limits, focusing on position encoding modifications, architectural innovations, and training strategies that enable models to handle longer sequences while maintaining or improving performance.
+
+\section{RoPE-Based Scaling Methods}
+
+Rotary Position Embedding (RoPE) has become the dominant position encoding method in modern large language models. However, RoPE-based models struggle with position extrapolation beyond their training context length. Several methods address this limitation through frequency-domain manipulations.
+
+\subsection{Position Interpolation (PI)}
+
+\subsubsection{Overview}
+Position Interpolation (Chen et al., 2023, arXiv:2306.15595) linearly down-scales input position indices to match the original context window size, enabling RoPE-based models like LLaMA to extend to 32,768 tokens with minimal fine-tuning (within 1,000 steps).
+
+\subsubsection{Key Mechanism}
+Rather than extrapolating beyond trained context lengths (which causes catastrophically high attention scores), PI directly down-scales position indices so the maximum position index matches the pre-training context window limit. The theoretical upper bound of interpolation is at least 600x smaller than extrapolation.
+
+\subsubsection{Limitations}
+\begin{itemize}[leftmargin=*]
+    \item Uniformly compresses position information, making adjacent tokens perceptually closer
+    \item Removes high-frequency components of RoPE
+    \item Degradation worsens as scaling factor increases
+    \item Typically limited to 2-4x extension with good performance
+\end{itemize}
+
+\subsection{NTK-Aware Scaling}
+
+\subsubsection{Overview}
+NTK-Aware scaling, proposed by bloc97 via Reddit, enables LLaMA models to achieve 8k+ context lengths without fine-tuning by modifying only 3 lines of RoPE code with minimal perplexity degradation.
+
+\subsubsection{Core Innovation}
+Instead of scaling every dimension of RoPE equally by factor $s$, NTK-aware interpolation spreads interpolation pressure across dimensions:
+\begin{itemize}[leftmargin=*]
+    \item High frequencies scaled less (preserving local patterns)
+    \item Low frequencies scaled more (maintaining long-range coherence)
+    \item Prevents loss of high-frequency information critical for distinguishing nearby tokens
+\end{itemize}
+
+\subsubsection{NTK-by-Parts Extension}
+Bloc97's further refinement applies different interpolation strategies to different frequency spectrum parts, discovering that frequency components benefit from distinct scaling approaches. This eliminates catastrophic failures seen in pure NTK at certain context lengths.
+
+\subsubsection{Performance}
+Maintains substantially lower perplexity across extended context lengths compared to linear interpolation, achieving 4-8x extension without fine-tuning versus linear scaling's 2-4x maximum.
+
+\subsection{YaRN (Yet another RoPE extensioN method)}
+
+\subsubsection{Overview}
+YaRN (Peng, Quesnelle, Fan, \& Shippole, 2023, arXiv:2309.00071) is a compute-efficient method requiring 10x fewer tokens and 2.5x fewer training steps than previous methods. Published at ICLR 2024.
+
+\subsubsection{Frequency-Based Strategy}
+YaRN classifies RoPE frequencies into three groups with distinct treatment:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{High frequency dimensions}: Not interpolated (preserves local patterns)
+    \item \textbf{Low frequencies}: Only interpolated (maintains global structure)
+    \item \textbf{Mid-range frequencies}: Follow NTK-aware scaling rules
+\end{itemize}
+
+\subsubsection{Results}
+\begin{itemize}[leftmargin=*]
+    \item Extended LLaMA 2 7B and 13B models to 128k context windows
+    \item Trained for only 400 steps with batch size 64 on PG19 dataset
+    \item Achieves state-of-the-art performance after fine-tuning on less than 0.1\% of original pre-training data
+    \item Demonstrates extrapolation capability beyond fine-tuning dataset's context length
+\end{itemize}
+
+\subsection{LongRoPE}
+
+\subsubsection{Overview}
+LongRoPE (Ding et al., 2024, arXiv:2402.13753, ICML 2024) extends context windows to an impressive 2,048k tokens with up to only 1k fine-tuning steps at within 256k training lengths. Integrated into Microsoft Phi-3.
+
+\subsubsection{Three Key Innovations}
+
+\textbf{1. Non-uniform Positional Interpolation}
+\begin{itemize}[leftmargin=*]
+    \item Exploits two forms of non-uniformities through efficient evolutionary search
+    \item Provides superior initialization for fine-tuning
+    \item Enables 8x extension in non-fine-tuning scenarios
+\end{itemize}
+
+\textbf{2. Progressive Extension Strategy}
+\begin{itemize}[leftmargin=*]
+    \item First fine-tunes model to 256k length
+    \item Conducts second positional interpolation on fine-tuned model
+    \item Achieves final 2,048k context window through staged approach
+\end{itemize}
+
+\textbf{3. Short Context Recovery}
+\begin{itemize}[leftmargin=*]
+    \item Readjusts on 8k length to recover short context window performance
+    \item Addresses common degradation issue on original context lengths
+\end{itemize}
+
+\subsubsection{Evaluation}
+Extensive experiments on LLaMA2 and Mistral across various tasks demonstrate effectiveness while retaining original architecture with minimal modifications to positional embedding.
+
+\subsection{LongRoPE2}
+
+\subsubsection{Recent Advances (2025)}
+LongRoPE2 (arXiv:2502.20082) further refines the approach through:
+\begin{itemize}[leftmargin=*]
+    \item Evolutionary search guided by ``needle-driven'' perplexity
+    \item Mixed context window training approach
+    \item Fine-tunes model weights to adopt rescaled RoPE for long sequences
+    \item Preserves short-context performance while enabling near-lossless scaling
+\end{itemize}
+
+\section{Alternative Position Encoding Methods}
+
+\subsection{ALiBi (Attention with Linear Biases)}
+
+\subsubsection{Overview}
+ALiBi (Press, Smith, \& Lewis, 2022, ICLR 2022, arXiv:2108.12409) represents a fundamentally different approach to position encoding, eliminating positional embeddings entirely.
+
+\subsubsection{Mechanism}
+\begin{itemize}[leftmargin=*]
+    \item No position embeddings added to word embeddings at any point
+    \item Only modification: bias applied after query-key dot product
+    \item Formula: softmax($q_i K^\top + m \cdot [-(i-1), \ldots, -2, -1, 0]$)
+    \item Scalar $m$ is head-specific slope fixed before training
+\end{itemize}
+
+\subsubsection{Inductive Bias}
+ALiBi encodes an inductive bias toward recency, penalizing attention scores between distant query-key pairs. The penalty increases proportionally with distance between query and key.
+
+\subsubsection{Performance Benefits}
+\begin{itemize}[leftmargin=*]
+    \item 1.3B parameter model trained on 1,024-token sequences
+    \item Extrapolates to 2,048-token sequences achieving same perplexity as sinusoidal models trained on 2,048 tokens
+    \item 11\% faster training and 11\% less memory usage
+    \item Maintains similar performance on sequences 5-10x longer than training length
+    \item ``Train short, test long'' paradigm
+\end{itemize}
+
+\subsubsection{Trade-offs}
+While enabling strong extrapolation without fine-tuning, ALiBi's recency bias may not be optimal for all task types compared to RoPE's learned rotational encodings.
+
+\section{Architectural and System-Level Approaches}
+
+\subsection{Ring Attention with Blockwise Transformers}
+
+\subsubsection{Overview}
+Ring Attention (Liu, Zaharia, \& Abbeel, 2023, arXiv:2310.01889, NeurIPS 2023) enables near-infinite context through distributed computation rather than position encoding modifications.
+
+\subsubsection{Core Mechanism}
+Leverages blockwise computation of self-attention and feedforward layers to distribute long sequences across multiple devices:
+\begin{itemize}[leftmargin=*]
+    \item Host devices form conceptual ring topology
+    \item Each device computes attention on local blocks
+    \item During inner loop, devices send key-value blocks to next device in ring
+    \item Simultaneously receive key-value blocks from previous device
+    \item Overlapping communication with computation eliminates added overhead
+\end{itemize}
+
+\subsubsection{Scalability}
+\begin{itemize}[leftmargin=*]
+    \item Enables sequences up to device count times longer than memory-efficient transformers
+    \item Can train sequences exceeding 100 million tokens without approximations
+    \item Trains sequences 500x longer than prior memory-efficient state-of-the-art
+    \item No approximations to attention mechanism required
+    \item Used in Large World Model (LWM) for million-length vision-language training
+\end{itemize}
+
+\subsubsection{Technical Advantage}
+As long as block computations take longer than block transfers, the overlapping process results in no added overhead compared to standard transformers, making it practically feasible for extreme context lengths.
+
+\subsection{FlashAttention Family}
+
+\subsubsection{FlashAttention Overview}
+FlashAttention (Dao \& Fu, 2022, arXiv:2205.14135) is an IO-aware exact attention algorithm addressing the memory wall problem rather than attention's algorithmic complexity.
+
+\subsubsection{Technical Innovation}
+\begin{itemize}[leftmargin=*]
+    \item Uses tiling to reduce memory reads/writes between GPU HBM and on-chip SRAM
+    \item Maintains exact attention (not an approximation)
+    \item Achieves 10x memory savings at 2K sequence length
+    \item Achieves 20x memory savings at 4K sequence length
+\end{itemize}
+
+\subsubsection{Training Improvements}
+\begin{itemize}[leftmargin=*]
+    \item 15\% speedup on BERT-large (512 tokens) vs MLPerf 1.1 training record
+    \item 3x speedup on GPT-2 (1K tokens)
+    \item 2.4x speedup on long-range arena (1K-4K tokens)
+    \item Enables higher quality models: 0.7 better perplexity on GPT-2
+    \item 6.4 point lift on long-document classification
+\end{itemize}
+
+\subsubsection{Evolution to FlashAttention-2 and FlashAttention-3}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{FlashAttention-2}: Published at ICLR 2024 with algorithmic improvements
+    \item \textbf{FlashAttention-3}: Optimized for Hopper GPUs (H100) with asynchronous execution and low-precision support (NeurIPS 2024)
+\end{itemize}
+
+\subsubsection{DistFlashAttention}
+DistFlashAttention extends FlashAttention for distributed long-context training:
+\begin{itemize}[leftmargin=*]
+    \item Token-level workload balancing
+    \item Overlapping key-value communication
+    \item Rematerialization-aware gradient checkpointing
+    \item 8x longer sequences vs Ring Self-Attention
+    \item 4.45-5.64x speedup vs Ring Self-Attention
+    \item 2-8x longer sequences vs Megatron-LM with FlashAttention
+    \item 1.24-2.01x speedup vs Megatron-LM with FlashAttention
+\end{itemize}
+
+\section{Continual Pre-training Approaches}
+
+\subsection{Overview of Continual Pre-training for Context Extension}
+
+Most large language models are initially pre-trained on large-scale corpora with smaller context windows (typically 2-4K tokens) due to computational constraints. A separate context length extension phase through continual pre-training on smaller amounts of long-context data (e.g., 5B tokens at 128K length) has become standard practice.
+
+\subsection{Data Sources and Strategies}
+
+\subsubsection{Optimal Data Composition}
+Research demonstrates that effective long-context continual pre-training requires:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Code repositories}: Excellent source of naturally long, structured data
+    \item \textbf{Books}: Provide long-form narrative coherence
+    \item \textbf{High-quality short data}: Critical to maintain short-context performance
+    \item Training with sequence lengths beyond evaluation length boosts long-context performance
+\end{itemize}
+
+\subsubsection{Training Configuration}
+\begin{itemize}[leftmargin=*]
+    \item Smaller models (7B/13B): Trained with 32,768-token sequences
+    \item Larger models (34B/70B): Trained with 16,384-token sequences
+    \item Typical continual pre-training: 400B additional tokens on long sequences
+    \item Context window extension from initial 2TB of 4K tokens to 5B of 128K tokens
+\end{itemize}
+
+\subsection{Frontier Models}
+
+\subsubsection{Llama-3.1 and Jamba Approach}
+Recent open-source frontier models employ:
+\begin{itemize}[leftmargin=*]
+    \item Long-context continued training stage on extended sequences
+    \item Followed by supervised fine-tuning (SFT) on instruction data
+    \item Interesting finding: Using only short instruction datasets in SFT yields strong performance on long-context tasks
+\end{itemize}
+
+\subsubsection{Code Llama}
+\begin{itemize}[leftmargin=*]
+    \item Continually pre-trained from LLaMA 2 checkpoints
+    \item Additional 400B tokens formed as long training sequences
+    \item LongLLaMA-Code: Code Llama variant fine-tuned with Focused Transformer (FoT) method for extended context
+\end{itemize}
+
+\subsection{LongAlign}
+
+\subsubsection{Overview}
+LongAlign (EMNLP 2024, GitHub: THUDM/LongAlign) represents the first complete recipe for LLM alignment on long contexts, addressing the challenge of extending models beyond initial continual pre-training.
+
+\subsubsection{Continual Pre-training Component}
+\begin{itemize}[leftmargin=*]
+    \item Proposes LLaMA-2-7B-base-64k by modifying RoPE position encoding
+    \item Applies continual training on data with lengths under 64k
+    \item Total of 10B tokens in continual pre-training phase
+\end{itemize}
+
+\subsubsection{LongAlign-10k Dataset}
+\begin{itemize}[leftmargin=*]
+    \item Contains 10,000 long instruction data of 8k-64k length
+    \item Developed using collected long sequences from 9 sources
+    \item Applies Self-Instruct approach with long-context LLM (Claude 2.1)
+\end{itemize}
+
+\subsubsection{Training Strategies}
+Two key efficiency improvements:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Packing with loss weighting}: Significantly improves training efficiency
+    \item \textbf{Sorted batching}: Groups similar-length sequences for computational efficiency
+\end{itemize}
+
+\subsubsection{LongBench-Chat Evaluation}
+Introduces LongBench-Chat for evaluating instruction-following capability on queries of 10k-100k length, providing real-world long context evaluation benchmark.
+
+\subsubsection{Key Insight}
+Effective long context capability requires both:
+\begin{enumerate}[leftmargin=*]
+    \item Continual pre-training to extend the context window
+    \item Proper alignment through supervised fine-tuning with long instruction data
+\end{enumerate}
+
+\section{Current State and Future Directions}
+
+\subsection{Standard Context Lengths in 2024-2025}
+\begin{itemize}[leftmargin=*]
+    \item 128k context window now standard in recent LLMs (GPT-4o, LLaMA-3.1)
+    \item Research pushing toward multi-million token contexts (LongRoPE: 2M+ tokens)
+    \item Practical deployments typically 32k-128k range
+\end{itemize}
+
+\subsection{Persistent Challenges}
+
+\subsubsection{Short Context Degradation}
+A common challenge across extension methods is performance degradation on original short context windows. Solutions include:
+\begin{itemize}[leftmargin=*]
+    \item Progressive extension strategies using large-scale training data
+    \item Explicit short context recovery phases (LongRoPE approach)
+    \item Mixed context window training (LongRoPE2)
+\end{itemize}
+
+\subsubsection{Computational Constraints}
+The fundamental O($n^2$) complexity remains, addressed through:
+\begin{itemize}[leftmargin=*]
+    \item Memory optimization (FlashAttention family)
+    \item Distributed computing (Ring Attention)
+    \item Emerging sub-quadratic architectures (State Space Models, hybrid RNN-transformers)
+\end{itemize}
+
+\subsection{Research Trajectories}
+
+\subsubsection{Frequency-Aware Position Encoding}
+Progression from uniform scaling (PI) to frequency-aware methods (NTK, YaRN, LongRoPE) demonstrates importance of preserving both local and global positional information at appropriate frequency scales.
+
+\subsubsection{Training Efficiency}
+Evolution toward:
+\begin{itemize}[leftmargin=*]
+    \item Reduced fine-tuning requirements (YaRN: 0.1\% of pre-training data)
+    \item Zero fine-tuning approaches (NTK-aware scaling)
+    \item More efficient continual pre-training strategies
+\end{itemize}
+
+\subsubsection{Hybrid Approaches}
+Combining multiple techniques:
+\begin{itemize}[leftmargin=*]
+    \item Position encoding extensions + memory-efficient attention (standard practice)
+    \item Distributed computation + advanced position encoding
+    \item Architecture modifications + specialized training regimes
+\end{itemize}
+
+\section{Summary}
+
+Context window extension techniques have rapidly evolved from simple position interpolation to sophisticated frequency-aware scaling methods, alternative position encodings, distributed architectural innovations, and targeted continual pre-training strategies. The field has progressed from 2K-4K token limits to practical 128K deployments and research demonstrations exceeding 2M tokens.
+
+Key takeaways:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Position encoding matters}: Frequency-aware RoPE scaling (YaRN, LongRoPE) substantially outperforms uniform approaches
+    \item \textbf{Multiple solutions exist}: RoPE extensions, ALiBi, Ring Attention address the problem from different angles
+    \item \textbf{System optimization enables practicality}: FlashAttention family makes long contexts computationally feasible
+    \item \textbf{Training strategy complements architecture}: Continual pre-training and proper alignment critical for robust long-context capability
+    \item \textbf{Short context preservation essential}: Extension methods must maintain performance on original context lengths
+\end{enumerate}
+
+The convergence of these techniques in modern LLMs (combining RoPE scaling, FlashAttention, and continual pre-training) demonstrates that effective context extension requires coordinated advances across position encoding, system optimization, and training methodology.
+
+\section*{Key References}
+
+\textbf{RoPE Scaling Methods:}
+\begin{itemize}[leftmargin=*]
+    \item Chen et al. (2023). Extending Context Window of Large Language Models via Positional Interpolation. arXiv:2306.15595
+    \item Peng et al. (2023). YaRN: Efficient Context Window Extension of Large Language Models. arXiv:2309.00071, ICLR 2024
+    \item Ding et al. (2024). LongRoPE: Extending LLM Context Window Beyond 2 Million Tokens. arXiv:2402.13753, ICML 2024
+    \item Bloc97. NTK-Aware Scaled RoPE (community contribution via Reddit)
+\end{itemize}
+
+\textbf{Alternative Position Encoding:}
+\begin{itemize}[leftmargin=*]
+    \item Press, Smith, \& Lewis (2022). Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation. arXiv:2108.12409, ICLR 2022
+\end{itemize}
+
+\textbf{Architectural \& System Approaches:}
+\begin{itemize}[leftmargin=*]
+    \item Liu, Zaharia, \& Abbeel (2023). Ring Attention with Blockwise Transformers for Near-Infinite Context. arXiv:2310.01889, NeurIPS 2023
+    \item Dao \& Fu (2022). FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness. arXiv:2205.14135
+    \item FlashAttention-3 (2024). NeurIPS 2024
+\end{itemize}
+
+\textbf{Continual Pre-training:}
+\begin{itemize}[leftmargin=*]
+    \item LongAlign (2024). EMNLP 2024, GitHub: THUDM/LongAlign
+    \item Code Llama Long Context Extensions
+    \item Llama-3.1 Technical Report (long context continual pre-training)
+\end{itemize}
+
+\end{document}

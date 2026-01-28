@@ -1,0 +1,654 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+% Define brand colors
+\definecolor{Garnet}{RGB}{115,0,10}
+\definecolor{Rose}{RGB}{204,46,64}
+\definecolor{Atlantic}{RGB}{70,106,159}
+
+% Section formatting with Garnet color
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{Garnet}}
+  {\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{Garnet}}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{Garnet}}
+  {\thesubsubsection}{1em}{}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=Atlantic,
+    citecolor=Rose,
+    urlcolor=Atlantic
+}
+
+\title{\textbf{\color{Garnet}Section 3: Sparse and Efficient Attention Mechanisms}\\
+\large{Literature Review on LLM Context Management}}
+\author{J.C. Vaught}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction to Efficient Attention}
+
+The quadratic complexity of standard self-attention mechanisms, which scales as $O(n^2)$ with sequence length $n$, represents a fundamental bottleneck for processing long sequences in transformer-based models. This section surveys approaches that reduce computational and memory requirements through sparse attention patterns, linear approximations, alternative architectures, and hardware-aware optimizations.
+
+\subsection{Motivation and Complexity Analysis}
+
+\begin{itemize}[leftmargin=*]
+    \item Standard self-attention: $O(n^2)$ time and space complexity
+    \item Memory bottleneck: quadratic growth limits maximum context length
+    \item Computational cost: prohibitive for sequences beyond 512-2048 tokens
+    \item Survey overview: Tay et al. (2020), ``Efficient Transformers: A Survey''~\cite{tay2020efficient}
+\end{itemize}
+
+\section{Fixed Sparse Attention Patterns}
+
+\subsection{Longformer: Windowed + Global Attention}
+
+\subsubsection{Core Architecture}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Beltagy, Peters, \& Cohan (2020), ``Longformer: The Long-Document Transformer''~\cite{beltagy2020longformer}
+    \item \textbf{Key Innovation}: Combines local windowed attention with task-motivated global attention
+    \item \textbf{Complexity}: Linear $O(n)$ with respect to sequence length
+    \item \textbf{Attention Components}:
+    \begin{itemize}
+        \item Local window: sliding window of fixed size $w$ (typical: 512)
+        \item Dilated windows: enables longer-range dependencies without full quadratic cost
+        \item Global attention: selected tokens attend to all positions (e.g., [CLS] token)
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Implementation and Results}
+\begin{itemize}[leftmargin=*]
+    \item Drop-in replacement for standard self-attention
+    \item Pretrained Longformer variants based on RoBERTa architecture
+    \item State-of-the-art results on:
+    \begin{itemize}
+        \item Character-level language modeling (text8, enwik8)
+        \item Long document QA: WikiHop, TriviaQA
+        \item Document classification tasks
+    \end{itemize}
+    \item Handles sequences up to 4,096 tokens effectively
+    \item Open-source implementation: AllenAI Longformer repository
+\end{itemize}
+
+\subsection{BigBird: Sparse Attention with Random Connections}
+
+\subsubsection{Architecture Design}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Zaheer et al. (2020), ``Big Bird: Transformers for Longer Sequences''~\cite{zaheer2020bigbird}
+    \item \textbf{Institution}: Google Research
+    \item \textbf{Three-Component Attention Pattern}:
+    \begin{itemize}
+        \item \textit{Global tokens} ($g$): Fixed set attending to all positions
+        \item \textit{Window attention} ($w$): Local neighborhood connections
+        \item \textit{Random attention} ($r$): Random token connections for long-range coverage
+    \end{itemize}
+    \item \textbf{Complexity}: $O(n)$ compared to $O(n^2)$ for full attention
+\end{itemize}
+
+\subsubsection{Theoretical Properties}
+\begin{itemize}[leftmargin=*]
+    \item Proven to be a universal approximator of sequence functions
+    \item Turing complete (preserves expressiveness of full attention)
+    \item Random connections prevent missing important long-range dependencies
+    \item Theoretical analysis reveals benefits of $O(1)$ global tokens
+\end{itemize}
+
+\subsubsection{Performance and Applications}
+\begin{itemize}[leftmargin=*]
+    \item Handles sequences up to 8× longer than standard transformers
+    \item Significant improvements on:
+    \begin{itemize}
+        \item Question answering (NaturalQuestions, HotpotQA)
+        \item Document summarization
+        \item Genomics tasks (DNA sequence modeling)
+    \end{itemize}
+    \item Multiple BigBird variants: BigBird-ITC (internal transformer construction), BigBird-ETC (extended transformer construction)
+\end{itemize}
+
+\section{Linear Attention Approximations}
+
+\subsection{Kernel-Based Methods}
+
+\subsubsection{Performer: FAVOR+ Algorithm}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Choromanski et al. (2021), ``Rethinking Attention with Performers''~\cite{choromanski2021rethinking}
+    \item \textbf{Institution}: Google Research, DeepMind, Cambridge
+    \item \textbf{Key Contribution}: Fast Attention Via positive Orthogonal Random features (FAVOR+)
+    \item \textbf{Mechanism}:
+    \begin{itemize}
+        \item Approximates softmax attention kernel using random feature decomposition
+        \item Decomposes attention matrix using positive orthogonal random features
+        \item Achieves unbiased or nearly-unbiased estimation
+        \item Maintains compatibility with standard transformer architecture
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Mathematical Foundation}
+\begin{itemize}[leftmargin=*]
+    \item Linear complexity: $O(n)$ time and space
+    \item Provable accuracy guarantees for attention approximation
+    \item Uniform convergence properties
+    \item Low estimation variance
+    \item Can model kernelizable attention beyond softmax
+\end{itemize}
+
+\subsubsection{Empirical Results}
+\begin{itemize}[leftmargin=*]
+    \item Competitive performance across modalities:
+    \begin{itemize}
+        \item Language modeling
+        \item Pixel-level prediction (ImageGPT-style tasks)
+        \item Protein sequence modeling
+    \end{itemize}
+    \item Reduced memory footprint enables longer sequences
+    \item Trade-off: slight accuracy degradation vs. exact attention
+\end{itemize}
+
+\subsection{Low-Rank Attention}
+
+\subsubsection{Linformer: Self-Attention with Linear Complexity}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Wang et al. (2020), ``Linformer: Self-Attention with Linear Complexity''~\cite{wang2020linformer}
+    \item \textbf{Institution}: Facebook AI
+    \item \textbf{Core Insight}: Self-attention can be approximated by low-rank matrices
+    \item \textbf{Method}:
+    \begin{itemize}
+        \item Projects keys and values to lower-dimensional space
+        \item Reduces sequence length dimension from $n$ to $k$ where $k \ll n$
+        \item Linear projection matrices learned during training
+        \item Complexity reduction: $O(n^2) \rightarrow O(n)$
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Implementation Details}
+\begin{itemize}[leftmargin=*]
+    \item Parameter sharing: projection matrices shared across layers or heads
+    \item Typical projection dimension $k=128$ or $k=256$ for $n=512$
+    \item Compatible with existing transformer codebases
+    \item Memory savings: enables larger batch sizes
+\end{itemize}
+
+\subsubsection{Performance Characteristics}
+\begin{itemize}[leftmargin=*]
+    \item 1.5× faster inference time (for $n=512, k=128$)
+    \item 1.7× larger maximum batch size
+    \item Improvements scale with sequence length
+    \item Performance on par with standard transformers
+    \item Particularly effective for sequences $> 512$ tokens
+\end{itemize}
+
+\section{State Space Models and Alternative Architectures}
+
+\subsection{Structured State Space Models (S4)}
+
+\subsubsection{Foundation: S4 Model}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Gu, Goel, \& R\'e (2022), ``Efficiently Modeling Long Sequences with Structured State Spaces''~\cite{gu2022efficiently}
+    \item \textbf{Institution}: Stanford (Hazy Research Lab)
+    \item \textbf{Conference}: ICLR 2022
+    \item \textbf{Key Innovation}: Continuous-time state space models for sequence modeling
+    \item \textbf{Mathematical Framework}:
+    \begin{itemize}
+        \item Based on HiPPO (High-order Polynomial Projection Operators)
+        \item Structured parameterization of state matrix $A$
+        \item Low-rank correction enables stable diagonalization
+        \item Reduces to Cauchy kernel computation
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Computational Properties}
+\begin{itemize}[leftmargin=*]
+    \item Linear-time sequence processing: $O(n \log n)$ via FFT
+    \item Constant memory during inference (no KV cache needed)
+    \item Can be formulated as:
+    \begin{itemize}
+        \item Convolutional model (for parallel training)
+        \item Recurrent model (for efficient inference)
+    \end{itemize}
+    \item Dual representation enables best of both approaches
+\end{itemize}
+
+\subsubsection{Benchmark Results}
+\begin{itemize}[leftmargin=*]
+    \item First model to solve LRA Path-X (length 16,384): 88\% vs. 50\% random
+    \item Sequential CIFAR-10: 91\% accuracy (no augmentation)
+    \item Speech classification (length 16,000): 1.7\% error (2× improvement)
+    \item Strong performance on:
+    \begin{itemize}
+        \item Long Range Arena (LRA) benchmark
+        \item Raw audio generation
+        \item Image classification
+    \end{itemize}
+\end{itemize}
+
+\subsection{Selective State Space Models}
+
+\subsubsection{Mamba: Selective SSMs}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Gu \& Dao (2023), ``Mamba: Linear-Time Sequence Modeling with Selective State Spaces''~\cite{gu2023mamba}
+    \item \textbf{Key Advancement}: Input-dependent state space parameters
+    \item \textbf{Selection Mechanism}:
+    \begin{itemize}
+        \item SSM parameters ($\Delta, B, C$) become functions of input
+        \item Enables content-based reasoning (addresses key weakness of prior SSMs)
+        \item Selective propagation or forgetting of information
+        \item Nicknamed ``S6'' (selective scan SSM)
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Architecture and Efficiency}
+\begin{itemize}[leftmargin=*]
+    \item Simplified architecture: no attention or MLP blocks
+    \item Hardware-efficient selective scan algorithm
+    \item Performance characteristics:
+    \begin{itemize}
+        \item 5× higher throughput than transformers
+        \item Linear scaling with sequence length
+        \item Handles sequences up to 1 million tokens
+        \item No KV cache required (constant memory inference)
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Empirical Results}
+\begin{itemize}[leftmargin=*]
+    \item Language modeling:
+    \begin{itemize}
+        \item Mamba-3B outperforms transformers of same size
+        \item Matches transformers 2× its size
+        \item Strong pretraining and downstream performance
+    \end{itemize}
+    \item Cross-modal capabilities:
+    \begin{itemize}
+        \item State-of-the-art on language tasks
+        \item Competitive on audio modeling
+        \item Strong genomics performance
+    \end{itemize}
+    \item Highly cited: $>5,000$ citations (as of 2024)
+\end{itemize}
+
+\subsection{Hybrid Architectures}
+
+\subsubsection{Jamba: Transformer-Mamba Hybrid}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: AI21 Labs (2024), ``Jamba: A Hybrid Transformer-Mamba Language Model''~\cite{lieber2024jamba}
+    \item \textbf{Announcement}: March 2024
+    \item \textbf{Architecture Design}:
+    \begin{itemize}
+        \item Interleaves Transformer and Mamba layers
+        \item Mixture-of-Experts (MoE) in select layers
+        \item Combines benefits of both model families
+        \item First production-grade Mamba-based model
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Model Specifications}
+\begin{itemize}[leftmargin=*]
+    \item Total parameters: 52B
+    \item Active parameters per token: 12B (via MoE)
+    \item Context window: 256K tokens
+    \item License: Apache 2.0 (open weights)
+\end{itemize}
+
+\subsubsection{Performance Advantages}
+\begin{itemize}[leftmargin=*]
+    \item 3× higher throughput than transformers of same size
+    \item Significant efficiency gains on long-context tasks
+    \item Optimizes memory, throughput, and performance simultaneously
+    \item Production-ready at scale
+\end{itemize}
+
+\section{Linear-Time Alternatives to Self-Attention}
+
+\subsection{RWKV: Receptance Weighted Key Value}
+
+\subsubsection{Model Overview}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Peng et al. (2023), ``RWKV: Reinventing RNNs for the Transformer Era''~\cite{peng2023rwkv}
+    \item \textbf{Conference}: EMNLP 2023 Findings
+    \item \textbf{Dual Formulation}:
+    \begin{itemize}
+        \item Can be expressed as transformer with linear attention
+        \item Can be expressed as RNN with efficient inference
+        \item Combines best properties of both architectures
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Key Components}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Receptance (R)}: Controls information reception from previous state
+    \item \textbf{Weight (W)}: Static learnable combination parameters
+    \item \textbf{Key (K)}: Compressed input representations
+    \item \textbf{Value (V)}: Information to be transferred
+    \item Linear attention mechanism: $O(n)$ complexity
+\end{itemize}
+
+\subsubsection{Computational Characteristics}
+\begin{itemize}[leftmargin=*]
+    \item Training: Parallelizable like GPT (transformer mode)
+    \item Inference: Constant space complexity (RNN mode)
+    \item No KV cache required
+    \item Infinite context length (theoretically)
+    \item Free sentence embeddings
+    \item Linear time complexity: $O(n)$ vs. $O(n^2)$
+\end{itemize}
+
+\subsubsection{Scale and Performance}
+\begin{itemize}[leftmargin=*]
+    \item Scaled to 14B parameters (largest dense RNN)
+    \item Performance comparable to similarly-sized transformers
+    \item Applications across:
+    \begin{itemize}
+        \item Natural language generation
+        \item Natural language understanding
+        \item Computer vision
+        \item Audio and music tasks
+    \end{itemize}
+\end{itemize}
+
+\subsection{RetNet: Retentive Networks}
+
+\subsubsection{Core Innovation}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Sun et al. (2023), ``Retentive Network: A Successor to Transformer for Large Language Models''~\cite{sun2023retentive}
+    \item \textbf{Institution}: Tsinghua University, Microsoft
+    \item \textbf{Key Mechanism}: Retention mechanism supporting three paradigms
+    \item \textbf{Design Goals}:
+    \begin{itemize}
+        \item Training parallelism
+        \item Low-cost inference
+        \item Competitive performance
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Three Computation Paradigms}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Parallel Representation}:
+    \begin{itemize}
+        \item Enables full GPU utilization during training
+        \item Similar to standard transformer training
+    \end{itemize}
+    \item \textbf{Recurrent Representation}:
+    \begin{itemize}
+        \item $O(1)$ inference complexity per token
+        \item No KV cache needed
+        \item Constant memory footprint
+    \end{itemize}
+    \item \textbf{Chunkwise Recurrent}:
+    \begin{itemize}
+        \item Linear complexity for long sequences
+        \item Parallel processing within chunks
+        \item Recurrent summarization across chunks
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Performance Metrics}
+\begin{itemize}[leftmargin=*]
+    \item 7B model, 8K sequence length:
+    \begin{itemize}
+        \item 8.4× faster decoding than transformer
+        \item 70\% memory reduction (vs. KV cache)
+    \end{itemize}
+    \item Superior to linear transformer variants:
+    \begin{itemize}
+        \item Outperforms RWKV
+        \item Better than H3 and Hyena
+        \item Exceeds Linear Transformer baseline
+    \end{itemize}
+    \item Better position encoding than linear attention
+\end{itemize}
+
+\section{Hardware-Aware Optimizations}
+
+\subsection{FlashAttention: IO-Aware Exact Attention}
+
+\subsubsection{Motivation and Approach}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Dao et al. (2022), ``FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness''~\cite{dao2022flashattention}
+    \item \textbf{Conference}: NeurIPS 2022
+    \item \textbf{Key Insight}: Account for GPU memory hierarchy
+    \item \textbf{Problem Addressed}:
+    \begin{itemize}
+        \item Standard attention algorithms not optimized for memory I/O
+        \item Excessive reads/writes between HBM and SRAM
+        \item Memory bottleneck worse than FLOP count suggests
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Technical Innovation}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Tiling Strategy}:
+    \begin{itemize}
+        \item Divides attention computation into blocks
+        \item Keeps blocks in fast SRAM (on-chip memory)
+        \item Minimizes HBM (high-bandwidth memory) accesses
+    \end{itemize}
+    \item \textbf{Computational Properties}:
+    \begin{itemize}
+        \item Exact attention (not approximate)
+        \item Provably optimal for range of SRAM sizes
+        \item Fewer HBM accesses than standard implementation
+    \end{itemize}
+    \item \textbf{Recomputation in Backward Pass}:
+    \begin{itemize}
+        \item Avoids materializing full attention matrix
+        \item Trades computation for memory
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Impact and Adoption}
+\begin{itemize}[leftmargin=*]
+    \item Widely adopted in production LLMs
+    \item Enables longer context windows within memory limits
+    \item No accuracy trade-off (exact attention)
+    \item Compatible with existing transformer architectures
+    \item Open-source implementation: \texttt{github.com/Dao-AILab/flash-attention}
+\end{itemize}
+
+\subsection{FlashAttention-2: Enhanced Parallelism}
+
+\subsubsection{Improvements Over FlashAttention}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Paper}: Dao (2023), ``FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning''~\cite{dao2023flashattention2}
+    \item \textbf{Release}: July 2023
+    \item \textbf{Three Main Optimizations}:
+    \begin{enumerate}
+        \item Reduce non-matmul FLOPs in algorithm
+        \item Parallelize computation across thread blocks (even single head)
+        \item Better work distribution between warps (reduce shared memory communication)
+    \end{enumerate}
+\end{itemize}
+
+\subsubsection{Performance Gains}
+\begin{itemize}[leftmargin=*]
+    \item Speedups:
+    \begin{itemize}
+        \item 2× faster than FlashAttention
+        \item Up to 9× faster than standard PyTorch attention
+        \item 50-73\% of theoretical maximum FLOPs/s on A100
+    \end{itemize}
+    \item Hardware efficiency:
+    \begin{itemize}
+        \item Approaches GEMM operation efficiency
+        \item 225 TFLOPs/s per A100 GPU (72\% model FLOPs utilization)
+        \item Better GPU occupancy through improved parallelism
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Additional Developments}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{FlashAttention-3} (2024):
+    \begin{itemize}
+        \item Asynchronous memory operations
+        \item Low-precision computation support
+        \item Further hardware optimizations for H100 GPUs
+    \end{itemize}
+    \item Continuous improvements in GPU kernel efficiency
+\end{itemize}
+
+\section{Comparative Analysis and Trade-offs}
+
+\subsection{Complexity Comparison}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+\textbf{Method} & \textbf{Time Complexity} & \textbf{Space Complexity} \\
+\hline
+Standard Attention & $O(n^2)$ & $O(n^2)$ \\
+Longformer & $O(n \cdot w)$ & $O(n \cdot w)$ \\
+BigBird & $O(n)$ & $O(n)$ \\
+Performer & $O(n)$ & $O(n)$ \\
+Linformer & $O(n)$ & $O(n)$ \\
+S4 & $O(n \log n)$ & $O(n)$ \\
+Mamba & $O(n)$ & $O(1)$ inference \\
+RWKV & $O(n)$ & $O(1)$ inference \\
+RetNet & $O(n)$ & $O(1)$ inference \\
+FlashAttention & $O(n^2)$ (IO-optimal) & $O(n^2)$ \\
+\hline
+\end{tabular}
+\caption{Computational complexity of efficient attention mechanisms}
+\end{table}
+
+\subsection{Key Trade-offs}
+
+\subsubsection{Sparse Attention Patterns}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Advantages}: Structured sparsity, interpretability, exact computation
+    \item \textbf{Limitations}: Fixed patterns may miss relevant long-range dependencies
+    \item \textbf{Best for}: Document-level tasks with local structure
+\end{itemize}
+
+\subsubsection{Linear Approximations}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Advantages}: True linear complexity, flexible attention patterns
+    \item \textbf{Limitations}: Approximation error, sometimes lower accuracy
+    \item \textbf{Best for}: Very long sequences where exact attention infeasible
+\end{itemize}
+
+\subsubsection{State Space Models}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Advantages}: Constant inference memory, infinite context (theoretical), strong long-range modeling
+    \item \textbf{Limitations}: Different from standard transformers (training challenges), less mature ecosystem
+    \item \textbf{Best for}: Extremely long sequences, streaming applications
+\end{itemize}
+
+\subsubsection{Hardware-Aware Methods}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Advantages}: Exact attention, no accuracy loss, drop-in replacement
+    \item \textbf{Limitations}: Still quadratic complexity (but IO-optimal), hardware-specific
+    \item \textbf{Best for}: Maximizing performance on modern GPUs with existing architectures
+\end{itemize}
+
+\section{Open Research Questions}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Hybrid Architectures}: Optimal mixing of attention and SSM layers (e.g., Jamba variants)
+    \item \textbf{Position Encoding}: Better position representations for linear attention methods
+    \item \textbf{Scaling Laws}: How efficiency methods affect scaling behavior vs. standard transformers
+    \item \textbf{Training Stability}: SSMs and linear methods can have stability issues at large scale
+    \item \textbf{Task-Specific Patterns}: Learned or adaptive sparsity patterns vs. fixed patterns
+    \item \textbf{Hardware Co-Design}: Further optimization for emerging hardware (H100, TPU v5)
+    \item \textbf{Theoretical Understanding}: Expressiveness guarantees for approximate attention methods
+    \item \textbf{Multi-Modal Extensions}: Adapting efficient attention to vision, audio, video domains
+\end{itemize}
+
+\section{Summary and Future Directions}
+
+Sparse and efficient attention mechanisms represent diverse approaches to scaling transformers beyond standard quadratic complexity limitations. Key developments include:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Sparse Patterns} (Longformer, BigBird): Structured sparsity with windowed and global attention
+    \item \textbf{Linear Approximations} (Performer, Linformer): Kernel methods and low-rank factorizations
+    \item \textbf{State Space Models} (S4, Mamba): Continuous-time alternatives with linear/constant complexity
+    \item \textbf{Hybrid Approaches} (Jamba): Combining strengths of multiple paradigms
+    \item \textbf{RNN-Transformer Hybrids} (RWKV, RetNet): Dual formulations enabling efficient training and inference
+    \item \textbf{Hardware Optimization} (FlashAttention): IO-aware algorithms maximizing GPU efficiency
+\end{itemize}
+
+The field continues rapid evolution, with state space models (particularly Mamba variants) and hybrid architectures showing promise for next-generation foundation models. Hardware-aware optimizations like FlashAttention have achieved widespread adoption, demonstrating that algorithm-hardware co-design yields significant practical benefits without sacrificing model quality.
+
+\begin{thebibliography}{99}
+
+\bibitem{tay2020efficient}
+Yi Tay, Mostafa Dehghani, and Donald Metzler.
+\textit{Efficient Transformers: A Survey}.
+ACM Computing Surveys, Vol. 55, No. 6, Article 109, December 2022.
+arXiv:2009.06732.
+
+\bibitem{beltagy2020longformer}
+Iz Beltagy, Matthew E. Peters, and Arman Cohan.
+\textit{Longformer: The Long-Document Transformer}.
+arXiv:2004.05150, April 2020.
+
+\bibitem{zaheer2020bigbird}
+Manzil Zaheer, Guru Guruganesh, Kumar Avinava Dubey, Joshua Ainslie, Chris Alberti, Santiago Ontanon, Philip Pham, Anirudh Ravula, Qifan Wang, Li Yang, and Amr Ahmed.
+\textit{Big Bird: Transformers for Longer Sequences}.
+Advances in Neural Information Processing Systems (NeurIPS), 2020.
+arXiv:2007.14062.
+
+\bibitem{choromanski2021rethinking}
+Krzysztof Choromanski, Valerii Likhosherstov, David Dohan, Xingyou Song, Andreea Gane, Tamas Sarlos, Peter Hawkins, Jared Davis, Afroz Mohiuddin, Lukasz Kaiser, David Belanger, Lucy Colwell, and Adrian Weller.
+\textit{Rethinking Attention with Performers}.
+International Conference on Learning Representations (ICLR), 2021.
+arXiv:2009.14794.
+
+\bibitem{wang2020linformer}
+Sinong Wang, Belinda Z. Li, Madian Khabsa, Han Fang, and Hao Ma.
+\textit{Linformer: Self-Attention with Linear Complexity}.
+arXiv:2006.04768, June 2020.
+
+\bibitem{gu2022efficiently}
+Albert Gu, Karan Goel, and Christopher R\'e.
+\textit{Efficiently Modeling Long Sequences with Structured State Spaces}.
+International Conference on Learning Representations (ICLR), 2022.
+arXiv:2111.00396.
+
+\bibitem{gu2023mamba}
+Albert Gu and Tri Dao.
+\textit{Mamba: Linear-Time Sequence Modeling with Selective State Spaces}.
+arXiv:2312.00752, December 2023.
+
+\bibitem{lieber2024jamba}
+Opher Lieber et al. (AI21 Labs).
+\textit{Jamba: A Hybrid Transformer-Mamba Language Model}.
+arXiv:2403.19887, March 2024.
+
+\bibitem{peng2023rwkv}
+Bo Peng, Eric Alcaide, Quentin Anthony, Alon Albalak, Samuel Arcadinho, Huanqi Cao, Xin Cheng, Michael Chung, Matteo Grella, Kranthi Kiran GV, Xuzheng He, Haowen Hou, Przemyslaw Kazienko, Jan Kocon, Jiaming Kong, Bartlomiej Koptyra, Hayden Lau, Krishna Sri Ipsit Mantri, Ferdinand Mom, Atsushi Saito, Xiangru Tang, Bolun Wang, Johan S. Wind, Stansilaw Wozniak, Ruichong Zhang, Zhenyuan Zhang, Qihang Zhao, Peng Zhou, Jian Zhu, and Rui-Jie Zhu.
+\textit{RWKV: Reinventing RNNs for the Transformer Era}.
+Findings of EMNLP, 2023.
+arXiv:2305.13048.
+
+\bibitem{sun2023retentive}
+Yutao Sun, Li Dong, Shaohan Huang, Shuming Ma, Yuqing Xia, Jilong Xue, Jianyong Wang, and Furu Wei.
+\textit{Retentive Network: A Successor to Transformer for Large Language Models}.
+arXiv:2307.08621, July 2023.
+
+\bibitem{dao2022flashattention}
+Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, and Christopher R\'e.
+\textit{FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness}.
+Advances in Neural Information Processing Systems (NeurIPS), 2022.
+arXiv:2205.14135.
+
+\bibitem{dao2023flashattention2}
+Tri Dao.
+\textit{FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning}.
+arXiv:2307.08691, July 2023.
+
+\end{thebibliography}
+
+\end{document}

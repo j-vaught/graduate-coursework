@@ -1,0 +1,339 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+% Define brand color - Garnet
+\definecolor{garnet}{HTML}{73000A}
+
+% Configure section headers with Garnet color
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{garnet}}
+  {\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{garnet}}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{garnet}}
+  {\thesubsubsection}{1em}{}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=garnet,
+    citecolor=garnet,
+    urlcolor=garnet
+}
+
+\title{\textbf{\color{garnet}Section 5: Context Compression Techniques}\\
+\large{Literature Review on LLM Context Management}}
+\author{J.C. Vaught}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction to Context Compression}
+
+Context compression techniques address the fundamental challenge of efficiently managing long contexts in large language models while maintaining performance. These methods can be broadly categorized into: (1) soft prompt compression using learned continuous representations, (2) hard prompt compression through token removal, (3) architectural approaches to memory compression, and (4) information-theoretic frameworks for understanding compression bounds.
+
+\section{Soft Prompt Compression and Learned Representations}
+
+\subsection{Gisting: Learning to Compress Prompts with Gist Tokens}
+
+\textbf{Key Paper:} Mu et al. (2023), ``Learning to Compress Prompts with Gist Tokens,'' \textit{Advances in Neural Information Processing Systems}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Core Method:} Introduces representational bottleneck in attention masks to force model to condense input information into dedicated ``gist'' token activations
+    \item \textbf{Training:} Gist models can be trained with no additional cost over standard instruction finetuning by modifying Transformer attention masks
+    \item \textbf{Performance:} Achieves up to 26x compression of prompts on LLaMA-7B and FLAN-T5-XXL, resulting in:
+    \begin{itemize}
+        \item Up to 40\% FLOPs reductions
+        \item 4.2\% wall time speedups
+        \item Significant storage savings with minimal quality loss
+    \end{itemize}
+    \item \textbf{Limitations:} Performance degrades rapidly when compressing longer contexts beyond hundreds of tokens
+    \item \textbf{Implementation:} GitHub: \url{https://github.com/jayelm/gisting}; arXiv: 2304.08467
+\end{itemize}
+
+\subsection{AutoCompressors: Adapting Language Models to Compress Contexts}
+
+\textbf{Key Paper:} Chevalier et al. (2023), ``Adapting Language Models to Compress Contexts,'' \textit{EMNLP 2023}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Authors:} Alexis Chevalier, Alexander Wettig, Anirudh Ajith, Danqi Chen (Princeton University)
+    \item \textbf{Core Approach:} Adapt pre-trained language models into AutoCompressors capable of compressing long contexts into summary vectors accessible as soft prompts
+    \item \textbf{Training Objective:} Summary vectors trained with unsupervised objective where long documents are processed in segments, and summary vectors from all previous segments are used in language modeling
+    \item \textbf{Scale:} Fine-tuned OPT and Llama-2 models on sequences up to 30,720 tokens
+    \item \textbf{Evaluation:} Summary vectors serve as effective substitutes for plain-text demonstrations in in-context learning, increasing accuracy while reducing inference costs
+    \item \textbf{Conclusion:} Provides simple and inexpensive solution to extend context window while accelerating inference
+    \item \textbf{Resources:} GitHub: \url{https://github.com/princeton-nlp/AutoCompressors}; HuggingFace models available
+\end{itemize}
+
+\subsection{ICAE: In-Context Autoencoder for Context Compression}
+
+\textbf{Key Paper:} Ge et al. (2024), ``In-context Autoencoder for Context Compression in a Large Language Model,'' \textit{ICLR 2024}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Architecture:}
+    \begin{itemize}
+        \item \textbf{Encoder:} Learnable encoder adapted with LoRA from an LLM for compressing long context into limited memory slots
+        \item \textbf{Decoder:} Fixed decoder (target LLM) that conditions on memory slots for various purposes
+    \end{itemize}
+    \item \textbf{Two-Stage Training:}
+    \begin{enumerate}
+        \item \textbf{Pretraining:} Uses both autoencoding and language modeling objectives on massive text data to generate memory slots that accurately represent original context
+        \item \textbf{Fine-tuning:} Instruction data fine-tuning for producing desirable responses to various prompts
+    \end{enumerate}
+    \item \textbf{Performance:} Lightweight ICAE (approximately 1\% additional parameters) achieves 4x context compression on Llama, with:
+    \begin{itemize}
+        \item Improved inference latency
+        \item Reduced GPU memory cost
+    \end{itemize}
+    \item \textbf{Resources:} GitHub: \url{https://github.com/getao/icae}; Mistral-7B based models available
+    \item \textbf{arXiv:} 2307.06945
+\end{itemize}
+
+\section{Hard Prompt Compression via Token Removal}
+
+\subsection{LLMLingua: Coarse-to-Fine Prompt Compression}
+
+\textbf{Key Paper:} Jiang et al. (2023), ``LLMLingua: Compressing Prompts for Accelerated Inference of Large Language Models,'' \textit{EMNLP 2023}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Authors:} Huiqiang Jiang, Qianhui Wu, Chin-Yew Lin, Yuqing Yang, Lili Qiu
+    \item \textbf{Core Method:} Coarse-to-fine prompt compression involving:
+    \begin{enumerate}
+        \item \textbf{Budget Controller:} Maintains semantic integrity under high compression ratios
+        \item \textbf{Token-Level Iterative Compression:} Models interdependence between compressed contents
+        \item \textbf{Instruction Tuning:} Achieves distribution alignment between language models
+    \end{enumerate}
+    \item \textbf{Compression Model:} Uses well-trained small language model (GPT2-small or LLaMA-7B) to identify and remove unimportant tokens
+    \item \textbf{Performance:} State-of-the-art results with up to 20x compression and minimal performance loss
+    \item \textbf{Evaluation Benchmarks:} GSM8K, BBH, ShareGPT, and Arxiv-March23
+    \item \textbf{Resources:} GitHub: \url{https://github.com/microsoft/LLMLingua}; arXiv: 2310.05736
+\end{itemize}
+
+\subsection{LongLLMLingua: Compression for Long Context Scenarios}
+
+\textbf{Key Paper:} Jiang et al. (2023), ``LongLLMLingua: Accelerating and Enhancing LLMs in Long Context Scenarios via Prompt Compression,'' \textit{ACL 2024}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Challenges Addressed:}
+    \begin{enumerate}
+        \item Higher computational cost in long contexts
+        \item Performance reduction (``Lost in the middle'' problem)
+        \item Position bias
+    \end{enumerate}
+    \item \textbf{Four Key Components:}
+    \begin{enumerate}
+        \item Question-aware coarse-to-fine compression method
+        \item Document reordering mechanism
+        \item Dynamic compression ratios
+        \item Subsequence recovery strategy
+    \end{enumerate}
+    \item \textbf{Performance Metrics:}
+    \begin{itemize}
+        \item NaturalQuestions: Up to 21.4\% performance boost with 4x fewer tokens in GPT-3.5-Turbo
+        \item LooGLE benchmark: 94.0\% cost reduction
+        \item 10k token prompts at 2x-6x compression: 1.4x-2.6x latency acceleration
+    \end{itemize}
+    \item \textbf{Applications:} Chain-of-Thought reasoning, long contexts, and RAG systems
+    \item \textbf{arXiv:} 2310.06839
+\end{itemize}
+
+\subsection{Selective Context: Compressing Context via Redundancy Removal}
+
+\textbf{Key Paper:} Li et al. (2023), ``Compressing Context to Enhance Inference Efficiency of Large Language Models,'' \textit{EMNLP 2023}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Authors:} Yucheng Li, Bo Dong, Frank Guerin, Chenghua Lin
+    \item \textbf{Core Method:} Identifies and prunes redundancy in input context to make input more compact
+    \item \textbf{Performance Metrics:}
+    \begin{itemize}
+        \item 50\% reduction in context cost
+        \item 36\% reduction in inference memory usage
+        \item 32\% reduction in inference time
+        \item Minimal performance drop: 0.023 in BERTscore, 0.038 in faithfulness
+    \end{itemize}
+    \item \textbf{Evaluation Domains:} Tested on arXiv papers, news articles, and long conversations
+    \item \textbf{Tasks:} Summarization, question answering, and response generation
+    \item \textbf{Resources:} GitHub: \url{https://github.com/liyucheng09/Selective\_Context}; PyPI package available
+    \item \textbf{arXiv:} 2310.06201
+\end{itemize}
+
+\section{Architectural Approaches to Memory Compression}
+
+\subsection{Compressive Transformers: Long-Range Sequence Modeling}
+
+\textbf{Key Paper:} Rae et al. (2020), ``Compressive Transformers for Long-Range Sequence Modelling,'' \textit{ICLR 2020}.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Authors:} Jack W. Rae, Anna Potapenko, Siddhant M. Jayakumar, Timothy P. Lillicrap (DeepMind)
+    \item \textbf{Core Innovation:} Maintains short-term memory of past activations (like TransformerXL), but instead of discarding old activations, compacts them into compressed memory
+    \item \textbf{State-of-the-Art Results:}
+    \begin{itemize}
+        \item WikiText-103: 17.1 perplexity
+        \item Enwik8: 0.97 bits per character
+    \end{itemize}
+    \item \textbf{Additional Capabilities:}
+    \begin{itemize}
+        \item Models high-frequency speech effectively
+        \item Serves as memory mechanism for reinforcement learning (demonstrated on object matching task)
+    \end{itemize}
+    \item \textbf{New Benchmark:} Introduces PG-19, open-vocabulary language modeling benchmark derived from books for long-range sequence learning
+    \item \textbf{arXiv:} 1911.05507
+\end{itemize}
+
+\subsection{KV Cache Compression: Key-Value Memory Optimization}
+
+\textbf{Overview:} Key-Value caching stores key and value matrices in memory during inference to avoid recomputation, but grows linearly with sequence length, consuming substantial memory.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{The Memory Challenge:} KV cache grows linearly with sequence length; for each generated token, caches must store key and value vector per transformer layer and head
+    \item \textbf{Compression Methods:}
+    \begin{itemize}
+        \item \textbf{Quantization:} KIVI paper introduced 2-bit asymmetrical quantization for KV cache without quality degradation, enabling longer context generation on consumer GPUs
+        \item \textbf{Dynamic Memory Compression (DMC):} Online method that compresses KV cache during inference, learning to apply different compression rates across heads and layers
+        \item \textbf{Token Eviction and Merging:} Strategic removal or combination of cached tokens based on importance
+    \end{itemize}
+    \item \textbf{Practical Tools:}
+    \begin{itemize}
+        \item KVPress (NVIDIA): Provides ``presses'' that compress KV cache during prefilling phase with configurable compression ratios
+        \item GitHub: \url{https://github.com/NVIDIA/kvpress}
+    \end{itemize}
+\end{itemize}
+
+\section{Information-Theoretic Perspectives on Compression}
+
+\subsection{Fundamental Compression Bounds}
+
+\textbf{Theoretical Framework:} Information theory provides fundamental limits on what compression can achieve in LLM contexts.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Kolmogorov Complexity:} Optimal prediction of data sequence is intimately tied to most efficient compression through Kolmogorov complexity and Shannon information theory
+    \item \textbf{Kolmogorov Structure Function:} Measures optimal compressor performance under model-size constraints, providing insights into data structure as compressor complexity increases
+    \item \textbf{Finite Information Capacity:} Description length constraints enforce compression error; long-tail factual knowledge requires prohibitive sample complexity
+    \item \textbf{Geometric and Computational Effects:} Long contexts compress far below nominal size due to:
+    \begin{itemize}
+        \item Positional under-training
+        \item Encoding attenuation
+        \item Softmax crowding
+    \end{itemize}
+    \item \textbf{Effective Context Utilization:} Even with 128K-token windows, positional under-training, encoding saturation, and softmax crowding jointly limit effective context utilization far below nominal capacity
+\end{itemize}
+
+\subsection{Entropy Law: Compression and LLM Performance}
+
+\textbf{Key Insight:} An ``entropy law'' connects LLM performance with data compression ratio and first-epoch training loss, reflecting information redundancy of datasets.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Shannon's Theorem:} LLMs output probability information needed for arithmetic coding, allowing near-optimal compression with Shannon's theorem guaranteeing optimality if probabilities were exactly right
+    \item \textbf{Data Compression Equivalence:} Elegant equivalence exists between LLMs and data compression, where better language models produce better compressors
+    \item \textbf{arXiv:} 2407.06645 (``Entropy Law: The Story Behind Data Compression and LLM Performance'')
+\end{itemize}
+
+\section{Summary-Based Compression Approaches}
+
+\subsection{Semantic Compression via Source Coding}
+
+\textbf{Concept:} Drawing inspiration from source coding in information theory, employing pre-trained models to reduce semantic redundancy.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Generalization:} Enables handling texts 6-8 times longer without significant computational costs or requiring fine-tuning
+    \item \textbf{Applications:} Question answering, summarization, few-shot learning, and information retrieval
+    \item \textbf{arXiv:} 2312.09571 (``Extending Context Window of Large Language Models via Semantic Compression'')
+\end{itemize}
+
+\subsection{Context Compression for Tool-Using LMs}
+
+\textbf{Key Paper:} ``Concise and Precise Context Compression for Tool-Using Language Models'' (2024)
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Two Compression Strategies:}
+    \begin{enumerate}
+        \item \textbf{Selective Compression:} Deliberately retains key information as raw text tokens to mitigate information loss
+        \item \textbf{Block Compression:} Divides tool documentation into short chunks, employing fixed-length compression model for variable-length compression with flexible compression ratio adjustment
+    \end{enumerate}
+    \item \textbf{Performance:} Achieves performance comparable to upper-bound baseline under up to 16x compression ratio
+    \item \textbf{arXiv:} 2407.02043
+\end{itemize}
+
+\section{Knowledge Distillation for Context Compression}
+
+\subsection{Context-Rich Distillation}
+
+\textbf{Overview:} Knowledge distillation transfers advanced capabilities from large ``teacher'' models to smaller ``student'' models, enabling efficient deployment.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Key Application:} Transferring capabilities from proprietary LLMs (GPT-4) to open-source models (LLaMA, Mistral)
+    \item \textbf{Explanation Guided Knowledge Distillation (EGKD):} Student models learn not only predictions but also internal reasoning process of teacher models
+    \item \textbf{Word-Level Association:} Learnable extractors capture crucial word-level associations from hidden vectors at each layer
+    \item \textbf{Performance:} Student models often retain over 95\% of teacher performance on GLUE, SuperGLUE, and MMLU benchmarks with significant efficiency gains
+    \item \textbf{Context Preservation:} Enables open-source models to approximate contextual adeptness, ethical alignment, and semantic insights of proprietary models
+    \item \textbf{arXiv:} 2109.08359 (``Distilling Linguistic Context for Language Model Compression'')
+\end{itemize}
+
+\section{Comparative Analysis and Trade-offs}
+
+\subsection{Compression Ratio vs. Performance}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Aggressive Compression (20x-26x):} LLMLingua and Gisting achieve highest compression ratios but may sacrifice some performance on complex reasoning tasks
+    \item \textbf{Moderate Compression (4x-8x):} ICAE and AutoCompressors balance compression with performance preservation
+    \item \textbf{Conservative Compression (2x-4x):} Selective Context and semantic compression maintain near-perfect performance with moderate efficiency gains
+\end{itemize}
+
+\subsection{Training Cost and Adaptability}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{No Additional Training:} LLMLingua, Selective Context use existing models for compression
+    \item \textbf{Low Training Cost:} Gisting modifies attention masks during standard fine-tuning; ICAE adds approximately 1\% parameters with LoRA
+    \item \textbf{Moderate Training Cost:} AutoCompressors require fine-tuning on long sequences up to 30K tokens
+    \item \textbf{Architectural Changes:} Compressive Transformers require training from scratch with new architecture
+\end{itemize}
+
+\subsection{Application Domains}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{RAG Systems:} LongLLMLingua, Selective Context excel at compressing retrieved documents
+    \item \textbf{In-Context Learning:} Gisting, AutoCompressors optimize few-shot demonstration compression
+    \item \textbf{Long Document Processing:} ICAE, Compressive Transformers designed for extended contexts
+    \item \textbf{Tool Use:} Specialized compression methods for tool documentation
+    \item \textbf{General Purpose:} Semantic compression and knowledge distillation apply broadly
+\end{itemize}
+
+\section{Open Challenges and Future Directions}
+
+\subsection{Current Limitations}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Scaling to Extreme Lengths:} Most methods tested on contexts up to 30K-100K tokens; performance on million-token contexts remains underexplored
+    \item \textbf{Multi-Modal Compression:} Limited work on compressing contexts containing images, audio, or video alongside text
+    \item \textbf{Dynamic Compression:} Few methods adapt compression ratio based on content complexity or task requirements
+    \item \textbf{Theoretical Guarantees:} Gap between empirical results and information-theoretic lower bounds
+\end{itemize}
+
+\subsection{Emerging Research Directions}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Hybrid Approaches:} Combining soft prompt compression with architectural memory compression
+    \item \textbf{Task-Adaptive Compression:} Learning to compress differently for various downstream tasks
+    \item \textbf{Compression-Aware Training:} Pre-training models specifically designed for efficient compression
+    \item \textbf{Online Compression:} Real-time compression during streaming inference
+    \item \textbf{Lossless Semantic Compression:} Achieving perfect information preservation with practical compression ratios
+\end{itemize}
+
+\section{Conclusion}
+
+Context compression techniques represent a crucial area of research for making large language models more efficient and practical. The field has evolved from simple token removal strategies to sophisticated learned representations that capture semantic content in compressed form. Recent advances demonstrate that significant compression (4x-20x) is achievable while maintaining or even improving task performance.
+
+The diversity of approaches---from soft prompt methods like Gisting and AutoCompressors, to hard prompt techniques like LLMLingua, to architectural innovations like Compressive Transformers---reflects different trade-offs between compression ratio, computational cost, and performance preservation. Information-theoretic perspectives provide fundamental understanding of compression limits, while practical implementations demonstrate the viability of these techniques in real-world applications.
+
+Future progress will likely focus on: (1) scaling compression methods to million-token contexts, (2) developing unified frameworks that combine multiple compression strategies, (3) establishing stronger theoretical foundations, and (4) extending compression to multi-modal contexts. As language models continue to grow in capability and context requirements, efficient compression techniques will become increasingly essential for practical deployment.
+
+\end{document}
