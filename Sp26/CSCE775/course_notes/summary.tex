@@ -81,18 +81,36 @@ In a finite Markov decision process (MDP), the sets of states, actions, and rewa
 
 \subsection{The Dynamics Function}
 
-The environment's dynamics are completely characterized by a function:
+The dynamics function arises directly from the Markov property. Because the current state $S_{t-1}$ captures all relevant information about the past, the joint probability of the next state and reward depends only on the immediately preceding state and action---not on the full history. This allows us to express the environment's behavior as a single conditional probability distribution:
 \begin{equation}
-p(s', r \mid s, a) = \Pr\{S_t = s', R_t = r \mid S_{t-1} = s, A_{t-1} = a\}
+p(s', r \mid s, a) \doteq \Pr\{S_t = s', R_t = r \mid S_{t-1} = s, A_{t-1} = a\}
 \end{equation}
-for all $s', s \in \mathcal{S}$, $r \in \mathcal{R}$, and $a \in \mathcal{A}(s)$. This four-argument dynamics function $p: \mathcal{S} \times \mathcal{R} \times \mathcal{S} \times \mathcal{A} \to [0, 1]$ fully specifies the environment's dynamics.
+for all $s', s \in \mathcal{S}$, $r \in \mathcal{R}$, and $a \in \mathcal{A}(s)$. This is a four-argument function $p: \mathcal{S} \times \mathcal{R} \times \mathcal{S} \times \mathcal{A} \to [0, 1]$.
 
-From this function, we can derive other useful quantities:
-\begin{align}
-p(s' \mid s, a) &= \sum_{r \in \mathcal{R}} p(s', r \mid s, a) \\
-r(s, a) &= \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s', r \mid s, a) \\
-r(s, a, s') &= \sum_{r \in \mathcal{R}} r \frac{p(s', r \mid s, a)}{p(s' \mid s, a)}
-\end{align}
+The dynamics function is a \textit{joint} conditional probability over both the next state $s'$ and the reward $r$, given the current state $s$ and action $a$. It is a proper probability distribution, so it must satisfy:
+\begin{equation}
+\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s', r \mid s, a) = 1, \quad \text{for all } s \in \mathcal{S}, \; a \in \mathcal{A}(s)
+\end{equation}
+
+This single function completely specifies the environment. Every other quantity of interest---state-transition probabilities, expected rewards, value functions, optimal policies---can be derived from it. In particular, we can marginalize or condition $p$ to obtain three commonly used derived quantities:
+
+\textbf{State-transition probabilities} (marginalize out $r$):
+\begin{equation}
+p(s' \mid s, a) = \sum_{r \in \mathcal{R}} p(s', r \mid s, a)
+\end{equation}
+This gives the probability of transitioning to state $s'$ when taking action $a$ in state $s$, regardless of what reward is received.
+
+\textbf{Expected reward for a state-action pair} (expected value of $r$):
+\begin{equation}
+r(s, a) = \mathbb{E}[R_t \mid S_{t-1} = s, A_{t-1} = a] = \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s', r \mid s, a)
+\end{equation}
+This is the expected immediate reward when taking action $a$ in state $s$.
+
+\textbf{Expected reward for a state-action-next-state triple} (condition on $s'$, then take expectation over $r$):
+\begin{equation}
+r(s, a, s') = \mathbb{E}[R_t \mid S_{t-1} = s, A_{t-1} = a, S_t = s'] = \sum_{r \in \mathcal{R}} r \frac{p(s', r \mid s, a)}{p(s' \mid s, a)}
+\end{equation}
+Here the fraction $\frac{p(s', r \mid s, a)}{p(s' \mid s, a)}$ is just the conditional probability $p(r \mid s, a, s')$ by Bayes' rule, so this is the expected reward given that the specific transition $s \to s'$ occurs under action $a$.
 
 \subsection{The Markov Property}
 
