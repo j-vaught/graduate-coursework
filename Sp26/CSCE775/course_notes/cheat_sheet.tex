@@ -1,0 +1,534 @@
+\documentclass[8pt,landscape]{article}
+\usepackage[margin=0.3in]{geometry}
+\usepackage{multicol}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+% Simple algorithm environment
+\newcounter{algcounter}
+\newenvironment{myalgorithm}[1][htb]
+  {\refstepcounter{algcounter}%
+   \begin{center}%
+   \begin{minipage}{0.95\linewidth}%
+   \small%
+   \textbf{Algorithm \thealgcounter:}}
+  {\end{minipage}\end{center}}
+
+% Compact formatting
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\columnsep}{15pt}
+\setlist{nosep,leftmargin=*,topsep=0pt}
+
+% Section formatting - sharp corners, no rounded edges
+\titleformat{\section}{\normalfont\fontsize{10}{11}\bfseries}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{3pt}{1pt}
+\titleformat{\subsection}{\normalfont\fontsize{9}{10}\bfseries}{\thesubsection}{0.8em}{}
+\titlespacing*{\subsection}{0pt}{2pt}{0pt}
+
+% TikZ styles - sharp, no rounded edges
+\tikzset{
+    state/.style={circle, draw, minimum size=0.5cm, inner sep=1pt},
+    action/.style={rectangle, draw, minimum size=0.4cm, inner sep=1pt},
+    arrow/.style={-Stealth, thick}
+}
+
+\pagestyle{empty}
+
+\begin{document}
+\begin{multicols}{3}
+
+\begin{center}
+\Large{\textbf{CSCE 775 RL Quiz 1 Reference}} \\
+\small{Sutton \& Barto: Ch1, Ch3, Ch4} \\
+\small{J.C. Vaught}
+\end{center}
+
+\section{Introduction to Reinforcement Learning}
+
+\subsection{Definition}
+\textbf{Reinforcement Learning}: Learning what to do—mapping situations to actions to maximize a numerical reward signal.
+
+\subsection{Key Features}
+\begin{itemize}
+\item Trial-and-error search for good behavior
+\item Delayed reward (actions affect not just immediate but also subsequent rewards)
+\item Sequential decision making under uncertainty
+\end{itemize}
+
+\subsection{RL vs Other Learning Paradigms}
+\begin{itemize}
+\item \textbf{Supervised learning}: Learning from labeled examples provided by external supervisor
+\item \textbf{Unsupervised learning}: Finding structure in unlabeled data
+\item \textbf{Reinforcement learning}: Learning from interaction to maximize reward signal; no labeled examples of correct/incorrect actions, must discover through trial-and-error
+\end{itemize}
+
+\subsection{Exploration vs Exploitation}
+\textbf{Exploration-Exploitation Tradeoff}: Agent must exploit known good actions to obtain reward, but also explore new actions to discover potentially better ones. Neither pure exploration nor pure exploitation solves the task.
+
+\subsection{Four Elements of RL}
+\begin{enumerate}
+\item \textbf{Policy} $\pi$: Mapping from states to probabilities of selecting each action; defines agent's behavior
+\item \textbf{Reward Signal} $R_t$: Single number sent to agent at each time step; defines goal; agent seeks to maximize total reward
+\item \textbf{Value Function} $v_\pi(s)$ or $q_\pi(s,a)$: Total reward expected in the future from a state (or state-action pair); guides action selection
+\item \textbf{Model} (optional): Mimics environment behavior; allows planning by considering future situations before experiencing them
+\end{enumerate}
+
+\subsection{Model-Based vs Model-Free}
+\begin{itemize}
+\item \textbf{Model-based methods}: Use a model of the environment for planning
+\item \textbf{Model-free methods}: Learn purely from trial-and-error experience without explicit model
+\end{itemize}
+
+\subsection{Temporal-Difference (TD) Learning}
+Basic TD update rule:
+\begin{equation}
+V(S_t) \leftarrow V(S_t) + \alpha\left[V(S_{t+1}) - V(S_t)\right]
+\end{equation}
+where $\alpha$ is the learning rate (step size).
+
+TD combines ideas from Monte Carlo (learning from experience) and Dynamic Programming (bootstrapping from estimates).
+
+\section{Finite Markov Decision Processes}
+
+\subsection{Agent-Environment Interface}
+Agent and environment interact in discrete time steps: $t = 0, 1, 2, 3, \ldots$
+
+\textbf{Trajectory}: $S_0, A_0, R_1, S_1, A_1, R_2, S_2, A_2, R_3, \ldots$
+
+At each time $t$:
+\begin{itemize}
+\item Agent observes state $S_t \in \mathcal{S}$
+\item Selects action $A_t \in \mathcal{A}(s)$
+\item Receives reward $R_{t+1} \in \mathcal{R} \subset \mathbb{R}$
+\item Transitions to next state $S_{t+1}$
+\end{itemize}
+
+\subsection{Dynamics Function}
+Complete probability distribution defining MDP dynamics:
+\begin{equation}
+p(s',r|s,a) = \Pr\{S_t=s', R_t=r \mid S_{t-1}=s, A_{t-1}=a\}
+\end{equation}
+for all $s', s \in \mathcal{S}$, $r \in \mathcal{R}$, $a \in \mathcal{A}(s)$.
+
+Must satisfy: $\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s',r|s,a) = 1$ for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$.
+
+\subsection{Derived Quantities}
+
+\textbf{State-transition probabilities}:
+\begin{equation}
+p(s'|s,a) = \Pr\{S_t=s' \mid S_{t-1}=s, A_{t-1}=a\} = \sum_{r \in \mathcal{R}} p(s',r|s,a)
+\end{equation}
+
+\textbf{Expected reward for state-action pair}:
+\begin{equation}
+r(s,a) = \mathbb{E}[R_t \mid S_{t-1}=s, A_{t-1}=a] = \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s',r|s,a)
+\end{equation}
+
+\textbf{Expected reward for state-action-next-state triple}:
+\begin{equation}
+r(s,a,s') = \mathbb{E}[R_t \mid S_{t-1}=s, A_{t-1}=a, S_t=s'] = \sum_{r \in \mathcal{R}} r \frac{p(s',r|s,a)}{p(s'|s,a)}
+\end{equation}
+
+\subsection{Markov Property}
+\textbf{Markov Property}: The future depends only on the current state, not on the history.
+\begin{equation}
+\Pr\{S_t=s', R_t=r \mid S_0, A_0, R_1, \ldots, S_{t-1}, A_{t-1}\} = p(s',r|S_{t-1}, A_{t-1})
+\end{equation}
+
+A state signal has the Markov property if it includes all relevant information from history.
+
+\subsection{Returns}
+
+\textbf{Episodic tasks} (terminate in finite steps at terminal state):
+\begin{equation}
+G_t = R_{t+1} + R_{t+2} + R_{t+3} + \cdots + R_T
+\end{equation}
+where $T$ is the terminal time step.
+
+\textbf{Continuing tasks} (no terminal state, with discounting):
+\begin{equation}
+G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1} = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots
+\end{equation}
+where $0 \leq \gamma \leq 1$ is the discount rate.
+
+\textbf{Recursive form}:
+\begin{equation}
+G_t = R_{t+1} + \gamma G_{t+1}
+\end{equation}
+
+\textbf{Special case} (constant reward $+1$ forever):
+\begin{equation}
+G_t = \sum_{k=0}^{\infty} \gamma^k = \frac{1}{1-\gamma}
+\end{equation}
+
+\subsection{Policies}
+\textbf{Policy} $\pi$: Mapping from states to probability distributions over actions.
+\begin{equation}
+\pi(a|s) = \Pr\{A_t=a \mid S_t=s\}
+\end{equation}
+
+\textbf{Deterministic policy}: $\pi(s) = a$ (single action for each state).
+
+\subsection{Value Functions}
+
+\textbf{State-value function} for policy $\pi$:
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t \mid S_t=s] = \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \;\bigg|\; S_t=s\right]
+\end{equation}
+
+\textbf{Action-value function} (Q-function) for policy $\pi$:
+\begin{equation}
+q_\pi(s,a) = \mathbb{E}_\pi[G_t \mid S_t=s, A_t=a] = \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \;\bigg|\; S_t=s, A_t=a\right]
+\end{equation}
+
+\textbf{Relationship between value functions}:
+\begin{equation}
+v_\pi(s) = \sum_{a \in \mathcal{A}(s)} \pi(a|s) \, q_\pi(s,a)
+\end{equation}
+
+\subsection{Bellman Equations}
+
+\textbf{Bellman equation for $v_\pi$}:
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s',r} p(s',r|s,a)\left[r + \gamma v_\pi(s')\right]
+\end{equation}
+
+Expanded form:
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t=s]
+\end{equation}
+
+\textbf{Bellman equation for $q_\pi$}:
+\begin{equation}
+q_\pi(s,a) = \sum_{s',r} p(s',r|s,a)\left[r + \gamma \sum_{a'} \pi(a'|s') q_\pi(s',a')\right]
+\end{equation}
+
+Expanded form:
+\begin{equation}
+q_\pi(s,a) = \mathbb{E}_\pi[R_{t+1} + \gamma q_\pi(S_{t+1}, A_{t+1}) \mid S_t=s, A_t=a]
+\end{equation}
+
+\subsection{Optimal Value Functions}
+
+\textbf{Optimal state-value function}:
+\begin{equation}
+v_*(s) = \max_\pi v_\pi(s) \quad \text{for all } s \in \mathcal{S}
+\end{equation}
+
+\textbf{Optimal action-value function}:
+\begin{equation}
+q_*(s,a) = \max_\pi q_\pi(s,a) \quad \text{for all } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{Relationship}:
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} q_*(s,a)
+\end{equation}
+\begin{equation}
+q_*(s,a) = \sum_{s',r} p(s',r|s,a)\left[r + \gamma v_*(s')\right]
+\end{equation}
+
+\subsection{Bellman Optimality Equations}
+
+\textbf{Bellman optimality equation for $v_*$}:
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} \sum_{s',r} p(s',r|s,a)\left[r + \gamma v_*(s')\right]
+\end{equation}
+
+\textbf{Bellman optimality equation for $q_*$}:
+\begin{equation}
+q_*(s,a) = \sum_{s',r} p(s',r|s,a)\left[r + \gamma \max_{a' \in \mathcal{A}(s')} q_*(s',a')\right]
+\end{equation}
+
+\subsection{Optimal Policy}
+
+\textbf{Optimal policy} (greedy with respect to $q_*$):
+\begin{equation}
+\pi_*(s) = \arg\max_{a \in \mathcal{A}(s)} q_*(s,a)
+\end{equation}
+
+Alternative form (greedy with respect to $v_*$ using one-step lookahead):
+\begin{equation}
+\pi_*(s) = \arg\max_{a} \sum_{s',r} p(s',r|s,a)\left[r + \gamma v_*(s')\right]
+\end{equation}
+
+Any policy that is greedy with respect to $v_*$ or $q_*$ is an optimal policy.
+
+\section{Dynamic Programming}
+
+DP methods require perfect model of environment: $p(s',r|s,a)$.
+
+\subsection{Policy Evaluation (Prediction)}
+
+\textbf{Goal}: Compute $v_\pi$ for a given policy $\pi$.
+
+\textbf{Iterative update} (until convergence):
+\begin{equation}
+V_{k+1}(s) = \sum_{a} \pi(a|s) \sum_{s',r} p(s',r|s,a)\left[r + \gamma V_k(s')\right]
+\end{equation}
+for all $s \in \mathcal{S}$.
+
+\textbf{Convergence criterion}: Stop when $\max_{s \in \mathcal{S}} |V_{k+1}(s) - V_k(s)| < \theta$ for small threshold $\theta > 0$.
+
+As $k \to \infty$, $V_k \to v_\pi$ under Bellman equation constraints.
+
+\textbf{Implementation variants}:
+\begin{itemize}
+\item \textbf{Two-array (Jacobi)}: Use old values for all states in sweep
+\item \textbf{In-place (Gauss-Seidel)}: Use new values as soon as available; typically faster convergence
+\end{itemize}
+
+\begin{myalgorithm}
+Iterative Policy Evaluation \\
+\textbf{Input:} Policy $\pi$, threshold $\theta > 0$ \\
+Initialize $V(s) = 0$ for all $s \in \mathcal{S}^+$ \\
+\textbf{repeat} \\
+\hspace{1em} $\Delta \leftarrow 0$ \\
+\hspace{1em} \textbf{for} each $s \in \mathcal{S}$ \textbf{do} \\
+\hspace{2em} $v \leftarrow V(s)$ \\
+\hspace{2em} $V(s) \leftarrow \sum_a \pi(a|s) \sum_{s',r} p(s',r|s,a)[r + \gamma V(s')]$ \\
+\hspace{2em} $\Delta \leftarrow \max(\Delta, |v - V(s)|)$ \\
+\hspace{1em} \textbf{end for} \\
+\textbf{until} $\Delta < \theta$ \\
+\textbf{Output:} $V \approx v_\pi$
+\end{myalgorithm}
+
+\subsection{Policy Improvement}
+
+\textbf{Policy improvement theorem}: Let $\pi$ and $\pi'$ be deterministic policies such that for all $s \in \mathcal{S}$:
+\begin{equation}
+q_\pi(s, \pi'(s)) \geq v_\pi(s)
+\end{equation}
+Then $v_{\pi'}(s) \geq v_\pi(s)$ for all $s \in \mathcal{S}$.
+
+\textbf{Greedy policy improvement}:
+\begin{equation}
+\pi'(s) = \arg\max_{a} \sum_{s',r} p(s',r|s,a)\left[r + \gamma V(s')\right]
+\end{equation}
+
+This one-step lookahead constructs a greedy policy with respect to current value function.
+
+If $v_{\pi'} = v_\pi$, then both $\pi$ and $\pi'$ are optimal (Bellman optimality equation satisfied).
+
+\subsection{Policy Iteration}
+
+\textbf{Algorithm}: Alternate between policy evaluation and policy improvement.
+
+\begin{myalgorithm}
+Policy Iteration \\
+Initialize $V(s) \in \mathbb{R}$ and $\pi(s) \in \mathcal{A}(s)$ arbitrarily \\
+\textbf{repeat} \\
+\hspace{1em} \textsc{Policy Evaluation:} \\
+\hspace{1em} \textbf{repeat} \\
+\hspace{2em} $\Delta \leftarrow 0$ \\
+\hspace{2em} \textbf{for} each $s \in \mathcal{S}$ \textbf{do} \\
+\hspace{3em} $v \leftarrow V(s)$ \\
+\hspace{3em} $V(s) \leftarrow \sum_{s',r} p(s',r|s,\pi(s))[r + \gamma V(s')]$ \\
+\hspace{3em} $\Delta \leftarrow \max(\Delta, |v - V(s)|)$ \\
+\hspace{2em} \textbf{end for} \\
+\hspace{1em} \textbf{until} $\Delta < \theta$ \\
+\hspace{1em} \textsc{Policy Improvement:} \\
+\hspace{1em} \textit{policy-stable} $\leftarrow$ \textit{true} \\
+\hspace{1em} \textbf{for} each $s \in \mathcal{S}$ \textbf{do} \\
+\hspace{2em} $\textit{old-action} \leftarrow \pi(s)$ \\
+\hspace{2em} $\pi(s) \leftarrow \arg\max_a \sum_{s',r} p(s',r|s,a)[r + \gamma V(s')]$ \\
+\hspace{2em} \textbf{if} $\textit{old-action} \neq \pi(s)$ \textbf{then} \textit{policy-stable} $\leftarrow$ \textit{false} \\
+\hspace{1em} \textbf{end for} \\
+\hspace{1em} \textbf{if} \textit{policy-stable} \textbf{then return} $V \approx v_*$, $\pi \approx \pi_*$ \\
+\textbf{until} $\pi$ stable
+\end{myalgorithm}
+
+Policy iteration converges to $\pi_*$ and $v_*$ in finite iterations (for finite MDPs).
+
+\subsection{Value Iteration}
+
+\textbf{Key idea}: Combine truncated policy evaluation (one sweep) with policy improvement.
+
+\textbf{Update rule} (turn Bellman optimality equation into assignment):
+\begin{equation}
+V_{k+1}(s) = \max_{a} \sum_{s',r} p(s',r|s,a)\left[r + \gamma V_k(s')\right]
+\end{equation}
+
+\begin{myalgorithm}
+Value Iteration \\
+\textbf{Input:} Threshold $\theta > 0$ \\
+Initialize $V(s)$ arbitrarily, e.g., $V(s) = 0$ for all $s \in \mathcal{S}^+$ \\
+\textbf{repeat} \\
+\hspace{1em} $\Delta \leftarrow 0$ \\
+\hspace{1em} \textbf{for} each $s \in \mathcal{S}$ \textbf{do} \\
+\hspace{2em} $v \leftarrow V(s)$ \\
+\hspace{2em} $V(s) \leftarrow \max_a \sum_{s',r} p(s',r|s,a)[r + \gamma V(s')]$ \\
+\hspace{2em} $\Delta \leftarrow \max(\Delta, |v - V(s)|)$ \\
+\hspace{1em} \textbf{end for} \\
+\textbf{until} $\Delta < \theta$ \\
+\textsc{Output deterministic policy:} \\
+\textbf{for} each $s \in \mathcal{S}$ \textbf{do} \\
+\hspace{1em} $\pi(s) \leftarrow \arg\max_a \sum_{s',r} p(s',r|s,a)[r + \gamma V(s')]$ \\
+\textbf{end for} \\
+\textbf{Output:} $V \approx v_*$ and $\pi \approx \pi_*$
+\end{myalgorithm}
+
+Faster than policy iteration for some problems; does not require explicit policy during iteration.
+
+\subsection{Generalized Policy Iteration (GPI)}
+
+\textbf{GPI}: General idea of interacting processes of policy evaluation and policy improvement.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+\node[rectangle, draw, minimum width=2cm, minimum height=0.8cm] (eval) at (0,0) {Evaluation};
+\node[rectangle, draw, minimum width=2cm, minimum height=0.8cm] (improve) at (0,-1.5) {Improvement};
+\draw[arrow, bend left=30] (eval.east) to node[right] {$v_\pi$} (improve.east);
+\draw[arrow, bend left=30] (improve.west) to node[left] {$\pi$} (eval.west);
+\end{tikzpicture}
+\end{center}
+
+Both processes stabilize when:
+\begin{equation}
+v_\pi(s) = \max_a \sum_{s',r} p(s',r|s,a)[r + \gamma v_\pi(s')]
+\end{equation}
+which is the Bellman optimality equation, implying $v_\pi = v_*$ and $\pi = \pi_*$.
+
+\textbf{Key insight}: Almost all RL methods are forms of GPI.
+
+\subsection{Asynchronous Dynamic Programming}
+
+\textbf{Asynchronous DP}: Update states in any order, using whatever values are available.
+\begin{itemize}
+\item Don't require systematic sweeps of entire state set
+\item Can update individual states multiple times before updating others
+\item Still converges if all states continue to be updated
+\item Allows focusing computation on relevant states
+\end{itemize}
+
+Examples: prioritized sweeping, real-time dynamic programming.
+
+\subsection{Bootstrapping}
+
+\textbf{Bootstrapping}: Updating estimates based on other estimates (rather than complete returns).
+
+DP methods bootstrap: use $V(s')$ to update $V(s)$ before $V(s')$ has converged.
+
+\subsection{Computational Complexity}
+
+DP is polynomial in number of states $|\mathcal{S}|$ and actions $|\mathcal{A}|$.
+
+For $k$ binary state variables: $|\mathcal{S}| = 2^k$
+
+Number of deterministic policies: $|\mathcal{A}|^{|\mathcal{S}|}$ (exponentially large)
+
+DP is exponentially faster than exhaustive policy search.
+
+Even with large state spaces, DP can be practical if we can:
+\begin{itemize}
+\item Use asynchronous methods
+\item Use function approximation
+\item Focus on relevant states
+\end{itemize}
+
+\section{Backup Diagrams}
+
+\subsection{$v_\pi$ Backup Diagram}
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+\node[state, fill=black] (s) at (0,0) {$s$};
+\node[action] (a1) at (-0.8,-1) {};
+\node[action] (a2) at (0,-1) {};
+\node[action] (a3) at (0.8,-1) {};
+\node[state] (s1) at (-1.2,-2.2) {};
+\node[state] (s2) at (-0.4,-2.2) {};
+\node[state] (s3) at (0.4,-2.2) {};
+\node[state] (s4) at (1.2,-2.2) {};
+\draw[arrow] (s) -- (a1);
+\draw[arrow] (s) -- (a2);
+\draw[arrow] (s) -- (a3);
+\draw[arrow] (a1) -- (s1);
+\draw[arrow] (a1) -- (s2);
+\draw[arrow] (a2) -- (s2);
+\draw[arrow] (a3) -- (s3);
+\draw[arrow] (a3) -- (s4);
+\node at (0,-2.8) {\small $v_\pi(s) = \sum_a \pi(a|s) \sum_{s'} p(s'|s,a)[r(s,a,s') + \gamma v_\pi(s')]$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{$v_*$ Backup Diagram}
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+\node[state, fill=black] (s) at (0,0) {$s$};
+\node[action] (a1) at (-0.8,-1) {};
+\node[action] (a2) at (0,-1) {};
+\node[action] (a3) at (0.8,-1) {};
+\node[state] (s1) at (-1.2,-2.2) {};
+\node[state] (s2) at (-0.4,-2.2) {};
+\node[state] (s3) at (0.4,-2.2) {};
+\node[state] (s4) at (1.2,-2.2) {};
+\draw[arrow] (s) -- (a1);
+\draw[arrow] (s) -- (a2);
+\draw[arrow] (s) -- (a3);
+\draw[arrow] (a1) -- (s1);
+\draw[arrow] (a1) -- (s2);
+\draw[arrow] (a2) -- (s2);
+\draw[arrow] (a3) -- (s3);
+\draw[arrow] (a3) -- (s4);
+\draw[very thick, draw=black] (-1.1,-0.7) arc (180:0:1.1cm and 0.3cm);
+\node at (0,-2.8) {\small $v_*(s) = \max_a \sum_{s'} p(s'|s,a)[r(s,a,s') + \gamma v_*(s')]$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{$q_\pi$ Backup Diagram}
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+\node[state] (s) at (0,0.5) {};
+\node[action, fill=black] (a) at (0,-0.3) {$a$};
+\node[state] (s1) at (-1,-1.5) {};
+\node[state] (s2) at (0,-1.5) {};
+\node[state] (s3) at (1,-1.5) {};
+\node[action] (a1) at (-1.4,-2.5) {};
+\node[action] (a2) at (-0.6,-2.5) {};
+\node[action] (a3) at (0.6,-2.5) {};
+\node[action] (a4) at (1.4,-2.5) {};
+\draw[arrow] (s) -- (a);
+\draw[arrow] (a) -- (s1);
+\draw[arrow] (a) -- (s2);
+\draw[arrow] (a) -- (s3);
+\draw[arrow] (s1) -- (a1);
+\draw[arrow] (s1) -- (a2);
+\draw[arrow] (s3) -- (a3);
+\draw[arrow] (s3) -- (a4);
+\node at (0,-3.3) {\small $q_\pi(s,a) = \sum_{s'} p(s'|s,a)[r(s,a,s') + \gamma \sum_{a'} \pi(a'|s') q_\pi(s',a')]$};
+\end{tikzpicture}
+\end{center}
+
+\subsection{$q_*$ Backup Diagram}
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+\node[state] (s) at (0,0.5) {};
+\node[action, fill=black] (a) at (0,-0.3) {$a$};
+\node[state] (s1) at (-1,-1.5) {};
+\node[state] (s2) at (0,-1.5) {};
+\node[state] (s3) at (1,-1.5) {};
+\node[action] (a1) at (-1.4,-2.5) {};
+\node[action] (a2) at (-0.6,-2.5) {};
+\node[action] (a3) at (0.6,-2.5) {};
+\node[action] (a4) at (1.4,-2.5) {};
+\draw[arrow] (s) -- (a);
+\draw[arrow] (a) -- (s1);
+\draw[arrow] (a) -- (s2);
+\draw[arrow] (a) -- (s3);
+\draw[arrow] (s1) -- (a1);
+\draw[arrow] (s1) -- (a2);
+\draw[arrow] (s3) -- (a3);
+\draw[arrow] (s3) -- (a4);
+\draw[very thick, draw=black] (-1.6,-2.3) arc (180:0:0.4cm and 0.15cm);
+\draw[very thick, draw=black] (0.4,-2.3) arc (180:0:0.5cm and 0.15cm);
+\node at (0,-3.3) {\small $q_*(s,a) = \sum_{s'} p(s'|s,a)[r(s,a,s') + \gamma \max_{a'} q_*(s',a')]$};
+\end{tikzpicture}
+\end{center}
+
+\end{multicols}
+\end{document}
