@@ -19,7 +19,11 @@
 \usepackage{fancyhdr}
 \usepackage{booktabs}
 \usepackage{array}
+\usepackage{colortbl}
+%\usepackage{pgfplots}
+\usepackage{listings}
 \usepackage{float}
+%\pgfplotsset{compat=1.18}
 
 % ============================================================================
 % HEADER AND FOOTER SETUP
@@ -34,12 +38,19 @@
 
 \renewcommand{\headrulewidth}{0pt}
 
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, decorations.pathmorphing, patterns}
+
 % --- USC Brand Colors ---
 \definecolor{USC_Garnet}{HTML}{73000A}
 \definecolor{USC_Sandstorm}{HTML}{FFF2E3}
 \definecolor{USC_Black90}{HTML}{363636}
 \definecolor{USC_Black10}{HTML}{ECECEC}
 \definecolor{USC_Honeycomb}{HTML}{A49137}
+\definecolor{tablegreen}{RGB}{230,242,230}
+\definecolor{outputbg}{RGB}{245,245,245}
 
 % ============================================================================
 % CUSTOM COLORED BOXES
@@ -54,6 +65,27 @@
   coltitle=white,
 }
 
+\newtcolorbox{codebox}{
+  colback=USC_Black10,
+  colframe=USC_Black90,
+  fonttitle=\bfseries,
+  title=Python Implementation,
+  sharp corners,
+  colbacktitle=USC_Black90,
+  coltitle=white,
+}
+
+\newtcolorbox{outputbox}{
+  colback=outputbg,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Python Output,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+  breakable,
+}
+
 \newtcolorbox{resultsbox}{
   colback=white,
   colframe=USC_Honeycomb,
@@ -65,7 +97,7 @@
 }
 
 % ============================================================================
-% CUSTOM QUESTION COMMAND
+% CUSTOM QUESTION AND PART COMMANDS
 % ============================================================================
 \newcommand{\question}[1]{%
   \clearpage
@@ -78,11 +110,50 @@
   \vspace{0.3cm}
 }
 
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% Code listing style
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{USC_Honeycomb},
+    stringstyle=\color{USC_Garnet},
+    breaklines=true,
+    showstringspaces=false,
+    backgroundcolor=\color{USC_Black10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=5pt,
+}
+
+% Output listing style
+\lstdefinestyle{output}{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    showstringspaces=false,
+    backgroundcolor=\color{outputbg},
+    frame=none,
+    numbers=none,
+}
+
+% Graphics path
+\graphicspath{{figures/}}
+
 % ============================================================================
 % DOCUMENT INFORMATION
 % ============================================================================
 
-\title{EMCH 792: Optimal State Estimation \\ Homework 1 --- Written Portion}
+\title{EMCH 792: Optimal State Estimation \\ Homework 1 \\ \large{Written Portion Solutions}}
 \author{Instructor: N. Vitzilaios, Department of Mechanical Engineering \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
 \date{Due: January 28, 2026}
 
@@ -95,11 +166,35 @@
 \maketitle
 \setlength{\parindent}{0pt}
 
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Exercise 1.2:} Commuting Non-Diagonal Matrices (10 pts) \dotfill & \textbf{\pageref{quest:1.2}} \\[0.3em]
+\textbf{Exercise 1.3:} Prove Identities of Equation (1.26) (10 pts) \dotfill & \textbf{\pageref{quest:1.3}} \\[0.3em]
+\textbf{Exercise 1.4:} Partial Derivative of $\mathrm{Tr}(AB)$ w.r.t.\ $A$ (10 pts) \dotfill & \textbf{\pageref{quest:1.4}} \\[0.3em]
+\textbf{Exercise 1.6:} Block Matrix Inverse (10 pts) \dotfill & \textbf{\pageref{quest:1.6}} \\[0.3em]
+\textbf{Exercise 1.7:} Symmetry of $AB$ (10 pts) \dotfill & \textbf{\pageref{quest:1.7}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
 % ============================================================================
 % EXERCISE 1.2
 % ============================================================================
 
-\question{Exercise 1.2: Commuting Non-Diagonal Matrices (10 pts)}
+\question{Exercise 1.2: Commuting Non-Diagonal Matrices (10 pts)}\label{quest:1.2}
 
 Find two $2 \times 2$ matrices $A$ and $B$ such that $A \neq B$, neither $A$ nor $B$ are diagonal, $A \neq cB$ for any scalar $c$, and $AB = BA$. Find the eigenvectors of $A$ and $B$.
 
@@ -159,7 +254,7 @@ Both $A$ and $B$ share the eigenvector $\boxed{\mathbf{v} = \begin{pmatrix} 1 \\
 % EXERCISE 1.3
 % ============================================================================
 
-\question{Exercise 1.3: Prove the Three Identities of Equation (1.26) (10 pts)}
+\question{Exercise 1.3: Prove the Three Identities of Equation (1.26) (10 pts)}\label{quest:1.3}
 
 Prove:
 \begin{enumerate}
@@ -224,7 +319,7 @@ Both double sums range over the same indices and contain the same terms $a_{ik}\
 % EXERCISE 1.4
 % ============================================================================
 
-\question{Exercise 1.4: Partial Derivative of $\mathrm{Tr}(AB)$ with Respect to $A$ (10 pts)}
+\question{Exercise 1.4: Partial Derivative of $\mathrm{Tr}(AB)$ with Respect to $A$ (10 pts)}\label{quest:1.4}
 
 Find $\dfrac{\partial}{\partial A}\,\mathrm{Tr}(AB)$.
 
@@ -259,7 +354,7 @@ This means $\left[\dfrac{\partial}{\partial A}\,\mathrm{Tr}(AB)\right]_{ij} = b_
 % EXERCISE 1.6
 % ============================================================================
 
-\question{Exercise 1.6: Block Matrix Inverse (10 pts)}
+\question{Exercise 1.6: Block Matrix Inverse (10 pts)}\label{quest:1.6}
 
 Suppose that $A$ is invertible and
 \[
@@ -332,7 +427,7 @@ Substituting back into (ii): $(A^{-1} + A)A + A(-A) = I + A^2 - A^2 = I$ \checkm
 % EXERCISE 1.7
 % ============================================================================
 
-\question{Exercise 1.7: $AB$ May Not Be Symmetric (10 pts)}
+\question{Exercise 1.7: $AB$ May Not Be Symmetric (10 pts)}\label{quest:1.7}
 
 Show that $AB$ may not be symmetric even though both $A$ and $B$ are symmetric.
 
