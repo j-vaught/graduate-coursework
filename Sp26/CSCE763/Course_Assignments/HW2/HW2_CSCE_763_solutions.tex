@@ -38,7 +38,7 @@
 % ============================================================================
 % TIKZ LIBRARIES
 % ============================================================================
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns, calc}
 
 % --- USC Brand Colors ---
 \definecolor{USC_Garnet}{HTML}{73000A}
@@ -51,6 +51,8 @@
 \definecolor{USC_Atlantic}{HTML}{466A9F}
 \definecolor{USC_Congaree}{HTML}{1F414D}
 \definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{USC_Grass}{HTML}{CED318}
+\definecolor{USC_Horseshoe}{HTML}{65780B}
 \definecolor{outputbg}{RGB}{245,245,245}
 
 % ============================================================================
@@ -160,106 +162,78 @@ H[a_1 f_1(x,y) + a_2 f_2(x,y)] = a_1 H[f_1(x,y)] + a_2 H[f_2(x,y)]
 
 \vspace{0.5cm}
 
-\begin{stepbox}[Solution]
-We prove nonlinearity by counterexample. Let $H$ denote the median operator over a $1 \times 3$ subimage region $S$. Set $a_1 = a_2 = 1$ and define two images by their pixel values over $S$:
+\begin{stepbox}[Step 1: State the Linearity Condition]
+An operator $H$ is linear if and only if the \textbf{superposition property} holds for all images $f_1, f_2$ and all scalars $a_1, a_2$:
 \[
-f_1 = \{1,\; 2,\; 3\}, \qquad f_2 = \{3,\; 1,\; 2\}
+H[a_1 f_1 + a_2 f_2] = a_1 H[f_1] + a_2 H[f_2]
 \]
+To show $H$ is nonlinear, it suffices to find a single counterexample where this equality fails. We set $a_1 = a_2 = 1$ and test the additivity property over a $1 \times 3$ subimage region $S$.
+\end{stepbox}
 
-\textbf{Right-hand side:}
-\[
-H[f_1] + H[f_2] = \text{median}\{1,2,3\} + \text{median}\{3,1,2\} = 2 + 2 = 4
-\]
-
-\textbf{Left-hand side:}
-\[
-f_1 + f_2 = \{1+3,\; 2+1,\; 3+2\} = \{4,\; 3,\; 5\}
-\]
-\[
-H[f_1 + f_2] = \text{median}\{4,3,5\} = 4
-\]
-
-In this case the additive property holds. Now test the \textbf{homogeneity} (scaling) property with $a = 2$:
-\[
-H[2 f_1] = \text{median}\{2, 4, 6\} = 4 = 2 \cdot H[f_1]
-\]
-Scaling also holds here. We need a different counterexample. Consider instead:
-\[
-f_1 = \{1,\; 5,\; 9\}, \qquad f_2 = \{9,\; 1,\; 5\}
-\]
-
-\textbf{Right-hand side:}
-\[
-H[f_1] + H[f_2] = \text{median}\{1,5,9\} + \text{median}\{9,1,5\} = 5 + 5 = 10
-\]
-
-\textbf{Left-hand side:}
-\[
-f_1 + f_2 = \{10,\; 6,\; 14\}
-\]
-\[
-H[f_1 + f_2] = \text{median}\{10, 6, 14\} = 10
-\]
-
-Still equal. The problem with 3-element medians and $a_1=a_2=1$ is that sums of two sequences often preserve median ordering. Instead, use a \textbf{5-pixel} subimage:
-\[
-f_1 = \{1,\; 2,\; 3,\; 4,\; 5\}, \qquad f_2 = \{5,\; 4,\; 3,\; 2,\; 1\}
-\]
-
-\textbf{Right-hand side:}
-\[
-H[f_1] + H[f_2] = \text{median}\{1,2,3,4,5\} + \text{median}\{5,4,3,2,1\} = 3 + 3 = 6
-\]
-
-\textbf{Left-hand side:}
-\[
-f_1 + f_2 = \{6,\; 6,\; 6,\; 6,\; 6\}
-\]
-\[
-H[f_1 + f_2] = \text{median}\{6,6,6,6,6\} = 6
-\]
-
-Equal again (constant image). Let us try an asymmetric example with 3 pixels:
-\[
-f_1 = \{4,\; 1,\; 5\}, \qquad f_2 = \{1,\; 5,\; 2\}
-\]
-
-\textbf{Right-hand side:}
-\[
-H[f_1] + H[f_2] = \text{median}\{4,1,5\} + \text{median}\{1,5,2\} = 4 + 2 = 6
-\]
-
-\textbf{Left-hand side:}
-\[
-f_1 + f_2 = \{5,\; 6,\; 7\}
-\]
-\[
-H[f_1 + f_2] = \text{median}\{5, 6, 7\} = 6
-\]
-
-Equal. Consider a 3-pixel case that \emph{reorders} the ranking:
+\begin{stepbox}[Step 2: Define the Counterexample]
+Choose two images defined by their pixel values over $S$:
 \[
 f_1 = \{2,\; 3,\; 10\}, \qquad f_2 = \{10,\; 1,\; 2\}
 \]
+\end{stepbox}
 
-\textbf{Right-hand side:}
+\begin{stepbox}[Step 3: Compute the Right-Hand Side]
 \[
-H[f_1] + H[f_2] = 3 + 2 = 5
-\]
-
-\textbf{Left-hand side:}
-\[
-f_1 + f_2 = \{12,\; 4,\; 12\}, \qquad H[f_1+f_2] = 12
-\]
-
-Since $12 \neq 5$, the additivity property fails:
-\[
-H[f_1 + f_2] = 12 \neq 5 = H[f_1] + H[f_2]
+H[f_1] + H[f_2] = \text{median}\{2,3,10\} + \text{median}\{10,1,2\} = 3 + 2 = 5
 \]
 \end{stepbox}
 
+\begin{stepbox}[Step 4: Compute the Left-Hand Side]
+\[
+f_1 + f_2 = \{2+10,\; 3+1,\; 10+2\} = \{12,\; 4,\; 12\}
+\]
+\[
+H[f_1 + f_2] = \text{median}\{12, 4, 12\} = 12
+\]
+\end{stepbox}
+
+\begin{stepbox}[Step 5: Conclude]
+Since
+\[
+H[f_1 + f_2] = 12 \neq 5 = H[f_1] + H[f_2]
+\]
+the superposition property is violated. Therefore, the median operator is \textbf{nonlinear}. $\blacksquare$
+\end{stepbox}
+
+\begin{stepbox}[Visualization: Counterexample Bar Chart]
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=12pt,
+    width=12cm, height=6cm,
+    ymin=0, ymax=14,
+    xtick={1,2,3},
+    xticklabels={Pixel 1, Pixel 2, Pixel 3},
+    ylabel={Intensity Value},
+    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=3, sharp corners},
+    ymajorgrids=true,
+    grid style={dashed, gray!30},
+    axis lines=left,
+    enlarge x limits=0.3,
+    sharp plot,
+    every axis plot/.append style={sharp corners},
+]
+\addplot[fill=USC_Garnet, draw=USC_Garnet] coordinates {(1,2) (2,3) (3,10)};
+\addplot[fill=USC_Atlantic, draw=USC_Atlantic] coordinates {(1,10) (2,1) (3,2)};
+\addplot[fill=USC_Congaree, draw=USC_Congaree] coordinates {(1,12) (2,4) (3,12)};
+\legend{$f_1$ (med=3), $f_2$ (med=2), $f_1+f_2$ (med=12)}
+\end{axis}
+% Annotation
+\node[anchor=west, text=USC_Garnet, font=\small\bfseries] at (10,4) {RHS $= 3+2 = 5$};
+\node[anchor=west, text=USC_Congaree, font=\small\bfseries] at (10,3.3) {LHS $= 12$};
+\node[anchor=west, text=USC_Rose, font=\small\bfseries] at (10,2.6) {$12 \neq 5$ \checkmark};
+\end{tikzpicture}
+\end{center}
+\end{stepbox}
+
 \begin{resultsbox}
-The median operator is \textbf{nonlinear}. As shown by the counterexample with $f_1 = \{2, 3, 10\}$ and $f_2 = \{10, 1, 2\}$, the superposition property is violated:
+The median operator is \textbf{nonlinear}. The counterexample $f_1 = \{2, 3, 10\}$, $f_2 = \{10, 1, 2\}$ yields:
 \[
 H[f_1 + f_2] = 12 \neq 5 = H[f_1] + H[f_2] \qquad \blacksquare
 \]
@@ -276,24 +250,47 @@ Image subtraction is used often in industrial applications for detecting missing
 
 \vspace{0.5cm}
 
-\begin{stepbox}[Solution]
-For image subtraction--based defect detection to work reliably, the following conditions must be satisfied:
+\begin{stepbox}[Step 1: Consistent Illumination]
+The lighting conditions---direction, intensity, color temperature, and uniformity---must be \textbf{identical} when capturing the golden image and every subsequent test image. Any change in illumination causes intensity differences unrelated to actual defects, producing false positives. In practice, this requires fixed, controlled lighting enclosures.
+\end{stepbox}
 
-\begin{enumerate}[label=\textbf{\arabic*.}]
+\begin{stepbox}[Step 2: Precise Spatial Registration]
+The camera position, orientation, and product placement must be \textbf{exactly the same} for every image. Even sub-pixel misalignment between the golden and test images produces nonzero differences at edges and high-contrast boundaries, masking true defects or creating false detections. Mechanical fixtures and calibrated camera mounts achieve this.
+\end{stepbox}
 
-\item \textbf{Consistent Illumination.} The lighting conditions (direction, intensity, color temperature, and uniformity) must be identical when capturing the golden image and every subsequent test image. Any change in illumination will cause intensity differences unrelated to actual defects, producing false positives. In practice, this means using fixed, controlled lighting enclosures.
-
-\item \textbf{Precise Spatial Registration.} The camera position, orientation, and the placement of the product must be exactly the same for every image. Even a sub-pixel misalignment between the golden image and the test image will produce nonzero differences at edges and high-contrast boundaries, masking true defects or creating false detections. Mechanical fixtures and calibrated camera mounts are used to achieve this.
-
-\end{enumerate}
-
-\textbf{Additional important factors:}
-
-\begin{itemize}
-\item \textbf{Sensor Noise.} Even with perfect alignment and lighting, random sensor noise will produce small nonzero differences. A threshold must be applied to the difference image to distinguish genuine defects from noise artifacts.
-
-\item \textbf{Consistent Camera Settings.} Gain, exposure time, white balance, and focus must remain fixed between the golden capture and all subsequent captures.
+\begin{stepbox}[Step 3: Additional Factors]
+\begin{itemize}[leftmargin=*]
+\item \textbf{Sensor noise thresholding:} Random sensor noise produces small nonzero differences even with perfect alignment and lighting. A threshold on the difference image distinguishes genuine defects from noise artifacts.
+\item \textbf{Consistent camera settings:} Gain, exposure time, white balance, and focus must remain fixed between the golden capture and all subsequent captures.
 \end{itemize}
+\end{stepbox}
+
+\begin{stepbox}[Visualization: Image Subtraction Flowchart]
+\begin{center}
+\begin{tikzpicture}[
+    node distance=1.5cm and 2.5cm,
+    box/.style={rectangle, draw=USC_Garnet, thick, fill=white, minimum width=2.8cm, minimum height=1cm, align=center, font=\small\bfseries, sharp corners},
+    opbox/.style={circle, draw=USC_Congaree, thick, fill=USC_Congaree!10, minimum size=1cm, align=center, font=\large\bfseries},
+    annot/.style={font=\scriptsize, text=USC_Black70, align=center},
+    arr/.style={-{Stealth[length=3mm]}, thick, USC_Black90},
+]
+    \node[box] (golden) {Golden\\Image};
+    \node[opbox, right=2cm of golden] (sub) {$-$};
+    \node[box, above=1cm of sub] (test) {Test\\Image};
+    \node[box, right=2cm of sub] (diff) {Difference\\Image};
+    \node[box, right=2cm of diff] (result) {Defect\\Decision};
+
+    \draw[arr] (golden) -- (sub);
+    \draw[arr] (test) -- (sub);
+    \draw[arr] (sub) -- (diff);
+    \draw[arr] (diff) -- node[above, annot] {threshold} (result);
+
+    % Factor annotations
+    \node[annot, below=0.3cm of golden] {Fixed lighting\\Fixed position};
+    \node[annot, above=0.3cm of test] {Same lighting\\Same position};
+    \node[annot, below=0.3cm of diff] {Noise\\filtering};
+\end{tikzpicture}
+\end{center}
 \end{stepbox}
 
 \begin{resultsbox}
@@ -311,29 +308,81 @@ Suppose that a digital image is subjected to histogram equalization. Show that a
 
 \vspace{0.5cm}
 
-\begin{stepbox}[Solution]
+\begin{stepbox}[Step 1: Define the Equalization Transform]
 Let the original image have intensity levels $r \in [0, L-1]$ with PDF $p_r(r)$ and CDF $P_r(r)$. The histogram equalization transformation is:
 \[
 s = T(r) = (L-1)\, P_r(r) = (L-1) \int_0^r p_r(w)\, dw
 \]
-This maps intensities to the equalized image with intensity variable $s$. A fundamental result from probability theory states that if $s = T(r) = (L-1)\,P_r(r)$, then $s$ is \textbf{uniformly distributed} on $[0, L-1]$. That is:
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Show the Equalized Image Is Uniform]
+A fundamental result from probability theory: if $s = T(r) = (L-1)\,P_r(r)$, then $s$ is \textbf{uniformly distributed} on $[0, L-1]$:
 \[
 p_s(s) = \frac{1}{L-1}, \qquad 0 \leq s \leq L-1
 \]
+\end{stepbox}
 
-Now apply histogram equalization a second time to the equalized image. The transformation is:
+\begin{stepbox}[Step 3: Apply Equalization Again]
+Apply histogram equalization a second time to the equalized image:
 \[
 v = T_2(s) = (L-1)\, P_s(s) = (L-1) \int_0^s p_s(w)\, dw
 \]
-Since $p_s(s) = \dfrac{1}{L-1}$, the CDF of $s$ is:
+Since $p_s(s) = \dfrac{1}{L-1}$, the CDF is:
 \[
 P_s(s) = \int_0^s \frac{1}{L-1}\, dw = \frac{s}{L-1}
 \]
-Therefore:
+\end{stepbox}
+
+\begin{stepbox}[Step 4: Simplify to Identity]
+Substituting:
 \[
 v = T_2(s) = (L-1) \cdot \frac{s}{L-1} = s
 \]
-The second equalization is the \textbf{identity transformation}, so $v = s$.
+The second equalization is the \textbf{identity transformation}: $v = s$. The output is unchanged. $\blacksquare$
+\end{stepbox}
+
+\begin{stepbox}[Visualization: Histogram Through Two Equalization Passes]
+\begin{center}
+\begin{tikzpicture}[
+    every axis/.style={
+        width=4.5cm, height=3.5cm,
+        ymin=0, ymax=0.6,
+        xmin=0, xmax=7,
+        axis lines=left,
+        xlabel style={font=\small},
+        ylabel style={font=\small},
+        tick style={draw=none},
+        xticklabels={},
+        yticklabels={},
+        sharp plot,
+    }
+]
+% Panel 1: Original (arbitrary histogram)
+\begin{axis}[at={(0,0)}, xlabel={$r$}, ylabel={$p_r(r)$}, title={\small Original}]
+\addplot[ybar, bar width=6pt, fill=USC_Garnet, draw=USC_Garnet]
+    coordinates {(1,0.05) (2,0.35) (3,0.15) (4,0.5) (5,0.25) (6,0.1)};
+\end{axis}
+
+% Arrow 1
+\node[font=\Large, USC_Black90] at (4.8,1.5) {$\xrightarrow{T(r)}$};
+
+% Panel 2: After first equalization (uniform)
+\begin{axis}[at={(5.5cm,0)}, xlabel={$s$}, ylabel={$p_s(s)$}, title={\small After 1st Pass}]
+\addplot[ybar, bar width=6pt, fill=USC_Atlantic, draw=USC_Atlantic]
+    coordinates {(1,0.23) (2,0.23) (3,0.23) (4,0.23) (5,0.23) (6,0.23)};
+\end{axis}
+
+% Arrow 2
+\node[font=\Large, USC_Black90] at (10.3,1.5) {$\xrightarrow{T_2(s)=s}$};
+
+% Panel 3: After second equalization (still uniform)
+\begin{axis}[at={(11cm,0)}, xlabel={$v$}, ylabel={$p_v(v)$}, title={\small After 2nd Pass}]
+\addplot[ybar, bar width=6pt, fill=USC_Atlantic, draw=USC_Atlantic]
+    coordinates {(1,0.23) (2,0.23) (3,0.23) (4,0.23) (5,0.23) (6,0.23)};
+\end{axis}
+
+\end{tikzpicture}
+\end{center}
 \end{stepbox}
 
 \begin{resultsbox}
@@ -415,13 +464,16 @@ Suppose that a 4-bit image ($L=16$) of size $64 \times 64$ has the intensity dis
 
 \vspace{0.5cm}
 
-\begin{stepbox}[Solution --- Step 1: Compute the equalization transform $s_k$ from Table A]
-Total pixels: $N = 64 \times 64 = 4096$, and $L = 16$, so $L - 1 = 15$.
+\begin{stepbox}[Step 1: Setup]
+Total pixels: $N = 64 \times 64 = 4096$, intensity levels: $L = 16$, so $L - 1 = 15$.
 
-The equalization transform is $s_k = \text{round}\!\left(15 \cdot \displaystyle\sum_{j=0}^{k} \frac{n_j}{4096}\right)$.
+The equalization transform is:
+\[
+s_k = \text{round}\!\left(15 \cdot \sum_{j=0}^{k} \frac{n_j}{4096}\right)
+\]
+\end{stepbox}
 
-\vspace{0.3cm}
-
+\begin{stepbox}[Step 2: Cumulative Histogram and $s_k$ Values from Table A]
 \begin{center}
 \rowcolors{2}{USC_Garnet!10}{white}
 \begin{tabular}{c c c c}
@@ -449,7 +501,7 @@ The equalization transform is $s_k = \text{round}\!\left(15 \cdot \displaystyle\
 \end{center}
 \end{stepbox}
 
-\begin{stepbox}[Solution --- Step 2: Compute the equalization transform $G(z_q)$ from Table B]
+\begin{stepbox}[Step 3: Cumulative Histogram and $G(z_q)$ Values from Table B]
 \begin{center}
 \rowcolors{2}{USC_Garnet!10}{white}
 \begin{tabular}{c c c c}
@@ -477,7 +529,7 @@ The equalization transform is $s_k = \text{round}\!\left(15 \cdot \displaystyle\
 \end{center}
 \end{stepbox}
 
-\begin{stepbox}[Solution --- Step 3: Inverse mapping $s_k \to z_q$]
+\begin{stepbox}[Step 4: Inverse Mapping $s_k \to z_q$]
 For each value of $s_k$, find the smallest $z_q$ such that $G(z_q) \geq s_k$:
 
 \begin{center}
@@ -507,7 +559,7 @@ For each value of $s_k$, find the smallest $z_q$ such that $G(z_q) \geq s_k$:
 \end{center}
 \end{stepbox}
 
-\begin{stepbox}[Solution --- Step 4: Compute the actual output histogram]
+\begin{stepbox}[Step 5: Build the Output Histogram]
 Using the mapping $r_k \to z_q$ and the pixel counts $n_k$ from Table A:
 
 \begin{center}
@@ -529,6 +581,66 @@ Using the mapping $r_k \to z_q$ and the pixel counts $n_k$ from Table A:
 \hline
 \multicolumn{2}{r}{\textbf{Total:}} & $16+800+1024+1040+1024+192 = 4096$ \checkmark \\
 \end{tabular}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Visualization: Input, Desired, and Actual Output Histograms]
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    name=plot1,
+    ybar, bar width=5pt,
+    width=5.5cm, height=4.5cm,
+    ymin=0, ymax=1200,
+    xmin=-0.5, xmax=15.5,
+    xtick={0,3,...,15},
+    xlabel={\small $r_k$},
+    ylabel={\small $n_k$},
+    title={\small\bfseries Input (Table A)},
+    axis lines=left,
+    ymajorgrids=true, grid style={dashed, gray!20},
+    sharp plot,
+]
+\addplot[fill=USC_Garnet, draw=USC_Garnet] coordinates {
+(0,16)(1,0)(2,512)(3,32)(4,64)(5,128)(6,64)(7,1024)(8,512)(9,512)(10,16)(11,1024)(12,0)(13,128)(14,0)(15,64)};
+\end{axis}
+
+\begin{axis}[
+    name=plot2, at={(plot1.east)}, anchor=west, xshift=0.8cm,
+    ybar, bar width=5pt,
+    width=5.5cm, height=4.5cm,
+    ymin=0, ymax=1200,
+    xmin=-0.5, xmax=15.5,
+    xtick={0,3,...,15},
+    xlabel={\small $z_q$},
+    ylabel={\small $n_q$},
+    title={\small\bfseries Desired (Table B)},
+    axis lines=left,
+    ymajorgrids=true, grid style={dashed, gray!20},
+    sharp plot,
+]
+\addplot[fill=USC_Atlantic, draw=USC_Atlantic] coordinates {
+(0,64)(1,128)(2,512)(3,512)(4,1024)(5,1024)(6,512)(7,128)(8,128)(9,64)(10,0)(11,0)(12,0)(13,0)(14,0)(15,0)};
+\end{axis}
+
+\begin{axis}[
+    name=plot3, at={(plot2.east)}, anchor=west, xshift=0.8cm,
+    ybar, bar width=5pt,
+    width=5.5cm, height=4.5cm,
+    ymin=0, ymax=1200,
+    xmin=-0.5, xmax=15.5,
+    xtick={0,3,...,15},
+    xlabel={\small $z_q$},
+    ylabel={\small $n_q^{\text{out}}$},
+    title={\small\bfseries Actual Output},
+    axis lines=left,
+    ymajorgrids=true, grid style={dashed, gray!20},
+    sharp plot,
+]
+\addplot[fill=USC_Congaree, draw=USC_Congaree] coordinates {
+(0,16)(1,0)(2,800)(3,0)(4,1024)(5,1040)(6,1024)(7,0)(8,192)(9,0)(10,0)(11,0)(12,0)(13,0)(14,0)(15,0)};
+\end{axis}
+\end{tikzpicture}
 \end{center}
 \end{stepbox}
 
@@ -623,38 +735,35 @@ An image with intensities in the range $[0, L-1]$ has the pdf $p_r(r)$ shown in 
 
 \vspace{0.5cm}
 
-\begin{stepbox}[Solution]
-Let $W = L - 1$ for convenience. From the figures:
-
-\textbf{Step 1: Determine the PDFs.}
-
-From Figure~(a), $p_r(r)$ is a straight line from $(0, \tfrac{2}{W})$ scaled by area to $(W, 0)$. The line equation with $\int_0^W p_r\,dr = 1$:
+\begin{stepbox}[Step 1: Write $p_r(r)$ with Normalization Verification]
+Let $W = L - 1$. From Figure~(a), $p_r(r)$ is a line from $(0, \tfrac{2}{W})$ to $(W, 0)$:
 \[
 p_r(r) = \frac{2}{W}\!\left(1 - \frac{r}{W}\right) = \frac{2(W - r)}{W^2}, \qquad 0 \leq r \leq W
 \]
 \textit{Verification:} $\displaystyle\int_0^W \frac{2(W-r)}{W^2}\,dr = \frac{2}{W^2}\!\left[Wr - \frac{r^2}{2}\right]_0^W = \frac{2}{W^2}\cdot\frac{W^2}{2} = 1.$ \checkmark
+\end{stepbox}
 
-\vspace{0.3cm}
-
+\begin{stepbox}[Step 2: Write $p_z(z)$ with Normalization Verification]
 From Figure~(b), $p_z(z)$ is a line from $(0,0)$ to $(W, \tfrac{2}{W})$:
 \[
 p_z(z) = \frac{2z}{W^2}, \qquad 0 \leq z \leq W
 \]
 \textit{Verification:} $\displaystyle\int_0^W \frac{2z}{W^2}\,dz = \frac{2}{W^2}\cdot\frac{W^2}{2} = 1.$ \checkmark
+\end{stepbox}
 
-\vspace{0.3cm}
-
-\textbf{Step 2: Compute the CDF of $r$.}
+\begin{stepbox}[Step 3: Compute CDF $T(r)$]
 \[
 T(r) = \int_0^r p_r(w)\,dw = \int_0^r \frac{2(W-w)}{W^2}\,dw = \frac{2}{W^2}\left[Wr - \frac{r^2}{2}\right] = \frac{2Wr - r^2}{W^2}
 \]
+\end{stepbox}
 
-\textbf{Step 3: Compute the CDF of $z$.}
+\begin{stepbox}[Step 4: Compute CDF $G(z)$]
 \[
 G(z) = \int_0^z p_z(w)\,dw = \int_0^z \frac{2w}{W^2}\,dw = \frac{z^2}{W^2}
 \]
+\end{stepbox}
 
-\textbf{Step 4: Set $G(z) = T(r)$ and solve for $z$.}
+\begin{stepbox}[Step 5: Set $G(z) = T(r)$ and Solve for $z$]
 \[
 \frac{z^2}{W^2} = \frac{2Wr - r^2}{W^2}
 \]
@@ -664,7 +773,42 @@ z^2 = 2Wr - r^2 = r(2W - r)
 \[
 \boxed{z = \sqrt{r(2(L-1) - r)}}
 \]
-where we require $z \geq 0$ and we take the positive root since $0 \leq r \leq W$ ensures the argument is non-negative.
+where we take the positive root since $0 \leq r \leq W$ ensures the argument is non-negative.
+\end{stepbox}
+
+\begin{stepbox}[Step 6: Verify Boundary Conditions]
+\begin{itemize}[leftmargin=*]
+\item $f(0) = \sqrt{0 \cdot (2W - 0)} = 0$ \checkmark
+\item $f(W) = \sqrt{W(2W - W)} = \sqrt{W^2} = W = L-1$ \checkmark
+\end{itemize}
+The transformation maps $[0, L-1] \to [0, L-1]$ as required.
+\end{stepbox}
+
+\begin{stepbox}[Visualization: Transformation $z = f(r) = \sqrt{r(2W-r)}$]
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    width=8cm, height=8cm,
+    xlabel={$r$}, ylabel={$z = f(r)$},
+    xmin=0, xmax=1.05, ymin=0, ymax=1.05,
+    xtick={0, 0.25, 0.5, 0.75, 1.0},
+    xticklabels={$0$, $\frac{W}{4}$, $\frac{W}{2}$, $\frac{3W}{4}$, $W$},
+    ytick={0, 0.25, 0.5, 0.75, 1.0},
+    yticklabels={$0$, $\frac{W}{4}$, $\frac{W}{2}$, $\frac{3W}{4}$, $W$},
+    axis lines=left,
+    grid=major, grid style={dashed, gray!30},
+    sharp plot,
+]
+% Quarter-circle arc: z = sqrt(r(2-r)) normalized to [0,1] => z = sqrt(r(2-r))
+\addplot[thick, USC_Garnet, domain=0:1, samples=100] {sqrt(x*(2-x))};
+% Identity line for reference
+\addplot[dashed, USC_Black50, domain=0:1] {x};
+\end{axis}
+\node[USC_Garnet, font=\small\bfseries] at (5.5,5.5) {$z = \sqrt{r(2W\!-\!r)}$};
+\node[USC_Black50, font=\small] at (5.8,3.8) {$z = r$};
+\end{tikzpicture}
+\end{center}
+The curve is a quarter-circle arc from $(0,0)$ to $(W,W)$, lying above the identity line, indicating the transformation boosts lower intensities.
 \end{stepbox}
 
 \begin{resultsbox}
@@ -672,8 +816,7 @@ The transformation that maps the input PDF $p_r(r)$ to the desired output PDF $p
 \[
 z = f(r) = \sqrt{r\bigl(2(L-1) - r\bigr)}, \qquad 0 \leq r \leq L-1
 \]
-
-\textit{Check boundary values:} $f(0) = 0$ and $f(L-1) = \sqrt{(L-1)(2(L-1)-(L-1))} = \sqrt{(L-1)^2} = L-1.$ \checkmark
+This is a quarter-circle arc from $(0,0)$ to $(L\!-\!1,\, L\!-\!1)$. $\blacksquare$
 \end{resultsbox}
 
 
