@@ -253,23 +253,14 @@ Consider the two image subsets $S_1$ and $S_2$ shown below. For $V = \{1\}$, det
 \vspace{0.3cm}
 
 \begin{stepbox}[Setup: Identify the Image and Subsets]
-The image with subsets $S_1$ (left dashed box) and $S_2$ (right dashed box):
+The full $5 \times 10$ image grid (columns 0--9, rows 0--4). $S_1$ encloses columns 1--4, rows 0--3 (dashed). $S_2$ encloses columns 5--8, rows 0--3 (dashed). Row 4 and the outermost columns (0, 9) lie outside both subsets.
 
 \begin{center}
-\begin{tikzpicture}[scale=0.55]
-    % Grid values - Row 0 (top)
-    \def\vals{
-        {0,0,0,0,0,0,1,1,0},
-        {1,0,1,1,0,1,0,0,1},
-        {1,0,0,1,0,1,1,0,0,0},
-        {0,0,1,1,0,0,0,0,0,0},
-        {0,0,1,1,1,0,0,1,1,1}
-    }
-
-    % Draw grid
+\begin{tikzpicture}[scale=0.7]
+    % Draw grid values
     \foreach \r [count=\ri from 0] in {
-        {0,0,0,0,0,0,1,1,0},
-        {1,0,1,1,0,1,0,0,1},
+        {0,0,0,0,0,0,0,1,1,0},
+        {1,0,0,1,1,0,1,0,0,1},
         {1,0,0,1,0,1,1,0,0,0},
         {0,0,1,1,0,0,0,0,0,0},
         {0,0,1,1,1,0,0,1,1,1}
@@ -279,41 +270,43 @@ The image with subsets $S_1$ (left dashed box) and $S_2$ (right dashed box):
         }
     }
 
-    % S1 boundary
-    \draw[dashed, thick, USC_Garnet] (-0.4, 0.5) rectangle (3.5, -3.5);
-    \node[above, USC_Garnet] at (0.5, 0.5) {$S_1$};
+    % S1 boundary (cols 1-4, rows 0-3)
+    \draw[dashed, very thick, USC_Garnet] (0.5, 0.5) rectangle (4.5, -3.5);
+    \node[above, USC_Garnet, font=\bfseries] at (2.5, 0.5) {$S_1$};
 
-    % S2 boundary
-    \draw[dashed, thick, USC_Atlantic] (3.6, 0.5) rectangle (8.5, -3.5);
-    \node[above, USC_Atlantic] at (6, 0.5) {$S_2$};
+    % S2 boundary (cols 5-8, rows 0-3)
+    \draw[dashed, very thick, USC_Atlantic] (4.5, 0.5) rectangle (8.5, -3.5);
+    \node[above, USC_Atlantic, font=\bfseries] at (6.5, 0.5) {$S_2$};
 \end{tikzpicture}
 \end{center}
 
-We only care about pixels with value $\in V = \{1\}$.
+\textbf{Grid values (row, col):}
+\begin{center}
+\begin{tabular}{c|cccc|cccc|c}
+ & \multicolumn{1}{c}{0} & \multicolumn{1}{c}{1} & \multicolumn{1}{c}{2} & \multicolumn{1}{c}{3} & \multicolumn{1}{c}{4} & \multicolumn{1}{c}{5} & \multicolumn{1}{c}{6} & \multicolumn{1}{c}{7} & \multicolumn{1}{c}{8} \\
+\midrule
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 1 \\
+1 & 1 & 0 & 0 & 1 & \textbf{1} & 0 & 1 & 0 & 0 \\
+2 & 1 & 0 & 0 & 1 & 0 & 1 & 1 & 0 & 0 \\
+3 & 0 & 0 & 1 & 1 & \textbf{0} & 0 & 0 & 0 & 0 \\
+\end{tabular}
+\end{center}
 
-\textbf{$S_1$ pixels with value 1} (row, col from top-left):
-$(1,0)$, $(1,2)$, $(1,3)$, $(2,0)$, $(2,3)$, $(3,2)$, $(3,3)$
+(The col-0 and col-9 values and row-4 values lie outside $S_1$ and $S_2$.)
 
-\textbf{$S_2$ pixels with value 1} (row, col):
-$(0,6)$, $(0,7)$, $(1,5)$, $(1,8)$, $(2,5)$, $(2,6)$
+\vspace{0.2cm}
+\textbf{$S_1$ pixels with value 1} (cols 1--4, rows 0--3):
+$(1,3)=1$, $(1,4)=1$, $(2,3)=1$, $(3,2)=1$, $(3,3)=1$
 
-The boundary between $S_1$ and $S_2$ lies between columns 3 and 4 (approximately). The closest pixels with value 1 are:
+\textbf{$S_2$ pixels with value 1} (cols 5--8, rows 0--3):
+$(0,7)=1$, $(0,8)=1$, $(1,6)=1$, $(2,5)=1$, $(2,6)=1$
+
+The boundary between $S_1$ and $S_2$ falls between columns 4 and 5. The critical boundary pixels are:
 \begin{itemize}
-    \item In $S_1$: pixel at $(1,3)$ with value 1 and $(2,3)$ with value 1
-    \item In $S_2$: pixel at $(1,5)$ with value 1, $(2,5)$ with value 1
+    \item $S_1$ rightmost 1-valued: $(1,4) = 1$
+    \item $S_2$ leftmost 1-valued: $(2,5) = 1$
 \end{itemize}
-
-The pixel at column 4 has values: row 0: 0, row 1: 0, row 2: 0, row 3: 0. So there is a gap of at least one column of zeros between the nearest 1-valued pixels of $S_1$ and $S_2$.
-
-Examining more carefully from the figure, the rightmost 1-valued pixel in $S_1$ is at column 3, and the leftmost 1-valued pixel in $S_2$ is at column 5. These are separated by 2 columns, so they cannot be 4-adjacent or 8-adjacent (which require pixels to be immediate neighbors).
-
-However, looking at the original figure layout more carefully: $S_1$ occupies roughly the left 4 columns, $S_2$ the right 5 columns, with a shared boundary region. The key boundary pixels are:
-
-From $S_1$: $(1,3) = 1$, $(2,3) = 1$, $(3,3) = 1$
-
-From $S_2$: $(1,4) = 0$, $(2,4) = 0$ --- these are 0, not in $V$.
-
-The nearest $S_2$ pixel with value 1: $(1,5) = 1$.
+These two pixels are \textbf{diagonal neighbors} (differ by 1 in both row and column).
 \end{stepbox}
 
 \begin{stepbox}[Definitions Review]
@@ -321,66 +314,72 @@ For two subsets $S_1$ and $S_2$, they are:
 \begin{itemize}
     \item \textbf{4-adjacent:} if some pixel $p \in S_1$ with value in $V$ has a pixel $q \in S_2$ with value in $V$ in its 4-neighborhood $N_4(p)$ (up, down, left, right).
     \item \textbf{8-adjacent:} if some pixel $p \in S_1$ with value in $V$ has a pixel $q \in S_2$ with value in $V$ in its 8-neighborhood $N_8(p)$ (including diagonals).
-    \item \textbf{m-adjacent:} (mixed adjacency) $p$ and $q$ have values in $V$, and either (i) $q \in N_4(p)$, or (ii) $q \in N_D(p)$ and $N_4(p) \cap N_4(q)$ has no pixels with values in $V$.
+    \item \textbf{m-adjacent:} (mixed adjacency) $p$ and $q$ have values in $V$, and either (i) $q \in N_4(p)$, or (ii) $q \in N_D(p)$ and the set $N_4(p) \cap N_4(q)$ has no pixels with values in $V$.
 \end{itemize}
 \end{stepbox}
 
-\begin{stepbox}[Analysis]
-From the figure, the critical interface pixels between $S_1$ and $S_2$:
+\begin{stepbox}[Part (a): 4-adjacency]
+Check whether any pixel in $S_1$ with value 1 has a \textbf{4-neighbor} in $S_2$ with value 1.
 
-Rightmost column of $S_1$ that contains a 1: column 3 --- pixels $(1,3)=1$, $(2,3)=1$, $(3,3)=1$.
+The only $S_1$ pixel adjacent to $S_2$ with value 1 is $(1,4)=1$. Its 4-neighbors in $S_2$:
+\begin{itemize}
+    \item Right: $(1,5) = 0 \notin V$
+\end{itemize}
 
-Leftmost column of $S_2$ that contains a 1: column 5 --- pixel $(1,5)=1$, $(2,5)=1$.
+No other $S_1$ pixel with value 1 sits on column 4. All other 1-valued $S_1$ pixels are at columns 2--3, too far from $S_2$.
 
-Column 4 values (belongs to $S_2$ based on the boundary): row 1: $0$, row 2: $0$.
+\textbf{$S_1$ and $S_2$ are NOT 4-adjacent.}
+\end{stepbox}
 
-Since the closest 1-valued pixels between the two sets are separated by at least 2 positions, no pixel in $S_1$ has a 1-valued pixel from $S_2$ in its 4-neighborhood \textit{or} 8-neighborhood.
+\begin{stepbox}[Part (b): 8-adjacency]
+Check whether any pixel in $S_1$ with value 1 has an \textbf{8-neighbor} in $S_2$ with value 1.
 
-\textbf{Re-examining the figure boundary:} The dashed line for $S_1$ includes columns 0--3 (rows 0--3), and $S_2$ includes columns 4--8 (rows 0--3). So the boundary column shared is between col 3 ($S_1$) and col 4 ($S_2$).
+Consider $p = (1,4) = 1 \in S_1$. Its 8-neighbors in $S_2$:
+\begin{itemize}
+    \item $(0,5) = 0$
+    \item $(1,5) = 0$
+    \item $(2,5) = 1 \in V$ \checkmark
+\end{itemize}
 
-Column 4 pixels: row 0: 0, row 1: 0, row 2: 0, row 3: 0. None have value 1.
+The pixel $q = (2,5) = 1 \in S_2$ is a diagonal (8-)neighbor of $p = (1,4) = 1 \in S_1$, and both have values in $V = \{1\}$.
 
-Column 5 pixels in $S_2$: row 1: 1, row 2: 1. These are 8-neighbors of the column 4 pixels but not direct neighbors of column 3 pixels.
+\textbf{$S_1$ and $S_2$ ARE 8-adjacent.}
+\end{stepbox}
 
-\textbf{Critical pair:} $(2,3)$ in $S_1$ has value 1. Its 8-neighborhood includes $(1,4)$, $(2,4)$, $(3,4)$, all of which are in $S_2$ but have value 0.
+\begin{stepbox}[Part (c): m-adjacency]
+For the diagonal pair $p = (1,4)$ and $q = (2,5)$, m-adjacency requires that $N_4(p) \cap N_4(q)$ contains \textbf{no} pixels with values in $V$.
 
-The closest 1-valued pair across the boundary: $(2,3) \in S_1$ and $(1,5) \in S_2$ are distance $\sqrt{1+4} > 1$ apart. Not adjacent.
+\[
+N_4(p) = N_4(1,4) = \{(0,4),\; (2,4),\; (1,3),\; (1,5)\}
+\]
+\[
+N_4(q) = N_4(2,5) = \{(1,5),\; (3,5),\; (2,4),\; (2,6)\}
+\]
+\[
+N_4(p) \cap N_4(q) = \{(1,5),\; (2,4)\}
+\]
 
-Wait---let me re-examine the original figure. The large ``1'' in the figure appears at row 1, col 3--4 area, and the large ``0'' at row 3, col 3--4 area. The boundary line appears to run between columns 3 and 4 approximately.
+Check values:
+\begin{itemize}
+    \item $(1,5) = 0 \notin V$
+    \item $(2,4) = 0 \notin V$
+\end{itemize}
 
-Actually, looking at the PDF image more carefully, the grid appears to be wider. Let me re-read the pixel values row by row:
+No pixel in $N_4(p) \cap N_4(q)$ has a value in $V$, so the diagonal connection is \textbf{allowed} under m-adjacency.
 
-Row 0: 0 0 0 0 | 0 0 1 1 0
-Row 1: 1 0 1 \textbf{1} | 0 1 0 0 1
-Row 2: 1 0 0 1 | 0 1 1 0 0 0
-Row 3: 0 0 1 1 | 0 0 0 0 0 0
-Row 4: 0 0 1 1 1 0 0 1 1 1
-
-The $S_1$/$S_2$ boundary is between columns 3 and 4 (the dashed lines in the figure).
-
-$S_1$ rightmost 1-valued: $(1,3)=1$, $(2,3)=1$, $(3,3)=1$
-
-$S_2$ leftmost 1-valued: $(1,5)=1$, $(2,5)=1$, $(2,6)=1$
-
-The pair $(1,3)$ and $(1,5)$ are separated by 2 columns. Not 4- or 8-adjacent.
-
-\textbf{But wait:} Column 4 pixels: $(0,4)=0$, $(1,4)=0$, $(2,4)=0$, $(3,4)=0$. None in $V$.
-
-So the nearest cross-boundary pair with values in $V$ is $(1,3)$ and $(1,5)$, distance = 2. Not adjacent by any definition.
+\textbf{$S_1$ and $S_2$ ARE m-adjacent.}
 \end{stepbox}
 
 \begin{resultsbox}
 For $V = \{1\}$:
 
 \begin{enumerate}[label=(\alph*)]
-    \item \textbf{4-adjacent:} \textbf{No.} No pixel in $S_1$ with value 1 has a 4-neighbor in $S_2$ with value 1. The nearest 1-valued pixels across the boundary are separated by at least 2 positions.
+    \item \textbf{4-adjacent:} \textbf{No.} The nearest cross-boundary pixel pair with value 1 --- $(1,4)$ in $S_1$ and $(2,5)$ in $S_2$ --- are diagonal, not 4-neighbors.
 
-    \item \textbf{8-adjacent:} \textbf{No.} No pixel in $S_1$ with value 1 has an 8-neighbor in $S_2$ with value 1. The column separating the subsets (column 4) contains no pixels with value 1.
+    \item \textbf{8-adjacent:} \textbf{Yes.} Pixel $(1,4)=1 \in S_1$ and $(2,5)=1 \in S_2$ are 8-neighbors with values in $V$.
 
-    \item \textbf{m-adjacent:} \textbf{No.} Since neither 4-adjacency nor diagonal adjacency (with the $N_4$ intersection condition) exists between any pair of 1-valued pixels across $S_1$ and $S_2$, the subsets are not m-adjacent.
+    \item \textbf{m-adjacent:} \textbf{Yes.} The diagonal pair $(1,4)$ and $(2,5)$ satisfies the m-adjacency condition because their shared 4-neighbors $\{(1,5), (2,4)\}$ both have value 0, which is $\notin V$.
 \end{enumerate}
-
-$S_1$ and $S_2$ are \textbf{not adjacent} by any of the three definitions for $V = \{1\}$.
 \end{resultsbox}
 
 
