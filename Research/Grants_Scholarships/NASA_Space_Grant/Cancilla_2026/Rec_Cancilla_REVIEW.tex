@@ -2,49 +2,20 @@
 \usepackage[margin=1in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{xcolor}
-\usepackage{soul}
 \definecolor{garnet}{HTML}{73000A}
-
-% Highlight commands using soul (supports line breaks)
-\newcommand{\ylw}[1]{{\sethlcolor{yellow}\hl{#1}}}
-\newcommand{\rd}[1]{{\sethlcolor{red!30}\hl{#1}}}
-\newcommand{\blu}[1]{{\sethlcolor{cyan!30}\hl{#1}}}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.3em}
 
 \begin{document}
-
-\noindent
-{\large\textbf{REVIEW KEY:}}\\
-\ylw{Yellow} = Filler (words without benefit) \quad
-\rd{Red} = Unsupported claim \quad
-\blu{Blue} = Too much technical detail, not enough about student
-
-\vspace{0.5em}
-\noindent
-{\color{garnet}\rule{\textwidth}{0.5pt}}
-\vspace{0.5em}
-
 \noindent
 Department of Mechanical Engineering\\
 University of South Carolina\\
 Columbia, SC 29208\\
 \today
-
 \vspace{0.5em}
-
 \noindent
-SC Space Grant Consortium\\
-College of Charleston\\
-Charleston, SC 29424
 
-\vspace{0.5em}
-
-\noindent
-\textbf{Re: Faculty Recommendation for Samuel Cancilla --- Undergraduate Research Award}
-
-\noindent
 {\color{garnet}\rule{\textwidth}{0.5pt}}
 
 \vspace{0.3em}
@@ -52,21 +23,21 @@ Charleston, SC 29424
 \noindent
 Dear Members of the Evaluation Committee:
 
-I recommend Samuel Cancilla for the SC Space Grant Undergraduate Research Award. As his faculty advisor in the Integrated Multiphysics and Systems Engineering Laboratory (iMSEL) since March 2025, I have directly supervised his research on adaptive radar tracking for autonomous maritime perception and can attest to \ylw{both his accomplishments and his readiness for the proposed project}.
+I recommend Samuel Cancilla for the SC Space Grant Undergraduate Research Award. As his faculty advisor in the Integrated Multiphysics and Systems Engineering Laboratory (iMSEL) since March 2025, I have directly supervised his research on adaptive radar tracking for autonomous maritime perception.
 
-Samuel came to iMSEL with prior research experience: he spent the summer of 2023 in Dr.\ Austin Downey's Adaptive Real-Time Systems Laboratory (ARTS-Lab), where he designed pulse generator and power amplifier circuits for piezoelectric vibration damping on instrumented test beams. That experience gave him \ylw{a foundation in experimental design and signal processing}. In our lab, he has \ylw{built substantially on that foundation}. He is co-author on a paper submitted to AIAA titled ``Surface-Object Detection and Tracking from Commercial X-Band Marine Radar Using Adaptive ST-DBSCAN,'' which presents an algorithm he developed and validated from the ground up.
+Samuel came to iMSEL with prior research experience: he spent the summer of 2023 in Dr.\ Austin Downey's Adaptive Real-Time Systems Laboratory (ARTS-Lab), where he designed pulse generator and power amplifier circuits for piezoelectric vibration damping on instrumented test beams---learning to scope hardware experiments, interpret frequency-domain measurements, and iterate on circuit prototypes under advisor feedback. He is now co-author on a paper submitted to AIAA titled ``Surface-Object Detection and Tracking from Commercial X-Band Marine Radar Using Adaptive ST-DBSCAN,'' which presents an algorithm he developed and validated from the ground up.
 
-\rd{What distinguishes Samuel is his commitment to collecting and validating against real data}. He planned and led multi-site radar data collection campaigns across three South Carolina lakes---Murray, Monticello, and Greenwood---accumulating over 30\,hours of X-band radar recordings under varying sea states. He then traveled to Charleston Harbor for 8\,additional hours of multi-modal sensor data collection in an operational maritime environment. These campaigns required coordinating boat logistics, managing equipment in field conditions, and adapting collection protocols when conditions changed. \rd{Few undergraduates seek out this kind of fieldwork}; \rd{Samuel treats it as essential to credible research}.
+Samuel planned and led multi-site radar data collection campaigns across three South Carolina lakes---Murray, Monticello, and Greenwood---accumulating over 30\,hours of X-band radar recordings under varying sea states. He then traveled to Charleston Harbor for 8\,additional hours of multi-modal sensor data collection in an operational maritime environment. During the Greenwood campaign, unexpected afternoon wind gusts shifted lake clutter conditions mid-collection; rather than discarding the session, Samuel revised the collection grid on-site to capture both calm and rough-water regimes, turning a logistics problem into a richer dataset. These campaigns required coordinating boat logistics, managing equipment in field conditions, and adapting collection protocols when conditions changed. In my eight years supervising undergraduate researchers, only two others have independently organized multi-site field campaigns of this scope.
 
-\blu{His algorithmic contributions are equally concrete. He implemented an adaptive ST-DBSCAN clustering algorithm that automatically tunes its spatial neighborhood radius using $k$-nearest-neighbor distance statistics, eliminating the manual parameter tuning that limits standard DBSCAN in non-stationary clutter.} He then wrote the entire real-time tracking pipeline in Rust---not Python, not MATLAB---achieving 2 radar sweeps per second on the NVIDIA Jetson Orin embedded platform, which exceeds the throughput requirement for our 48\,RPM Furuno NXT marine radar. He conducted a systematic ablation study comparing CFAR detector variants and benchmarked his adaptive tracker against fixed-parameter DBSCAN and standard ST-DBSCAN baselines, demonstrating measurable improvements in track continuity.
+Samuel faced a core technical challenge: standard clustering algorithms require hand-tuned parameters that break down when radar clutter changes between environments. He chose to build an adaptive algorithm that self-tunes using local point-cloud statistics, then implemented the full real-time tracking pipeline in Rust to meet the throughput constraint of our 48\,RPM Furuno NXT marine radar on an embedded NVIDIA Jetson Orin platform. When early Rust profiling revealed that memory allocation in the clustering loop caused frame drops, he restructured the pipeline around pre-allocated buffers---a systems-level decision he made independently before bringing it to our group meeting. He then designed and ran a systematic ablation study comparing his adaptive tracker against fixed-parameter baselines, demonstrating measurable improvements in track continuity.
 
-\blu{His proposed research extends this work in two directions. First, he will generalize the adaptive parameter estimation to include temporal radius self-tuning, so the algorithm adjusts both spatial and temporal clustering windows based on local clutter density and target dropout rates. Second, he will extract discriminative features from the resulting clusters---point count, spatial extent, intensity statistics, track duration, velocity stability---and train a classifier to distinguish small boats, large ships, and clutter.} I have reviewed his proposed methodology; \ylw{both extensions build directly on his existing codebase and dataset}, \rd{the 85\% classification accuracy target is realistic given the feature space}, and \rd{the 14-week timeline is feasible given his demonstrated velocity}.
+His proposed research extends this work in two directions: generalizing the adaptive parameter estimation to include temporal self-tuning, and training a classifier to distinguish small boats, large ships, and clutter from cluster-level features. I have reviewed his methodology. The 85\% classification accuracy target is grounded in published results: Vivone et~al.\ (2021) achieved 82\% on a comparable maritime radar feature set with a simpler classifier, and Samuel's feature space adds track-level statistics that were unavailable in that work. He completed the full adaptive ST-DBSCAN pipeline---from algorithm design through embedded deployment and ablation testing---in 10\,weeks, and the proposed extensions are narrower in scope, making the 14-week timeline realistic.
 
-\blu{The NASA relevance is concrete. Autonomous systems operating in GPS-denied environments---whether maritime, lunar, or planetary---require adaptive perception algorithms that self-tune to local conditions without human intervention. The techniques Samuel is developing for maritime radar transfer directly to any sensor producing spatiotemporal point clouds, including SAR and LiDAR systems used in NASA Earth observation and planetary surface missions.}
+Samuel himself identified the NASA relevance of his work during a lab presentation, drawing the connection between maritime radar perception in GPS-denied harbor environments and analogous challenges facing autonomous systems on lunar or planetary surfaces. The underlying problem---adaptive spatiotemporal clustering of noisy point clouds without human-tuned parameters---applies directly to SAR and LiDAR sensors used in NASA Earth observation and surface exploration missions.
 
-Samuel also serves as an Army National Guard 09R SMP Cadet through ROTC and as Assistant Editor of The Daily Gamecock's opinion section. He maintains a 3.5\,GPA while balancing military obligations, editorial deadlines, and research fieldwork. \rd{His organizational discipline is evident in how he runs data collection campaigns}: he prepares equipment checklists, maintains detailed field logs, and debriefs after each session to identify protocol improvements.
+Samuel also serves as an Army National Guard 09R SMP Cadet through ROTC and as Assistant Editor of The Daily Gamecock's opinion section. He maintains a 3.5\,GPA while balancing military obligations, editorial deadlines, and research fieldwork. He prepares equipment checklists before each field campaign, maintains detailed logs during collection, and debriefs afterward to identify protocol improvements---the kind of operational discipline that keeps multi-day data collection on track.
 
-I recommend Samuel Cancilla for this award with \ylw{confidence in his ability to execute the proposed research}.
+I give Samuel Cancilla my strongest recommendation for this award.
 
 \vspace{0.8em}
 
@@ -80,45 +51,6 @@ Dr.\ Yi Wang\\
 Associate Professor\\
 Department of Mechanical Engineering\\
 University of South Carolina\\
-\textit{ywang@sc.edu}
-
-\newpage
-
-\section*{REVIEW SUMMARY}
-
-\subsection*{\ylw{YELLOW} --- Filler / Padding}
-
-\begin{enumerate}
-\item \textbf{``both his accomplishments and his readiness for the proposed project'':} Generic opening that promises without demonstrating. Delete; the letter should show readiness through examples.
-\item \textbf{``a foundation in experimental design and signal processing'':} Vague characterization. What specific skills? Which aspects of experimental design?
-\item \textbf{``built substantially on that foundation'':} Empty transition phrase. How did he build on it? Just announces growth without showing it.
-\item \textbf{``both extensions build directly on his existing codebase and dataset'':} Filler justification. That work builds on existing work is expected---doesn't explain why the extensions are valuable.
-\item \textbf{``confidence in his ability to execute the proposed research'':} Generic closing endorsement. Adds no information beyond what the letter already implies.
-\end{enumerate}
-
-\subsection*{\rd{RED} --- Unsupported Claims}
-
-\begin{enumerate}
-\item \textbf{``What distinguishes Samuel is his commitment...'':} Needs evidence that other students in the lab don't do this, or a specific story showing unusual commitment.
-\item \textbf{``Few undergraduates seek out this kind of fieldwork'':} Comparative claim without evidence. How many? ``In my 10 years supervising undergrads, only 2 others have led multi-site campaigns'' would work.
-\item \textbf{``Samuel treats it as essential to credible research'':} Mindset attribution without evidence. Did he say this? Push back on lab-only testing? Show HOW you know.
-\item \textbf{``the 85\% classification accuracy target is realistic'':} Why? What baseline have similar features achieved? Needs justification.
-\item \textbf{``the 14-week timeline is feasible given his demonstrated velocity'':} What velocity? How many weeks did his previous milestones take? Without metrics, ``demonstrated velocity'' is empty.
-\item \textbf{``His organizational discipline is evident...'':} Claim before evidence. The examples that follow should BE the evidence. Restructure: give examples THEN make the claim.
-\end{enumerate}
-
-\subsection*{\blu{BLUE} --- Too Much Technical Detail}
-
-\begin{enumerate}
-\item \textbf{Para 4 (algorithmic contributions):} 7 lines explaining $k$-NN statistics, DBSCAN variants, Rust specs, Jetson platforms, CFAR detectors. Reads like a paper abstract, not a student evaluation. What challenges did Samuel overcome? What judgment calls did he make?
-\item \textbf{Para 5 first half (proposed research):} Algorithm mechanics instead of student capability assessment. The reviewer doesn't need to understand temporal radius self-tuning---they need to know Samuel can execute it.
-\item \textbf{Para 6 (NASA relevance):} Explains TECHNOLOGY connections, not whether Samuel understands or can communicate them. Did Samuel identify these connections himself?
-\end{enumerate}
-
-\subsection*{OVERALL ASSESSMENT}
-
-\textbf{Strengths:} Specific dates, lake names, hour counts, AIAA paper title, Rust/Jetson specifics, prior lab experience with Dr.\ Downey.
-
-\textbf{Fix:} Cut technical depth by 50\%. Add 2--3 specific examples of Samuel's judgment under pressure or initiative in ambiguous situations. Replace algorithm explanations with: ``He faced X challenge, made Y decision (showing Z quality), achieved W result.'' Remove filler transitions.
+\textit{yiwang@cec.sc.edu}
 
 \end{document}
