@@ -271,31 +271,158 @@ Consider the two image subsets $S_1$ and $S_2$ shown below. For $V = \{1\}$, det
 % --- Problem 2 Solution ---
 
 \begin{stepbox}[Step 1: Identify Pixels in V = \{1\} Near the Boundary]
-The subsets share the boundary between columns 4 (rightmost of $S_1$) and 5 (leftmost of $S_2$).
+The subsets share the boundary between columns 4 (rightmost of $S_1$) and 5 (leftmost of $S_2$). Using $(x,y)$ coordinates from the grid:
 
-\textbf{$S_1$ pixels with value 1:} $(3,1)$, $(4,1)$, $(3,2)$, $(2,3)$, $(3,3)$ \quad (using $(x,y)$ coordinates from the grid).
+\textbf{$S_1$ pixels with value 1:} $(3,1)$, $(4,1)$, $(3,2)$, $(2,3)$, $(3,3)$.
 
 \textbf{$S_2$ pixels with value 1:} $(7,0)$, $(8,0)$, $(6,1)$, $(5,2)$, $(6,2)$.
-
-The closest cross-boundary pair in $V$ is $p = (4,1) \in S_1$ and $q = (5,2) \in S_2$.
 \end{stepbox}
 
-\begin{stepbox}[Step 2: Test Each Adjacency Type]
-\textbf{(a) 4-adjacency:} Two subsets are 4-adjacent if $\exists\, p \in S_1, q \in S_2$ with values in $V$ that are 4-neighbors (share an edge). The nearest pair is $(4,1)$ and $(5,2)$, which differ in \emph{both} coordinates --- they are \emph{not} 4-neighbors. No other cross-boundary pair of pixels in $V$ is closer.
+\begin{stepbox}[Step 2: Identify the Closest Cross-Boundary Pair]
+The closest cross-boundary pair in $V$ is $p = (4,1) \in S_1$ and $q = (5,2) \in S_2$.
+
+\begin{center}
+\begin{tikzpicture}[scale=0.65]
+    % Background for V=1 pixels in S1
+    \fill[USC_Garnet!15] (2.5,-0.5) rectangle (3.5,-1.5);
+    \fill[USC_Garnet!15] (3.5,-0.5) rectangle (4.5,-1.5);
+    \fill[USC_Garnet!15] (2.5,-1.5) rectangle (3.5,-2.5);
+    \fill[USC_Garnet!15] (1.5,-2.5) rectangle (2.5,-3.5);
+    \fill[USC_Garnet!15] (2.5,-2.5) rectangle (3.5,-3.5);
+    % Background for V=1 pixels in S2
+    \fill[USC_Atlantic!15] (6.5,0.5) rectangle (7.5,-0.5);
+    \fill[USC_Atlantic!15] (7.5,0.5) rectangle (8.5,-0.5);
+    \fill[USC_Atlantic!15] (5.5,-0.5) rectangle (6.5,-1.5);
+    \fill[USC_Atlantic!15] (4.5,-1.5) rectangle (5.5,-2.5);
+    \fill[USC_Atlantic!15] (5.5,-1.5) rectangle (6.5,-2.5);
+    % Highlight the key pair
+    \fill[USC_Garnet!40] (3.5,-0.5) rectangle (4.5,-1.5);
+    \fill[USC_Atlantic!40] (4.5,-1.5) rectangle (5.5,-2.5);
+    % Grid values
+    \node at (0,0) {0}; \node at (1,0) {0}; \node at (2,0) {0}; \node at (3,0) {0}; \node at (4,0) {0};
+    \node at (5,0) {0}; \node at (6,0) {0}; \node at (7,0) {1}; \node at (8,0) {1}; \node at (9,0) {0};
+    \node at (0,-1) {1}; \node at (1,-1) {0}; \node at (2,-1) {0}; \node at (3,-1) {1}; \node[font=\bfseries] at (4,-1) {1};
+    \node at (5,-1) {0}; \node at (6,-1) {1}; \node at (7,-1) {0}; \node at (8,-1) {0}; \node at (9,-1) {1};
+    \node at (0,-2) {1}; \node at (1,-2) {0}; \node at (2,-2) {0}; \node at (3,-2) {1}; \node at (4,-2) {0};
+    \node[font=\bfseries] at (5,-2) {1}; \node at (6,-2) {1}; \node at (7,-2) {0}; \node at (8,-2) {0}; \node at (9,-2) {0};
+    \node at (0,-3) {0}; \node at (1,-3) {0}; \node at (2,-3) {1}; \node at (3,-3) {1}; \node at (4,-3) {0};
+    \node at (5,-3) {0}; \node at (6,-3) {0}; \node at (7,-3) {0}; \node at (8,-3) {0}; \node at (9,-3) {0};
+    % S1 / S2 boundaries
+    \draw[dashed, very thick, USC_Garnet] (0.5,0.5) rectangle (4.5,-3.5);
+    \node[above, USC_Garnet, font=\bfseries] at (2.5,0.5) {$S_1$};
+    \draw[dashed, very thick, USC_Atlantic] (4.5,0.5) rectangle (8.5,-3.5);
+    \node[above, USC_Atlantic, font=\bfseries] at (6.5,0.5) {$S_2$};
+    % Arrow between key pair
+    \draw[-{Stealth}, very thick, USC_Honeycomb] (4,-1) -- (5,-2);
+    % Labels
+    \node[above right, USC_Garnet, font=\scriptsize\bfseries] at (4.1,-0.6) {$p$};
+    \node[below left, USC_Atlantic, font=\scriptsize\bfseries] at (4.9,-2.4) {$q$};
+\end{tikzpicture}
+\end{center}
+\textit{Shaded cells have value $1 \in V$. The darkened cells are the closest cross-boundary pair $p=(4,1)$ and $q=(5,2)$.}
+\end{stepbox}
+
+\begin{stepbox}[Part (a): 4-Adjacency]
+Two subsets are 4-adjacent if $\exists\, p \in S_1, q \in S_2$ with values in $V$ that are 4-neighbors (share an edge). Two pixels are 4-neighbors if they differ in exactly one coordinate by 1.
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % 3x3 neighborhood around (4,1) and (5,2)
+    % Show the 4-neighbors of p
+    \fill[USC_Garnet!30] (0,0) rectangle (1,1); \node at (0.5,0.5) {\textbf{1}};
+    \node[font=\scriptsize, above] at (0.5,1) {$p{=}(4,1)$};
+    % 4-neighbors of p
+    \fill[USC_Black10] (1,0) rectangle (2,1); \node at (1.5,0.5) {0};
+    \node[font=\scriptsize, above] at (1.5,1) {$(5,1)$};
+    \fill[USC_Black10] (0,-1) rectangle (1,0); \node at (0.5,-0.5) {0};
+    \node[font=\scriptsize, below] at (0.5,-1) {$(4,2)$};
+    \fill[USC_Black10] (-1,0) rectangle (0,1); \node at (-0.5,0.5) {0};
+    \fill[USC_Black10] (0,1) rectangle (1,2); \node at (0.5,1.5) {0};
+    % q position (diagonal)
+    \fill[USC_Atlantic!30] (1,-1) rectangle (2,0); \node at (1.5,-0.5) {\textbf{1}};
+    \node[font=\scriptsize, below] at (1.5,-1) {$q{=}(5,2)$};
+    % Cross marks on 4-neighbor connections
+    \draw[USC_Garnet, very thick] (0.5,0) -- (0.5,-0.05);
+    \draw[USC_Garnet, very thick] (1,0.5) -- (1.05,0.5);
+    % X between p and q (not 4-adjacent)
+    \draw[USC_Rose, very thick] (0.8,-0.2) -- (1.2,-0.8);
+    \draw[USC_Rose, very thick] (0.8,-0.8) -- (1.2,-0.2);
+    % Grid lines
+    \draw[gray, thin] (-1,0) grid (2,2);
+    \draw[gray, thin] (-1,-1) grid (2,1);
+    % Label
+    \node[right, font=\small] at (2.5,0.5) {$p$ and $q$ are diagonal};
+    \node[right, font=\small] at (2.5,0) {$\Rightarrow$ NOT 4-neighbors};
+\end{tikzpicture}
+\end{center}
+
+The nearest cross-boundary pair in $V$ is $(4,1)$ and $(5,2)$, which differ in \emph{both} coordinates --- they are \emph{not} 4-neighbors. No other cross-boundary pair of pixels in $V$ is closer.
 
 $\Rightarrow$ \textbf{$S_1$ and $S_2$ are NOT 4-adjacent.}
+\end{stepbox}
 
-\vspace{0.3cm}
-\textbf{(b) 8-adjacency:} $(4,1)$ and $(5,2)$ differ by 1 in each coordinate, so they are diagonal (8-)neighbors. Both have value $1 \in V$.
+\begin{stepbox}[Part (b): 8-Adjacency]
+Two pixels are 8-neighbors if they differ by at most 1 in each coordinate (including diagonals).
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % p
+    \fill[USC_Garnet!30] (0,0) rectangle (1,1); \node at (0.5,0.5) {\textbf{1}};
+    \node[font=\scriptsize, above] at (0.5,1) {$p{=}(4,1)$};
+    % q (diagonal)
+    \fill[USC_Atlantic!30] (1,-1) rectangle (2,0); \node at (1.5,-0.5) {\textbf{1}};
+    \node[font=\scriptsize, below] at (1.5,-1) {$q{=}(5,2)$};
+    % Shared neighbors
+    \fill[USC_Black10] (1,0) rectangle (2,1); \node at (1.5,0.5) {0};
+    \fill[USC_Black10] (0,-1) rectangle (1,0); \node at (0.5,-0.5) {0};
+    % Grid
+    \draw[gray, thin] (0,-1) grid (2,1);
+    % Diagonal arrow
+    \draw[-{Stealth}, very thick, USC_Honeycomb] (0.5,0.5) -- (1.5,-0.5);
+    % Checkmark
+    \node[right, font=\small] at (2.5,0.5) {Diagonal = 8-neighbor};
+    \node[right, font=\small] at (2.5,0) {Both values $= 1 \in V$ \checkmark};
+\end{tikzpicture}
+\end{center}
+
+$(4,1)$ and $(5,2)$ differ by 1 in each coordinate, so they are diagonal 8-neighbors. Both have value $1 \in V$.
 
 $\Rightarrow$ \textbf{$S_1$ and $S_2$ ARE 8-adjacent.}
+\end{stepbox}
 
-\vspace{0.3cm}
-\textbf{(c) m-adjacency:} Two pixels $p, q$ are m-adjacent if they are 8-adjacent \emph{and} $N_4(p) \cap N_4(q) \cap V = \varnothing$ (no shared 4-neighbor has a value in $V$). The shared 4-neighbors of $(4,1)$ and $(5,2)$ are $(4,2)$ and $(5,1)$:
-\[
-(4,2) = 0 \notin V, \qquad (5,1) = 0 \notin V.
-\]
-Since the intersection is empty, the m-adjacency condition is satisfied.
+\begin{stepbox}[Part (c): m-Adjacency]
+Two pixels $p, q$ are m-adjacent if:
+\begin{itemize}
+    \item They are 4-adjacent with values in $V$, \textbf{or}
+    \item They are diagonal 8-neighbors with values in $V$ \textbf{and} $N_4(p) \cap N_4(q) \cap V = \varnothing$ (no shared 4-neighbor has a value in $V$).
+\end{itemize}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % p
+    \fill[USC_Garnet!30] (0,0) rectangle (1,1); \node at (0.5,0.5) {\textbf{1}};
+    \node[font=\scriptsize, above] at (0.5,1) {$p{=}(4,1)$};
+    % q (diagonal)
+    \fill[USC_Atlantic!30] (1,-1) rectangle (2,0); \node at (1.5,-0.5) {\textbf{1}};
+    \node[font=\scriptsize, below] at (1.5,-1) {$q{=}(5,2)$};
+    % Shared 4-neighbors highlighted
+    \fill[USC_Honeycomb!25] (1,0) rectangle (2,1); \node at (1.5,0.5) {0};
+    \node[font=\scriptsize, above] at (1.5,1) {$(5,1){=}0$};
+    \fill[USC_Honeycomb!25] (0,-1) rectangle (1,0); \node at (0.5,-0.5) {0};
+    \node[font=\scriptsize, below] at (0.5,-1) {$(4,2){=}0$};
+    % Grid
+    \draw[gray, thin] (0,-1) grid (2,1);
+    % Diagonal arrow
+    \draw[-{Stealth}, very thick, USC_Honeycomb] (0.5,0.5) -- (1.5,-0.5);
+    % Labels
+    \node[right, font=\small] at (2.5,0.5) {Shared 4-neighbors:};
+    \node[right, font=\small] at (2.5,0) {$(5,1) = 0 \notin V$};
+    \node[right, font=\small] at (2.5,-0.5) {$(4,2) = 0 \notin V$};
+    \node[right, font=\small] at (2.5,-1) {$\Rightarrow N_4(p) \cap N_4(q) \cap V = \varnothing$ \checkmark};
+\end{tikzpicture}
+\end{center}
+
+Since $N_4(p) \cap N_4(q) \cap V = \varnothing$, the m-adjacency condition is satisfied.
 
 $\Rightarrow$ \textbf{$S_1$ and $S_2$ ARE m-adjacent.}
 \end{stepbox}
