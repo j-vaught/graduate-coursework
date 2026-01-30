@@ -1,0 +1,314 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 2
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{outputbg}{RGB}{245,245,245}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=#1,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% Graphics path
+\graphicspath{{figures/}}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#2}
+\author{Instructor: Spring 2026 \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\date{Due: 1:15 pm EST, Tuesday, Feb 10}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Median Operator Nonlinearity (10 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Image Subtraction for Defect Detection (20 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Histogram Equalization Idempotency (20 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Histogram Matching (30 pts)} \dotfill & \textbf{\pageref{quest:4}} \\[0.3em]
+\textbf{Problem 5: Continuous Intensity Transformation (20 pts)} \dotfill & \textbf{\pageref{quest:5}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Median Operator Nonlinearity
+% ============================================================================
+
+\question{Problem 1: Median Operator Nonlinearity (10 pts)}\label{quest:1}
+
+The median $\zeta$, of a set of numbers is such that half the values in the set are below $\zeta$, and the other half are above it. For example, the median of the set of values $\{12, 3, 8, 20, 21, 75, 31\}$ is 20. Show that an operator that computes the median of a subimage area, $S$, is nonlinear.
+
+\textbf{Hints:} an operator $H$ is linear if
+\[
+H[a_1 f_1(x,y) + a_2 f_2(x,y)] = a_1 H[f_1(x,y)] + a_2 H[f_2(x,y)]
+\]
+
+
+% ============================================================================
+% PROBLEM 2: Image Subtraction
+% ============================================================================
+
+\question{Problem 2: Image Subtraction for Defect Detection (20 pts)}\label{quest:2}
+
+Image subtraction is used often in industrial applications for detecting missing components in product assembly. The approach is to store a ``golden'' image that corresponds to a correct assembly; this image is then subtracted from incoming images of the same product. Ideally, the differences would be zero if the new products are assembled correctly. Difference images for products with missing components would be nonzero in the area where they differ from the golden image. What conditions do you think have to be met in practice for this method to work? You need to list at least two major factors that affect the detection performance.
+
+
+% ============================================================================
+% PROBLEM 3: Histogram Equalization Idempotency
+% ============================================================================
+
+\question{Problem 3: Histogram Equalization Idempotency (20 pts)}\label{quest:3}
+
+Suppose that a digital image is subjected to histogram equalization. Show that a second pass of histogram equalization (on the histogram-equalized image) will produce exactly the same result as the first pass.
+
+
+% ============================================================================
+% PROBLEM 4: Histogram Matching
+% ============================================================================
+
+\question{Problem 4: Histogram Matching (30 pts)}\label{quest:4}
+
+Suppose that a 4-bit image ($L=16$) of size $64 \times 64$ has the intensity distribution as Table~A. It is desired to transform the original histogram to a specified histogram as shown in Table~B. What will be the actual histogram after the histogram matching operation?
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{minipage}{0.35\textwidth}
+\centering
+\rowcolors{2}{USC_Atlantic!10}{white}
+\begin{tabular}{>{\centering\arraybackslash}p{1.2cm} >{\centering\arraybackslash}p{1.2cm}}
+\rowcolor{USC_Atlantic!80}
+\textcolor{white}{$r_k$} & \textcolor{white}{$n_k$} \\
+\hline
+0 & 16 \\
+1 & 0 \\
+2 & 512 \\
+3 & 32 \\
+4 & 64 \\
+5 & 128 \\
+6 & 64 \\
+7 & 1024 \\
+8 & 512 \\
+9 & 512 \\
+10 & 16 \\
+11 & 1024 \\
+12 & 0 \\
+13 & 128 \\
+14 & 0 \\
+15 & 64 \\
+\hline
+\end{tabular}
+
+\vspace{0.3cm}
+\textbf{Table A}
+\end{minipage}
+\hspace{1cm}
+\begin{minipage}{0.35\textwidth}
+\centering
+\rowcolors{2}{USC_Atlantic!10}{white}
+\begin{tabular}{>{\centering\arraybackslash}p{1.2cm} >{\centering\arraybackslash}p{1.2cm}}
+\rowcolor{USC_Atlantic!80}
+\textcolor{white}{$z_q$} & \textcolor{white}{$n_q$} \\
+\hline
+0 & 64 \\
+1 & 128 \\
+2 & 512 \\
+3 & 512 \\
+4 & 1024 \\
+5 & 1024 \\
+6 & 512 \\
+7 & 128 \\
+8 & 128 \\
+9 & 64 \\
+10 & 0 \\
+11 & 0 \\
+12 & 0 \\
+13 & 0 \\
+14 & 0 \\
+15 & 0 \\
+\hline
+\end{tabular}
+
+\vspace{0.3cm}
+\textbf{Table B}
+\end{minipage}
+\end{center}
+
+
+% ============================================================================
+% PROBLEM 5: Continuous Intensity Transformation
+% ============================================================================
+
+\question{Problem 5: Continuous Intensity Transformation (20 pts)}\label{quest:5}
+
+An image with intensities in the range $[0, L-1]$ has the pdf $p_r(r)$ shown in Figure~(a). It is desired to transform the intensity levels of this image so that they will have the specified pdf $p_z(z)$ as shown in Figure~(b). Assume continuous quantities and find the transformation $z = f(r)$ that will accomplish this.
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+
+    % === Figure (a): p_r(r) - triangle from (0,2) to (L-1,0) ===
+    \begin{scope}[shift={(0,0)}]
+        % Axes
+        \draw[->, thick] (0,0) -- (5,0) node[right] {$r$};
+        \draw[->, thick] (0,0) -- (0,4) node[above] {$p_r(r)$};
+
+        % Labels
+        \node[left] at (0,3) {2};
+        \node[below] at (0,0) {0};
+        \node[below] at (3.8,0) {$L\!-\!1$};
+
+        % Triangle PDF: line from (0,2) to (L-1, 0)
+        \draw[thick, USC_Atlantic] (0,3) -- (3.8,0);
+
+        % Label
+        \node[below] at (1.9,-1) {(a)};
+    \end{scope}
+
+    % === Figure (b): p_z(z) - triangle from (0,0) to (L-1, 2) with dashed ===
+    \begin{scope}[shift={(8,0)}]
+        % Axes
+        \draw[->, thick] (0,0) -- (5,0) node[right] {$z$};
+        \draw[->, thick] (0,0) -- (0,4) node[above] {$p_z(z)$};
+
+        % Labels
+        \node[left] at (0,3) {2};
+        \node[below] at (0,0) {0};
+        \node[below] at (3.8,0) {$L\!-\!1$};
+
+        % Triangle PDF: line from (0,0) to (L-1, 2)
+        \draw[thick, USC_Atlantic] (0,0) -- (3.8,3);
+
+        % Dashed lines showing the box extent
+        \draw[dashed, thick, USC_Atlantic] (3.8,3) -- (3.8,0);
+        \draw[dashed, thick, USC_Atlantic] (0,3) -- (3.8,3);
+
+        % Label
+        \node[below] at (1.9,-1) {(b)};
+    \end{scope}
+
+\end{tikzpicture}
+\end{center}
+
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
