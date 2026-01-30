@@ -1,0 +1,684 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 2 Solutions
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{outputbg}{RGB}{245,245,245}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=#1,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% Graphics path
+\graphicspath{{figures/}}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#2}
+\author{Instructor: Spring 2026 \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\date{Due: 1:15 pm EST, Tuesday, Feb 10}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Median Operator Nonlinearity (10 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Image Subtraction for Defect Detection (20 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Histogram Equalization Idempotency (20 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Histogram Matching (30 pts)} \dotfill & \textbf{\pageref{quest:4}} \\[0.3em]
+\textbf{Problem 5: Continuous Intensity Transformation (20 pts)} \dotfill & \textbf{\pageref{quest:5}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Median Operator Nonlinearity
+% ============================================================================
+
+\question{Problem 1: Median Operator Nonlinearity (10 pts)}\label{quest:1}
+
+The median $\zeta$, of a set of numbers is such that half the values in the set are below $\zeta$, and the other half are above it. For example, the median of the set of values $\{12, 3, 8, 20, 21, 75, 31\}$ is 20. Show that an operator that computes the median of a subimage area, $S$, is nonlinear.
+
+\textbf{Hints:} an operator $H$ is linear if
+\[
+H[a_1 f_1(x,y) + a_2 f_2(x,y)] = a_1 H[f_1(x,y)] + a_2 H[f_2(x,y)]
+\]
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Solution]
+We prove nonlinearity by counterexample. Let $H$ denote the median operator over a $1 \times 3$ subimage region $S$. Set $a_1 = a_2 = 1$ and define two images by their pixel values over $S$:
+\[
+f_1 = \{1,\; 2,\; 3\}, \qquad f_2 = \{3,\; 1,\; 2\}
+\]
+
+\textbf{Right-hand side:}
+\[
+H[f_1] + H[f_2] = \text{median}\{1,2,3\} + \text{median}\{3,1,2\} = 2 + 2 = 4
+\]
+
+\textbf{Left-hand side:}
+\[
+f_1 + f_2 = \{1+3,\; 2+1,\; 3+2\} = \{4,\; 3,\; 5\}
+\]
+\[
+H[f_1 + f_2] = \text{median}\{4,3,5\} = 4
+\]
+
+In this case the additive property holds. Now test the \textbf{homogeneity} (scaling) property with $a = 2$:
+\[
+H[2 f_1] = \text{median}\{2, 4, 6\} = 4 = 2 \cdot H[f_1]
+\]
+Scaling also holds here. We need a different counterexample. Consider instead:
+\[
+f_1 = \{1,\; 5,\; 9\}, \qquad f_2 = \{9,\; 1,\; 5\}
+\]
+
+\textbf{Right-hand side:}
+\[
+H[f_1] + H[f_2] = \text{median}\{1,5,9\} + \text{median}\{9,1,5\} = 5 + 5 = 10
+\]
+
+\textbf{Left-hand side:}
+\[
+f_1 + f_2 = \{10,\; 6,\; 14\}
+\]
+\[
+H[f_1 + f_2] = \text{median}\{10, 6, 14\} = 10
+\]
+
+Still equal. The problem with 3-element medians and $a_1=a_2=1$ is that sums of two sequences often preserve median ordering. Instead, use a \textbf{5-pixel} subimage:
+\[
+f_1 = \{1,\; 2,\; 3,\; 4,\; 5\}, \qquad f_2 = \{5,\; 4,\; 3,\; 2,\; 1\}
+\]
+
+\textbf{Right-hand side:}
+\[
+H[f_1] + H[f_2] = \text{median}\{1,2,3,4,5\} + \text{median}\{5,4,3,2,1\} = 3 + 3 = 6
+\]
+
+\textbf{Left-hand side:}
+\[
+f_1 + f_2 = \{6,\; 6,\; 6,\; 6,\; 6\}
+\]
+\[
+H[f_1 + f_2] = \text{median}\{6,6,6,6,6\} = 6
+\]
+
+Equal again (constant image). Let us try an asymmetric example with 3 pixels:
+\[
+f_1 = \{4,\; 1,\; 5\}, \qquad f_2 = \{1,\; 5,\; 2\}
+\]
+
+\textbf{Right-hand side:}
+\[
+H[f_1] + H[f_2] = \text{median}\{4,1,5\} + \text{median}\{1,5,2\} = 4 + 2 = 6
+\]
+
+\textbf{Left-hand side:}
+\[
+f_1 + f_2 = \{5,\; 6,\; 7\}
+\]
+\[
+H[f_1 + f_2] = \text{median}\{5, 6, 7\} = 6
+\]
+
+Equal. Consider a 3-pixel case that \emph{reorders} the ranking:
+\[
+f_1 = \{2,\; 3,\; 10\}, \qquad f_2 = \{10,\; 1,\; 2\}
+\]
+
+\textbf{Right-hand side:}
+\[
+H[f_1] + H[f_2] = 3 + 2 = 5
+\]
+
+\textbf{Left-hand side:}
+\[
+f_1 + f_2 = \{12,\; 4,\; 12\}, \qquad H[f_1+f_2] = 12
+\]
+
+Since $12 \neq 5$, the additivity property fails:
+\[
+H[f_1 + f_2] = 12 \neq 5 = H[f_1] + H[f_2]
+\]
+\end{stepbox}
+
+\begin{resultsbox}
+The median operator is \textbf{nonlinear}. As shown by the counterexample with $f_1 = \{2, 3, 10\}$ and $f_2 = \{10, 1, 2\}$, the superposition property is violated:
+\[
+H[f_1 + f_2] = 12 \neq 5 = H[f_1] + H[f_2] \qquad \blacksquare
+\]
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 2: Image Subtraction
+% ============================================================================
+
+\question{Problem 2: Image Subtraction for Defect Detection (20 pts)}\label{quest:2}
+
+Image subtraction is used often in industrial applications for detecting missing components in product assembly. The approach is to store a ``golden'' image that corresponds to a correct assembly; this image is then subtracted from incoming images of the same product. Ideally, the differences would be zero if the new products are assembled correctly. Difference images for products with missing components would be nonzero in the area where they differ from the golden image. What conditions do you think have to be met in practice for this method to work? You need to list at least two major factors that affect the detection performance.
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Solution]
+For image subtraction--based defect detection to work reliably, the following conditions must be satisfied:
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+
+\item \textbf{Consistent Illumination.} The lighting conditions (direction, intensity, color temperature, and uniformity) must be identical when capturing the golden image and every subsequent test image. Any change in illumination will cause intensity differences unrelated to actual defects, producing false positives. In practice, this means using fixed, controlled lighting enclosures.
+
+\item \textbf{Precise Spatial Registration.} The camera position, orientation, and the placement of the product must be exactly the same for every image. Even a sub-pixel misalignment between the golden image and the test image will produce nonzero differences at edges and high-contrast boundaries, masking true defects or creating false detections. Mechanical fixtures and calibrated camera mounts are used to achieve this.
+
+\end{enumerate}
+
+\textbf{Additional important factors:}
+
+\begin{itemize}
+\item \textbf{Sensor Noise.} Even with perfect alignment and lighting, random sensor noise will produce small nonzero differences. A threshold must be applied to the difference image to distinguish genuine defects from noise artifacts.
+
+\item \textbf{Consistent Camera Settings.} Gain, exposure time, white balance, and focus must remain fixed between the golden capture and all subsequent captures.
+\end{itemize}
+\end{stepbox}
+
+\begin{resultsbox}
+The two major factors are: (1) \textbf{consistent illumination} so that intensity differences reflect actual physical differences, not lighting variations; and (2) \textbf{precise spatial alignment/registration} so that geometric misalignment does not produce spurious nonzero differences.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 3: Histogram Equalization Idempotency
+% ============================================================================
+
+\question{Problem 3: Histogram Equalization Idempotency (20 pts)}\label{quest:3}
+
+Suppose that a digital image is subjected to histogram equalization. Show that a second pass of histogram equalization (on the histogram-equalized image) will produce exactly the same result as the first pass.
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Solution]
+Let the original image have intensity levels $r \in [0, L-1]$ with PDF $p_r(r)$ and CDF $P_r(r)$. The histogram equalization transformation is:
+\[
+s = T(r) = (L-1)\, P_r(r) = (L-1) \int_0^r p_r(w)\, dw
+\]
+This maps intensities to the equalized image with intensity variable $s$. A fundamental result from probability theory states that if $s = T(r) = (L-1)\,P_r(r)$, then $s$ is \textbf{uniformly distributed} on $[0, L-1]$. That is:
+\[
+p_s(s) = \frac{1}{L-1}, \qquad 0 \leq s \leq L-1
+\]
+
+Now apply histogram equalization a second time to the equalized image. The transformation is:
+\[
+v = T_2(s) = (L-1)\, P_s(s) = (L-1) \int_0^s p_s(w)\, dw
+\]
+Since $p_s(s) = \dfrac{1}{L-1}$, the CDF of $s$ is:
+\[
+P_s(s) = \int_0^s \frac{1}{L-1}\, dw = \frac{s}{L-1}
+\]
+Therefore:
+\[
+v = T_2(s) = (L-1) \cdot \frac{s}{L-1} = s
+\]
+The second equalization is the \textbf{identity transformation}, so $v = s$.
+\end{stepbox}
+
+\begin{resultsbox}
+After the first histogram equalization, the output has a uniform distribution. Applying histogram equalization to a uniformly distributed image yields the identity mapping $v = s$. Therefore, the second pass produces exactly the same result as the first. $\blacksquare$
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 4: Histogram Matching
+% ============================================================================
+
+\question{Problem 4: Histogram Matching (30 pts)}\label{quest:4}
+
+Suppose that a 4-bit image ($L=16$) of size $64 \times 64$ has the intensity distribution as Table~A. It is desired to transform the original histogram to a specified histogram as shown in Table~B. What will be the actual histogram after the histogram matching operation?
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{minipage}{0.35\textwidth}
+\centering
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{>{\centering\arraybackslash}p{1.2cm} >{\centering\arraybackslash}p{1.2cm}}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{$r_k$} & \textcolor{white}{$n_k$} \\
+\hline
+0 & 16 \\
+1 & 0 \\
+2 & 512 \\
+3 & 32 \\
+4 & 64 \\
+5 & 128 \\
+6 & 64 \\
+7 & 1024 \\
+8 & 512 \\
+9 & 512 \\
+10 & 16 \\
+11 & 1024 \\
+12 & 0 \\
+13 & 128 \\
+14 & 0 \\
+15 & 64 \\
+\hline
+\end{tabular}
+
+\vspace{0.3cm}
+\textbf{Table A}
+\end{minipage}
+\hspace{1cm}
+\begin{minipage}{0.35\textwidth}
+\centering
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{>{\centering\arraybackslash}p{1.2cm} >{\centering\arraybackslash}p{1.2cm}}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{$z_q$} & \textcolor{white}{$n_q$} \\
+\hline
+0 & 64 \\
+1 & 128 \\
+2 & 512 \\
+3 & 512 \\
+4 & 1024 \\
+5 & 1024 \\
+6 & 512 \\
+7 & 128 \\
+8 & 128 \\
+9 & 64 \\
+10 & 0 \\
+11 & 0 \\
+12 & 0 \\
+13 & 0 \\
+14 & 0 \\
+15 & 0 \\
+\hline
+\end{tabular}
+
+\vspace{0.3cm}
+\textbf{Table B}
+\end{minipage}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Solution --- Step 1: Compute the equalization transform $s_k$ from Table A]
+Total pixels: $N = 64 \times 64 = 4096$, and $L = 16$, so $L - 1 = 15$.
+
+The equalization transform is $s_k = \text{round}\!\left(15 \cdot \displaystyle\sum_{j=0}^{k} \frac{n_j}{4096}\right)$.
+
+\vspace{0.3cm}
+
+\begin{center}
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{c c c c}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{$r_k$} & \textcolor{white}{$n_k$} & \textcolor{white}{$\displaystyle\sum_{j=0}^{k} n_j$} & \textcolor{white}{$s_k = \text{round}\!\left(\frac{15 \cdot \sum n_j}{4096}\right)$} \\
+\hline
+0  & 16   & 16   & $\text{round}(0.059) = 0$  \\
+1  & 0    & 16   & $\text{round}(0.059) = 0$  \\
+2  & 512  & 528  & $\text{round}(1.934) = 2$  \\
+3  & 32   & 560  & $\text{round}(2.051) = 2$  \\
+4  & 64   & 624  & $\text{round}(2.285) = 2$  \\
+5  & 128  & 752  & $\text{round}(2.754) = 3$  \\
+6  & 64   & 816  & $\text{round}(2.988) = 3$  \\
+7  & 1024 & 1840 & $\text{round}(6.738) = 7$  \\
+8  & 512  & 2352 & $\text{round}(8.613) = 9$  \\
+9  & 512  & 2864 & $\text{round}(10.488) = 10$ \\
+10 & 16   & 2880 & $\text{round}(10.547) = 11$ \\
+11 & 1024 & 3904 & $\text{round}(14.297) = 14$ \\
+12 & 0    & 3904 & $\text{round}(14.297) = 14$ \\
+13 & 128  & 4032 & $\text{round}(14.766) = 15$ \\
+14 & 0    & 4032 & $\text{round}(14.766) = 15$ \\
+15 & 64   & 4096 & $\text{round}(15.000) = 15$ \\
+\hline
+\end{tabular}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Solution --- Step 2: Compute the equalization transform $G(z_q)$ from Table B]
+\begin{center}
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{c c c c}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{$z_q$} & \textcolor{white}{$n_q$} & \textcolor{white}{$\displaystyle\sum_{j=0}^{q} n_j$} & \textcolor{white}{$G(z_q) = \text{round}\!\left(\frac{15 \cdot \sum n_j}{4096}\right)$} \\
+\hline
+0  & 64   & 64   & $\text{round}(0.234) = 0$  \\
+1  & 128  & 192  & $\text{round}(0.703) = 1$  \\
+2  & 512  & 704  & $\text{round}(2.578) = 3$  \\
+3  & 512  & 1216 & $\text{round}(4.453) = 4$  \\
+4  & 1024 & 2240 & $\text{round}(8.203) = 8$  \\
+5  & 1024 & 3264 & $\text{round}(11.953) = 12$ \\
+6  & 512  & 3776 & $\text{round}(13.828) = 14$ \\
+7  & 128  & 3904 & $\text{round}(14.297) = 14$ \\
+8  & 128  & 4032 & $\text{round}(14.766) = 15$ \\
+9  & 64   & 4096 & $\text{round}(15.000) = 15$ \\
+10 & 0    & 4096 & 15 \\
+11 & 0    & 4096 & 15 \\
+12 & 0    & 4096 & 15 \\
+13 & 0    & 4096 & 15 \\
+14 & 0    & 4096 & 15 \\
+15 & 0    & 4096 & 15 \\
+\hline
+\end{tabular}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Solution --- Step 3: Inverse mapping $s_k \to z_q$]
+For each value of $s_k$, find the smallest $z_q$ such that $G(z_q) \geq s_k$:
+
+\begin{center}
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{c c c c}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{$r_k$} & \textcolor{white}{$s_k$} & \textcolor{white}{Smallest $z_q$ with $G(z_q) \geq s_k$} & \textcolor{white}{$z_q$} \\
+\hline
+0  & 0  & $G(0) = 0 \geq 0$   & 0 \\
+1  & 0  & $G(0) = 0 \geq 0$   & 0 \\
+2  & 2  & $G(2) = 3 \geq 2$   & 2 \\
+3  & 2  & $G(2) = 3 \geq 2$   & 2 \\
+4  & 2  & $G(2) = 3 \geq 2$   & 2 \\
+5  & 3  & $G(2) = 3 \geq 3$   & 2 \\
+6  & 3  & $G(2) = 3 \geq 3$   & 2 \\
+7  & 7  & $G(4) = 8 \geq 7$   & 4 \\
+8  & 9  & $G(5) = 12 \geq 9$  & 5 \\
+9  & 10 & $G(5) = 12 \geq 10$ & 5 \\
+10 & 11 & $G(5) = 12 \geq 11$ & 5 \\
+11 & 14 & $G(6) = 14 \geq 14$ & 6 \\
+12 & 14 & $G(6) = 14 \geq 14$ & 6 \\
+13 & 15 & $G(8) = 15 \geq 15$ & 8 \\
+14 & 15 & $G(8) = 15 \geq 15$ & 8 \\
+15 & 15 & $G(8) = 15 \geq 15$ & 8 \\
+\hline
+\end{tabular}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Solution --- Step 4: Compute the actual output histogram]
+Using the mapping $r_k \to z_q$ and the pixel counts $n_k$ from Table A:
+
+\begin{center}
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{c c l}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{Output $z_q$} & \textcolor{white}{Mapped from $r_k$} & \textcolor{white}{Pixel count} \\
+\hline
+0 & $r_0, r_1$              & $16 + 0 = 16$ \\
+1 & ---                      & 0 \\
+2 & $r_2, r_3, r_4, r_5, r_6$ & $512 + 32 + 64 + 128 + 64 = 800$ \\
+3 & ---                      & 0 \\
+4 & $r_7$                    & 1024 \\
+5 & $r_8, r_9, r_{10}$      & $512 + 512 + 16 = 1040$ \\
+6 & $r_{11}, r_{12}$         & $1024 + 0 = 1024$ \\
+7 & ---                      & 0 \\
+8 & $r_{13}, r_{14}, r_{15}$ & $128 + 0 + 64 = 192$ \\
+9--15 & ---                  & 0 each \\
+\hline
+\multicolumn{2}{r}{\textbf{Total:}} & $16+800+1024+1040+1024+192 = 4096$ \checkmark \\
+\end{tabular}
+\end{center}
+\end{stepbox}
+
+\begin{resultsbox}
+The actual output histogram after histogram matching is:
+
+\begin{center}
+\rowcolors{2}{USC_Garnet!10}{white}
+\begin{tabular}{>{\centering\arraybackslash}p{1.2cm} >{\centering\arraybackslash}p{1.5cm}}
+\rowcolor{USC_Garnet!80}
+\textcolor{white}{$z_q$} & \textcolor{white}{$n_q^{\text{out}}$} \\
+\hline
+0  & 16 \\
+1  & 0 \\
+2  & 800 \\
+3  & 0 \\
+4  & 1024 \\
+5  & 1040 \\
+6  & 1024 \\
+7  & 0 \\
+8  & 192 \\
+9  & 0 \\
+10 & 0 \\
+11 & 0 \\
+12 & 0 \\
+13 & 0 \\
+14 & 0 \\
+15 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+The output histogram approximates the desired distribution but is not identical to it, due to the discrete nature of the intensity levels and the many-to-one mapping inherent in histogram matching.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 5: Continuous Intensity Transformation
+% ============================================================================
+
+\question{Problem 5: Continuous Intensity Transformation (20 pts)}\label{quest:5}
+
+An image with intensities in the range $[0, L-1]$ has the pdf $p_r(r)$ shown in Figure~(a). It is desired to transform the intensity levels of this image so that they will have the specified pdf $p_z(z)$ as shown in Figure~(b). Assume continuous quantities and find the transformation $z = f(r)$ that will accomplish this.
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+
+    % === Figure (a): p_r(r) - triangle from (0,2) to (L-1,0) ===
+    \begin{scope}[shift={(0,0)}]
+        % Axes
+        \draw[->, thick] (0,0) -- (5,0) node[right] {$r$};
+        \draw[->, thick] (0,0) -- (0,4) node[above] {$p_r(r)$};
+
+        % Labels
+        \node[left] at (0,3) {2};
+        \node[below] at (0,0) {0};
+        \node[below] at (3.8,0) {$L\!-\!1$};
+
+        % Triangle PDF: line from (0,2) to (L-1, 0)
+        \draw[thick, USC_Garnet] (0,3) -- (3.8,0);
+
+        % Label
+        \node[below] at (1.9,-1) {(a)};
+    \end{scope}
+
+    % === Figure (b): p_z(z) - triangle from (0,0) to (L-1, 2) with dashed ===
+    \begin{scope}[shift={(8,0)}]
+        % Axes
+        \draw[->, thick] (0,0) -- (5,0) node[right] {$z$};
+        \draw[->, thick] (0,0) -- (0,4) node[above] {$p_z(z)$};
+
+        % Labels
+        \node[left] at (0,3) {2};
+        \node[below] at (0,0) {0};
+        \node[below] at (3.8,0) {$L\!-\!1$};
+
+        % Triangle PDF: line from (0,0) to (L-1, 2)
+        \draw[thick, USC_Garnet] (0,0) -- (3.8,3);
+
+        % Dashed lines showing the box extent
+        \draw[dashed, thick, USC_Garnet] (3.8,3) -- (3.8,0);
+        \draw[dashed, thick, USC_Garnet] (0,3) -- (3.8,3);
+
+        % Label
+        \node[below] at (1.9,-1) {(b)};
+    \end{scope}
+
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Solution]
+Let $W = L - 1$ for convenience. From the figures:
+
+\textbf{Step 1: Determine the PDFs.}
+
+From Figure~(a), $p_r(r)$ is a straight line from $(0, \tfrac{2}{W})$ scaled by area to $(W, 0)$. The line equation with $\int_0^W p_r\,dr = 1$:
+\[
+p_r(r) = \frac{2}{W}\!\left(1 - \frac{r}{W}\right) = \frac{2(W - r)}{W^2}, \qquad 0 \leq r \leq W
+\]
+\textit{Verification:} $\displaystyle\int_0^W \frac{2(W-r)}{W^2}\,dr = \frac{2}{W^2}\!\left[Wr - \frac{r^2}{2}\right]_0^W = \frac{2}{W^2}\cdot\frac{W^2}{2} = 1.$ \checkmark
+
+\vspace{0.3cm}
+
+From Figure~(b), $p_z(z)$ is a line from $(0,0)$ to $(W, \tfrac{2}{W})$:
+\[
+p_z(z) = \frac{2z}{W^2}, \qquad 0 \leq z \leq W
+\]
+\textit{Verification:} $\displaystyle\int_0^W \frac{2z}{W^2}\,dz = \frac{2}{W^2}\cdot\frac{W^2}{2} = 1.$ \checkmark
+
+\vspace{0.3cm}
+
+\textbf{Step 2: Compute the CDF of $r$.}
+\[
+T(r) = \int_0^r p_r(w)\,dw = \int_0^r \frac{2(W-w)}{W^2}\,dw = \frac{2}{W^2}\left[Wr - \frac{r^2}{2}\right] = \frac{2Wr - r^2}{W^2}
+\]
+
+\textbf{Step 3: Compute the CDF of $z$.}
+\[
+G(z) = \int_0^z p_z(w)\,dw = \int_0^z \frac{2w}{W^2}\,dw = \frac{z^2}{W^2}
+\]
+
+\textbf{Step 4: Set $G(z) = T(r)$ and solve for $z$.}
+\[
+\frac{z^2}{W^2} = \frac{2Wr - r^2}{W^2}
+\]
+\[
+z^2 = 2Wr - r^2 = r(2W - r)
+\]
+\[
+\boxed{z = \sqrt{r(2(L-1) - r)}}
+\]
+where we require $z \geq 0$ and we take the positive root since $0 \leq r \leq W$ ensures the argument is non-negative.
+\end{stepbox}
+
+\begin{resultsbox}
+The transformation that maps the input PDF $p_r(r)$ to the desired output PDF $p_z(z)$ is:
+\[
+z = f(r) = \sqrt{r\bigl(2(L-1) - r\bigr)}, \qquad 0 \leq r \leq L-1
+\]
+
+\textit{Check boundary values:} $f(0) = 0$ and $f(L-1) = \sqrt{(L-1)(2(L-1)-(L-1))} = \sqrt{(L-1)^2} = L-1.$ \checkmark
+\end{resultsbox}
+
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
