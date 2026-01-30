@@ -259,6 +259,143 @@ Consider the image segment shown below.
 
 Give expressions for the sets shown shaded in the following figure in terms of sets $A$, $B$, and $C$. The shaded areas in each figure constitute one set, so give one expression for each of the three figures.
 
+% --- Individual shapes A, B, C ---
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+
+    % === Shape A: thinner sideways U, deeper notch ===
+    \begin{scope}[shift={(0,0)}]
+        \draw[thick] (0,3) -- (2.5,3) -- (2.5,3.8) -- (1.1,3.8) -- (1.1,5.2) -- (2.5,5.2) -- (2.5,6) -- (0,6) -- cycle;
+        \node[below] at (1.25, 2.5) {$A$};
+    \end{scope}
+
+    % === Shape B: 10% taller, 100% wider ===
+    \begin{scope}[shift={(5,2)}]
+        \draw[thick] (-0.5,4.2) -- (3.5,4.2) -- (1.5,0.9) -- cycle;
+        \node[below] at (1.5, 0.5) {$B$};
+    \end{scope}
+
+    % === Shape C: 40% taller ===
+    \begin{scope}[shift={(9,0.1)}]
+                \draw[thick] (2,0) -- (3.5,0) -- (3.5,6) -- (2,6) -- cycle;
+        \node[below] at (2.75, -0.3) {$C$};
+    \end{scope}
+
+\end{tikzpicture}
+\end{center}
+
+% Pre-computed world coordinates:
+% A: (0,3) -- (2.5,3) -- (2.5,3.8) -- (1.1,3.8) -- (1.1,5.2) -- (2.5,5.2) -- (2.5,6) -- (0,6) -- cycle
+% B: (-0.99,3.96) -- (3.41,3.96) -- (1.21,0.33) -- cycle
+% C: (2,0.2) -- (3.5,0.2) -- (3.5,6.2) -- (2,6.2) -- cycle
+
+% Macros for shape paths
+\newcommand{\pathA}{(0,3) -- (2.5,3) -- (2.5,3.8) -- (1.1,3.8) -- (1.1,5.2) -- (2.5,5.2) -- (2.5,6) -- (0,6) -- cycle}
+\newcommand{\pathB}{(-0.99,3.96) -- (3.41,3.96) -- (1.21,0.33) -- cycle}
+\newcommand{\pathC}{(2,0.2) -- (3.5,0.2) -- (3.5,6.2) -- (2,6.2) -- cycle}
+
+% --- All three overlaid, no shading ---
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+    \draw[thick] \pathA;
+    \draw[thick] \pathB;
+    \draw[thick] \pathC;
+    \node[above left] at (0,6) {$A$};
+    \node[below left] at (0.5,0.5) {$B$};
+    \node[below right] at (3.5,0.2) {$C$};
+\end{tikzpicture}
+\end{center}
+
+% --- Three shaded figures ---
+\begin{center}
+\begin{tikzpicture}[scale=0.55]
+
+    % ============================
+    % FIGURE (i): A ∩ B ∩ C
+    % ============================
+    \begin{scope}[shift={(0,0)}]
+        \begin{scope}
+            \clip \pathA;
+            \clip \pathB;
+            \clip \pathC;
+            \fill[gray!40] (-2,-1) rectangle (5,7);
+        \end{scope}
+        \draw[thick] \pathA;
+        \draw[thick] \pathB;
+        \draw[thick] \pathC;
+        \node[below] at (1.5, -0.5) {(i)};
+    \end{scope}
+
+    % ============================
+    % FIGURE (ii): (A∩B) ∪ (B∩C) ∪ (A∩C)
+    % ============================
+    \begin{scope}[shift={(7,0)}]
+        % Shade A ∩ B
+        \begin{scope}
+            \clip \pathA;
+            \clip \pathB;
+            \fill[gray!40] (-2,-1) rectangle (5,7);
+        \end{scope}
+        % Shade B ∩ C
+        \begin{scope}
+            \clip \pathB;
+            \clip \pathC;
+            \fill[gray!40] (-2,-1) rectangle (5,7);
+        \end{scope}
+        % Shade A ∩ C
+        \begin{scope}
+            \clip \pathA;
+            \clip \pathC;
+            \fill[gray!40] (-2,-1) rectangle (5,7);
+        \end{scope}
+        \draw[thick] \pathA;
+        \draw[thick] \pathB;
+        \draw[thick] \pathC;
+        \node[below] at (1.5, -0.5) {(ii)};
+    \end{scope}
+
+    % ============================
+    % FIGURE (iii): (B ∩ A^c ∩ C^c) ∪ (A ∩ C ∩ B^c)
+    % ============================
+    \begin{scope}[shift={(14,0)}]
+        % Shade B
+        \begin{scope}
+            \clip \pathB;
+            \fill[gray!40] (-2,-1) rectangle (5,7);
+        \end{scope}
+        % Remove B ∩ A
+        \begin{scope}
+            \clip \pathB;
+            \clip \pathA;
+            \fill[white] (-2,-1) rectangle (5,7);
+        \end{scope}
+        % Remove B ∩ C
+        \begin{scope}
+            \clip \pathB;
+            \clip \pathC;
+            \fill[white] (-2,-1) rectangle (5,7);
+        \end{scope}
+        % Shade A ∩ C
+        \begin{scope}
+            \clip \pathA;
+            \clip \pathC;
+            \fill[gray!40] (-2,-1) rectangle (5,7);
+        \end{scope}
+        % Remove A ∩ C ∩ B
+        \begin{scope}
+            \clip \pathA;
+            \clip \pathC;
+            \clip \pathB;
+            \fill[white] (-2,-1) rectangle (5,7);
+        \end{scope}
+        \draw[thick] \pathA;
+        \draw[thick] \pathB;
+        \draw[thick] \pathC;
+        \node[below] at (1.5, -0.5) {(iii)};
+    \end{scope}
+
+\end{tikzpicture}
+\end{center}
 
 
 % ============================================================================
