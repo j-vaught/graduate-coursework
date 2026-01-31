@@ -1,0 +1,167 @@
+---
+url: https://www.theguardian.com/books/2017/feb/21/milo-yiannopoulos-book-deal-cancelled-outrage-child-abuse-comments
+title: "Milo Yiannopoulos book deal cancelled after outrage over child abuse comments | Publishing | The Guardian"
+date_accessed: 2026-01-30
+source_type: referenced
+---
+
+# Milo Yiannopoulos book deal cancelled after outrage over child abuse comments | Publishing | The Guardian
+
+**URL:** https://www.theguardian.com/books/2017/feb/21/milo-yiannopoulos-book-deal-cancelled-outrage-child-abuse-comments
+
+## Content
+
+Milo Yiannopoulos book deal cancelled after outrage over child abuse comments | Publishing | The Guardian
+ 
+ 
+ 
+- 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+ 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+ Skip to main contentSkip to navigationSkip to navigation
+ Milo Yiannopoulos giving a speech at Trinity University, San Antonio. Photograph: ZUMA Wire/REX/ShutterstockView image in fullscreenMilo Yiannopoulos giving a speech at Trinity University, San Antonio. Photograph: ZUMA Wire/REX/ShutterstockPublishing This article is more than 8 years old
+## Milo Yiannopoulos book deal cancelled after outrage over child abuse comments
+This article is more than 8 years oldSimon & Schuster pulls forthcoming autobiography, titled Dangerous, for which it had reportedly paid a $250,000 advance
+Elle HuntTue 21 Feb 2017 09.33 ESTFirst published on Mon 20 Feb 2017 18.06 ESTShare
+Simon & Schuster has cancelled the publication of Milo Yiannopoulos’ book, and his fellow Breitbart employees have reportedly threatened to quit if he is not fired.
+
+A statement from the publisher late on Monday said: “After careful consideration, Simon & Schuster and its Threshold Editions imprint have cancelled publication of Dangerous by Milo Yiannopoulos.”
+
+Yiannopoulos confirmed the report on Facebook with a post: “They canceled my book.”
+
+He added: “I’ve gone through worse. This will not defeat me.”
+Milo Yiannopoulos disinvited from CPac after making comments on child abuse
+Read moreThe book was reportedly secured for an advance of US$250,000 (£200,000) and was to be published by Simon & Schuster’s conservative imprint, Threshold Editions.
+
+According to Yiannopoulos’ Facebook page, the book – an autobiography titled Dangerous – was due out on 13 June.
+
+It is the third book that Yiannopoulos has announced that has not eventuated, after he flagged forthcoming titles on the Gamergate controversy and Silicon Valley that never appeared.
+
+Threshold Editions has been contacted for comment by the Guardian.
+
+Simon & Schuster’s decision follows outrage over a recording that appeared to show Yiannopoulos endorsing sex between “younger boys” and older men. The remarks were made during an internet livestream and circulated in an edited video on Twitter.
+
+In the clip, Yiannopoulos said the age of consent was “not this black and white thing” and that relationships “between younger boys and older men … can be hugely positive experiences”.
+
+The American Conservative Union subsequently rescinded its invitation to Yiannopoulos to speak at its annual CPac conference over the “offensive video … condoning paedophilia”. Matt Schlapp, the ACU chairman, said Yiannopoulos’ response was “insufficient” and urged him to “immediately further address these disturbing comments”.
+
+The Washingtonian also reported that employees at Breitbart in the US, where he is a senior editor, were threatening to quit if Yiannopoulos were not fired.
+
+In a video that was on his Facebook page for a few hours on Monday, Yiannopoulos said, of reports that he had endorsed child abuse, that “nothing could be further from the truth”.
+
+“I find those crimes to be absolutely disgusting. I find those people to be absolutely disgusting.”
+
+He did not contest the recording but said his comments were “stupidly worded” and that it had been edited to remove context.
+
+“In most cases – you guys know – if I say something outrageous or offensive, in most cases my only regret is that I didn’t piss off more people, but in this case if I could do it again I wouldn’t phrase things the same way. Because it’s led to confusion.”
+Roxane Gay pulls book from Simon & Schuster over Milo Yiannopoulos deal
+Read moreThe video was no longer available on Facebook three hours after it was posted. Yiannopoulous later publicised that he would hold a press conference in New York on Tuesday afternoon.
+
+Yiannopoulos’ book deal with Simon & Schuster was condemned by many who perceived the publishers to be giving him a mainstream platform for his often offensive and controversial views.
+
+Color of Change, a US organisation for racial justice, had campaigned online against Simon & Schuster since the book was announced. Its petition against their spreading “hate speech” had 50,000 signatures and it said it had directed nearly 1500 calls to the publisher’s offices in recent weeks.
+
+Rashad Robinson, the executive director, told the Guardian that its decision to publish the book had said “racism sells”, adding: “They were willing to cultivate hatred and racism in order to make money.”
+
+He hoped the decision to pull the book would send a message to other media platforms “that you should be careful who you stand beside”.
+
+Roxane Gay, the author and feminist commentator, wrote on her website: “In cancelling Milo’s book contract, Simon & Schuster made a business decision the same way they made a business decision when they decided to publish that man in the first place.””
+
+She said that her decision to pull her forthcoming book How to be Heard from Simon & Schuster in protest at Yiannopoulos’ book deal stood.
+
+“Simon & Schuster should have never enabled Milo in the first place. I see what they are willing to tolerate and I stand against all of it.”
+
+Yiannopoulos was permanently banned from Twitter in July 2016 for instigating abuse of the Ghostbusters actor Leslie Jones.
+
+Explore more on these topicsPublishing
+- The far right
+- Breitbart
+- newsShareReuse this content
+## Most viewed
+
+## Most viewed
+
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- Film
+- Books
+- Music
+- Art & design
+- TV & radio
+- Stage
+- Classical
+- Games
