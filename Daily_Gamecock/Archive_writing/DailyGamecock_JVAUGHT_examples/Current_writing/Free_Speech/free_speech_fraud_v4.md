@@ -4,9 +4,9 @@ On September 18, 2024, Milo Yiannopoulos and Proud Boys founder Gavin McInnes sp
 
 [Kaye quote moved to university section]
 
-Yet the movement claiming censorship has its own record to answer for. According to FIRE's own [Scholars Under Fire database](https://www.thefire.org/research-learn/scholars-under-fire), over 75 percent of incidents targeting scholars for their speech now come from the political right — not the left.
+Yet the movement claiming mass censorship has its own record to answer for. According to FIRE's own [Scholars Under Fire database](https://www.thefire.org/research-learn/scholars-under-fire), over 75 percent of incidents targeting scholars for their speech now come from the political right — not the left.
 
-The same coalition that rallied behind Uncensored America has enacted [more than 70 bills and policies across 26 states](https://pen.org/report/americas-censored-campuses-25-web-of-control/) since 2021 restricting what professors can teach, which books students can read, and which perspectives universities can value in hiring. These people do not believe in free speech. They believe in their speech.
+The same coalition that rallied behind Uncensored America has enacted [more than 70 bills and policies across 26 states](https://pen.org/report/americas-censored-campuses-25-web-of-control/) since 2021 restricting what professors can teach, which books students can read, and which perspectives universities can value in hiring — not because they believe in free speech, but because they believe in their speech.
 
 ## The Numbers Don't Lie
 
