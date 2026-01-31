@@ -9,7 +9,7 @@ On September 18, 2024, Milo Yiannopoulos and Proud Boys founder Gavin McInnes sp
 
 Yet the movement claiming mass censorship has its own record to answer for. According to FIRE's own [Scholars Under Fire database](https://www.thefire.org/research-learn/scholars-under-fire), over 75 percent of incidents targeting scholars for their speech now come from the political right — not the left.
 
-What happened that night was not a free speech crisis. It was a performance — designed to provoke a reaction that could be packaged as proof of liberal intolerance. The real threat to free speech was never a student senate vote. It is the movement behind the men on that stage.
+What happened that night was simply a performance designed to provoke a reaction that could be packaged as proof of liberal intolerance. The student senate vote was just how UA got its foot in the door — the actual threat is the national movement that brought those men to that stage.
 
 These are the men Uncensored America chose to bring to our campus. Yiannopoulos's controversies include [appearing to defend pedophilia](https://www.theguardian.com/us-news/2017/feb/21/milo-yiannopoulos-resigns-breitbart-pedophilia-comments) and provoking riots at [UC Berkeley](https://www.bbc.com/news/world-us-canada-38837142) that caused [$100,000 in damages](https://www.washingtonpost.com/news/grade-point/wp/2017/02/01/protests-at-uc-berkeley-prompted-by-milo-yiannopoulos/). McInnes [said](https://www.dailygamecock.com/article/2024/09/column-opinion-the-uncensored-america-should-not-be-taken-seriously-opinion-dunn) "violence doesn't feel good, justified violence feels great, and fighting solves everything."
 
