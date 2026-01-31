@@ -84,6 +84,8 @@ Senator Marsha Blackburn shared his contact information publicly. He was fired â
 
 ## Stop funding the cycle
 
-The movement sued for $3,577 in student fees and called it a First Amendment victory. It ran a database that sent death threats to a professor's family and called it information. It shoved a man to the ground for his sexuality and called it journalism. It fired 40 educators for their opinions and called it accountability. It burned books in Utah and called it protecting children.
+The movement sued for $3,577 in student fees and called it a First Amendment victory. It ran a database that sent death threats to a professor's family and called it information. 
+
+It shoved a man to the ground for his sexuality and called it journalism. It fired 40 educators for their opinions and called it accountability. It burned books in Utah and called it protecting children.
 
 It was never about free speech. It was always about *my* speech.
