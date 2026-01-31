@@ -15,15 +15,11 @@ Consider who the movement chose as its ambassadors. Yiannopoulos's controversies
 
 At Penn State, an Uncensored America event featuring McInnes was [canceled after protests turned violent](https://www.dailygamecock.com/article/2024/10/guest-column-free-speech-events-deserve-funding-opinion-connors). USC's event required metal barricades, USC Police, and SLED — security that student Emily Whitaker [said](https://www.wltx.com/article/news/local/controversial-event-usc/101-2c3eebfb-b310-4f96-bf66-6d098dc6b1f3) she had not seen for a drag show during the first week of classes.
 
-McInnes preaches that "sunlight is the best disinfectant." Yet when the Southern Poverty Law Center labeled the Proud Boys a hate group, he [filed a defamation lawsuit](https://www.techdirt.com/2019/07/11/splc-asks-court-to-toss-proud-boy-founders-defamation-lawsuit-asking-wheres-lie/) to silence them. The flagship speakers of the free speech movement sue their critics when criticized.
+McInnes relies on the first amendment when he preaches that "sunlight is the best disinfectant." Yet when the Southern Poverty Law Center labeled the Proud Boys a hate group, he [filed a defamation lawsuit](https://www.techdirt.com/2019/07/11/splc-asks-court-to-toss-proud-boy-founders-defamation-lawsuit-asking-wheres-lie/) to silence them. The flagship speakers of the free speech movement sue their critics when criticized.
 
-These speakers are the public face. The machinery behind them is worse.
-
-When Turning Point USA stopped at USC on its "Campus Clash" tour, the Russell House ballroom was packed and people were standing against the back wall. Audience questions were met with patronizing, hostile responses from the stage. This is the organization that claims free speech — while maintaining a [Professor Watchlist](https://en.wikipedia.org/wiki/Professor_Watchlist), a publicly searchable database targeting over 300 academics.
+Turning Point USA claims to champion free speech — while maintaining a [Professor Watchlist](https://en.wikipedia.org/wiki/Professor_Watchlist), a publicly searchable database targeting over 300 academics.
 
 Charlie Kirk [said](https://www.insidehighered.com/news/2016/11/22/new-website-seeks-register-professors-accused-liberal-bias-and-anti-american-values) to CBS News: "Our site is not intolerance or censorship. It's about information... gives parents and students a way to decide if they need to look deeper and learn more." PEN America [saw it differently](https://www.thefire.org/news/dual-purpose-tpusa-watchlist-warrants-two-toned-response), calling the Watchlist "a noxious purveyor of precisely what it claims to deride: the intimidation and ostracization of those who express controversial views on campus."
-
-Kirk calls it information. The professors on his list have a different word for it.
 
 At Diablo Valley College, political science professor Albert Ponce had a lecture on white supremacy edited into a two-minute clip and circulated through Fox News and Breitbart. He received threats against himself and his nine-year-old daughter. Family photos were posted online. He told his daughter not to open the mail.
 
@@ -33,8 +29,6 @@ David S. Cohen, a Drexel University law professor listed for pro-choice scholars
 
 At Arizona State, TPUSA employees [physically assaulted](https://www.insidehighered.com/news/2017/12/19/arizona-state-student-events-official-assaulted-political-group) a professor. At Ohio State, Treva B. Lindsey received a [surge of messages](https://matternews.org/community/targeted-ohio-state-professors-on-the-damaging-impact-of-turning-points-professor-watchlist/) with "racist language and threats of sexual violence." An organization cannot demand that universities platform speakers while running a database designed to intimidate professors into silence. That is not a free speech position. That is a *my* speech position.
 
-The Watchlist is retail intimidation. The legislative record is wholesale.
-
 Since 2021, the movement's allies have enacted [more than 70 bills and policies across 26 states](https://pen.org/report/americas-censored-campuses-25-web-of-control/) restricting what professors can teach, which books students can read, and which perspectives universities can value in hiring. In 2025 alone, [21 censorship bills became law in 15 states](https://www.insidehighered.com/news/faculty-issues/curriculum/2026/01/15/report-state-lawmakers-enacted-21-censorship-bills-2025) — the highest single-year total ever recorded. Every one of those legislatures was Republican-controlled.
 
 The assault extends to libraries. PEN America documented [6,870 book bans](https://pen.org/book-bans/pen-america-index-of-school-book-bans-2024-2025/) in the 2024-2025 school year. The [American Library Association reports](https://www.ala.org/bbooks/book-ban-data) that 72 percent of censorship demands come from organized conservative movements, elected officials, and school board members. Forty-seven percent of challenged books feature LGBTQ+ or BIPOC voices.
@@ -42,8 +36,6 @@ The assault extends to libraries. PEN America documented [6,870 book bans](https
 One student, watching books with LGBTQ+ characters pulled from shelves, [said](https://www.pbs.org/newshour/show/the-fight-against-books-bans-by-public-school-librarians-shown-in-new-documentary): "They don't want books like this in the library. They must believe that I don't belong here either." These are the same movements that scream "free speech" when a student senate votes against funding their campus event.
 
 FIRE's own [faculty survey](https://www.thefire.org/facultyreport) paints the picture on the ground. Fifty-five percent of conservative faculty say they hide their political views to protect their jobs. Thirty-five percent of all faculty have toned down their writing to avoid controversy — compared to just 9 percent during the McCarthy era. The chill is real. But it is not coming from the direction they claim.
-
-This is not abstract for USC students. It is state law.
 
 In 2021, Gov. Henry McMaster signed the REACH Act, mandating what aspects of American history universities must teach. The South Carolina Commission on Higher Education then requested section-specific syllabuses from USC, making it easy to identify exactly what individual professors were teaching.
 
