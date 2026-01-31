@@ -6,70 +6,86 @@ italics used for emphasis, not bold, and not quotes.
 
 # Column: Free speech has become "My Speech" at USC
 
-On Sept. 18, 2024, Milo Yiannopoulos and Proud Boys founder Gavin McInnes spoke to a sparse audience behind metal barricades at the University of South Carolina's Russell House. Uncensored America — a "nonpartisan, nonprofit organization dedicated to fighting for freedom of speech" — had its $3,576.99 funding request denied by the Student Senate. FIRE called it "a clear violation of the First Amendment." Conservative media called it censorship.
+On September 18, 2024, right-wing activists, Gavin McInnes and Milo Yiannopoulos, spoke to a room with empty chairs in the Russell House. Metal barricades caged the stage and SLED officers stood guard - some even say there were roof snipers scoping the event.
 
-Yet according to FIRE's own Scholars Under Fire database, over 75 percent of incidents targeting scholars for their speech now come from the political right — not the left.
+The invoice for this amazing and wonderful event went to students.
 
-## The performers
+Through mandatory activity fees, USC charged the student body $3,576.99 — not for textbooks or tutoring, but for barricades, security details and alleged snipers protecting speakers thousands of students had petitioned against.
 
-Consider who the movement chose as its ambassadors. Yiannopoulos's record includes appearing to defend pedophilia on a livestream and provoking riots at UC Berkeley that caused $100,000 in damage. McInnes said "violence doesn't feel good, justified violence feels great, and fighting solves everything."
+Uncensored America called it a free speech victory. After all, why wouldn't they? They had sued, generated headlines and forced the university to bankroll their spectacle. When the Student Senate voted to deny funding, conservative media called it censorship. FIRE called the denial "a clear violation of the First Amendment."
 
-At Penn State, an Uncensored America event featuring McInnes was canceled after protests turned violent. USC's event required metal barricades, USC Police and SLED. Student Emily Whitaker said she had not seen that level of security for a drag show during the first week of classes.
+## The real goal
 
-McInnes preaches that "sunlight is the best disinfectant." Yet when the Southern Poverty Law Center labeled the Proud Boys a hate group, he filed a defamation lawsuit to silence them. The SPLC's motion to dismiss was blunt: where is the lie? The flagship speakers of the free speech movement sue their critics when criticized. What happened that night at Russell House was not a free speech exercise. It was a performance designed to provoke a reaction that could be packaged as proof of liberal intolerance.
+But after the dust settled, nobody seemed to connect the dots. The funding denial was not a setback. It was the strategy. The lawsuit generated headlines. The headlines generated pressure. The pressure generated a spectacle — barricades, snipers and empty chairs — that would play on loop as evidence of persecution.
 
-## The watchlist
+The free speech movement had learned what the student senate never did. Sometimes losing the vote is how you win the war.
 
-Turning Point USA claims to champion free speech while maintaining a Professor Watchlist targeting over 300 academics. Charlie Kirk said the site "gives parents and students a way to decide if they need to look deeper and learn more." FIRE saw it differently, calling the Watchlist "a noxious purveyor of precisely what it claims to deride: the intimidation and ostracization of those who express controversial views on campus."
+But the movement's commitment to open discourse ends where its own critics begin. When criticized, the same men demanding platforms rush to sue their detractors into silence.
 
-At Diablo Valley College, professor Albert Ponce had a lecture on white supremacy edited into a two-minute clip and circulated through Fox News and Breitbart. He received threats against himself and his 9-year-old daughter. Family photos were posted online. He told his daughter not to open the mail.
+In 2019, long before coming to USC, McInnes filed a defamation suit against the Southern Poverty Law Center for labeling the Proud Boys a hate group. He invokes the First Amendment to preach violence, yet when others use their speech to represent him accurately, he sues.
 
-Boston University professor Saida Grundy was listed for a tweet. She said: "It was the greatest stress of my life, and I literally was just coming off having stage-three breast cancer. It was far more stressful than the cancer, far more stressful."
+## The attack on education
 
-David S. Cohen, a Drexel University law professor listed for pro-choice scholarship, said of Kirk: "He was behind a website that targeted those who he disagreed with and broadcast information about us to his extremist readers with the clear intention that they should take some kind of action against us."
+Recently famous conservative thinktank, Turning Point USA, claims to champion free speech. Yet, they maintain a Professor Watchlist targeting over hundreds of academics across the country.
 
-At Arizona State, TPUSA employees physically assaulted a professor. At Ohio State, Treva B. Lindsey received a surge of messages with "racist language and threats of sexual violence." An organization cannot demand that universities platform speakers while running a database designed to intimidate professors into silence. That is not a free speech position. That is a *my* speech position.
+Charlie Kirk – may his soul rot in hell – said the site "gives parents and students a way to decide if they need to look deeper and learn more." But FIRE saw it for what it was – "a noxious purveyor of precisely what it claims to deride: the intimidation and ostracization of those who express controversial views on campus."
 
-## The legislation
+What does that look like in practice? At Diablo Valley College, a far-right organization edited Professor Albert Ponce's lecture on white supremacy into a two-minute clip. "It ended up on Fox and Breitbart," Ponce said. "Once it hit that ecosystem, it was gone." Hate mail turned into death threats against him and his family.
 
-Since 2021, the movement's allies have enacted more than 70 bills restricting what professors can teach, which books students can read and which perspectives universities can value in hiring. In 2025 alone, 21 censorship bills became law in 15 states — the highest single-year total on record. Every one of those legislatures was Republican-controlled. More than half of all college students in the United States now study in a state with at least one law restricting academic content.
+People began posting photos of his family online, including his then-9-year-old daughter. He told a public radio show he stopped letting her even touch the mail. College administrators were flooded with demands that he be fired. "For anyone who touches these issues now," Ponce said, "it's open season."
 
-PEN America documented 6,870 book bans in the 2024-2025 school year across 23 states and 87 districts. The American Library Association reports that 72 percent of censorship demands come from organized conservative movements, elected officials and school board members. Forty-seven percent of challenged books feature LGBTQ+ or BIPOC voices.
+At Arizona State, TPUSA's Professor Watchlist targeted writing instructor David Boyles for his advocacy of a drag queen reading program. In October 2023, two TPUSA employees waited for Boyles outside his classroom, followed him across campus and demanded he answer questions about his sexuality while filming.
 
-One student, watching LGBTQ+ books pulled from shelves, said: "They don't want books like this in the library. They must believe that I don't belong here either." These are the same movements that scream free speech when a student senate votes against funding their campus event.
+Boyles was slammed to the ground, his head cracking against the concrete plaza. He was left bloodied, with scrapes and bruising across his face. Both employees later admitted guilt in court. ASU President Michael Crow said it was "the kind of outrageous conduct that you would expect to see from bullies in a high school cafeteria."
 
-## The chill at USC
+An organization cannot demand that universities platform speakers while running a database designed to intimidate professors into silence. That is not a free speech position. That is a my speech position.
 
-FIRE's 2024 faculty survey of 6,269 professors found 35 percent have toned down their writing to avoid controversy — compared to just 9 percent during the McCarthy era. Twenty-seven percent feel unable to speak freely. Forty-two percent self-censor in classroom discussions. Fourteen percent have faced discipline or threats for their speech. Fifty-five percent of conservative faculty say they hide their political views. The chill is real. But it is not coming from the direction they claim.
+## Legislating 'wrong' speech away
 
-In 2021, Gov. Henry McMaster signed the REACH Act mandating what aspects of American history universities must teach. The S.C. Commission on Higher Education then requested section-specific syllabuses from USC, making it easy to identify exactly what individual professors were teaching.
+Simply attacking people you disagree with is not enough — after all, you still have to face the courts. So the movement wrote laws instead.
 
-USC political science chair Kirk Randazzo said: "My greater concern is that by simply monitoring things, the state is potentially creating a chilling effect." USC history professor Carol Harrison said: "The chill is already here."
+Since 2021, its allies have enacted more than 70 bills restricting what professors can teach, which books students can read and which perspectives universities can value in hiring. In 2025 alone, 21 censorship bills became law in 15 states — the highest single-year total on record. Every single one of those legislatures was Republican-controlled.
 
-An open letter from South Carolina's Republican congressional delegation — signed by six representatives including Ralph Norman and Nancy Mace — called on university presidents to "eradicate" any teaching of critical race theory. The letter named a USC professor directly. Faculty called for the administration to issue a statement defending academic freedom. None came. The 2025-2026 session brought HB 3184 banning DEI in admissions and employment and SB 368 prohibiting DEI offices statewide. Free speech for the demonstrator. Government control over the classroom.
+At Texas A&M, a Republican state lawmaker filmed a professor teaching that there are more than two sexes – a scientific fact – in a children's literature class and posted the video online. Governor Greg Abbott publicly called for the professor's dismissal. A few hours later, the professor lost their job along with two administrators.
 
-## The bouncy houses
+PEN America documented 6,870 book bans in the 2024-2025 school year across 23 states and 87 districts. Eighty percent came from just three states — Florida, Texas and Tennessee. The American Library Association reports that 72 percent of censorship demands come from organized conservative movements, elected officials and school board members. Forty-seven percent of challenged books feature LGBTQ+ or BIPOC voices.
 
-So how did USC respond? With bouncy houses.
+Utah made it law. Under HB29, if three school districts pull a book, every public school in the state must follow. The rule treats the books at the same level firearms ought to be treated – students cannot even bring their own personal copies to school. A state board member, asked what should be done with the books, said he did not care if they were shredded or burned.
 
-After the Student Senate reversed its funding denial under legal pressure, over 1,000 students gathered at Blatt Field for "Blatt Bonanza" — free food, bouncy houses, a rage room and selfies with the university president. Yiannopoulos spoke to empty chairs at Russell House.
+## Owning the libs
 
-Student body president Patton Byars said: "This is the event on our campus. It's not an alternative or counter event." Nobody believed that. Student Kristen Issa said she attended Blatt Bonanza as the "best option" to oppose the roast without feeling unsafe.
+FIRE's 2024 faculty survey of 6,269 professors found 27 percent feel unable to speak freely. One professor told FIRE they almost did not fill out the survey itself. "I waited about two weeks before getting the courage to take the risk." That fear is not just an isolated example, that same survey found 35 percent of professors have toned down their writing to avoid controversy — four times the rate during the McCarthy era.
 
-President Michael Amiridis condemned the "vile and juvenile rhetoric" while defending free speech, quoting Justice Louis Brandeis: "The solution to fighting offensive speech is more speech, not enforced silence." Then he attended Blatt Bonanza, taking selfies with students. The president's feet revealed his position more clearly than his words.
+At USC, we already have an official policy for this. In 2021, Gov. Henry McMaster signed the REACH Act mandating what aspects of American history universities must teach. The S.C. Commission on Higher Education then requested section-specific syllabuses, making it easy to identify exactly what individual professors were teaching. Kirk Randazzo, chair of USC's political science department, said, "My greater concern is that by simply monitoring things, the state is potentially creating a chilling effect."
 
-One year later, the DOJ sent a letter citing "troubling allegations." USC administrators had told conservative student groups that "controversial speakers and activities will no longer happen outside." They labeled Charlie Kirk a "known disrupter to a population" — without defining either term. Attorney General Alan Wilson responded: "Limiting free speech is unconstitutional." Assistant U.S. Attorney General Harmeet Dhillon closed the letter with a warning: "U of SC — act unwise, get a surprise!" The administration that hosted bouncy houses folded again.
+Then the congressional delegation made it personal. An open letter signed by six South Carolina Republicans — including Ralph Norman and Nancy Mace — called on university presidents to "eradicate" critical race theory. The letter named USC education professor Allison Anders directly.
 
-## The honest answer
+Faculty called for the administration to defend academic freedom, but naturally, USC being the lousy wimps they are, the defense never came. The 2025-2026 state legislature session brought HB3184 banning DEI in admissions and employment and SB368 prohibiting DEI offices statewide.
 
-Yes, progressive students are hypocrites too. At USC, 27,000 people signed a petition to cancel the event. Months later, many of the same voices decried the arrest of pro-Palestinian demonstrators as suppression of protected expression.
+## Distracting the kids
 
-But it is not an equivalence. The progressive contradiction involves petitions and protests. The conservative contradiction involves legislation, state power, professors fired and entire fields of study banned by law. One side writes petitions. The other side writes laws.
+How has USC responded to all of this? With bouncy houses.
 
-The deeper question is why the university funds these organizations at all. Student activity fees subsidize events featuring men with ties to hate groups. USC adopted the Chicago Principles in June 2023 and rocketed from 246th to 34th in FIRE's rankings. But a high ranking and a principled institution are not the same thing.
+After the Student Senate reversed its funding denial under legal pressure, over 1,000 students gathered at Blatt Field for Blatt Bonanza — free food, bouncy castles, Spikeball and a rage room. The student body president at the time told WIS, "This is the event on our campus. It's not an alternative or counter event."
 
-Bouncy houses are not a free speech policy. They are an admission that the university knows exactly what it is platforming and would rather distract than confront.
+Nobody believed that. Student Kristen Issa told the Daily Gamecock she came because she "didn't feel safe protesting and didn't feel like there was anything that would actually come out of it." Jarissa Adams, a fourth-year criminology student, said she came to Blatt Bonanza so she "would be safe and not in the presence of bad vibes."
 
-If the cost of defunding organizations like Uncensored America is also losing funding for progressive groups, that trade might be worth making. Losing student-fee-funded liberal advocacy is a smaller price than continuing to hand platforms to people whose primary contribution to public discourse is making a professor's 9-year-old daughter afraid to open the mail.
+President Amiridis condemned the speakers' "vile and juvenile rhetoric," quoted Justice Brandeis on the value of more speech over enforced silence. The president claimed neutrality, then showed up at the counter-event for selfies. Bouncy houses are not a free speech policy. They are an admission that the university knows exactly what it is platforming and would rather distract than confront.
 
-The next time Turning Point USA or Uncensored America invokes the First Amendment at USC, ask one question: Would you apply this principle to the professors being fired in Texas and Florida for teaching concepts you oppose? If they would, they should say so publicly and condemn the Professor Watchlist with the same energy they brought to a $3,577 funding request. If they would not, they should stop pretending. The loudest voices for free speech on this campus belong to a movement doing more to destroy it than any student petition or bouncy house ever could.
+## Act wise, get a surprise
+
+One year later, the DOJ sent a letter after Charlie Kirk's assassination at a Utah university. USC administrators had told Turning Point USA and Uncensored America that "controversial speakers and activities will no longer happen outside for the rest of the semester."
+
+They labeled Kirk a "known disrupter to a population" — without defining either term. AG Alan Wilson called Amiridis directly. Assistant AG Harmeet Dhillon closed the DOJ letter: "UofSC — act unwise, get a surprise!" The administration that hosted bouncy houses folded once again instead of standing their ground.
+
+Then came the firings. At Clemson, a professor was terminated for sharing a post that criticized Kirk's gun positions and explicitly condemned violence. A Republican state legislator threatened to defund the university. In Tennessee, a professor shared Kirk's own words about gun deaths being the price of the Second Amendment.
+
+Senator Marsha Blackburn shared his contact information publicly. He was fired — then reinstated with a $500,000 settlement after the university admitted it violated his rights. Nationwide, at least 40 educators faced discipline for commenting on Kirk's death. Free speech for the provocateur but termination for the professor seems to be the motto here.
+
+## Stop funding the cycle
+
+The deeper question is why the university funds these organizations at all. Student activity fees — paid by every undergraduate — subsidized an event featuring a man who founded a designated hate group and another who appeared to defend pedophilia on a livestream.
+
+If the cost of defunding organizations like Uncensored America is also losing funding for progressive groups, that trade is worth making. Losing student-fee-funded liberal advocacy is a smaller price than continuing to hand $3,577 checks to people whose primary contribution to public discourse is making a professor's 9-year-old daughter afraid to touch the mail.
+
+Defund and de-platform them all. Every political organization, left and right. Let them raise their own money, book their own venues and stand on their own platforms. The First Amendment guarantees the right to speak. It does not guarantee a university check to pay for the microphone.
