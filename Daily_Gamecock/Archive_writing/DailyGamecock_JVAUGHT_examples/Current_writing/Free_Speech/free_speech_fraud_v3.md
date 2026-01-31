@@ -1,4 +1,4 @@
-# Column: The "My Speech" Movement
+# Column: Free speech has become "My Speech" at USC
 
 On September 18, 2024, Milo Yiannopoulos and Proud Boys founder Gavin McInnes spoke to a sparse audience behind metal barricades at the University of South Carolina's Russell House. Uncensored America, the student organization that hosted them — a group that describes itself as ["a nonpartisan, nonprofit organization dedicated to fighting for freedom of speech"](https://www.dailygamecock.com/article/2024/09/column-opinion-the-uncensored-america-should-not-be-taken-seriously-opinion-dunn) — had its $3,576.99 funding request [rejected 27-10](https://www.wistv.com/2024/09/13/usc-student-government-denies-funding-scheduled-roast-vice-president-kamala-harris/) by the Student Senate, reversed only after a [lawsuit threat](https://www.dailygamecock.com/article/2024/10/uncensored-america-sues-usc-days-after-student-senate-grants-funding-for-roast-elam-news). Conservative media called it censorship. [FIRE agreed](https://www.thefire.org/news/kamala-harris-comedy-roast-denied-funding-university-south-carolina-student-senate). They were right.
 
