@@ -84,8 +84,6 @@ Senator Marsha Blackburn shared his contact information publicly. He was fired �
 
 ## Stop funding the cycle
 
-The deeper question is why the university funds these organizations at all. Student activity fees — paid by every undergraduate — subsidized an event featuring a man who founded a designated hate group and another who appeared to defend pedophilia on a livestream.
+The movement sued for $3,577 in student fees and called it a First Amendment victory. It ran a database that sent death threats to a professor's family and called it information. It shoved a man to the ground for his sexuality and called it journalism. It fired 40 educators for their opinions and called it accountability. It burned books in Utah and called it protecting children.
 
-If the cost of defunding organizations like Uncensored America is also losing funding for progressive groups, that trade is worth making. Losing student-fee-funded liberal advocacy is a smaller price than continuing to hand $3,577 checks to people whose primary contribution to public discourse is making a professor's 9-year-old daughter afraid to touch the mail.
-
-Defund and de-platform them all. Every political organization, left and right. Let them raise their own money, book their own venues and stand on their own platforms. The First Amendment guarantees the right to speak. It does not guarantee a university check to pay for the microphone.
+It was never about free speech. It was always about *my* speech.
