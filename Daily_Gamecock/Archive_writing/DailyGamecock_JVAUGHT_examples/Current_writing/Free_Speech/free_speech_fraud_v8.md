@@ -1,6 +1,6 @@
 # Column: Free speech has become "My Speech" at USC
 
-On September 18, 2024, right-wing activists Gavin McInnes and Milo Yiannopoulos spoke to a room with [empty chairs](https://www.dailygamecock.com/article/2024/09/over-1000-students-attend-blatt-bonanza-during-controversial-campus-event-news-grady) in the Russell House. Metal barricades caged the stage and SLED officers stood guard – some even say there were roof snipers surveilling the event.
+On September 18, 2024, right-wing activists [Gavin McInnes](https://www.theguardian.com/world/2018/nov/22/proud-boys-founder-gavin-mcinnes-quits-far-right-group) and [Milo Yiannopoulos](https://www.theguardian.com/world/2017/feb/21/milo-yiannopoulos-rise-and-fall-shallow-actor-bad-guy-hate-speech) spoke to a room with [empty chairs](https://www.dailygamecock.com/article/2024/09/over-1000-students-attend-blatt-bonanza-during-controversial-campus-event-news-grady) in the Russell House. Metal barricades caged the stage and SLED officers stood guard – some even say there were roof snipers surveilling the event.
 
 The invoice for this amazing and wonderful event went to students.
 
