@@ -1,10 +1,15 @@
+GUIDELINES:
+must use AP style generally. "said" instead of "argued" or whatnot. 
+Sentences need to be under 30 words each. hard enforcement
+Grafs need to be under 100 words, MAX 140 in worst case. hard enforcement
+italics used for emphasis, not bold, and not quotes. 
 # Column: Free speech has become "My Speech" at USC
 
 On September 18, 2024, Milo Yiannopoulos and Proud Boys founder Gavin McInnes spoke to a sparse audience behind metal barricades at the University of South Carolina's Russell House. Uncensored America — a supposedly ["nonpartisan, nonprofit organization dedicated to fighting for freedom of speech"](https://www.dailygamecock.com/article/2024/09/column-opinion-the-uncensored-america-should-not-be-taken-seriously-opinion-dunn) — had its $3,576.99 funding request [rejected](https://www.wistv.com/2024/09/13/usc-student-government-denies-funding-scheduled-roast-vice-president-kamala-harris/) by the Student Senate. Conservative media called it censorship, and [FIRE agreed](https://www.thefire.org/news/kamala-harris-comedy-roast-denied-funding-university-south-carolina-student-senate), calling it "a clear violation of the First Amendment."
 
 Yet the movement claiming mass censorship has its own record to answer for. According to FIRE's own [Scholars Under Fire database](https://www.thefire.org/research-learn/scholars-under-fire), over 75 percent of incidents targeting scholars for their speech now come from the political right — not the left.
 
-The same coalition that rallied behind Uncensored America during their supposed suppression has enacted [more than 70 bills and policies across 26 states](https://pen.org/report/americas-censored-campuses-25-web-of-control/) since 2021. Those laws restrict what professors can teach, which books students can read, and which perspectives universities can value in hiring. They passed them not because they believe in free speech, but because they believe in *their* speech.
+The movement claiming censorship has been busy writing its own. Since 2021, its allies have enacted [more than 70 bills and policies across 26 states](https://pen.org/report/americas-censored-campuses-25-web-of-control/) restricting what professors can teach, which books students can read, and which perspectives universities can value in hiring. They believe in free speech — so long as it is *their* speech.
 
 ## The Numbers Don't Lie
 
