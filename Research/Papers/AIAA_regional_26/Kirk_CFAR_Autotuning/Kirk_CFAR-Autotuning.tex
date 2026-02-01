@@ -10,6 +10,15 @@
 \usepackage{graphicx}
 \usepackage{authblk}
 \usepackage{hyperref}
+
+% Relax float placement to prevent figures from drifting pages later
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.7}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{3}
+\setcounter{totalnumber}{5}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
 \usepackage{pgfplots}
@@ -57,16 +66,7 @@ Several lines of work have sought to automate CFAR parameter selection. Humphrey
 
 \paragraph{Positioning relative to prior work.} Despite these advances, we are not aware of prior work that jointly searches over CFAR variant, guard cells, reference cells, and $P_{\mathrm{FA}}$ using human-annotated ground truth as the objective function. Knowledge-based CFAR schemes \cite{farina2008kb} leverage GIS databases but require pre-built environmental maps unavailable for ad-hoc deployments. Expert-system approaches \cite{wicks1996} automate the operator out of the loop rather than harnessing operator situational awareness. Our approach treats the operator's annotation of stationary reference objects as quantitative ground truth, defining a formal objective function that the system optimizes via exhaustive search---combining human judgment with computational efficiency in a browser-deployable tool.
 
-%% ============================================================
-%% SECTION 3: PROBLEM FORMULATION
-%% ============================================================
-\section{Problem Formulation}
-
-Let $I_t \in \mathbb{R}^{M\times N}$ denote radar intensity frames in range--azimuth coordinates, $t = 1,\dots,T$. A CFAR variant $v \in \{$CA, GO, SO$\}$ with parameter vector $\boldsymbol{\theta} = (N_g, N_r, P_{\mathrm{FA}})$---guard cells, reference cells, and probability of false alarm---is applied to each frame to produce a binary detection map $D_t(v, \boldsymbol{\theta}) \in \{0,1\}^{M\times N}$.
-
-\label{sec:cfar_detection}
-
-\begin{figure*}[t]
+\begin{figure*}[!t]
     \centering
     \begin{tikzpicture}[
         block/.style={rectangle, draw, minimum height=0.9cm, minimum width=1.8cm, align=center, font=\footnotesize},
@@ -97,6 +97,15 @@ Let $I_t \in \mathbb{R}^{M\times N}$ denote radar intensity frames in range--azi
     \label{fig:cfar_pipeline}
 \end{figure*}
 
+%% ============================================================
+%% SECTION 3: PROBLEM FORMULATION
+%% ============================================================
+\section{Problem Formulation}
+
+Let $I_t \in \mathbb{R}^{M\times N}$ denote radar intensity frames in range--azimuth coordinates, $t = 1,\dots,T$. A CFAR variant $v \in \{$CA, GO, SO$\}$ with parameter vector $\boldsymbol{\theta} = (N_g, N_r, P_{\mathrm{FA}})$---guard cells, reference cells, and probability of false alarm---is applied to each frame to produce a binary detection map $D_t(v, \boldsymbol{\theta}) \in \{0,1\}^{M\times N}$.
+
+\label{sec:cfar_detection}
+
 All three variants share the same two-dimensional sliding-window structure. For each pixel $(i,j)$ in frame $I_t$, a guard region of radius $N_g$ excludes the cell-under-test and its immediate neighbors; a reference annulus of width $N_r$ surrounds the guard region. An integral image (summed area table) \cite{crow1984} enables $O(1)$ computation of the sum over any rectangular region. The noise estimate $Z_{i,j}$ is computed as follows:
 
 \textbf{CA-CFAR.} The mean of all $N = (2R_o+1)^2 - (2R_i+1)^2$ reference cells, where $R_o = N_g + N_r$ and $R_i = N_g$:
@@ -125,7 +134,7 @@ where $\alpha$ is given by Eq.~\eqref{eq:alpha} using the appropriate cell count
 
 \label{sec:ground_truth}
 
-\begin{figure}[t]
+\begin{figure}[!t]
     \centering
     \includegraphics[width=\columnwidth]{figures/ppi_zoomed_ground_truth_annotations.png}
     \caption{Close-up of ground truth annotations on the PPI display. The operator clicks on a detected target; an 8-connected flood fill traces the contiguous detection blob, capturing its exact pixel footprint as the reference shape for scoring.}
@@ -153,7 +162,7 @@ This ratio measures what fraction of the ground truth blob's pixels are detected
     \end{cases} \label{eq:score_zones}
 \end{equation}
 
-\begin{figure}[t]
+\begin{figure}[!t]
     \centering
     \begin{tikzpicture}
         \begin{axis}[
@@ -235,7 +244,7 @@ The key computational optimization exploits the fact that the noise map $Z$ depe
 %% ============================================================
 \section{System Architecture}
 
-\begin{figure*}[t]
+\begin{figure*}[!t]
     \centering
     \begin{tikzpicture}[
         block/.style={rectangle, draw, minimum height=1.1cm, minimum width=2.8cm, align=center, font=\small},
@@ -274,7 +283,7 @@ CFAR Studio is implemented as a fully client-side web application using React~19
 
 Radar data is ingested from CSV files containing range--azimuth intensity matrices. Each CSV row corresponds to one azimuth spoke, with columns representing range bins. A companion azimuth array specifies the angular position of each spoke. The system supports multi-frame loading, enabling temporal analysis across sequential radar sweeps.
 
-\begin{figure}[t]
+\begin{figure}[!t]
     \centering
     \includegraphics[width=\columnwidth]{figures/ppi_full_view_detections_and_ground_truth.png}
     \caption{PPI display showing raw radar intensity with CFAR detections (highlighted) and annotated ground truth blobs. The overlay enables visual comparison of detection coverage against known targets.}
@@ -283,7 +292,7 @@ Radar data is ingested from CSV files containing range--azimuth intensity matric
 
 The primary display is a PPI view rendered in Cartesian coordinates, with options for multiple colormaps (grayscale, amber, green, inferno, ice). CFAR detections are overlaid as colored highlights, and ground truth annotations are displayed as distinct markers. A B-scan view (Fig.~\ref{fig:bscan}) provides an alternative range--azimuth representation useful for examining clutter structure and detection behavior along individual spokes.
 
-\begin{figure}[t]
+\begin{figure}[!t]
     \centering
     \includegraphics[width=\columnwidth]{figures/bscan_view_grayscale_with_cfar_detections.png}
     \caption{B-scan (range vs.\ azimuth) view with CFAR detections overlaid. This representation reveals clutter structure along individual radar spokes and aids in understanding detection behavior near land--sea transitions.}
@@ -294,7 +303,7 @@ The annotation workflow proceeds as follows: (1)~the operator loads radar CSV da
 
 When the operator initiates optimization, the parameter ranges (guard cells, reference cells, $P_{\mathrm{FA}}$ values) and CFAR variant are dispatched to a Web Worker. The worker executes Algorithm~\ref{alg:grid_search}, posting progress updates at regular intervals. Upon completion, results are returned to the main thread for visualization in a multi-dimensional results dashboard (Fig.~\ref{fig:full_ui}), including sortable tables, parameter trend plots, and interactive filtering by score, false alarm count, and stability.
 
-\begin{figure*}[t]
+\begin{figure*}[!t]
     \centering
     \includegraphics[width=\textwidth]{figures/full_ui_ppi_with_optimization_results.png}
     \caption{Full CFAR Studio interface showing the PPI radar display (left), parameter controls (center), and optimization results dashboard (right) with score rankings and parameter trend visualizations.}
@@ -316,7 +325,7 @@ The grid search swept guard cells $N_g \in [1, 10]$ in steps of 1, reference cel
 
 A typical grid of approximately 500 parameter configurations completes in under 10 seconds on a modern laptop browser, owing to the integral-image loop hoisting described in Section~\ref{sec:grid_search}.
 
-\begin{figure}[t]
+\begin{figure}[!t]
     \centering
     \includegraphics[width=\columnwidth]{figures/ppi_optimization_in_progress.png}
     \caption{CFAR Studio during an active optimization run. The progress indicator shows the grid search advancing through parameter configurations while the PPI display remains interactive.}
