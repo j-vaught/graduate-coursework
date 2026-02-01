@@ -22,6 +22,7 @@
 \usepackage{colortbl}
 \usepackage{float}
 \usepackage{bm}
+\usepackage{listings}
 
 % ============================================================================
 % HEADER AND FOOTER SETUP
@@ -53,6 +54,25 @@
 \definecolor{USC_Atlantic}{HTML}{466A9F}
 \definecolor{USC_Congaree}{HTML}{1F414D}
 \definecolor{USC_Rose}{HTML}{CC2E40}
+
+% ============================================================================
+% LISTINGS SETUP (for code that fits in margins)
+% ============================================================================
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{USC_Congaree}\bfseries,
+  commentstyle=\color{USC_Black50}\itshape,
+  stringstyle=\color{USC_Garnet},
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=flexible,
+  keepspaces=true,
+  showstringspaces=false,
+  frame=none,
+  aboveskip=4pt,
+  belowskip=4pt,
+}
 
 % ============================================================================
 % CUSTOM COLORED BOXES
@@ -101,9 +121,9 @@
   \vspace{0.3cm}
 }
 
+% questionpart does NOT clearpage -- allows content to flow continuously
 \newcommand{\questionpart}[1]{%
-  \clearpage
-  \vspace{0.5cm}
+  \vspace{0.8cm}
   {\noindent\normalsize \textbf{#1}}
   \vspace{0.2cm}
   \hrule
@@ -150,7 +170,9 @@
 \end{tcolorbox}
 \end{center}
 
-\vspace{0.5cm}
+\vspace{0.3cm}
+
+\noindent\textbf{Note:} This document contains hand-worked derivations for each problem, followed by implementation sketches. The submitted code file is \texttt{code\_hw/code\_hw1.py}.
 
 % ============================================================================
 % PROBLEM 1: Markov Reward Processes
@@ -165,13 +187,13 @@
 \begin{center}
 \begin{tikzpicture}[
     >=Stealth,
-    scale=0.8,
+    scale=0.85,
     every state/.style={
         fill=white,
         draw=USC_Garnet,
         line width=2pt,
         text=black,
-        minimum size=2cm,
+        minimum size=1.8cm,
         font=\bfseries\Large
     },
     every edge/.style={
@@ -181,10 +203,10 @@
         >=Stealth
     },
     prob/.style={
-        font=\bfseries,
+        font=\bfseries\small,
         text=black,
         fill=white,
-        inner sep=3pt
+        inner sep=2pt
     },
     statelabel/.style={
         font=\small\bfseries,
@@ -192,32 +214,32 @@
     }
 ]
 
-% States
+% States -- wider spacing
 \node[state] (O) at (0, 0) {O};
 \node[statelabel, below=1pt of O.center, yshift=-6pt] {$-10$};
 
-\node[state] (U) at (7, 0) {U};
+\node[state] (U) at (8, 0) {U};
 \node[statelabel, below=1pt of U.center, yshift=-6pt] {$+10$};
 
-\node[state] (A) at (3.5, -5.5) {A};
+\node[state] (A) at (4, -4.5) {A};
 \node[statelabel, below=1pt of A.center, yshift=-6pt] {$-1$};
 
 % Self-loops
-\path (O) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=6pt] {0.7} (O);
-\path (U) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=6pt] {0.7} (U);
-\path (A) edge[loop below, looseness=5, out=-60, in=-120, draw=USC_Garnet] node[prob, below=6pt] {$\frac{1}{3}$} (A);
+\path (O) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (O);
+\path (U) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (U);
+\path (A) edge[loop below, looseness=5, out=-60, in=-120, draw=USC_Garnet] node[prob, below=5pt] {$\frac{1}{3}$} (A);
 
 % O <-> U transitions
-\path (O) edge[bend left=15] node[prob, above=4pt] {0.1} (U);
-\path (U) edge[bend left=15] node[prob, below=4pt] {0.1} (O);
+\path (O) edge[bend left=15] node[prob, above=3pt] {0.1} (U);
+\path (U) edge[bend left=15] node[prob, below=3pt] {0.1} (O);
 
-% O <-> A transitions
-\path (O) edge[bend left=8] node[prob, right=10pt, pos=0.5] {0.2} (A);
-\path (A) edge[bend left=8] node[prob, left=12pt, pos=0.5] {$\frac{1}{3}$} (O);
+% O -> A and A -> O (left side)
+\path (O) edge[bend left=12] node[prob, left=4pt, pos=0.45] {0.2} (A);
+\path (A) edge[bend left=12] node[prob, left=4pt, pos=0.55] {$\frac{1}{3}$} (O);
 
-% U <-> A transitions
-\path (U) edge[bend right=8] node[prob, left=10pt, pos=0.5] {0.2} (A);
-\path (A) edge[bend right=8] node[prob, right=12pt, pos=0.5] {$\frac{1}{3}$} (U);
+% U -> A and A -> U (right side)
+\path (U) edge[bend right=12] node[prob, right=4pt, pos=0.45] {0.2} (A);
+\path (A) edge[bend right=12] node[prob, right=4pt, pos=0.55] {$\frac{1}{3}$} (U);
 
 \end{tikzpicture}
 \end{center}
@@ -226,7 +248,7 @@
 
 The state space is $\mathcal{S} = \{O, U, A\}$ with rewards $R(O) = -10$, $R(U) = +10$, $R(A) = -1$.
 
-The transition probability matrix is:
+The transition probability matrix and reward vector are:
 \[
 \mathcal{P} = \begin{pmatrix}
 0.7 & 0.1 & 0.2 \\
@@ -236,18 +258,21 @@ The transition probability matrix is:
 \mathbf{R} = \begin{pmatrix} -10 \\ +10 \\ -1 \end{pmatrix}
 \]
 
-\subsection*{Solution Approach: Matrix Inversion}
+\subsection*{Solution: Direct Matrix Inversion}
 
 \begin{stepbox}[Step 1: Bellman Equation in Matrix Form]
 The value function satisfies:
 \[
 \mathbf{V} = \mathbf{R} + \gamma \mathcal{P} \mathbf{V}
 \quad \Longrightarrow \quad
-\mathbf{V} = (\mathbf{I} - \gamma \mathcal{P})^{-1} \mathbf{R}
+(\mathbf{I} - \gamma \mathcal{P})\mathbf{V} = \mathbf{R}
+\quad \Longrightarrow \quad
+\boxed{\mathbf{V} = (\mathbf{I} - \gamma \mathcal{P})^{-1} \mathbf{R}}
 \]
 \end{stepbox}
 
-\begin{stepbox}[Step 2: Compute I -- gamma P for gamma = 0.9]
+\begin{stepbox}[Step 2: Form the Coefficient Matrix]
+Compute $\mathbf{I} - \gamma\mathcal{P}$ for $\gamma = 0.9$:
 \[
 \mathbf{I} - 0.9\mathcal{P} =
 \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{pmatrix}
@@ -260,21 +285,27 @@ The value function satisfies:
 \]
 \end{stepbox}
 
-\begin{stepbox}[Step 3: Solve the Linear System]
-Computing $\mathbf{V} = (\mathbf{I} - \gamma\mathcal{P})^{-1}\mathbf{R}$ via matrix inversion or a linear solver yields:
+\begin{stepbox}[Step 3: Write the Bellman Equations Explicitly]
+Expanding $(\mathbf{I} - \gamma\mathcal{P})\mathbf{V} = \mathbf{R}$:
+\begin{align*}
+0.37\,V(O) - 0.09\,V(U) - 0.18\,V(A) &= -10 \\
+-0.09\,V(O) + 0.37\,V(U) - 0.18\,V(A) &= +10 \\
+-0.3\,V(O) - 0.3\,V(U) + 0.7\,V(A) &= -1
+\end{align*}
+Solving this $3 \times 3$ linear system (via Gaussian elimination, Cramer's rule, or \texttt{np.linalg.solve}):
 \end{stepbox}
 
 \begin{resultsbox}
 For $\gamma = 0.9$:
 \[
-V(O) \approx -23.75, \qquad V(U) \approx +32.01, \qquad V(A) \approx +1.04
+\boxed{V(O) \approx -23.75, \qquad V(U) \approx +32.01, \qquad V(A) \approx +1.04}
 \]
 
 \textbf{Interpretation:}
 \begin{itemize}[nosep]
-    \item $V(O) < 0$: The system tends to stay in $O$ (70\% self-loop), accumulating $-10$ rewards.
-    \item $V(U) > 0$: The system tends to stay in $U$ (70\% self-loop), accumulating $+10$ rewards.
-    \item $V(A) \approx 0$: Despite the $-1$ reward, there is a $\frac{1}{3}$ chance of reaching the valuable state $U$.
+    \item $V(O) \approx -23.75$: The system tends to stay in $O$ (70\% self-loop), accumulating $-10$ rewards over time.
+    \item $V(U) \approx +32.01$: The system tends to stay in $U$ (70\% self-loop), accumulating $+10$ rewards.
+    \item $V(A) \approx +1.04$: Despite the $-1$ immediate reward, the $\frac{1}{3}$ chance of reaching $U$ makes this state slightly positive.
 \end{itemize}
 \end{resultsbox}
 
@@ -293,15 +324,16 @@ $\bm{\gamma}$ & $\mathbf{V(O)}$ & $\mathbf{V(U)}$ & $\mathbf{V(A)}$ \\
 \end{tabular}
 \end{center}
 
+\noindent At $\gamma = 0$, only immediate rewards matter so $V(s) = R(s)$. As $\gamma \to 1$, future rewards accumulate and the values diverge significantly. Note how $V(A)$ flips from negative to positive around $\gamma \approx 0.5$ as the future value of potentially reaching $U$ outweighs the $-1$ penalty.
+
 \begin{codebox}[Implementation]
-The \texttt{mrp} function uses NumPy's \texttt{np.linalg.solve} to solve $(\mathbf{I} - \gamma\mathcal{P})\mathbf{V} = \mathbf{R}$:
-\begin{verbatim}
+\begin{lstlisting}
 import numpy as np
 
-def mrp(P, R, gamma):
-    I = np.eye(P.shape[0])
-    return np.linalg.solve(I - gamma * P, R)
-\end{verbatim}
+def mrp(state_trans_probs, state_rewards, gamma):
+    I = np.eye(state_trans_probs.shape[0])
+    return np.linalg.solve(I - gamma * state_trans_probs, state_rewards)
+\end{lstlisting}
 \end{codebox}
 
 % ============================================================================
@@ -319,9 +351,9 @@ Value iteration repeatedly applies the Bellman optimality update until convergen
 V_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \left[ r(s,a) + \gamma \sum_{s'} P(s'|s,a) \cdot V_k(s') \right]
 \]
 
-The optimal policy is then:
+The optimal policy is extracted after convergence:
 \[
-\pi^*(s) = \arg\max_{a \in \mathcal{A}(s)} \left[ r(s,a) + \gamma \sum_{s'} P(s'|s,a) \cdot V(s') \right]
+\pi^*(s) = \arg\max_{a \in \mathcal{A}(s)} \left[ r(s,a) + \gamma \sum_{s'} P(s'|s,a) \cdot V^*(s') \right]
 \]
 
 \begin{stepbox}[Step 1: Initialize]
@@ -339,7 +371,7 @@ Repeat until $\max_s |V_{\text{new}}(s) - V_{\text{old}}(s)| < \theta$.
 \end{stepbox}
 
 \begin{stepbox}[Step 3: Extract Policy]
-For each state $s$, compute the action probabilities. For the greedy deterministic policy, assign probability 1 to $\arg\max_a Q(s,a)$ and 0 to all other actions.
+For each state $s$, compute $Q(s,a)$ for all actions and assign probability~1 to $\arg\max_a Q(s,a)$.
 \end{stepbox}
 
 \subsection*{Worked Example: 2-State MDP}
@@ -349,7 +381,7 @@ Consider a simple MDP with states $S_0, S_1$ and terminal state $S_T$, $\gamma =
 \begin{center}
 \begin{tikzpicture}[
     >=Stealth,
-    scale=0.7,
+    scale=0.75,
     every state/.style={
         fill=white,
         draw=USC_Garnet,
@@ -362,20 +394,36 @@ Consider a simple MDP with states $S_0, S_1$ and terminal state $S_T$, $\gamma =
     prob/.style={font=\small\bfseries, fill=white, inner sep=2pt}
 ]
 \node[state] (S0) at (0, 0) {$S_0$};
-\node[state] (S1) at (4, 0) {$S_1$};
-\node[state, draw=USC_Atlantic] (ST) at (8, 0) {$S_T$};
+\node[state] (S1) at (5, 0) {$S_1$};
+\node[state, draw=USC_Atlantic] (ST) at (10, 0) {$S_T$};
 
 \path (S0) edge[loop above, looseness=5, out=120, in=60] node[prob, above=4pt] {$L: r=-1$} (S0);
-\path (S0) edge node[prob, above=4pt] {$R: r=0$} (S1);
-\path (S1) edge[bend left=15] node[prob, above=4pt] {$L: r=0$} (S0);
+\path (S0) edge[bend left=12] node[prob, above=4pt] {$R: r=0$} (S1);
+\path (S1) edge[bend left=12] node[prob, below=4pt] {$L: r=0$} (S0);
 \path (S1) edge node[prob, above=4pt] {$R: r=+10$} (ST);
 \end{tikzpicture}
 \end{center}
 
-\textbf{Value Iteration:}
+\textbf{Value Iteration (hand trace):}
+
+\smallskip
+
+\textbf{Iteration 1} (from $V_0(S_0) = 0, \; V_0(S_1) = 0$):
+\begin{align*}
+V_1(S_0) &= \max\!\big(\underbrace{-1 + 1 \cdot V_0(S_0)}_{L: -1+0=-1},\; \underbrace{0 + 1 \cdot V_0(S_1)}_{R: 0+0=0}\big) = 0 & \pi(S_0) &= R \\
+V_1(S_1) &= \max\!\big(\underbrace{0 + 1 \cdot V_0(S_0)}_{L: 0+0=0},\; \underbrace{10 + 1 \cdot V_0(S_T)}_{R: 10+0=10}\big) = 10 & \pi(S_1) &= R
+\end{align*}
+
+\textbf{Iteration 2} (from $V_1(S_0) = 0, \; V_1(S_1) = 10$):
+\begin{align*}
+V_2(S_0) &= \max\!\big(\underbrace{-1 + 0}_{L: -1},\; \underbrace{0 + 10}_{R: 10}\big) = 10 & \pi(S_0) &= R \\
+V_2(S_1) &= \max\!\big(\underbrace{0 + 0}_{L: 0},\; \underbrace{10 + 0}_{R: 10}\big) = 10 & \pi(S_1) &= R
+\end{align*}
+
+\textbf{Iteration 3}: $V_3(S_0) = \max(-1, 10) = 10$, $V_3(S_1) = \max(10, 10) = 10$. \textbf{Converged.}
 
 \begin{center}
-\begin{tabular}{ccccl}
+\begin{tabular}{cccll}
 \toprule
 \textbf{Iter} & $\mathbf{V(S_0)}$ & $\mathbf{V(S_1)}$ & $\bm{\pi(S_0)}$ & $\bm{\pi(S_1)}$ \\
 \midrule
@@ -388,11 +436,11 @@ Consider a simple MDP with states $S_0, S_1$ and terminal state $S_T$, $\gamma =
 \end{center}
 
 \begin{resultsbox}
-Converged: $V^*(S_0) = 10$, $V^*(S_1) = 10$. Optimal policy: $S_0 \to \text{right} \to S_1 \to \text{right} \to S_T$ collecting $+10$ reward.
+$V^*(S_0) = 10$, $V^*(S_1) = 10$. Optimal policy: $S_0 \xrightarrow{R} S_1 \xrightarrow{R} S_T$, collecting $+10$ total reward.
 \end{resultsbox}
 
-\begin{codebox}[Implementation Sketch]
-\begin{verbatim}
+\begin{codebox}[Implementation]
+\begin{lstlisting}
 def dynamic_programming(env, states, state_values, gamma):
     theta = 1e-8
     while True:
@@ -402,44 +450,44 @@ def dynamic_programming(env, states, state_values, gamma):
             if not actions:
                 continue
             v_old = state_values[s]
-            q_values = []
+            q_vals = []
             for a in actions:
-                r, next_states, probs = env.state_action_dynamics(s, a)
-                q = r + gamma * sum(p * state_values[ns]
-                                    for ns, p in zip(next_states, probs))
-                q_values.append(q)
-            state_values[s] = max(q_values)
+                r, nxts, probs = env.state_action_dynamics(s, a)
+                q = r + gamma * sum(
+                    p * state_values[ns]
+                    for ns, p in zip(nxts, probs))
+                q_vals.append(q)
+            state_values[s] = max(q_vals)
             delta = max(delta, abs(v_old - state_values[s]))
         if delta < theta:
             break
 
-    # Extract policy
+    # Extract greedy policy
     policy = {}
     for s in states:
         actions = env.get_actions(s)
-        action_probs = [0.0] * len(actions)
+        probs = [0.0] * len(actions)
         if actions:
-            best_q = float('-inf')
-            best_idx = 0
+            best_q, best_i = float('-inf'), 0
             for i, a in enumerate(actions):
-                r, next_states, probs = env.state_action_dynamics(s, a)
-                q = r + gamma * sum(p * state_values[ns]
-                                    for ns, p in zip(next_states, probs))
+                r, nxts, ps = env.state_action_dynamics(s, a)
+                q = r + gamma * sum(
+                    p * state_values[ns]
+                    for ns, p in zip(nxts, ps))
                 if q > best_q:
-                    best_q = q
-                    best_idx = i
-            action_probs[best_idx] = 1.0
-        policy[s] = action_probs
+                    best_q, best_i = q, i
+            probs[best_i] = 1.0
+        policy[s] = probs
 
     return state_values, policy
-\end{verbatim}
+\end{lstlisting}
 \end{codebox}
 
 % ============================================================================
 % PROBLEM 2.2: Model-Free RL
 % ============================================================================
 
-\question{Problem 2.2: Model-Free Reinforcement Learning (40 pts)}\label{quest:mf}
+\questionpart{Problem 2.2: Model-Free Reinforcement Learning (40 pts)}\label{quest:mf}
 
 \textbf{Task:} Implement the \texttt{model\_free} function. Use a tabular model-free RL algorithm to approximate the optimal action-value function. \textbf{Cannot} use \texttt{env.state\_action\_dynamics}.
 
@@ -462,8 +510,8 @@ a = \begin{cases}
 Set $Q(s,a) = 0$ for all state-action pairs. Choose hyperparameters:
 \begin{itemize}[nosep]
     \item Learning rate $\alpha \in (0, 1]$ (e.g., $\alpha = 0.1$)
-    \item Exploration rate $\varepsilon \in (0, 1]$ (e.g., $\varepsilon = 0.3$, decaying)
-    \item Number of episodes (e.g., $N = 10000$)
+    \item Exploration rate $\varepsilon$, decaying from $1.0$ to $0.01$
+    \item Number of episodes $N$ (e.g., $N = 50000$)
 \end{itemize}
 \end{stepbox}
 
@@ -473,17 +521,18 @@ For each episode:
     \item Sample start state $s \leftarrow$ \texttt{env.sample\_start\_state()}.
     \item While $s$ is not terminal:
     \begin{enumerate}[nosep]
-        \item Select action $a$ via $\varepsilon$-greedy w.r.t. $Q(s, \cdot)$.
+        \item Select action $a$ via $\varepsilon$-greedy w.r.t.\ $Q(s, \cdot)$.
         \item Take action: $(s', r) \leftarrow$ \texttt{env.sample\_transition(s, a)}.
-        \item Update: $Q(s,a) \leftarrow Q(s,a) + \alpha [r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$.
+        \item Update: $Q(s,a) \leftarrow Q(s,a) + \alpha \big[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\big]$.
         \item $s \leftarrow s'$.
     \end{enumerate}
+    \item Decay $\varepsilon$: $\varepsilon \leftarrow \max(\varepsilon_{\min},\; \varepsilon \cdot \varepsilon_{\text{decay}})$.
 \end{enumerate}
 \end{stepbox}
 
 \subsection*{Worked Example: 2-State MDP with Q-Learning}
 
-Same 2-state MDP as before. $\alpha = 0.1$, $\gamma = 1.0$, $\varepsilon = 0.3$.
+Same 2-state MDP as Problem~2.1. Parameters: $\alpha = 0.1$, $\gamma = 1.0$, $\varepsilon = 0.3$.
 
 Initialize: $Q(S_0, L) = Q(S_0, R) = Q(S_1, L) = Q(S_1, R) = 0$.
 
@@ -520,51 +569,53 @@ Initialize: $Q(S_0, L) = Q(S_0, R) = Q(S_1, L) = Q(S_1, R) = 0$.
 \end{tabular}
 \end{stepbox}
 
+\noindent After 3 episodes the Q-values are already trending toward the true values. The pattern is clear: each episode, $Q(S_1, R)$ absorbs more of the $+10$ terminal reward, and $Q(S_0, R)$ bootstraps off the improving $Q(S_1, R)$.
+
 \begin{resultsbox}
 After many episodes: $Q(S_0, R) \to 10$, $Q(S_1, R) \to 10$, matching the DP solution.
 
 The greedy policy $\pi(s) = \arg\max_a Q(s,a)$ yields $S_0 \to R$, $S_1 \to R$.
 \end{resultsbox}
 
-\begin{codebox}[Implementation Sketch]
-\begin{verbatim}
+\begin{codebox}[Implementation]
+\begin{lstlisting}
 import random
 
 def model_free(env, action_values, gamma):
     alpha = 0.1
-    epsilon = 1.0
-    epsilon_decay = 0.9995
-    epsilon_min = 0.01
+    eps = 1.0
+    eps_decay = 0.9995
+    eps_min = 0.01
     num_episodes = 50000
 
-    for ep in range(num_episodes):
+    for _ in range(num_episodes):
         state = env.sample_start_state()
         while True:
             actions = env.get_actions(state)
             if not actions:
                 break
-            # Epsilon-greedy
-            if random.random() < epsilon:
+            # Epsilon-greedy action selection
+            if random.random() < eps:
                 idx = random.randrange(len(actions))
             else:
                 idx = max(range(len(actions)),
-                         key=lambda i: action_values[state][i])
+                    key=lambda i: action_values[state][i])
             action = actions[idx]
-            next_state, reward = env.sample_transition(state, action)
+            nxt, reward = env.sample_transition(state, action)
 
             # Q-learning update
-            next_actions = env.get_actions(next_state)
-            max_q_next = max(action_values[next_state]) if next_actions else 0.0
-            td_target = reward + gamma * max_q_next
-            td_error = td_target - action_values[state][idx]
-            action_values[state][idx] += alpha * td_error
+            nxt_acts = env.get_actions(nxt)
+            max_q = (max(action_values[nxt])
+                     if nxt_acts else 0.0)
+            td = reward + gamma * max_q
+            action_values[state][idx] += (
+                alpha * (td - action_values[state][idx]))
 
-            state = next_state
-
-        epsilon = max(epsilon_min, epsilon * epsilon_decay)
+            state = nxt
+        eps = max(eps_min, eps * eps_decay)
 
     return action_values
-\end{verbatim}
+\end{lstlisting}
 \end{codebox}
 
 % ============================================================================
