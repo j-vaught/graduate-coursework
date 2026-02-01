@@ -1,0 +1,416 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{xcolor}
+
+% Brand colors
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{honeycomb}{HTML}{A49137}
+\definecolor{gray90}{HTML}{363636}
+\definecolor{gray70}{HTML}{5C5C5C}
+\definecolor{gray50}{HTML}{A2A2A2}
+\definecolor{gray30}{HTML}{C7C7C7}
+\definecolor{gray10}{HTML}{ECECEC}
+\definecolor{sandstorm}{HTML}{FFF2E3}
+
+\pagestyle{empty}
+
+\begin{document}
+
+%% ============================================================
+%% DIAGRAM 1: CFAR Sliding Window
+%% ============================================================
+\begin{center}
+\textbf{\Large Diagram 1: CFAR Sliding Window Variants}
+\end{center}
+\vspace{0.5cm}
+
+\newcommand{\cfarGrid}[3]{% #1=x-offset, #2=title, #3=style key
+\begin{scope}[shift={(#1,0)}]
+  \node[font=\bfseries] at (2.5,5.8) {#2};
+  % Draw 5x5 grid
+  \foreach \r in {0,...,4}{
+    \foreach \c in {0,...,4}{
+      \pgfmathtruncatemacro{\iscut}{(\r==2 && \c==2) ? 1 : 0}
+      \pgfmathtruncatemacro{\isguard}{(abs(\r-2)<=1 && abs(\c-2)<=1 && \iscut==0) ? 1 : 0}
+      % leading = top rows (r<2 after guard exclusion)
+      \pgfmathtruncatemacro{\isleading}{(\iscut==0 && \isguard==0 && \r<2) ? 1 : 0}
+      \pgfmathtruncatemacro{\istrailing}{(\iscut==0 && \isguard==0 && \r>2) ? 1 : 0}
+      %
+      \ifnum\iscut=1
+        \fill[garnet] (\c,\r) rectangle ++(1,1);
+      \else\ifnum\isguard=1
+        \fill[gray50] (\c,\r) rectangle ++(1,1);
+      \else
+        % Style depends on variant
+        \ifnum#3=0 % CA: all reference equal
+          \fill[atlantic!60] (\c,\r) rectangle ++(1,1);
+        \fi
+        \ifnum#3=1 % GO: leading bold, trailing dim
+          \ifnum\isleading=1
+            \fill[atlantic!80] (\c,\r) rectangle ++(1,1);
+          \else
+            \fill[atlantic!25] (\c,\r) rectangle ++(1,1);
+          \fi
+        \fi
+        \ifnum#3=2 % SO: trailing bold, leading dim
+          \ifnum\istrailing=1
+            \fill[atlantic!80] (\c,\r) rectangle ++(1,1);
+          \else
+            \fill[atlantic!25] (\c,\r) rectangle ++(1,1);
+          \fi
+        \fi
+      \fi\fi
+      \draw[gray70] (\c,\r) rectangle ++(1,1);
+    }
+  }
+  % Annotations below
+  \ifnum#3=0
+    \node[font=\small,text=gray70] at (2.5,-0.5) {All reference cells averaged};
+  \fi
+  \ifnum#3=1
+    \node[font=\small,text=gray70] at (2.5,-0.5) {Max(leading, trailing) selected};
+  \fi
+  \ifnum#3=2
+    \node[font=\small,text=gray70] at (2.5,-0.5) {Min(leading, trailing) selected};
+  \fi
+\end{scope}
+}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.7]
+  \cfarGrid{0}{CA-CFAR}{0}
+  \cfarGrid{6.5}{GO-CFAR}{1}
+  \cfarGrid{13}{SO-CFAR}{2}
+
+  % Legend
+  \fill[garnet] (0,-1.8) rectangle ++(0.5,0.5);
+  \node[right,font=\small] at (0.6,-1.55) {Cell Under Test};
+  \fill[gray50] (5,-1.8) rectangle ++(0.5,0.5);
+  \node[right,font=\small] at (5.6,-1.55) {Guard Region};
+  \fill[atlantic!60] (10,-1.8) rectangle ++(0.5,0.5);
+  \node[right,font=\small] at (10.6,-1.55) {Reference Cells};
+\end{tikzpicture}
+\end{center}
+
+\newpage
+
+%% ============================================================
+%% DIAGRAM 2: Range-Azimuth to PPI Mapping
+%% ============================================================
+\begin{center}
+\textbf{\Large Diagram 2: Range-Azimuth to PPI Mapping}
+\end{center}
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.9]
+
+% --- Left: Range-Azimuth Matrix ---
+\node[font=\bfseries] at (2,5.5) {Range-Azimuth Matrix};
+\node[font=\small,text=gray70,rotate=90] at (-0.7,2.5) {Azimuth (deg)};
+\node[font=\small,text=gray70] at (2,-0.5) {Range Bin};
+
+% Column headers
+\foreach \c/\lbl in {0/1,1/2,2/3,3/4}{
+  \node[font=\footnotesize] at (\c+0.5,4.7) {\lbl};
+}
+% Row headers
+\foreach \r/\lbl in {3/0\textdegree,2/90\textdegree,1/180\textdegree,0/270\textdegree}{
+  \node[font=\footnotesize] at (-0.4,\r+0.5) {\lbl};
+}
+
+% Grid with sample values
+\foreach \r in {0,...,3}{
+  \foreach \c in {0,...,3}{
+    \pgfmathtruncatemacro{\val}{10+\r*5+\c*3+mod(\r*\c*7,9)}
+    \fill[gray10] (\c,\r) rectangle ++(1,1);
+    \draw[gray70] (\c,\r) rectangle ++(1,1);
+    \node[font=\tiny] at (\c+0.5,\r+0.5) {\val};
+  }
+}
+
+% Highlight row 3 (0 deg)
+\draw[garnet,very thick] (0,3) rectangle ++(4,1);
+
+% --- Arrow ---
+\draw[->,very thick,garnet] (5,2.5) -- (7,2.5);
+\node[font=\small,above,text=gray90] at (6,2.7) {Polar $\to$ Cartesian};
+
+% --- Right: PPI Display ---
+\begin{scope}[shift={(11,2.5)}]
+  \node[font=\bfseries] at (0,4.2) {PPI Display};
+
+  % Range rings
+  \foreach \rad in {1,2,3}{
+    \draw[gray30] (0,0) circle (\rad);
+  }
+  \node[font=\tiny,text=gray70] at (3.3,0) {R3};
+  \node[font=\tiny,text=gray70] at (2.3,0) {R2};
+  \node[font=\tiny,text=gray70] at (1.3,0) {R1};
+
+  % Radial spokes
+  \foreach \ang in {0,90,180,270}{
+    \draw[gray50] (0,0) -- (\ang:3.2);
+  }
+  % Extra spokes
+  \foreach \ang in {45,135,225,315}{
+    \draw[gray10] (0,0) -- (\ang:3.2);
+  }
+
+  % North arrow
+  \draw[->,thick,garnet] (0,3.2) -- (0,3.8);
+  \node[font=\small,text=garnet] at (0,4.0) {N};
+
+  % Highlight 0-degree spoke (North)
+  \draw[garnet,very thick] (0,0) -- (90:3);
+
+  % Center dot
+  \fill[garnet] (0,0) circle (0.08);
+\end{scope}
+
+% Connection annotation
+\draw[->,dashed,rose,thick] (2,4.1) to[out=30,in=150] (8.5,4.5);
+\node[font=\tiny,text=rose] at (5.5,5.0) {Row $\to$ Spoke};
+
+\end{tikzpicture}
+\end{center}
+
+\newpage
+
+%% ============================================================
+%% DIAGRAM 3: Coverage Scoring Visual
+%% ============================================================
+\begin{center}
+\textbf{\Large Diagram 3: Coverage Score Illustration}
+\end{center}
+\vspace{0.5cm}
+
+\newcommand{\coveragePanel}[4]{% #1=x-offset, #2=fill fraction label, #3=score, #4=clip amount
+\begin{scope}[shift={(#1,0)}]
+  % Ground truth outline (irregular blob)
+  \def\blobpath{
+    (0.3,0.5) .. controls (0.2,1.5) and (0.5,2.8) ..
+    (1.5,3.2) .. controls (2.5,3.5) and (3.5,3.0) ..
+    (3.8,2.2) .. controls (4.0,1.2) and (3.5,0.3) ..
+    (2.5,0.1) .. controls (1.5,-0.1) and (0.5,0.0) ..
+    (0.3,0.5)
+  }
+
+  % Filled region (clipped to blob, partial fill via rectangle)
+  \begin{scope}
+    \clip \blobpath;
+    \fill[atlantic!40] (0,0) rectangle (4,#4);
+  \end{scope}
+
+  % Outline
+  \draw[garnet,thick] \blobpath;
+
+  % Label
+  \node[font=\small,text=gray90] at (2,-0.7) {$\rho = #2$};
+  \node[font=\small,text=garnet] at (2,-1.2) {score $= #3$};
+  \node[font=\tiny,text=gray70] at (2,3.8) {Ground Truth Boundary};
+\end{scope}
+}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.0]
+  \coveragePanel{0}{0.20}{0.25}{0.8}
+  \coveragePanel{5.5}{0.60}{0.75}{2.1}
+  \coveragePanel{11}{0.95}{1.00}{3.4}
+
+  % Legend
+  \fill[atlantic!40] (0,-2.2) rectangle ++(0.5,0.4);
+  \node[right,font=\small] at (0.6,-2.0) {Detected pixels};
+  \draw[garnet,thick] (5,-2.2) rectangle ++(0.5,0.4);
+  \node[right,font=\small] at (5.6,-2.0) {Ground truth outline};
+\end{tikzpicture}
+\end{center}
+
+\newpage
+
+%% ============================================================
+%% DIAGRAM 4: Guard Cell Size Effect
+%% ============================================================
+\begin{center}
+\textbf{\Large Diagram 4: Guard Cell Size Effect}
+\end{center}
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.75]
+
+% --- Panel A: Guard Too Small ---
+\begin{scope}[shift={(0,0)}]
+  \node[font=\bfseries] at (3.5,8.5) {(a) Guard Too Small};
+
+  % 7x7 grid
+  \foreach \r in {0,...,6}{
+    \foreach \c in {0,...,6}{
+      \pgfmathtruncatemacro{\iscut}{(\r==3 && \c==3) ? 1 : 0}
+      \pgfmathtruncatemacro{\isguard}{(abs(\r-3)==1 && abs(\c-3)<=1) || (abs(\c-3)==1 && abs(\r-3)<=1) ? 1 : 0}
+      \pgfmathtruncatemacro{\isref}{(\iscut==0 && \isguard==0) ? 1 : 0}
+      %
+      \ifnum\iscut=1
+        \fill[garnet] (\c,\r) rectangle ++(1,1);
+      \else\ifnum\isguard=1
+        \fill[gray50] (\c,\r) rectangle ++(1,1);
+      \else
+        \fill[atlantic!30] (\c,\r) rectangle ++(1,1);
+      \fi\fi
+      \draw[gray70] (\c,\r) rectangle ++(1,1);
+    }
+  }
+
+  % Target bleed: bright cells in reference window
+  \fill[rose!70] (1,3) rectangle ++(1,1);
+  \fill[rose!50] (2,3) rectangle ++(1,1);
+  \draw[gray70] (1,3) rectangle ++(1,1);
+  \draw[gray70] (2,3) rectangle ++(1,1);
+
+  % Target core
+  \fill[rose] (3,3) rectangle ++(1,1);
+  \draw[gray70] (3,3) rectangle ++(1,1);
+  \node[font=\tiny,white] at (3.5,3.5) {Target};
+
+  \node[font=\tiny,rose] at (1.5,3.5) {Bleed};
+
+  % Arrow annotation
+  \draw[->,thick,rose] (1.5,2.7) -- (1.5,1.5);
+  \node[font=\small,text=rose,text width=5cm,align=center] at (3.5,-0.8)
+    {Target bleeds into reference window\\$\to$ biased noise estimate\\$\to$ missed detection};
+\end{scope}
+
+% --- Panel B: Guard Appropriate ---
+\begin{scope}[shift={(10,0)}]
+  \node[font=\bfseries] at (3.5,8.5) {(b) Guard Appropriate};
+
+  % 7x7 grid with larger guard (2-cell guard band)
+  \foreach \r in {0,...,6}{
+    \foreach \c in {0,...,6}{
+      \pgfmathtruncatemacro{\iscut}{(\r==3 && \c==3) ? 1 : 0}
+      \pgfmathtruncatemacro{\isguard}{(abs(\r-3)<=2 && abs(\c-3)<=2 && \iscut==0 && (abs(\r-3)>=1 || abs(\c-3)>=1)) ? 1 : 0}
+      \pgfmathtruncatemacro{\isref}{(\iscut==0 && \isguard==0) ? 1 : 0}
+      %
+      \ifnum\iscut=1
+        \fill[garnet] (\c,\r) rectangle ++(1,1);
+      \else\ifnum\isguard=1
+        \fill[gray50] (\c,\r) rectangle ++(1,1);
+      \else
+        \fill[atlantic!30] (\c,\r) rectangle ++(1,1);
+      \fi\fi
+      \draw[gray70] (\c,\r) rectangle ++(1,1);
+    }
+  }
+
+  % Target fully in guard
+  \fill[rose] (3,3) rectangle ++(1,1);
+  \fill[rose!50] (2,3) rectangle ++(1,1);
+  \draw[gray70] (3,3) rectangle ++(1,1);
+  \draw[gray70] (2,3) rectangle ++(1,1);
+  \node[font=\tiny,white] at (3.5,3.5) {Target};
+
+  % Check mark on reference
+  \node[font=\small,horseshoe] at (0.5,0.5) {\checkmark};
+  \node[font=\small,horseshoe] at (6.5,6.5) {\checkmark};
+
+  \node[font=\small,text=horseshoe,text width=5cm,align=center] at (3.5,-0.8)
+    {Target contained in guard region\\$\to$ unbiased noise estimate\\$\to$ correct detection};
+\end{scope}
+
+\end{tikzpicture}
+\end{center}
+
+\newpage
+
+%% ============================================================
+%% DIAGRAM 5: Integral Image / Summed Area Table
+%% ============================================================
+\begin{center}
+\textbf{\Large Diagram 5: Integral Image (Summed Area Table)}
+\end{center}
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+
+% --- Left: Original Image ---
+\node[font=\bfseries] at (2,4.8) {Original Image};
+\def\vals{{3,1,2,4, 1,5,3,2, 0,2,1,3, 4,1,0,2}}
+\foreach \r in {0,...,3}{
+  \foreach \c in {0,...,3}{
+    \pgfmathtruncatemacro{\idx}{\r*4+\c}
+    \pgfmathtruncatemacro{\val}{\vals[\idx]}
+    \fill[gray10] (\c,3-\r) rectangle ++(1,1);
+    \draw[gray70] (\c,3-\r) rectangle ++(1,1);
+    \node[font=\small] at (\c+0.5,3.5-\r) {\val};
+  }
+}
+
+% --- Arrow ---
+\draw[->,very thick,garnet] (4.5,2) -- (5.5,2);
+\node[font=\small,above,text=gray90] at (5,2.15) {$\Sigma$};
+
+% --- Right: Integral Image ---
+\node[font=\bfseries] at (8,4.8) {Integral Image};
+% Cumulative sums (row-major, top-to-bottom):
+% Row0: 3, 4, 6, 10
+% Row1: 4, 10, 15, 21
+% Row2: 4, 12, 18, 27
+% Row3: 8, 17, 23, 34
+\def\ivals{{3,4,6,10, 4,10,15,21, 4,12,18,27, 8,17,23,34}}
+\foreach \r in {0,...,3}{
+  \foreach \c in {0,...,3}{
+    \pgfmathtruncatemacro{\idx}{\r*4+\c}
+    \pgfmathtruncatemacro{\val}{\ivals[\idx]}
+    \fill[sandstorm] (6+\c,3-\r) rectangle ++(1,1);
+    \draw[gray70] (6+\c,3-\r) rectangle ++(1,1);
+    \node[font=\small] at (6.5+\c,3.5-\r) {\val};
+  }
+}
+
+% --- Below: Box-sum query diagram ---
+\begin{scope}[shift={(2,-3.5)}]
+  \node[font=\bfseries] at (3,2.8) {$O(1)$ Box-Sum Query};
+
+  % 4x4 grid outline
+  \foreach \r in {0,...,3}{
+    \foreach \c in {0,...,3}{
+      \fill[gray10] (\c,-\r) rectangle ++(1,1);
+      \draw[gray30] (\c,-\r) rectangle ++(1,1);
+    }
+  }
+
+  % Queried rectangle (rows 1-2, cols 1-2 in 0-indexed)
+  \fill[atlantic!30] (1,-1) rectangle ++(2,2);
+  \draw[atlantic,very thick] (1,-1) rectangle ++(2,2);
+
+  % Corner labels
+  \fill[garnet] (1,1) circle (0.15);
+  \node[font=\footnotesize,garnet,above left] at (1,1) {$A$};
+
+  \fill[congaree] (3,1) circle (0.15);
+  \node[font=\footnotesize,congaree,above right] at (3,1) {$B$};
+
+  \fill[congaree] (1,-1) circle (0.15);
+  \node[font=\footnotesize,congaree,below left] at (1,-1) {$C$};
+
+  \fill[horseshoe!80!black] (3,-1) circle (0.15);
+  \node[font=\footnotesize,horseshoe!80!black,below right] at (3,-1) {$D$};
+
+  % Formula
+  \node[font=\normalsize,text=gray90] at (7.5,0)
+    {$\displaystyle S = I(D) - I(B) - I(C) + I(A)$};
+  \node[font=\small,text=gray70] at (7.5,-0.6)
+    {4 lookups, constant time};
+\end{scope}
+
+\end{tikzpicture}
+\end{center}
+
+\end{document}
