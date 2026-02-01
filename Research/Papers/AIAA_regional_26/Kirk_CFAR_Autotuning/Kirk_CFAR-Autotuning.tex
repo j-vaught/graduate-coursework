@@ -36,24 +36,13 @@ Maritime domain awareness, search-and-rescue, and coastal monitoring require rob
 \section{Introduction}
 Coastal and port approaches are operationally challenging radar environments due to strong, non-Gaussian sea clutter, land--sea transition edges, multipath from shoreline infrastructure, and mixed cooperative/non-cooperative traffic. Selecting appropriate CFAR detector parameters for these scenes is notoriously scene- and sensor-dependent: a configuration that works in open water may generate excessive false alarms near a marina, while aggressive clutter rejection near shore may mask small targets of interest. Currently, operators tune CFAR parameters by manual trial-and-error---adjusting guard cells, reference windows, and false alarm rates until the display ``looks right.'' This process is slow, subjective, and not reproducible.
 
-\textbf{AIAA motivation.} Small unmanned aircraft systems (UAS) and optionally piloted platforms are increasingly tasked with maritime domain awareness, search-and-rescue, and coastal environmental monitoring. Their radars often operate at low grazing angles in littoral airspace with tight size, weight, power, and cost (SWaP-C) constraints. A configurable CFAR stack that can be quickly tuned in-situ to a given shoreline helps enable robust on-board autonomy and low-latency situational awareness.
-
-\textbf{Contributions.} This work makes the following contributions:
-\begin{enumerate}
-    \item A formal scoring function for CFAR evaluation anchored to human-annotated ground truth blobs, using area-weighted coverage ratios rather than binary detection indicators.
-    \item An exhaustive grid search over three CFAR variants (CA, GO, SO) with integral-image loop hoisting that enables evaluation of hundreds of configurations in seconds.
-    \item A multi-frame temporal stability metric that quantifies detection consistency across sequential radar sweeps.
-    \item An open-source, fully client-side browser-based tool (\emph{CFAR Studio}) that requires no installation, server infrastructure, or specialized hardware beyond a modern web browser.
-\end{enumerate}
+This work contributes a formal scoring function for CFAR evaluation anchored to human-annotated ground truth blobs, using area-weighted coverage ratios rather than binary detection indicators; an exhaustive grid search over three CFAR variants (CA, GO, SO) with integral-image loop hoisting that enables evaluation of hundreds of configurations in seconds; a multi-frame temporal stability metric that quantifies detection consistency across sequential radar sweeps; and an open-source, fully client-side browser-based tool (\emph{CFAR Studio}) that requires no installation, server infrastructure, or specialized hardware beyond a modern web browser.
 
 \section{Background and Related Work}
-\subsection{CFAR Detectors}
 The CA-CFAR family estimates background power via local training windows and compares the cell-under-test to a scaled statistic to maintain a desired probability of false alarm $P_{\mathrm{FA}}$ \cite{finn1968, gandhi1988, mathworksCFAR}. GO- and SO-CFAR improve robustness near clutter edges and in multi-target scenes by partitioning leading and trailing reference windows and selecting the greatest-of or smallest-of their respective noise estimates \cite{hansen1972, trunk1978}. Other variants---including Order-Statistic (OS-CFAR), Variability-Index, and censored/trimmed-mean CFAR---address additional heterogeneous background scenarios \cite{farina2005review} but are beyond the scope of the current implementation.
 
-\subsection{Littoral Sea-Clutter Context}
 High-resolution maritime clutter is heavy-tailed and spatially nonhomogeneous; K-distribution and Pareto models are widely used to characterize such environments \cite{ward2006}. These non-Gaussian statistics motivate careful CFAR parameter selection, as training windows that span land--sea transitions or surf zones can severely bias noise estimates.
 
-\subsection{CA-CFAR Threshold Multiplier}
 For CA-CFAR with $N$ independent, identically distributed reference cells drawn from an exponential background, the threshold multiplier $\alpha$ that achieves a target $P_{\mathrm{FA}}$ admits the closed-form expression \cite{richards2005, finn1968}:
 \begin{equation}
     \alpha = N\!\left(P_{\mathrm{FA}}^{-1/N} - 1\right). \label{eq:alpha}
@@ -69,7 +58,6 @@ This relationship is used directly in the implementation; the same $\alpha$ form
 
 Let $I_t \in \mathbb{R}^{M\times N}$ denote radar intensity frames in range--azimuth coordinates, $t = 1,\dots,T$. A CFAR variant $v \in \{$CA, GO, SO$\}$ with parameter vector $\boldsymbol{\theta} = (N_g, N_r, P_{\mathrm{FA}})$---guard cells, reference cells, and probability of false alarm---is applied to each frame to produce a binary detection map $D_t(v, \boldsymbol{\theta}) \in \{0,1\}^{M\times N}$.
 
-\subsection{CFAR Detection}
 \label{sec:cfar_detection}
 
 \begin{figure*}[t]
@@ -129,7 +117,6 @@ A detection is declared when the cell-under-test exceeds the scaled noise estima
 \end{equation}
 where $\alpha$ is given by Eq.~\eqref{eq:alpha} using the appropriate cell count.
 
-\subsection{Ground Truth Annotation}
 \label{sec:ground_truth}
 
 \begin{figure}[t]
@@ -141,7 +128,6 @@ where $\alpha$ is given by Eq.~\eqref{eq:alpha} using the appropriate cell count
 
 The operator annotates stationary reference objects (e.g., navigation buoys, towers, dock structures) on the radar PPI display. When the operator clicks on a detected pixel, an 8-connected flood-fill algorithm traces the contiguous detection blob $\mathcal{B}_k$, collecting all connected pixels into a set of indices. This ``magic wand'' approach captures the exact shape and area of each reference object as it appears in the current CFAR detection, rather than requiring the operator to draw bounding boxes or estimate target extent. The resulting blob pixel set $\mathcal{B}_k = \{p_1, p_2, \dots, p_{|\mathcal{B}_k|}\}$ serves as the ground truth reference for scoring.
 
-\subsection{Area-Weighted Scoring Function}
 \label{sec:scoring}
 
 For each ground truth blob $\mathcal{B}_k$ and a candidate detection map $D_t$, we compute the \emph{area coverage ratio}:
@@ -205,7 +191,6 @@ False alarm count is computed as the number of detected pixels outside all groun
     \mathrm{FP} = \sum_{t=1}^{T}\left(\sum_{(i,j)} D_t(i,j) - \sum_{k=1}^{K}\sum_{p \in \mathcal{B}_k} D_t(p)\right). \label{eq:fp}
 \end{equation}
 
-\subsection{Multi-Frame Temporal Stability}
 \label{sec:stability}
 
 When multiple sequential frames are available, temporal stability quantifies how consistently each target is detected across the frame sequence. For each ground truth target $k$, let $c_k$ be the number of frames in which it is detected (score $> 0$). The stability metric is
@@ -215,7 +200,6 @@ When multiple sequential frames are available, temporal stability quantifies how
 
 A stability of 1.0 indicates all targets are detected in every frame; low stability reveals configurations that are marginally sensitive and produce intermittent detections.
 
-\subsection{Grid Search with Integral-Image Loop Hoisting}
 \label{sec:grid_search}
 
 The parameter space is defined by discrete ranges for guard cells $N_g$, reference cells $N_r$, and a set of $P_{\mathrm{FA}}$ values. All combinations are evaluated exhaustively.
@@ -280,22 +264,9 @@ The key computational optimization exploits the fact that the noise map $Z$ depe
     \label{fig:pipeline}
 \end{figure*}
 
-CFAR Studio is implemented as a fully client-side web application. All computation occurs in the user's browser with no server-side processing, no data upload, and no installation required. The software stack consists of:
-
-\begin{itemize}
-    \item \textbf{Application framework:} React~19 with TypeScript, built with Vite.
-    \item \textbf{Visualization:} Plotly.js for interactive PPI (Plan Position Indicator) and B-scan displays with multiple colormaps and zoom/pan controls.
-    \item \textbf{Data ingestion:} PapaParse for parsing CSV files exported from the radar digitizer.
-    \item \textbf{Optimization engine:} A dedicated Web Worker thread that performs the grid search without blocking the user interface.
-\end{itemize}
-
-\subsection{Data Ingestion}
-\label{sec:data_ingestion}
+CFAR Studio is implemented as a fully client-side web application using React~19 with TypeScript, built with Vite. All computation occurs in the user's browser with no server-side processing, no data upload, and no installation required. Plotly.js provides interactive PPI (Plan Position Indicator) and B-scan displays with multiple colormaps and zoom/pan controls. Radar CSV files are parsed via PapaParse, and a dedicated Web Worker thread performs the grid search without blocking the user interface.
 
 Radar data is ingested from CSV files containing range--azimuth intensity matrices. Each CSV row corresponds to one azimuth spoke, with columns representing range bins. A companion azimuth array specifies the angular position of each spoke. The system supports multi-frame loading, enabling temporal analysis across sequential radar sweeps.
-
-\subsection{Visualization}
-\label{sec:visualization}
 
 \begin{figure}[t]
     \centering
@@ -313,13 +284,7 @@ The primary display is a PPI view rendered in Cartesian coordinates, with option
     \label{fig:bscan}
 \end{figure}
 
-\subsection{Ground Truth Workflow}
-\label{sec:gt_workflow}
-
 The annotation workflow proceeds as follows: (1)~the operator loads radar CSV data and selects CFAR parameters for an initial preview detection; (2)~on the PPI display, the operator clicks on detected targets representing known stationary objects; (3)~the system performs an 8-connected flood fill from the click point, tracing the contiguous detection blob and recording all constituent pixel indices as the ground truth reference; (4)~the blob pixel count is displayed as a size indicator. Ground truth annotations persist across frames, with the assumption that the radar is stationary and reference objects do not move.
-
-\subsection{Optimization Engine}
-\label{sec:optimization_engine}
 
 When the operator initiates optimization, the parameter ranges (guard cells, reference cells, $P_{\mathrm{FA}}$ values) and CFAR variant are dispatched to a Web Worker. The worker executes Algorithm~\ref{alg:grid_search}, posting progress updates at regular intervals. Upon completion, results are returned to the main thread for visualization in a multi-dimensional results dashboard (Fig.~\ref{fig:full_ui}), including sortable tables, parameter trend plots, and interactive filtering by score, false alarm count, and stability.
 
@@ -335,22 +300,13 @@ When the operator initiates optimization, the parameter ranges (guard cells, ref
 %% ============================================================
 \section{Experimental Setup and Results}
 
-\subsection{Hardware and Data Collection}
 Radar data was collected using a Furuno NXT DRS4D X-band (9.41~GHz) solid-state maritime radar connected to a Raspberry Pi~5 single-board computer for raw data digitization and recording. The radar was operated in a shore-based configuration at Lake Murray, Columbia, South Carolina. Lake Murray provides a mixed littoral environment with open water, shoreline structures, navigation buoys, and dock infrastructure---representative targets for CFAR tuning evaluation.
 
 Raw radar returns were captured as CSV files, with each file representing one complete antenna rotation (360$^\circ$ sweep). Multiple sequential sweeps were recorded to enable multi-frame temporal analysis.
 
-\subsection{Ground Truth Selection}
 Stationary reference objects were annotated using the blob-tracing tool described in Section~\ref{sec:ground_truth}. Targets included navigation buoys, fixed dock structures, and shoreline features that produce consistent radar returns across multiple sweeps. For each target, the operator clicked on the detection under an initial CFAR configuration, and the flood-fill algorithm captured the blob footprint as the ground truth reference.
 
-\subsection{Optimization Configuration}
-The grid search was configured with the following parameter ranges:
-\begin{itemize}
-    \item Guard cells: $N_g \in [1, 10]$, step 1
-    \item Reference cells: $N_r \in [5, 30]$, step 5
-    \item $P_{\mathrm{FA}}$: logarithmically spaced values in $[10^{-6}, 10^{-2}]$
-    \item Variants: CA, GO, SO (each optimized independently)
-\end{itemize}
+The grid search swept guard cells $N_g \in [1, 10]$ in steps of 1, reference cells $N_r \in [5, 30]$ in steps of 5, and logarithmically spaced $P_{\mathrm{FA}}$ values in $[10^{-6}, 10^{-2}]$. Each of the three variants (CA, GO, SO) was optimized independently.
 
 A typical grid of approximately 500 parameter configurations completes in under 10 seconds on a modern laptop browser, owing to the integral-image loop hoisting described in Section~\ref{sec:grid_search}.
 
@@ -361,7 +317,6 @@ A typical grid of approximately 500 parameter configurations completes in under 
     \label{fig:optimization}
 \end{figure}
 
-\subsection{Results}
 The optimization results reveal several general trends across the tested CFAR variants:
 
 \textbf{Guard cells.} Larger guard cell counts ($N_g \geq 3$) consistently improve scores for extended targets (e.g., dock structures), as they prevent the target's own return from biasing the noise estimate. For point-like targets (buoys), guard cell sensitivity is lower.
