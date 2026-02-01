@@ -327,7 +327,7 @@ In the wide-angle view, the drone occupies approximately $20 \times 15$ pixels--
 
 
 \subsection{In-Lab Airplane Detection}
-In-laboratory testing (Fig.~\ref{fig:inlab}) confirmed that the default YOLOv8n COCO ``airplane'' class detects large, high-resolution aircraft imagery displayed on a monitor but fails on small pixel footprints typical of the wide-angle surveillance view. This motivated training custom detection models on a drone detection dataset and on the Fine-Grained Visual Classification (FGVC) aircraft dataset, which provides ground-up RGB imagery of aircraft at a range of scales and orientations representative of the surveillance scenario.
+In-laboratory testing (Fig.~\ref{fig:inlab}) confirmed that default YOLOv8n COCO weights detect large, high-resolution aircraft but fail on small pixel footprints typical of the wide-angle surveillance view, motivating the use of domain-specific training data.
 
 \begin{figure}[!t]
 \centering
@@ -336,15 +336,10 @@ In-laboratory testing (Fig.~\ref{fig:inlab}) confirmed that the default YOLOv8n 
 \label{fig:inlab}
 \end{figure}
 
-\subsection{Airplanes Test Case}
-For the airplane surveillance application, the primary class is \textit{airplane}. Hard negatives arise from birds, insects near the lens, distant drones, clouds with sharp edges, sensor noise, and specular highlights. The PTZ confirmation step naturally collects informative negatives: wide proposals that are rejected by PTZ as non-airplane are stored as hard negatives with contextual metadata.
-
-Custom YOLO models trained on FGVC aircraft data are intended to replace the COCO-pretrained weights for the wide camera, targeting the small pixel sizes ($<30 \times 30$) that COCO-trained models fail to detect. Benchmarking these custom models against default YOLO classes on a test set containing both long-distance and close-distance aircraft remains ongoing work.
-
 \section{Conclusion}
 This paper presented a dual-camera active acquisition system for automated small-object dataset construction. A fixed wide-angle camera with real-time detection provides persistent coverage, while a PTZ camera delivers optical zoom for verification. The system runs on an NVIDIA Jetson Orin AGX, achieving 35.9\,FPS (GPU) and 21.5\,FPS (DLA) through a parallel GPU/DLA inference split that eliminates resource contention. PID-controlled PTZ tracking with MJPEG codec selection minimizes pipeline latency for closed-loop operation. We demonstrated end-to-end functionality through a 42-second outdoor drone tracking test, where the system autonomously acquired and maintained lock on a small aerial target, resolving it from ${\sim}20$ pixels in the wide view to ${\sim}120$ pixels under optical zoom. The active acquisition paradigm provides optically verified imagery that neither digital zoom nor super-resolution can match, enabling automated dataset construction for small-object regimes where manual annotation is impractical.
 \par
-Current limitations include single-PTZ availability (no simultaneous multi-target zoom), potential target loss during slew for fast-moving objects, and the small-parallax assumption for label transfer. Future work will evaluate label quality against manual annotation baselines, measure downstream mAP improvements, and explore multi-PTZ scheduling for higher-throughput acquisition.
+Current limitations include single-PTZ availability (no simultaneous multi-target zoom), potential target loss during slew for fast-moving objects, and the small-parallax assumption for label transfer. Future work will evaluate label quality against manual annotation baselines, benchmark custom YOLO models trained on FGVC aircraft data against COCO-pretrained weights for small-target regimes, and explore multi-PTZ scheduling for higher-throughput acquisition.
 
 \newpage
 \begin{thebibliography}{99}
