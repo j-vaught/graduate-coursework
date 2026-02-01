@@ -210,7 +210,7 @@ We use wide-camera tracklets to provide temporal coherence and to predict target
 \label{fig:pipeline}
 \end{figure}
 
-\begin{algorithm}[t]
+\begin{algorithm}[!ht]
 \caption{Real-time wide-to-PTZ acquisition}
 \begin{algorithmic}[1]
 \State Init $f_{\theta}$ (wide), $\mathcal{T}$ (tracker), $g$ (PTZ), $\mathcal{D}$ (data)
@@ -259,7 +259,7 @@ Each committed example stores the wide frame (or short clip), the transferred la
 \centering
 \caption{Dataset record schema for each accepted acquisition.}
 \label{tab:schema}
-\begin{tabular}{@{}ll@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}l@{}}
 \toprule
 Field & Description \\
 \midrule
@@ -274,7 +274,7 @@ bbox\_p, score\_p & PTZ detector box and confidence \\
 quality\_metrics & Blur, saturation, occlusion flags \\
 site\_meta & Location, camera orientation, weather \\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \end{table}
 
 \section{Experimental Validation}
@@ -284,56 +284,47 @@ The complete system runs on an NVIDIA Jetson Orin AGX with JetPack~4.7 and CUDA~
 
 \begin{table}[t]
 \centering
-\caption{System hardware and software configuration.}
+\caption{System configuration and measured detector throughput. All models use $640 \times 640$ input with FP16 precision.}
 \label{tab:sysconfig}
-\begin{tabular}{@{}ll@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}ll@{}}
 \toprule
-Component & Specification \\
+\multicolumn{3}{@{}l}{\textit{Hardware \& Software}} \\
 \midrule
-Compute platform & NVIDIA Jetson Orin AGX \\
-Software stack & JetPack 4.7, CUDA 12.6 \\
-Cameras & 2$\times$ FLIR M300C \\
-Power & 12.8\,V 50\,Ah LiFePO4 \\
-Network & PCIe Ethernet, IEEE 802.3at PoE \\
-Camera latency & 0.2--0.6\,ms (network) \\
-Wide FOV & $60^\circ$H $\times$ $45^\circ$V \\
-Video codec & MJPEG (frame-independent) \\
+Compute platform & \multicolumn{2}{l}{NVIDIA Jetson Orin AGX} \\
+Software stack & \multicolumn{2}{l}{JetPack 4.7, CUDA 12.6} \\
+Cameras & \multicolumn{2}{l}{2$\times$ FLIR M300C} \\
+Power & \multicolumn{2}{l}{12.8\,V 50\,Ah LiFePO4} \\
+Network & \multicolumn{2}{l}{PCIe Ethernet, IEEE 802.3at PoE} \\
+Camera latency & \multicolumn{2}{l}{0.2--0.6\,ms (network)} \\
+Wide FOV & \multicolumn{2}{l}{$60^\circ$H $\times$ $45^\circ$V} \\
+Video codec & \multicolumn{2}{l}{MJPEG (frame-independent)} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Detector Throughput}} \\
+\midrule
+ & Stationary (GPU) & PTZ (DLA) \\
+\midrule
+Model & YOLOv11s & YOLOv11n \\
+Avg inference (ms) & 27.9 & 46.5 \\
+Throughput (FPS) & 35.9 & 21.5 \\
+Detection rate & 100\% & 99\% \\
+Avg confidence & 0.553 & 0.529 \\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \end{table}
 
 \subsection{Detector Throughput}
 The two detector instances are split across compute units to avoid GPU time-slicing overhead. The stationary camera runs YOLOv11s on the GPU, where larger model capacity aids feature extraction on distant, low-resolution targets. The PTZ camera runs YOLOv11n on the DLA, where zoomed-in targets are easier to classify. This split achieves true parallel inference with no resource contention.
 
-Table~\ref{tab:throughput} reports measured throughput from benchmark runs on the Jetson Orin AGX. The GPU delivers 2.2--2.8$\times$ higher throughput than the DLA per model, but running both models on the GPU causes time-slicing that degrades aggregate performance. The GPU/DLA split provides concurrent operation at 35.9 + 21.5 = 57.4 aggregate FPS with no contention.
-
-\begin{table}[t]
-\centering
-\caption{Measured detector throughput on Jetson Orin AGX. All models use $640 \times 640$ input with FP16 precision.}
-\label{tab:throughput}
-\begin{tabular}{@{}lcccc@{}}
-\toprule
- & \multicolumn{2}{c}{Stationary (GPU)} & \multicolumn{2}{c}{PTZ (DLA)} \\
-\cmidrule(lr){2-3} \cmidrule(lr){4-5}
- & YOLOv11s & YOLOv11n & YOLOv11s & YOLOv11n \\
-\midrule
-Avg inference (ms) & 27.9 & 20.9 & 78.5 & 46.5 \\
-Throughput (FPS)   & 35.9 & 47.8 & 12.7 & 21.5 \\
-Detection rate     & 100\% & 100\% & 99\% & 99\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The production configuration uses YOLOv11s on GPU (27.9\,ms, 35.9\,FPS) for the stationary camera and YOLOv11n on DLA (46.5\,ms, 21.5\,FPS) for the PTZ camera. The stationary detector achieves 100\% detection rate with an average confidence of 0.553, while the PTZ detector achieves 99\% detection rate with an average confidence of 0.529.
+The GPU delivers 2.2--2.8$\times$ higher throughput than the DLA per model, but running both models on the GPU causes time-slicing that degrades aggregate performance. The GPU/DLA split provides concurrent operation at 35.9 + 21.5 = 57.4 aggregate FPS with no contention (Table~\ref{tab:sysconfig}). The stationary detector achieves 100\% detection rate with an average confidence of 0.553, while the PTZ detector achieves 99\% detection rate with an average confidence of 0.529.
 
 \subsection{Tracking Controller}
 The PTZ centering loop uses a PID controller running at 30\,Hz. Table~\ref{tab:tracking} lists the controller parameters. Confidence thresholds are set asymmetrically: the acquisition threshold (0.40) is higher than the tracking threshold (0.35) to prevent the system from acquiring weak detections while allowing it to maintain lock through brief confidence dips. If the target is lost for more than 3.0\,s, the system reverts to Phase~1 acquisition from the stationary camera.
 
-\begin{table}[t]
+\begin{table}[!ht]
 \centering
 \caption{Tracking controller parameters.}
 \label{tab:tracking}
-\begin{tabular}{@{}lcc@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}cc@{}}
 \toprule
 Parameter & Value & Unit \\
 \midrule
@@ -352,7 +343,7 @@ Max PTZ speed & 30 & deg/s \\
 Zoom levels (tracking) & 25, 35, 45 & \% \\
 Min zoom scale & 15 & \% \\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \end{table}
 
 \subsection{Video Codec Impact on Latency}
