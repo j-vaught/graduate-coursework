@@ -98,14 +98,15 @@ While recent surveys \cite{chen2020survey, nikouei2024smallobj} have demonstrate
 \par
 Even with high-resolution imagery, real-time detection pipelines typically downsample inputs to manageable resolutions (e.g., $640 \times 640$) to satisfy compute constraints. This reduction inherently compresses distant targets into featureless blobs (Fig.~\ref{fig:zoomlevels}) that are difficult to classify without relying on temporal context (as humans do) or additional sensor modalities \cite{rozantsev2017flying}.
 \par
-\begin{figure*}[b]
+Figure~\ref{fig:zoomlevels} illustrates the challenge in distant aerial surveillance, where a target may occupy fewer than $15 \times 15$ pixels in a wide-angle feed. At this resolution, distractors (i.e.\ birds, cloud edges, specular highlights, or sensor noise) are indistinguishable from the target of interest. Standard digital zooming (cropping) only magnifies these ambiguities \cite{zhang2019zoom}. To achieve robust detection, a dataset must contain examples where these confusing cases are resolved, yet human labelers often cannot distinguish them in raw wide-angle footage.
+
+\begin{figure*}[t]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_sr_comparison.pdf}
 \caption{Comparison of Wide-Angle Crop (Digital Zoom), Super-Resolution, and true Optical Zoom active acquisition.}
 \label{fig:zoomlevels}
 \end{figure*}
 
-Figure~\ref{fig:zoomlevels} illustrates the challenge in distant aerial surveillance, where a target may occupy fewer than $15 \times 15$ pixels in a wide-angle feed. At this resolution, distractors (i.e.\ birds, cloud edges, specular highlights, or sensor noise) are indistinguishable from the target of interest. Standard digital zooming (cropping) only magnifies these ambiguities \cite{zhang2019zoom}. To achieve robust detection, a dataset must contain examples where these confusing cases are resolved, yet human labelers often cannot distinguish them in raw wide-angle footage.
 \par
 We address this by replacing the human labeler with a dual-camera system that automates the construction of small-object datasets. A fixed wide-angle camera provides persistent coverage, while a controllable Pan-Tilt-Zoom (PTZ) camera provides resolution on demand. The key technical challenge lies in the handover: the system must move a mechanical lens to capture a moving target based on delayed visual data, compensating for the combined pipeline and mechanical latency.
 \par
@@ -281,28 +282,17 @@ The complete system runs on an NVIDIA Jetson Orin AGX with JetPack~4.7 and CUDA~
 \centering
 \caption{System configuration and measured detector throughput. All models use $640 \times 640$ input with FP16 precision.}
 \label{tab:sysconfig}
-\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}ll@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}l@{\hspace{1.5em}}lcc@{}}
 \toprule
-\multicolumn{3}{@{}l}{\textit{Hardware \& Software}} \\
+\multicolumn{2}{@{}l}{\textit{Hardware \& Software}} & \multicolumn{3}{l}{\textit{Detector Throughput}} \\
 \midrule
-Compute platform & \multicolumn{2}{l}{NVIDIA Jetson Orin AGX} \\
-Software stack & \multicolumn{2}{l}{JetPack 4.7, CUDA 12.6} \\
-Cameras & \multicolumn{2}{l}{2$\times$ FLIR M300C} \\
-Power & \multicolumn{2}{l}{12.8\,V 50\,Ah LiFePO4} \\
-Network & \multicolumn{2}{l}{PCIe Ethernet, IEEE 802.3at PoE} \\
-Camera latency & \multicolumn{2}{l}{0.2--0.6\,ms (network)} \\
-Wide FOV & \multicolumn{2}{l}{$60^\circ$H $\times$ $45^\circ$V} \\
-Video codec & \multicolumn{2}{l}{MJPEG (frame-independent)} \\
+Component & Specification & & Stationary (GPU) & PTZ (DLA) \\
 \midrule
-\multicolumn{3}{@{}l}{\textit{Detector Throughput}} \\
-\midrule
- & Stationary (GPU) & PTZ (DLA) \\
-\midrule
-Model & YOLOv11s & YOLOv11n \\
-Avg inference (ms) & 27.9 & 46.5 \\
-Throughput (FPS) & 35.9 & 21.5 \\
-Detection rate & 100\% & 99\% \\
-Avg confidence & 0.553 & 0.529 \\
+Platform & Jetson Orin AGX & Model & YOLOv11s & YOLOv11n \\
+Software & JetPack 4.7, CUDA 12.6 & Inference (ms) & 27.9 & 46.5 \\
+Cameras & 2$\times$ FLIR M300C & Throughput (FPS) & 35.9 & 21.5 \\
+Wide FOV & $60^\circ$H $\times$ $45^\circ$V & Detection rate & 100\% & 99\% \\
+Video codec & MJPEG & Avg confidence & 0.553 & 0.529 \\
 \bottomrule
 \end{tabular*}
 \end{table}
