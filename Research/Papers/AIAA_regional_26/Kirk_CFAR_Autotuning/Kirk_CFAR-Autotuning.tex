@@ -105,36 +105,6 @@ Let $I_t \in \mathbb{R}^{M\times N}$ denote radar intensity frames in range--azi
 
 All three variants considered in this work -- CA, GO, and SO -- share a common two-dimensional sliding-window architecture applied independently to each pixel of the radar frame. For a given cell-under-test at pixel $(i,j)$ in frame $I_t$, the detector defines two concentric rectangular regions: a \emph{guard region} of half-width $N_g$ that excludes the cell-under-test and its immediate neighbors from the noise estimate, and a \emph{reference annulus} of width $N_r$ that surrounds the guard region and provides the training samples from which the local noise level is estimated. The guard region prevents the target's own energy from inflating the noise estimate, while the reference annulus should be large enough to yield a statistically reliable background estimate yet small enough to remain within a locally homogeneous clutter region. To avoid the computational cost of summing over the reference annulus at every pixel, the implementation pre-computes an integral image (summed area table) \cite{crow1984} for each frame, enabling $O(1)$ evaluation of the sum over any axis-aligned rectangular region. With the integral image in place, the three variants differ only in how they aggregate the reference cells into a single noise estimate $Z_{i,j}$.
 
-\paragraph{CA-CFAR.} Cell-Averaging CFAR computes the arithmetic mean of all $N = (2R_o+1)^2 - (2R_i+1)^2$ reference cells, where $R_o = N_g + N_r$ is the outer half-width and $R_i = N_g$ is the inner half-width:
-\begin{equation}
-    Z_{i,j}^{\mathrm{CA}} = \frac{1}{N}\left(S_{\mathrm{outer}} - S_{\mathrm{inner}}\right), \label{eq:ca}
-\end{equation}
-where $S_{\mathrm{outer}}$ and $S_{\mathrm{inner}}$ are the summed-area-table queries over the outer and inner rectangles, respectively. CA-CFAR is optimal under homogeneous, exponentially distributed clutter but can suffer threshold elevation when strong interferers or clutter edges fall within the reference annulus.
-
-\paragraph{GO-CFAR.} Greatest-Of CFAR mitigates the clutter-edge problem by splitting the reference annulus into two half-windows -- one leading (above) and one trailing (below) the cell-under-test -- and selecting the larger of the two noise estimates. Let $\bar{Z}_1$ and $\bar{Z}_2$ denote the mean power of each half-window, each containing $N_{\mathrm{half}}$ cells:
-\begin{equation}
-    Z_{i,j}^{\mathrm{GO}} = \max(\bar{Z}_1, \bar{Z}_2). \label{eq:go}
-\end{equation}
-By adopting the higher noise estimate, GO-CFAR raises the threshold near clutter transitions, suppressing false alarms at the cost of reduced detection sensitivity for weak targets.
-
-\paragraph{SO-CFAR.} Smallest-Of CFAR takes the opposite approach, selecting the lower of the two half-window estimates:
-\begin{equation}
-    Z_{i,j}^{\mathrm{SO}} = \min(\bar{Z}_1, \bar{Z}_2). \label{eq:so}
-\end{equation}
-This preserves sensitivity near clutter edges -- useful for detecting targets that lie adjacent to terrain or structures -- but at the expense of an elevated false-alarm rate in heterogeneous regions where the quieter half-window underestimates the true background.
-
-For both GO- and SO-CFAR, the effective reference cell count used for the threshold multiplier $\alpha$ (Eq.~\ref{eq:alpha}) is $N_{\mathrm{half}}$ rather than the full annulus count $N$, reflecting the reduced number of independent training samples.
-
-\subsection{Detection Rule}
-
-Given the noise estimate from any of the three variants, a detection is declared when the cell-under-test exceeds the scaled noise floor:
-\begin{equation}
-    D_t(i,j) = \mathbb{1}\!\left[I_t(i,j) > \alpha \cdot Z_{i,j}\right], \label{eq:detection}
-\end{equation}
-where the threshold multiplier $\alpha$ is given by Eq.~\eqref{eq:alpha} using the appropriate effective cell count. The resulting binary detection map $D_t$ is then evaluated against the operator's ground truth annotations as described in the following subsections.
-
-\label{sec:ground_truth}
-
 \begin{figure}[t]
     \centering
     \begin{tikzpicture}
@@ -165,6 +135,56 @@ where the threshold multiplier $\alpha$ is given by Eq.~\eqref{eq:alpha} using t
     \label{fig:scoring_function}
 \end{figure}
 
+\paragraph{CA-CFAR.} Cell-Averaging CFAR computes the arithmetic mean of all $N = (2R_o+1)^2 - (2R_i+1)^2$ reference cells, where $R_o = N_g + N_r$ is the outer half-width and $R_i = N_g$ is the inner half-width:
+\begin{equation}
+    Z_{i,j}^{\mathrm{CA}} = \frac{1}{N}\left(S_{\mathrm{outer}} - S_{\mathrm{inner}}\right), \label{eq:ca}
+\end{equation}
+where $S_{\mathrm{outer}}$ and $S_{\mathrm{inner}}$ are the summed-area-table queries over the outer and inner rectangles, respectively. CA-CFAR is optimal under homogeneous, exponentially distributed clutter but can suffer threshold elevation when strong interferers or clutter edges fall within the reference annulus.
+
+\paragraph{GO-CFAR.} Greatest-Of CFAR mitigates the clutter-edge problem by splitting the reference annulus into two half-windows -- one leading (above) and one trailing (below) the cell-under-test -- and selecting the larger of the two noise estimates. Let $\bar{Z}_1$ and $\bar{Z}_2$ denote the mean power of each half-window, each containing $N_{\mathrm{half}}$ cells:
+\begin{equation}
+    Z_{i,j}^{\mathrm{GO}} = \max(\bar{Z}_1, \bar{Z}_2). \label{eq:go}
+\end{equation}
+By adopting the higher noise estimate, GO-CFAR raises the threshold near clutter transitions, suppressing false alarms at the cost of reduced detection sensitivity for weak targets.
+
+\paragraph{SO-CFAR.} Smallest-Of CFAR takes the opposite approach, selecting the lower of the two half-window estimates:
+\begin{equation}
+    Z_{i,j}^{\mathrm{SO}} = \min(\bar{Z}_1, \bar{Z}_2). \label{eq:so}
+\end{equation}
+This preserves sensitivity near clutter edges -- useful for detecting targets that lie adjacent to terrain or structures -- but at the expense of an elevated false-alarm rate in heterogeneous regions where the quieter half-window underestimates the true background.
+
+For both GO- and SO-CFAR, the effective reference cell count used for the threshold multiplier $\alpha$ (Eq.~\ref{eq:alpha}) is $N_{\mathrm{half}}$ rather than the full annulus count $N$, reflecting the reduced number of independent training samples.
+
+
+
+\begin{algorithm}[t]
+\caption{Grid Search with Loop Hoisting}
+\label{alg:grid_search}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} frames $\{I_t\}_{t=1}^T$, ground truth blobs $\{\mathcal{B}_k\}$, variant $v$, parameter ranges
+\STATE Pre-compute integral images for all frames
+\FOR{each $(N_g, N_r)$ in parameter grid}
+    \STATE Compute noise map $Z$ for all frames \hfill $\triangleright$ \emph{Expensive step}
+    \FOR{each $P_{\mathrm{FA}}$ value}
+        \STATE $\alpha \leftarrow N_{\mathrm{eff}}(P_{\mathrm{FA}}^{-1/N_{\mathrm{eff}}} - 1)$
+        \STATE Apply threshold: $D_t(i,j) \leftarrow \mathbb{1}[I_t(i,j) > \alpha \cdot Z_{i,j}]$
+        \STATE Compute coverage scores $\{s_k\}$, frame score, false alarms, stability
+    \ENDFOR
+\ENDFOR
+\STATE \textbf{Return} all results sorted by score
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Detection Rule}
+
+Given the noise estimate from any of the three variants, a detection is declared when the cell-under-test exceeds the scaled noise floor:
+\begin{equation}
+    D_t(i,j) = \mathbb{1}\!\left[I_t(i,j) > \alpha \cdot Z_{i,j}\right], \label{eq:detection}
+\end{equation}
+where the threshold multiplier $\alpha$ is given by Eq.~\eqref{eq:alpha} using the appropriate effective cell count. The resulting binary detection map $D_t$ is then evaluated against the operator's ground truth annotations as described in the following subsections.
+
+\label{sec:ground_truth}
 
 The operator annotates stationary reference objects (e.g., towers, buildings, infrastructure) on the radar PPI display. When the operator clicks on a detected pixel, an 8-connected flood-fill algorithm traces the contiguous detection blob $\mathcal{B}_k$, collecting all connected pixels into a set of indices. This ``magic wand'' approach captures the exact shape and area of each reference object as it appears in the current CFAR detection, rather than requiring the operator to draw bounding boxes or estimate target extent. The resulting blob pixel set $\mathcal{B}_k = \{p_1, p_2, \dots, p_{|\mathcal{B}_k|}\}$ serves as the ground truth reference for scoring.
 
@@ -188,13 +208,13 @@ This ratio measures what fraction of the ground truth blob's pixels are detected
 \end{equation}
 
 
-The upper bound of 1.1 accommodates slight detection expansion beyond the annotated blob boundary, which is common when a slightly more sensitive configuration captures peripheral pixels. This area-based approach provides substantially more nuance than a binary ``detected/not-detected'' metric: a configuration that detects only a small fragment of a large target is appropriately penalized, while one that captures the full target shape is rewarded.
+The upper bound of 1.1 accommodates slight detection expansion beyond the annotated blob boundary, which is common when a slightly more sensitive configuration captures peripheral pixels. This area-based approach provides substantially more nuance than a binary ``detected/not-detected'' metric; a configuration that detects only a small fragment of a large target is appropriately penalized, while one that captures the full target shape is rewarded.
 
 The per-frame score across all $K$ ground truth targets combines the worst-case and average target scores:
 \begin{equation}
     S_{\mathrm{frame}} = 0.7 \cdot \min_{k \in [K]} s_k + 0.3 \cdot \frac{1}{K}\sum_{k=1}^{K} s_k. \label{eq:frame_score}
 \end{equation}
-The heavy weighting on the minimum score (0.7) enforces a critical constraint: a configuration that completely misses even one annotated target is severely penalized regardless of how well it detects the others. This prevents the optimizer from recommending configurations that sacrifice coverage of difficult targets in favor of easy ones. In addition to target coverage, the false alarm count is computed as the number of detected pixels that fall outside all ground truth blobs:
+The heavy weighting on the minimum score (0.7) enforces a critical constraint -- a configuration that completely misses even one annotated target is severely penalized regardless of how well it detects the others. This prevents the optimizer from recommending configurations that sacrifice coverage of difficult targets in favor of easy ones. In addition to target coverage, the false alarm count is computed as the number of detected pixels that fall outside all ground truth blobs:
 \begin{equation}
     \mathrm{FP} = \sum_{t=1}^{T}\left(\sum_{(i,j)} D_t(i,j) - \sum_{k=1}^{K}\sum_{p \in \mathcal{B}_k} D_t(p)\right). \label{eq:fp}
 \end{equation}
@@ -212,23 +232,6 @@ A stability of 1.0 indicates that all targets are detected in every frame, while
 
 The parameter space is defined by discrete ranges for guard cells $N_g$, reference cells $N_r$, and a set of $P_{\mathrm{FA}}$ values, with all combinations evaluated exhaustively. The key computational optimization exploits the fact that the noise map $Z$ depends only on $(N_g, N_r, v)$ and not on $P_{\mathrm{FA}}$. By restructuring the search loop to iterate over $(N_g, N_r)$ in the outer loop and $P_{\mathrm{FA}}$ in the inner loop, the expensive noise map computation is performed once per $(N_g, N_r)$ pair and reused across all $P_{\mathrm{FA}}$ values (Fig.~\ref{fig:cfar_pipeline}). Within the inner loop, only the scalar multiplication $\alpha \cdot Z_{i,j}$ and comparison in Eq.~\eqref{eq:detection} are needed. This \emph{loop hoisting} reduces the total number of integral-image queries by a factor equal to the number of $P_{\mathrm{FA}}$ values tested.
 
-\begin{algorithm}[t]
-\caption{Grid Search with Loop Hoisting}
-\label{alg:grid_search}
-\begin{algorithmic}[1]
-\STATE \textbf{Input:} frames $\{I_t\}_{t=1}^T$, ground truth blobs $\{\mathcal{B}_k\}$, variant $v$, parameter ranges
-\STATE Pre-compute integral images for all frames
-\FOR{each $(N_g, N_r)$ in parameter grid}
-    \STATE Compute noise map $Z$ for all frames \hfill $\triangleright$ \emph{Expensive step}
-    \FOR{each $P_{\mathrm{FA}}$ value}
-        \STATE $\alpha \leftarrow N_{\mathrm{eff}}(P_{\mathrm{FA}}^{-1/N_{\mathrm{eff}}} - 1)$
-        \STATE Apply threshold: $D_t(i,j) \leftarrow \mathbb{1}[I_t(i,j) > \alpha \cdot Z_{i,j}]$
-        \STATE Compute coverage scores $\{s_k\}$, frame score, false alarms, stability
-    \ENDFOR
-\ENDFOR
-\STATE \textbf{Return} all results sorted by score
-\end{algorithmic}
-\end{algorithm}
 
 %% ============================================================
 %% SECTION 4: SYSTEM ARCHITECTURE
@@ -294,7 +297,7 @@ The primary display is a PPI view rendered in Cartesian coordinates, with option
     \label{fig:bscan}
 \end{figure}
 
-The annotation workflow proceeds as follows: (1)~the operator loads radar CSV data and selects CFAR parameters for an initial preview detection; (2)~on the PPI display, the operator clicks on detected targets representing known stationary objects; (3)~the system performs an 8-connected flood fill from the click point, tracing the contiguous detection blob and recording all constituent pixel indices as the ground truth reference; (4)~the blob pixel count is displayed as a size indicator. Ground truth annotations persist across frames, with the assumption that the radar is stationary and reference objects do not move.
+The annotation workflow proceeds as follows: (i)~the operator loads radar CSV data and selects CFAR parameters for an initial preview detection; (ii)~on the PPI display, the operator clicks on detected targets representing known stationary objects; (iii)~the system performs an 8-connected flood fill from the click point, tracing the contiguous detection blob and recording all constituent pixel indices as the ground truth reference; (iv)~the blob pixel count is displayed as a size indicator. Ground truth annotations persist across frames, with the assumption that the radar is stationary and reference objects do not move.
 
 When the operator initiates optimization, the parameter ranges (guard cells, reference cells, $P_{\mathrm{FA}}$ values) and CFAR variant are dispatched to a Web Worker. The worker executes Algorithm~\ref{alg:grid_search}, posting progress updates at regular intervals. Upon completion, results are returned to the main thread for visualization in a multi-dimensional results dashboard (Fig.~\ref{fig:full_ui}), including sortable tables, parameter trend plots, and interactive filtering by score, false alarm count, and stability.
 
@@ -323,7 +326,7 @@ A typical grid of approximately 500 parameter configurations completes in under 
 
 The optimization results reveal several general trends across the tested CFAR variants. Larger guard cell counts ($N_g \geq 3$) consistently improve scores for extended targets such as dock structures, as they prevent the target's own return from biasing the noise estimate; for point-like targets such as buoys, guard cell sensitivity is lower. Moderate reference window sizes ($N_r \in [10, 20]$) provide the best trade-off between noise estimation accuracy and spatial homogeneity, while very large reference windows ($N_r > 25$) degrade performance near terrain transitions where the training window spans heterogeneous clutter regions.
 
-Lower $P_{\mathrm{FA}}$ values reduce false alarms but risk missing weaker targets. The optimal $P_{\mathrm{FA}}$ depends strongly on the scene: open-water targets tolerate lower $P_{\mathrm{FA}}$, while targets near clutter edges benefit from moderate $P_{\mathrm{FA}}$ to maintain detection. GO-CFAR tends to produce fewer false alarms near clutter edges at the cost of slightly reduced detection sensitivity, consistent with its conservative noise selection. SO-CFAR provides higher detection rates but generates more false alarms in heterogeneous regions, while CA-CFAR offers a middle ground and often produces the highest overall scores in relatively homogeneous scenes. Across multi-frame sequences, the top-scoring configurations for each variant typically achieve stability values above 0.9, indicating consistent detection of annotated targets across sequential sweeps.
+Lower $P_{\mathrm{FA}}$ values reduce false alarms but risk missing weaker targets. The optimal $P_{\mathrm{FA}}$ depends strongly on the scene -- open-water targets tolerate lower $P_{\mathrm{FA}}$, while targets near clutter edges benefit from moderate $P_{\mathrm{FA}}$ to maintain detection. GO-CFAR tends to produce fewer false alarms near clutter edges at the cost of slightly reduced detection sensitivity, consistent with its conservative noise selection. SO-CFAR provides higher detection rates but generates more false alarms in heterogeneous regions, while CA-CFAR offers a middle ground and often produces the highest overall scores in relatively homogeneous scenes. Across multi-frame sequences, the top-scoring configurations for each variant typically achieve stability values above 0.9, indicating consistent detection of annotated targets across sequential sweeps.
 
 %% ============================================================
 %% SECTION 6: DISCUSSION
