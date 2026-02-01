@@ -22,7 +22,6 @@
 \usepackage{colortbl}
 \usepackage{float}
 \usepackage{bm}
-\usepackage{listings}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 
@@ -58,25 +57,6 @@
 \definecolor{USC_Rose}{HTML}{CC2E40}
 
 % ============================================================================
-% LISTINGS SETUP (for code that fits in margins)
-% ============================================================================
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\small,
-  keywordstyle=\color{USC_Congaree}\bfseries,
-  commentstyle=\color{USC_Black50}\itshape,
-  stringstyle=\color{USC_Garnet},
-  breaklines=true,
-  breakatwhitespace=false,
-  columns=flexible,
-  keepspaces=true,
-  showstringspaces=false,
-  frame=none,
-  aboveskip=4pt,
-  belowskip=4pt,
-}
-
-% ============================================================================
 % CUSTOM COLORED BOXES
 % ============================================================================
 \newtcolorbox{stepbox}[1][Step]{
@@ -99,13 +79,13 @@
   coltitle=white,
 }
 
-\newtcolorbox{codebox}[1][Code]{
-  colback=white,
-  colframe=USC_Atlantic,
+\newtcolorbox{problembox}[1][Problem]{
+  colback=USC_Black10,
+  colframe=USC_Black90,
   fonttitle=\bfseries,
   title=#1,
   sharp corners,
-  colbacktitle=USC_Atlantic,
+  colbacktitle=USC_Black90,
   coltitle=white,
 }
 
@@ -139,7 +119,7 @@
 % ============================================================================
 
 \title{CSCE 775: Deep Reinforcement Learning \\ Homework \#1}
-\author{Instructor: Dr. Forest Agostinelli \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\author{Instructor: Dr.\ Forest Agostinelli \\ University of South Carolina}
 \date{Spring 2026}
 
 % ============================================================================
@@ -163,10 +143,12 @@
                   coltitle=black, sharp corners, boxrule=1pt,
                   title=\Large\bfseries Table of Contents]
 \begin{tabular}{p{0.82\textwidth}r}
-\textbf{Problem 1: Markov Reward Processes (20 pts)} \dotfill & \textbf{\pageref{quest:mrp}} \\[0.3em]
-\textbf{Problem 2: Markov Decision Processes (80 pts)} & \\
-\quad 2.1: Dynamic Programming (40 pts) \dotfill & \textbf{\pageref{quest:dp}} \\
-\quad 2.2: Model-Free Reinforcement Learning (40 pts) \dotfill & \textbf{\pageref{quest:mf}} \\
+\textbf{Problem 1: MRP State Values} \dotfill & \textbf{\pageref{prob:mrp}} \\[0.3em]
+\textbf{Problem 2: MRP Discount Factor Analysis} \dotfill & \textbf{\pageref{prob:discount}} \\[0.3em]
+\textbf{Problem 3: Value Iteration by Hand} \dotfill & \textbf{\pageref{prob:vi}} \\[0.3em]
+\textbf{Problem 4: Grid World Policy} \dotfill & \textbf{\pageref{prob:grid}} \\[0.3em]
+\textbf{Problem 5: Q-Learning Episode Trace} \dotfill & \textbf{\pageref{prob:qlearn}} \\[0.3em]
+\textbf{Problem 6: Exploration vs.\ Exploitation} \dotfill & \textbf{\pageref{prob:explore}} \\
 \end{tabular}
 \vspace{0.2cm}
 \end{tcolorbox}
@@ -174,17 +156,15 @@
 
 \vspace{0.3cm}
 
-\noindent\textbf{Note:} This document contains hand-worked derivations for each problem, followed by implementation sketches. The submitted code file is \texttt{code\_hw/code\_hw1.py}.
+\noindent\textbf{Instructions:} Show all work. Write clearly and box final answers. You may use a calculator for arithmetic but all reasoning must be shown by hand.
 
 % ============================================================================
-% PROBLEM 1: Markov Reward Processes
+% PROBLEM 1: MRP State Values
 % ============================================================================
 
-\question{Problem 1: Markov Reward Processes (20 pts)}\label{quest:mrp}
+\question{Problem 1: MRP State Values}\label{prob:mrp}
 
-\textbf{Task:} Implement the \texttt{mrp} function. Given the definition of a Markov reward process, compute the state-values (expected future reward) for all states.
-
-\subsection*{MRP Diagram}
+Consider the following Markov Reward Process with three states $\mathcal{S} = \{S_1, S_2, S_3\}$.
 
 \begin{center}
 \begin{tikzpicture}[
@@ -216,706 +196,422 @@
     }
 ]
 
-% States -- wider spacing
-\node[state] (O) at (0, 0) {O};
-\node[statelabel, below=1pt of O.center, yshift=-6pt] {$-10$};
+% States
+\node[state] (S1) at (0, 0) {$S_1$};
+\node[statelabel, below=1pt of S1.center, yshift=-6pt] {$R=+5$};
 
-\node[state] (U) at (8, 0) {U};
-\node[statelabel, below=1pt of U.center, yshift=-6pt] {$+10$};
+\node[state] (S2) at (8, 0) {$S_2$};
+\node[statelabel, below=1pt of S2.center, yshift=-6pt] {$R=-3$};
 
-\node[state] (A) at (4, -4.5) {A};
-\node[statelabel, below=1pt of A.center, yshift=-6pt] {$-1$};
+\node[state] (S3) at (4, -4.5) {$S_3$};
+\node[statelabel, below=1pt of S3.center, yshift=-6pt] {$R=+8$};
 
 % Self-loops
-\path (O) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (O);
-\path (U) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (U);
-\path (A) edge[loop below, looseness=5, out=-60, in=-120, draw=USC_Garnet] node[prob, below=5pt] {$\frac{1}{3}$} (A);
+\path (S1) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.6} (S1);
+\path (S2) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.4} (S2);
+\path (S3) edge[loop below, looseness=5, out=-60, in=-120, draw=USC_Garnet] node[prob, below=5pt] {0.5} (S3);
 
-% O <-> U transitions
-\path (O) edge[bend left=15] node[prob, above=3pt] {0.1} (U);
-\path (U) edge[bend left=15] node[prob, below=3pt] {0.1} (O);
+% S1 <-> S2
+\path (S1) edge[bend left=15] node[prob, above=3pt] {0.2} (S2);
+\path (S2) edge[bend left=15] node[prob, below=3pt] {0.3} (S1);
 
-% O -> A and A -> O (left side)
-\path (O) edge[bend left=12] node[prob, left=4pt, pos=0.45] {0.2} (A);
-\path (A) edge[bend left=12] node[prob, left=4pt, pos=0.55] {$\frac{1}{3}$} (O);
+% S1 <-> S3
+\path (S1) edge[bend left=12] node[prob, left=4pt, pos=0.45] {0.2} (S3);
+\path (S3) edge[bend left=12] node[prob, left=4pt, pos=0.55] {0.2} (S1);
 
-% U -> A and A -> U (right side)
-\path (U) edge[bend right=12] node[prob, right=4pt, pos=0.45] {0.2} (A);
-\path (A) edge[bend right=12] node[prob, right=4pt, pos=0.55] {$\frac{1}{3}$} (U);
+% S2 <-> S3
+\path (S2) edge[bend right=12] node[prob, right=4pt, pos=0.45] {0.3} (S3);
+\path (S3) edge[bend right=12] node[prob, right=4pt, pos=0.55] {0.3} (S2);
 
 \end{tikzpicture}
 \end{center}
 
-\subsection*{Problem Formulation}
-
-The state space is $\mathcal{S} = \{O, U, A\}$ with rewards $R(O) = -10$, $R(U) = +10$, $R(A) = -1$.
-
-The transition probability matrix and reward vector are:
+The transition matrix and reward vector are:
 \[
 \mathcal{P} = \begin{pmatrix}
-0.7 & 0.1 & 0.2 \\
-0.1 & 0.7 & 0.2 \\
-\frac{1}{3} & \frac{1}{3} & \frac{1}{3}
+0.6 & 0.2 & 0.2 \\
+0.3 & 0.4 & 0.3 \\
+0.2 & 0.3 & 0.5
 \end{pmatrix}, \qquad
-\mathbf{R} = \begin{pmatrix} -10 \\ +10 \\ -1 \end{pmatrix}
+\mathbf{R} = \begin{pmatrix} +5 \\ -3 \\ +8 \end{pmatrix}
 \]
 
-\subsection*{Solution: Direct Matrix Inversion}
+\begin{enumerate}[label=(\alph*)]
+\item Write the Bellman equation for this MRP in matrix form for a general discount factor $\gamma$. That is, express $\mathbf{V}$ as a function of $\mathbf{R}$, $\gamma$, and $\mathcal{P}$.
 
-\begin{stepbox}[Step 1: Bellman Equation in Matrix Form]
-The value function satisfies:
-\[
-\mathbf{V} = \mathbf{R} + \gamma \mathcal{P} \mathbf{V}
-\quad \Longrightarrow \quad
-(\mathbf{I} - \gamma \mathcal{P})\mathbf{V} = \mathbf{R}
-\quad \Longrightarrow \quad
-\boxed{\mathbf{V} = (\mathbf{I} - \gamma \mathcal{P})^{-1} \mathbf{R}}
-\]
-\end{stepbox}
+\vspace{4cm}
 
-\begin{stepbox}[Step 2: Form the Coefficient Matrix]
-Compute $\mathbf{I} - \gamma\mathcal{P}$ for $\gamma = 0.9$:
-\[
-\mathbf{I} - 0.9\mathcal{P} =
-\begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{pmatrix}
-- 0.9 \begin{pmatrix} 0.7 & 0.1 & 0.2 \\ 0.1 & 0.7 & 0.2 \\ \frac{1}{3} & \frac{1}{3} & \frac{1}{3} \end{pmatrix}
-= \begin{pmatrix}
-0.37 & -0.09 & -0.18 \\
--0.09 & 0.37 & -0.18 \\
--0.3 & -0.3 & 0.7
-\end{pmatrix}
-\]
-\end{stepbox}
+\item Form the matrix $(\mathbf{I} - \gamma \mathcal{P})$ explicitly for $\gamma = 0.8$. Show all entries.
 
-\begin{stepbox}[Step 3: Write the Bellman Equations Explicitly]
-Expanding $(\mathbf{I} - \gamma\mathcal{P})\mathbf{V} = \mathbf{R}$:
-\begin{align*}
-0.37\,V(O) - 0.09\,V(U) - 0.18\,V(A) &= -10 \\
--0.09\,V(O) + 0.37\,V(U) - 0.18\,V(A) &= +10 \\
--0.3\,V(O) - 0.3\,V(U) + 0.7\,V(A) &= -1
-\end{align*}
-Solving this $3 \times 3$ linear system (via Gaussian elimination, Cramer's rule, or \texttt{np.linalg.solve}):
-\end{stepbox}
+\vspace{5cm}
 
-\begin{resultsbox}
-For $\gamma = 0.9$:
-\[
-\boxed{V(O) \approx -23.75, \qquad V(U) \approx +32.01, \qquad V(A) \approx +1.04}
-\]
+\item Solve the $3 \times 3$ linear system $(\mathbf{I} - \gamma \mathcal{P})\mathbf{V} = \mathbf{R}$ for $\gamma = 0.8$ to find $V(S_1)$, $V(S_2)$, and $V(S_3)$. Show your work (Gaussian elimination, Cramer's rule, or equivalent).
 
-\textbf{Interpretation:}
-\begin{itemize}[nosep]
-    \item $V(O) \approx -23.75$: The system tends to stay in $O$ (70\% self-loop), accumulating $-10$ rewards over time.
-    \item $V(U) \approx +32.01$: The system tends to stay in $U$ (70\% self-loop), accumulating $+10$ rewards.
-    \item $V(A) \approx +1.04$: Despite the $-1$ immediate reward, the $\frac{1}{3}$ chance of reaching $U$ makes this state slightly positive.
-\end{itemize}
-\end{resultsbox}
+\vspace{8cm}
+\end{enumerate}
 
-\subsection*{Verification Across Discount Factors}
+% ============================================================================
+% PROBLEM 2: Discount Factor Analysis
+% ============================================================================
+
+\question{Problem 2: MRP Discount Factor Analysis}\label{prob:discount}
+
+Use the same MRP from Problem~1.
+
+\begin{enumerate}[label=(\alph*)]
+\item Compute $V(S_1)$, $V(S_2)$, and $V(S_3)$ for $\gamma = 0$. Briefly explain why the answer is immediate.
+
+\vspace{3cm}
+
+\item Compute $V(S_1)$, $V(S_2)$, and $V(S_3)$ for $\gamma = 0.5$.
+
+\vspace{7cm}
+
+\item For approximately what value of $\gamma$ does $V(S_2)$ cross from negative to positive? Set $V(S_2) = 0$ in the Bellman equation and solve (you may approximate).
+
+\vspace{5cm}
+
+\item On the axes below, sketch the curves $V(S_1)$, $V(S_2)$, and $V(S_3)$ as functions of $\gamma \in [0, 1)$. Label each curve and mark the zero-crossing from part~(c).
 
 \begin{center}
-\begin{tabular}{cccc}
-\toprule
-$\bm{\gamma}$ & $\mathbf{V(O)}$ & $\mathbf{V(U)}$ & $\mathbf{V(A)}$ \\
-\midrule
-0     & $-10.00$ & $+10.00$ & $-1.00$ \\
-0.1   & $-10.63$ & $+10.63$ & $-1.00$ \\
-0.9   & $-23.75$ & $+32.01$ & $+1.04$ \\
-0.999 & $-163.30$ & $+343.37$ & $+88.03$ \\
-\bottomrule
-\end{tabular}
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.85\textwidth,
+    height=7cm,
+    xlabel={$\gamma$},
+    ylabel={$V(s)$},
+    xmin=0, xmax=1,
+    ymin=-10, ymax=50,
+    ymajorgrids=true,
+    grid style={USC_Black10},
+    axis lines=left,
+    every axis x label/.style={at={(ticklabel* cs:1.0)}, anchor=west},
+    every axis y label/.style={at={(ticklabel* cs:1.0)}, anchor=south},
+    extra y ticks={0},
+    extra y tick style={grid=major, grid style={black, line width=0.5pt}},
+]
+\end{axis}
+\end{tikzpicture}
 \end{center}
+\end{enumerate}
 
-\noindent At $\gamma = 0$, only immediate rewards matter so $V(s) = R(s)$. As $\gamma \to 1$, future rewards accumulate and the values diverge significantly. Note how $V(A)$ flips from negative to positive around $\gamma \approx 0.5$ as the future value of potentially reaching $U$ outweighs the $-1$ penalty.
+% ============================================================================
+% PROBLEM 3: Value Iteration by Hand
+% ============================================================================
 
-\subsection*{Value Propagation Diagram}
+\question{Problem 3: Value Iteration by Hand}\label{prob:vi}
 
-The converged values ($\gamma = 0.9$) mapped onto the MRP structure. Node color intensity reflects value: {\color{USC_Rose}red for negative}, {\color{USC_Horseshoe}green for positive}.
+Consider the following MDP with states $\{X, Y\}$ and a terminal state $Z_T$, discount factor $\gamma = 0.9$. Each non-terminal state has two actions: $a_1$ and $a_2$. All transitions are deterministic.
 
 \begin{center}
 \begin{tikzpicture}[
     >=Stealth,
     scale=0.85,
-    every edge/.style={draw=black, line width=1.2pt, ->, >=Stealth},
-    prob/.style={font=\bfseries\small, text=black, fill=white, inner sep=2pt},
-    statelabel/.style={font=\small\bfseries}
-]
-
-% O node: V = -23.75 (strong negative -> red)
-\node[circle, minimum size=1.8cm, draw=USC_Garnet, line width=2pt,
-      fill=USC_Rose!70, font=\bfseries\Large] (O) at (0, 0) {O};
-\node[statelabel, below=10pt of O] {$V = -23.75$};
-
-% U node: V = +32.01 (strong positive -> green)
-\node[circle, minimum size=1.8cm, draw=USC_Garnet, line width=2pt,
-      fill=USC_Horseshoe!60, font=\bfseries\Large] (U) at (8, 0) {U};
-\node[statelabel, below=10pt of U] {$V = +32.01$};
-
-% A node: V = +1.04 (weak positive -> light green)
-\node[circle, minimum size=1.8cm, draw=USC_Garnet, line width=2pt,
-      fill=USC_Horseshoe!10, font=\bfseries\Large] (A) at (4, -4.5) {A};
-\node[statelabel, below=10pt of A] {$V = +1.04$};
-
-% Self-loops
-\path (O) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (O);
-\path (U) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (U);
-\path (A) edge[loop below, looseness=5, out=-60, in=-120, draw=USC_Garnet] node[prob, below=5pt] {$\frac{1}{3}$} (A);
-
-% Transitions
-\path (O) edge[bend left=15] node[prob, above=3pt] {0.1} (U);
-\path (U) edge[bend left=15] node[prob, below=3pt] {0.1} (O);
-\path (O) edge[bend left=12] node[prob, left=4pt, pos=0.45] {0.2} (A);
-\path (A) edge[bend left=12] node[prob, left=4pt, pos=0.55] {$\frac{1}{3}$} (O);
-\path (U) edge[bend right=12] node[prob, right=4pt, pos=0.45] {0.2} (A);
-\path (A) edge[bend right=12] node[prob, right=4pt, pos=0.55] {$\frac{1}{3}$} (U);
-
-\end{tikzpicture}
-\end{center}
-
-\subsection*{Convergence by Iteration}
-
-Iterative evaluation of $V(s)$ starting from $V_0 = \mathbf{0}$, $\gamma = 0.9$. Shows how each state's value evolves toward its fixed point.
-
-\begin{center}
-\begin{tikzpicture}
-\begin{axis}[
-    ybar,
-    bar width=8pt,
-    width=0.88\textwidth,
-    height=7cm,
-    xlabel={Iteration},
-    ylabel={$V(s)$},
-    symbolic x coords={0,1,2,3,Converged},
-    xtick=data,
-    legend style={at={(0.02,0.98)}, anchor=north west, draw=none, font=\small},
-    ymin=-30, ymax=40,
-    ymajorgrids=true,
-    grid style={USC_Black10},
-    axis lines=left,
-    every axis x label/.style={at={(ticklabel* cs:1.0)}, anchor=west},
-    every axis y label/.style={at={(ticklabel* cs:1.0)}, anchor=south},
-]
-\addplot[fill=USC_Garnet, draw=USC_Garnet] coordinates {
-    (0, 0) (1, -10) (2, -16.27) (3, -19.60) (Converged, -23.75)
-};
-\addplot[fill=USC_Atlantic, draw=USC_Atlantic] coordinates {
-    (0, 0) (1, 10) (2, 18.27) (3, 23.84) (Converged, 32.01)
-};
-\addplot[fill=USC_Horseshoe, draw=USC_Horseshoe] coordinates {
-    (0, 0) (1, -1) (2, -0.7) (3, 0.32) (Converged, 1.04)
-};
-\legend{$V(O)$, $V(U)$, $V(A)$}
-\end{axis}
-\end{tikzpicture}
-\end{center}
-
-\subsection*{Effect of Discount Factor}
-
-State values as a function of $\gamma$. Note $V(A)$ crosses zero near $\gamma \approx 0.5$.
-
-\begin{center}
-\begin{tikzpicture}
-\begin{axis}[
-    width=0.88\textwidth,
-    height=7cm,
-    xlabel={$\gamma$},
-    ylabel={$V(s)$},
-    xmin=0, xmax=1,
-    ymin=-50, ymax=80,
-    ymajorgrids=true,
-    grid style={USC_Black10},
-    legend style={at={(0.02,0.98)}, anchor=north west, draw=none, font=\small},
-    axis lines=left,
-    every axis x label/.style={at={(ticklabel* cs:1.0)}, anchor=west},
-    every axis y label/.style={at={(ticklabel* cs:1.0)}, anchor=south},
-    line width=1.5pt,
-    extra y ticks={0},
-    extra y tick style={grid=major},
-]
-\addplot[color=USC_Garnet, mark=none] coordinates {
-    (0,-10) (0.1,-10.63) (0.2,-11.36) (0.3,-12.22) (0.4,-13.24)
-    (0.5,-14.50) (0.6,-16.11) (0.7,-18.26) (0.8,-21.30) (0.9,-23.75)
-    (0.95,-30.82) (0.99,-72.12)
-};
-\addplot[color=USC_Atlantic, mark=none] coordinates {
-    (0,10) (0.1,10.63) (0.2,11.36) (0.3,12.22) (0.4,13.24)
-    (0.5,14.50) (0.6,16.11) (0.7,18.26) (0.8,21.30) (0.9,32.01)
-    (0.95,52.49)
-};
-\addplot[color=USC_Horseshoe, mark=none] coordinates {
-    (0,-1) (0.1,-1.00) (0.2,-0.97) (0.3,-0.89) (0.4,-0.72)
-    (0.5,-0.40) (0.6,0.17) (0.7,1.14) (0.8,2.83) (0.9,1.04)
-    (0.95,8.84) (0.99,43.09)
-};
-\legend{$V(O)$, $V(U)$, $V(A)$}
-\end{axis}
-\end{tikzpicture}
-\end{center}
-
-\begin{codebox}[Implementation]
-\begin{lstlisting}
-import numpy as np
-
-def mrp(state_trans_probs, state_rewards, gamma):
-    I = np.eye(state_trans_probs.shape[0])
-    return np.linalg.solve(I - gamma * state_trans_probs, state_rewards)
-\end{lstlisting}
-\end{codebox}
-
-% ============================================================================
-% PROBLEM 2.1: Dynamic Programming
-% ============================================================================
-
-\question{Problem 2.1: Dynamic Programming (40 pts)}\label{quest:dp}
-
-\textbf{Task:} Implement the \texttt{dynamic\_programming} function. Use any tabular dynamic programming algorithm to exactly compute the optimal state-value function and an optimal policy for the AI Farm environment.
-
-\subsection*{Algorithm: Value Iteration}
-
-Value iteration repeatedly applies the Bellman optimality update until convergence:
-\[
-V_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \left[ r(s,a) + \gamma \sum_{s'} P(s'|s,a) \cdot V_k(s') \right]
-\]
-
-The optimal policy is extracted after convergence:
-\[
-\pi^*(s) = \arg\max_{a \in \mathcal{A}(s)} \left[ r(s,a) + \gamma \sum_{s'} P(s'|s,a) \cdot V^*(s') \right]
-\]
-
-\begin{stepbox}[Step 1: Initialize]
-Set $V(s) = 0$ for all states $s$. Choose convergence threshold $\theta = 10^{-8}$.
-\end{stepbox}
-
-\begin{stepbox}[Step 2: Value Iteration Loop]
-For each state $s$ and each action $a$:
-\begin{enumerate}[nosep]
-    \item Call \texttt{env.state\_action\_dynamics(s, a)} to get $r(s,a)$, next states $\{s'\}$, and probabilities $\{P(s'|s,a)\}$.
-    \item Compute $Q(s,a) = r(s,a) + \gamma \sum_{s'} P(s'|s,a) \cdot V(s')$.
-    \item Update $V(s) = \max_a Q(s,a)$.
-\end{enumerate}
-Repeat until $\max_s |V_{\text{new}}(s) - V_{\text{old}}(s)| < \theta$.
-\end{stepbox}
-
-\begin{stepbox}[Step 3: Extract Policy]
-For each state $s$, compute $Q(s,a)$ for all actions and assign probability~1 to $\arg\max_a Q(s,a)$.
-\end{stepbox}
-
-\subsection*{Worked Example: 2-State MDP}
-
-Consider a simple MDP with states $S_0, S_1$ and terminal state $S_T$, $\gamma = 1$:
-
-\begin{center}
-\begin{tikzpicture}[
-    >=Stealth,
-    scale=0.75,
     every state/.style={
         fill=white,
         draw=USC_Garnet,
         line width=2pt,
         text=black,
-        minimum size=1.5cm,
-        font=\bfseries
+        minimum size=1.6cm,
+        font=\bfseries\Large
     },
-    every edge/.style={draw=black, line width=1pt, ->, >=Stealth},
-    prob/.style={font=\small\bfseries, fill=white, inner sep=2pt}
+    every edge/.style={draw=black, line width=1.2pt, ->, >=Stealth},
+    prob/.style={font=\small\bfseries, fill=white, inner sep=2pt},
+    term/.style={
+        fill=USC_Atlantic!15,
+        draw=USC_Atlantic,
+        line width=2pt,
+        text=black,
+        minimum size=1.6cm,
+        font=\bfseries\Large
+    }
 ]
-\node[state] (S0) at (0, 0) {$S_0$};
-\node[state] (S1) at (5, 0) {$S_1$};
-\node[state, draw=USC_Atlantic] (ST) at (10, 0) {$S_T$};
 
-\path (S0) edge[loop above, looseness=5, out=120, in=60] node[prob, above=4pt] {$L: r=-1$} (S0);
-\path (S0) edge[bend left=12] node[prob, above=4pt] {$R: r=0$} (S1);
-\path (S1) edge[bend left=12] node[prob, below=4pt] {$L: r=0$} (S0);
-\path (S1) edge node[prob, above=4pt] {$R: r=+10$} (ST);
+\node[state] (X) at (0, 0) {$X$};
+\node[state] (Y) at (6, 0) {$Y$};
+\node[term] (Z) at (12, 0) {$Z_T$};
+
+% X actions
+\path (X) edge[loop above, looseness=5, out=120, in=60] node[prob, above=5pt] {$a_1: r=+2$} (X);
+\path (X) edge[bend left=15] node[prob, above=3pt] {$a_2: r=+1$} (Y);
+
+% Y actions
+\path (Y) edge[bend left=15] node[prob, below=3pt] {$a_1: r=0$} (X);
+\path (Y) edge node[prob, above=3pt] {$a_2: r=+4$} (Z);
+
 \end{tikzpicture}
 \end{center}
 
-\textbf{Value Iteration (hand trace):}
-
-\smallskip
-
-\textbf{Iteration 1} (from $V_0(S_0) = 0, \; V_0(S_1) = 0$):
-\begin{align*}
-V_1(S_0) &= \max\!\big(\underbrace{-1 + 1 \cdot V_0(S_0)}_{L: -1+0=-1},\; \underbrace{0 + 1 \cdot V_0(S_1)}_{R: 0+0=0}\big) = 0 & \pi(S_0) &= R \\
-V_1(S_1) &= \max\!\big(\underbrace{0 + 1 \cdot V_0(S_0)}_{L: 0+0=0},\; \underbrace{10 + 1 \cdot V_0(S_T)}_{R: 10+0=10}\big) = 10 & \pi(S_1) &= R
-\end{align*}
-
-\textbf{Iteration 2} (from $V_1(S_0) = 0, \; V_1(S_1) = 10$):
-\begin{align*}
-V_2(S_0) &= \max\!\big(\underbrace{-1 + 0}_{L: -1},\; \underbrace{0 + 10}_{R: 10}\big) = 10 & \pi(S_0) &= R \\
-V_2(S_1) &= \max\!\big(\underbrace{0 + 0}_{L: 0},\; \underbrace{10 + 0}_{R: 10}\big) = 10 & \pi(S_1) &= R
-\end{align*}
-
-\textbf{Iteration 3}: $V_3(S_0) = \max(-1, 10) = 10$, $V_3(S_1) = \max(10, 10) = 10$. \textbf{Converged.}
-
+\textbf{Transition and reward summary:}
 \begin{center}
-\begin{tabular}{cccll}
+\begin{tabular}{cccc}
 \toprule
-\textbf{Iter} & $\mathbf{V(S_0)}$ & $\mathbf{V(S_1)}$ & $\bm{\pi(S_0)}$ & $\bm{\pi(S_1)}$ \\
+\textbf{State} & \textbf{Action} & \textbf{Next State} & \textbf{Reward} \\
 \midrule
-0 & 0 & 0 & --- & --- \\
-1 & 0 & 10 & R & R \\
-2 & 10 & 10 & R & R \\
-3 & 10 & 10 & R & R \\
+$X$ & $a_1$ & $X$ & $+2$ \\
+$X$ & $a_2$ & $Y$ & $+1$ \\
+$Y$ & $a_1$ & $X$ & $0$ \\
+$Y$ & $a_2$ & $Z_T$ & $+4$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\begin{resultsbox}
-$V^*(S_0) = 10$, $V^*(S_1) = 10$. Optimal policy: $S_0 \xrightarrow{R} S_1 \xrightarrow{R} S_T$, collecting $+10$ total reward.
-\end{resultsbox}
+\begin{enumerate}[label=(\alph*)]
+\item Initialize $V_0(X) = V_0(Y) = 0$. Perform \textbf{3 iterations} of value iteration. Fill in the table below. Show computation for each cell.
 
-\subsection*{Grid World Intuition: Value Landscape and Policy}
+\begin{center}
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Iter $k$} & $V_k(X)$ & $\pi_k(X)$ & $V_k(Y)$ & $\pi_k(Y)$ \\
+\midrule
+0 & 0 & --- & 0 & --- \\[0.5em]
+1 & & & & \\[0.5em]
+2 & & & & \\[0.5em]
+3 & & & & \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-A $4 \times 3$ grid MDP illustrating how value iteration produces both a value landscape and a policy. The agent starts at the bottom-left; the goal (+10) is at the top-right, with a penalty state ($-10$) adjacent. Cell shading indicates value; arrows show the optimal policy.
+\vspace{6cm}
+
+\item After convergence, what is the optimal policy $\pi^*$? State $\pi^*(X)$ and $\pi^*(Y)$ and justify briefly.
+
+\vspace{3cm}
+
+\item Compute the exact optimal values $V^*(X)$ and $V^*(Y)$ by solving the Bellman optimality equations simultaneously (not by iteration).
+
+\vspace{5cm}
+\end{enumerate}
+
+% ============================================================================
+% PROBLEM 4: Grid World Policy
+% ============================================================================
+
+\question{Problem 4: Grid World Policy}\label{prob:grid}
+
+Consider the $3 \times 3$ grid MDP below. The agent can move \textbf{Up, Down, Left, Right}. Moves that would leave the grid keep the agent in place. All transitions are deterministic. Discount factor $\gamma = 1$.
 
 \begin{center}
 \begin{tikzpicture}[
-    scale=1.1,
-    cell/.style={minimum size=1.4cm, draw=USC_Black90, line width=0.8pt, font=\small},
-    arrow/.style={->, >=Stealth, line width=1.5pt, USC_Garnet}
+    scale=1.3,
+    cell/.style={minimum size=1.6cm, draw=USC_Black90, line width=0.8pt, font=\small, anchor=center}
 ]
-% Grid cells with value-based coloring
-% Row 3 (top): values approx 7, 8, 9, 10(goal)
-\node[cell, fill=USC_Horseshoe!35] at (0, 3) {\footnotesize 7.0};
-\node[cell, fill=USC_Horseshoe!40] at (1.4, 3) {\footnotesize 8.0};
-\node[cell, fill=USC_Horseshoe!50] at (2.8, 3) {\footnotesize 9.0};
-\node[cell, fill=USC_Horseshoe!70, font=\small\bfseries] at (4.2, 3) {+10};
 
-% Row 2: values 6, wall, 5, -10(penalty)
-\node[cell, fill=USC_Horseshoe!30] at (0, 1.6) {\footnotesize 6.0};
-\node[cell, fill=USC_Black90, text=white] at (1.4, 1.6) {\footnotesize Wall};
-\node[cell, fill=USC_Horseshoe!25] at (2.8, 1.6) {\footnotesize 5.0};
-\node[cell, fill=USC_Rose!60, font=\small\bfseries] at (4.2, 1.6) {$-10$};
+% Row labels (y=2 top, y=0 bottom)
+% Column labels (x=0 left, x=2 right)
 
-% Row 1 (bottom): values 5, 4, 3, 2
-\node[cell, fill=USC_Horseshoe!25] at (0, 0.2) {\footnotesize 5.0};
-\node[cell, fill=USC_Horseshoe!20] at (1.4, 0.2) {\footnotesize 4.0};
-\node[cell, fill=USC_Horseshoe!15] at (2.8, 0.2) {\footnotesize 3.0};
-\node[cell, fill=USC_Horseshoe!10] at (4.2, 0.2) {\footnotesize 2.0};
+% Row 2 (top)
+\node[cell, fill=white] at (0, 2) {$(0,2)$};
+\node[cell, fill=white] at (1.6, 2) {$(1,2)$};
+\node[cell, fill=USC_Horseshoe!40, font=\small\bfseries] at (3.2, 2) {\shortstack{Goal\\$r=+10$}};
 
-% Policy arrows
-% Row 3
-\draw[arrow] (-0.1, 3) -- (0.4, 3);  % right
-\draw[arrow] (1.3, 3) -- (1.8, 3);   % right
-\draw[arrow] (2.7, 3) -- (3.2, 3);   % right
+% Row 1 (middle)
+\node[cell, fill=white] at (0, 0.8) {$(0,1)$};
+\node[cell, fill=USC_Black90, text=white, font=\small\bfseries] at (1.6, 0.8) {Wall};
+\node[cell, fill=USC_Rose!40, font=\small\bfseries] at (3.2, 0.8) {\shortstack{Trap\\$r=-5$}};
 
-% Row 2
-\draw[arrow] (0, 1.9) -- (0, 2.4);   % up
-\draw[arrow] (2.8, 1.9) -- (2.8, 2.4);  % up
-
-% Row 1
-\draw[arrow] (0, 0.5) -- (0, 1.0);   % up
-\draw[arrow] (1.3, 0.2) -- (1.8, 0.2);  % right (can't go up, wall)
-\draw[arrow] (2.8, 0.5) -- (2.8, 1.0);  % up
-\draw[arrow] (4.2, 0.5) -- (4.2, 1.0);  % up (toward penalty--stuck)
-
-% Start label
-\node[font=\footnotesize\bfseries, USC_Atlantic] at (0, -0.3) {Start};
+% Row 0 (bottom)
+\node[cell, fill=USC_Atlantic!15, font=\small\bfseries] at (0, -0.4) {Start};
+\node[cell, fill=white] at (1.6, -0.4) {$(1,0)$};
+\node[cell, fill=white] at (3.2, -0.4) {$(2,0)$};
 
 \end{tikzpicture}
 \end{center}
 
-\subsection*{Value Iteration Wavefront}
+\textbf{Rules:}
+\begin{itemize}[nosep]
+\item Every move costs $r = -1$ (step penalty), except moves into Goal or Trap.
+\item Reaching the \textbf{Goal} $(2,2)$: reward $r = +10$, episode ends.
+\item Reaching the \textbf{Trap} $(2,1)$: reward $r = -5$, episode ends.
+\item The \textbf{Wall} $(1,1)$ is impassable; moves into it keep the agent in place (still costs $-1$).
+\item Goal and Trap are terminal states.
+\end{itemize}
 
-How value information propagates backward from the terminal reward in the 2-state MDP. Each panel shows one iteration: the value ``wave'' reaches $S_1$ first, then $S_0$.
+\begin{enumerate}[label=(\alph*)]
+\item List the reward $R(s, a, s')$ for every non-terminal state $s$ and every action $a$. Organize your answer clearly (a table is fine).
+
+\vspace{6cm}
+
+\item Starting from $V_0(s) = 0$ for all states, perform \textbf{2 iterations} of value iteration. Write the resulting values in each cell of the grids below.
+
+\textbf{After Iteration 1:}
+\begin{center}
+\begin{tikzpicture}[
+    scale=1.1,
+    cell/.style={minimum size=1.6cm, draw=USC_Black90, line width=0.8pt, font=\small, anchor=center}
+]
+\node[cell] at (0, 2) {};
+\node[cell] at (1.6, 2) {};
+\node[cell, fill=USC_Black10] at (3.2, 2) {G};
+\node[cell] at (0, 0.8) {};
+\node[cell, fill=USC_Black90, text=white] at (1.6, 0.8) {W};
+\node[cell, fill=USC_Black10] at (3.2, 0.8) {T};
+\node[cell] at (0, -0.4) {};
+\node[cell] at (1.6, -0.4) {};
+\node[cell] at (3.2, -0.4) {};
+\end{tikzpicture}
+\end{center}
+
+\textbf{After Iteration 2:}
+\begin{center}
+\begin{tikzpicture}[
+    scale=1.1,
+    cell/.style={minimum size=1.6cm, draw=USC_Black90, line width=0.8pt, font=\small, anchor=center}
+]
+\node[cell] at (0, 2) {};
+\node[cell] at (1.6, 2) {};
+\node[cell, fill=USC_Black10] at (3.2, 2) {G};
+\node[cell] at (0, 0.8) {};
+\node[cell, fill=USC_Black90, text=white] at (1.6, 0.8) {W};
+\node[cell, fill=USC_Black10] at (3.2, 0.8) {T};
+\node[cell] at (0, -0.4) {};
+\node[cell] at (1.6, -0.4) {};
+\node[cell] at (3.2, -0.4) {};
+\end{tikzpicture}
+\end{center}
+
+\vspace{4cm}
+
+\item On the grid below, draw the optimal policy (one arrow per non-terminal cell indicating the best action).
+
+\begin{center}
+\begin{tikzpicture}[
+    scale=1.3,
+    cell/.style={minimum size=1.8cm, draw=USC_Black90, line width=0.8pt, font=\small, anchor=center}
+]
+\node[cell] at (0, 2) {};
+\node[cell] at (1.6, 2) {};
+\node[cell, fill=USC_Horseshoe!30] at (3.2, 2) {G};
+\node[cell] at (0, 0.8) {};
+\node[cell, fill=USC_Black90, text=white] at (1.6, 0.8) {W};
+\node[cell, fill=USC_Rose!30] at (3.2, 0.8) {T};
+\node[cell] at (0, -0.4) {};
+\node[cell] at (1.6, -0.4) {};
+\node[cell] at (3.2, -0.4) {};
+\end{tikzpicture}
+\end{center}
+\end{enumerate}
+
+% ============================================================================
+% PROBLEM 5: Q-Learning Episode Trace
+% ============================================================================
+
+\question{Problem 5: Q-Learning Episode Trace}\label{prob:qlearn}
+
+Consider the following 2-state MDP with states $\{A, B\}$ and terminal state $B_T$. Each state has two actions: $L$ and $R$.
 
 \begin{center}
 \begin{tikzpicture}[
     >=Stealth,
-    scale=0.65,
-    state/.style={circle, minimum size=1.2cm, draw=USC_Garnet, line width=1.5pt, font=\bfseries\small},
-    term/.style={circle, minimum size=1.2cm, draw=USC_Atlantic, line width=1.5pt, font=\bfseries\small},
-    arrow/.style={->, line width=1pt},
-    iterlab/.style={font=\bfseries, USC_Garnet}
+    scale=0.85,
+    every state/.style={
+        fill=white,
+        draw=USC_Garnet,
+        line width=2pt,
+        text=black,
+        minimum size=1.6cm,
+        font=\bfseries\Large
+    },
+    every edge/.style={draw=black, line width=1.2pt, ->, >=Stealth},
+    prob/.style={font=\small\bfseries, fill=white, inner sep=2pt},
+    term/.style={
+        fill=USC_Atlantic!15,
+        draw=USC_Atlantic,
+        line width=2pt,
+        text=black,
+        minimum size=1.6cm,
+        font=\bfseries\Large
+    }
 ]
 
-% --- Iteration 0 ---
-\node[iterlab] at (2, 2.5) {Iter 0};
-\node[state, fill=white] (S0a) at (0, 0) {$S_0$};
-\node[below=2pt of S0a, font=\scriptsize] {$V\!=\!0$};
-\node[state, fill=white] (S1a) at (4, 0) {$S_1$};
-\node[below=2pt of S1a, font=\scriptsize] {$V\!=\!0$};
-\node[term, fill=USC_Atlantic!15] (STa) at (8, 0) {$S_T$};
+\node[state] (A) at (0, 0) {$A$};
+\node[state] (B) at (6, 0) {$B$};
+\node[term] (BT) at (12, 0) {$B_T$};
 
-% --- Iteration 1 ---
-\node[iterlab] at (13, 2.5) {Iter 1};
-\node[state, fill=white] (S0b) at (11, 0) {$S_0$};
-\node[below=2pt of S0b, font=\scriptsize] {$V\!=\!0$};
-\node[state, fill=USC_Horseshoe!40] (S1b) at (15, 0) {$S_1$};
-\node[below=2pt of S1b, font=\scriptsize] {$V\!=\!10$};
-\node[term, fill=USC_Atlantic!15] (STb) at (19, 0) {$S_T$};
-\draw[arrow, USC_Horseshoe, line width=1.5pt] (S1b) -- node[above, font=\scriptsize] {$R$} (STb);
+% A actions
+\path (A) edge[loop above, looseness=5, out=120, in=60] node[prob, above=5pt] {$L: r=-1$} (A);
+\path (A) edge[bend left=15] node[prob, above=3pt] {$R: r=+2$} (B);
 
-% --- Iteration 2 ---
-\node[iterlab] at (24, 2.5) {Iter 2};
-\node[state, fill=USC_Horseshoe!40] (S0c) at (22, 0) {$S_0$};
-\node[below=2pt of S0c, font=\scriptsize] {$V\!=\!10$};
-\node[state, fill=USC_Horseshoe!40] (S1c) at (26, 0) {$S_1$};
-\node[below=2pt of S1c, font=\scriptsize] {$V\!=\!10$};
-\node[term, fill=USC_Atlantic!15] (STc) at (30, 0) {$S_T$};
-\draw[arrow, USC_Horseshoe, line width=1.5pt] (S0c) -- node[above, font=\scriptsize] {$R$} (S1c);
-\draw[arrow, USC_Horseshoe, line width=1.5pt] (S1c) -- node[above, font=\scriptsize] {$R$} (STc);
+% B actions
+\path (B) edge[bend left=15] node[prob, below=3pt] {$L: r=0$} (A);
+\path (B) edge node[prob, above=3pt] {$R: r=+6$} (BT);
 
 \end{tikzpicture}
 \end{center}
 
-\begin{codebox}[Implementation]
-\begin{lstlisting}
-def dynamic_programming(env, states, state_values, gamma):
-    theta = 1e-8
-    while True:
-        delta = 0
-        for s in states:
-            actions = env.get_actions(s)
-            if not actions:
-                continue
-            v_old = state_values[s]
-            q_vals = []
-            for a in actions:
-                r, nxts, probs = env.state_action_dynamics(s, a)
-                q = r + gamma * sum(
-                    p * state_values[ns]
-                    for ns, p in zip(nxts, probs))
-                q_vals.append(q)
-            state_values[s] = max(q_vals)
-            delta = max(delta, abs(v_old - state_values[s]))
-        if delta < theta:
-            break
+All transitions are deterministic. Use \textbf{Q-learning} with $\alpha = 0.2$, $\gamma = 1$, and $\varepsilon = 0$ (pure greedy; break ties alphabetically by action name, i.e., $L$ before $R$).
 
-    # Extract greedy policy
-    policy = {}
-    for s in states:
-        actions = env.get_actions(s)
-        probs = [0.0] * len(actions)
-        if actions:
-            best_q, best_i = float('-inf'), 0
-            for i, a in enumerate(actions):
-                r, nxts, ps = env.state_action_dynamics(s, a)
-                q = r + gamma * sum(
-                    p * state_values[ns]
-                    for ns, p in zip(nxts, ps))
-                if q > best_q:
-                    best_q, best_i = q, i
-            probs[best_i] = 1.0
-        policy[s] = probs
+Initialize all Q-values to zero: $Q(A,L) = Q(A,R) = Q(B,L) = Q(B,R) = 0$.
 
-    return state_values, policy
-\end{lstlisting}
-\end{codebox}
+The three episode trajectories are given (not chosen by your policy---just apply the updates):
 
-% ============================================================================
-% PROBLEM 2.2: Model-Free RL
-% ============================================================================
+\textbf{Episode 1:} $A \xrightarrow{R} B \xrightarrow{R} B_T$
 
-\questionpart{Problem 2.2: Model-Free Reinforcement Learning (40 pts)}\label{quest:mf}
+\textbf{Episode 2:} $A \xrightarrow{R} B \xrightarrow{R} B_T$
 
-\textbf{Task:} Implement the \texttt{model\_free} function. Use a tabular model-free RL algorithm to approximate the optimal action-value function. \textbf{Cannot} use \texttt{env.state\_action\_dynamics}.
+\textbf{Episode 3:} $A \xrightarrow{L} A \xrightarrow{R} B \xrightarrow{R} B_T$
 
-\subsection*{Algorithm: Q-Learning}
+\begin{enumerate}[label=(\alph*)]
+\item For each step of each episode, compute the Q-learning update. Fill in the table.
 
-Q-learning is an off-policy TD control algorithm. The update rule is:
-\[
-Q(s,a) \leftarrow Q(s,a) + \alpha \Big[ r + \gamma \max_{a'} Q(s', a') - Q(s,a) \Big]
-\]
+\textit{Recall:} $Q(s,a) \leftarrow Q(s,a) + \alpha\big[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\big]$
 
-with $\varepsilon$-greedy exploration:
-\[
-a = \begin{cases}
-\arg\max_a Q(s,a) & \text{with probability } 1 - \varepsilon \\
-\text{random action} & \text{with probability } \varepsilon
-\end{cases}
-\]
+\begin{center}
+\begin{tabular}{ccccccl}
+\toprule
+\textbf{Ep.} & \textbf{Step} & $\mathbf{s}$ & $\mathbf{a}$ & $\mathbf{s'}$ & $\mathbf{r}$ & \textbf{New $Q(s,a)$} \\
+\midrule
+1 & 1 & $A$ & $R$ & $B$ & $+2$ & \\[0.4em]
+1 & 2 & $B$ & $R$ & $B_T$ & $+6$ & \\[0.4em]
+\midrule
+2 & 1 & $A$ & $R$ & $B$ & $+2$ & \\[0.4em]
+2 & 2 & $B$ & $R$ & $B_T$ & $+6$ & \\[0.4em]
+\midrule
+3 & 1 & $A$ & $L$ & $A$ & $-1$ & \\[0.4em]
+3 & 2 & $A$ & $R$ & $B$ & $+2$ & \\[0.4em]
+3 & 3 & $B$ & $R$ & $B_T$ & $+6$ & \\[0.4em]
+\bottomrule
+\end{tabular}
+\end{center}
 
-\begin{stepbox}[Step 1: Initialize]
-Set $Q(s,a) = 0$ for all state-action pairs. Choose hyperparameters:
-\begin{itemize}[nosep]
-    \item Learning rate $\alpha \in (0, 1]$ (e.g., $\alpha = 0.1$)
-    \item Exploration rate $\varepsilon$, decaying from $1.0$ to $0.01$
-    \item Number of episodes $N$ (e.g., $N = 50000$)
-\end{itemize}
-\end{stepbox}
+\vspace{5cm}
 
-\begin{stepbox}[Step 2: Episode Loop]
-For each episode:
-\begin{enumerate}[nosep]
-    \item Sample start state $s \leftarrow$ \texttt{env.sample\_start\_state()}.
-    \item While $s$ is not terminal:
-    \begin{enumerate}[nosep]
-        \item Select action $a$ via $\varepsilon$-greedy w.r.t.\ $Q(s, \cdot)$.
-        \item Take action: $(s', r) \leftarrow$ \texttt{env.sample\_transition(s, a)}.
-        \item Update: $Q(s,a) \leftarrow Q(s,a) + \alpha \big[r + \gamma \max_{a'} Q(s',a') - Q(s,a)\big]$.
-        \item $s \leftarrow s'$.
-    \end{enumerate}
-    \item Decay $\varepsilon$: $\varepsilon \leftarrow \max(\varepsilon_{\min},\; \varepsilon \cdot \varepsilon_{\text{decay}})$.
+\item State all four Q-values after the 3 episodes are complete.
+
+\vspace{3cm}
+
+\item What is the greedy policy $\pi(s) = \arg\max_a Q(s,a)$ for each state?
+
+\vspace{2cm}
 \end{enumerate}
-\end{stepbox}
 
-\subsection*{Worked Example: 2-State MDP with Q-Learning}
+% ============================================================================
+% PROBLEM 6: Exploration vs Exploitation
+% ============================================================================
 
-Same 2-state MDP as Problem~2.1. Parameters: $\alpha = 0.1$, $\gamma = 1.0$, $\varepsilon = 0.3$.
+\question{Problem 6: Exploration vs.\ Exploitation}\label{prob:explore}
 
-Initialize: $Q(S_0, L) = Q(S_0, R) = Q(S_1, L) = Q(S_1, R) = 0$.
+\begin{enumerate}[label=(\alph*)]
+\item Suppose an agent is in a state with three available actions $\{a_1, a_2, a_3\}$ and current Q-values:
+\[
+Q(s, a_1) = 5.0, \qquad Q(s, a_2) = 3.2, \qquad Q(s, a_3) = 7.1
+\]
+Under an $\varepsilon$-greedy policy with $\varepsilon = 0.4$, compute the probability of selecting each action. Show your work.
 
-\begin{stepbox}[Episode 1]
-\begin{tabular}{cccccl}
-\toprule
-\textbf{Step} & $\mathbf{s}$ & $\mathbf{a}$ & $\mathbf{s'}$ & $\mathbf{r}$ & \textbf{Q-update} \\
-\midrule
-1 & $S_0$ & $R$ & $S_1$ & 0 & $Q(S_0,R) = 0 + 0.1[0 + 0 - 0] = 0$ \\
-2 & $S_1$ & $R$ & $S_T$ & 10 & $Q(S_1,R) = 0 + 0.1[10 + 0 - 0] = 1.0$ \\
-\bottomrule
-\end{tabular}
-\end{stepbox}
+\vspace{5cm}
 
-\begin{stepbox}[Episode 2]
-\begin{tabular}{cccccl}
-\toprule
-\textbf{Step} & $\mathbf{s}$ & $\mathbf{a}$ & $\mathbf{s'}$ & $\mathbf{r}$ & \textbf{Q-update} \\
-\midrule
-1 & $S_0$ & $R$ & $S_1$ & 0 & $Q(S_0,R) = 0 + 0.1[0 + 1.0 - 0] = 0.1$ \\
-2 & $S_1$ & $R$ & $S_T$ & 10 & $Q(S_1,R) = 1.0 + 0.1[10 + 0 - 1.0] = 1.9$ \\
-\bottomrule
-\end{tabular}
-\end{stepbox}
+\item Suppose $\varepsilon$ starts at $\varepsilon_0 = 1.0$ and decays multiplicatively each episode by a factor of $0.99$:
+\[
+\varepsilon_k = \varepsilon_0 \cdot 0.99^k
+\]
+After how many episodes $k$ is $\varepsilon_k < 0.05$? Solve exactly using logarithms.
 
-\begin{stepbox}[Episode 3]
-\begin{tabular}{cccccl}
-\toprule
-\textbf{Step} & $\mathbf{s}$ & $\mathbf{a}$ & $\mathbf{s'}$ & $\mathbf{r}$ & \textbf{Q-update} \\
-\midrule
-1 & $S_0$ & $R$ & $S_1$ & 0 & $Q(S_0,R) = 0.1 + 0.1[0 + 1.9 - 0.1] = 0.28$ \\
-2 & $S_1$ & $R$ & $S_T$ & 10 & $Q(S_1,R) = 1.9 + 0.1[10 + 0 - 1.9] = 2.71$ \\
-\bottomrule
-\end{tabular}
-\end{stepbox}
+\vspace{5cm}
 
-\noindent After 3 episodes the Q-values are already trending toward the true values. The pattern is clear: each episode, $Q(S_1, R)$ absorbs more of the $+10$ terminal reward, and $Q(S_0, R)$ bootstraps off the improving $Q(S_1, R)$.
+\item In 3--5 sentences, explain: Why is exploration important in the early stages of learning? Why is it beneficial to decay $\varepsilon$ over time rather than keeping it fixed?
 
-\begin{resultsbox}
-After many episodes: $Q(S_0, R) \to 10$, $Q(S_1, R) \to 10$, matching the DP solution.
-
-The greedy policy $\pi(s) = \arg\max_a Q(s,a)$ yields $S_0 \to R$, $S_1 \to R$.
-\end{resultsbox}
-
-\subsection*{Q-Value Convergence}
-
-$Q(S_0, R)$ and $Q(S_1, R)$ over the first 10 episodes ($\alpha = 0.1$, $\gamma = 1$). $S_1$ learns faster because it is one step from the reward; $S_0$ bootstraps off $S_1$.
-
-\begin{center}
-\begin{tikzpicture}
-\begin{axis}[
-    width=0.88\textwidth,
-    height=7cm,
-    xlabel={Episode},
-    ylabel={$Q(s, R)$},
-    xmin=0, xmax=11,
-    ymin=0, ymax=11,
-    xtick={1,2,3,4,5,6,7,8,9,10},
-    ymajorgrids=true,
-    grid style={USC_Black10},
-    legend style={at={(0.02,0.98)}, anchor=north west, draw=none, font=\small},
-    axis lines=left,
-    line width=1.5pt,
-    extra y ticks={10},
-    extra y tick labels={},
-    extra y tick style={grid=major},
-]
-\addplot[color=USC_Garnet, mark=square*, mark options={fill=USC_Garnet, scale=0.8}] coordinates {
-    (1,1.0) (2,1.9) (3,2.71) (4,3.44) (5,4.10) (6,4.69) (7,5.22) (8,5.70) (9,6.13) (10,6.51)
-};
-\addplot[color=USC_Atlantic, mark=triangle*, mark options={fill=USC_Atlantic, scale=0.8}] coordinates {
-    (1,0) (2,0.10) (3,0.28) (4,0.50) (5,0.76) (6,1.04) (7,1.34) (8,1.66) (9,1.99) (10,2.34)
-};
-\node[font=\scriptsize, text=USC_Black70] at (axis cs:9.5, 10.5) {$Q^* = 10$};
-\legend{{$Q(S_1, R)$}, {$Q(S_0, R)$}}
-\end{axis}
-\end{tikzpicture}
-\end{center}
-
-\subsection*{Exploration vs.\ Exploitation: $\varepsilon$-Greedy}
-
-\begin{center}
-\begin{tikzpicture}[scale=1]
-% --- Top: epsilon number line ---
-\node[font=\bfseries\small, anchor=east] at (-0.5, 0) {Action selection:};
-\draw[line width=1.5pt] (0, 0) -- (10, 0);
-\draw[line width=1.5pt] (0, -0.15) -- (0, 0.15);
-\draw[line width=1.5pt] (10, -0.15) -- (10, 0.15);
-\node[below, font=\small] at (0, -0.2) {0};
-\node[below, font=\small] at (10, -0.2) {1};
-
-% Epsilon marker at 0.3
-\draw[line width=2pt, USC_Garnet] (3, -0.2) -- (3, 0.2);
-\node[above, font=\small\bfseries, USC_Garnet] at (3, 0.25) {$\varepsilon$};
-
-% Regions
-\fill[USC_Atlantic!20] (0, -0.08) rectangle (3, 0.08);
-\fill[USC_Horseshoe!20] (3, -0.08) rectangle (10, 0.08);
-
-\node[font=\small\bfseries, USC_Atlantic] at (1.5, 0.7) {Explore};
-\node[font=\scriptsize, USC_Black70] at (1.5, 0.4) {random action};
-\node[font=\small\bfseries, USC_Horseshoe] at (6.5, 0.7) {Exploit};
-\node[font=\scriptsize, USC_Black70] at (6.5, 0.4) {$\arg\max_a Q(s,a)$};
-
-% --- Bottom: decay curve ---
-\node[font=\bfseries\small, anchor=east] at (-0.5, -2.5) {$\varepsilon$ schedule:};
-\draw[->, line width=1pt] (0, -3.5) -- (10.5, -3.5) node[right, font=\small] {Episode};
-\draw[->, line width=1pt] (0, -3.5) -- (0, -1.5) node[above, font=\small] {$\varepsilon$};
-
-% Decay curve: eps = max(0.01, 1.0 * 0.9995^t)
-\draw[USC_Garnet, line width=2pt] plot[smooth, domain=0:10, samples=50]
-    (\x, {-3.5 + 2*max(0.05, exp(-0.5*\x))});
-
-\node[font=\scriptsize, USC_Black70] at (1, -1.7) {$\varepsilon_0 = 1.0$};
-\node[font=\scriptsize, USC_Black70] at (8.5, -3.1) {$\varepsilon_{\min}$};
-\draw[dashed, USC_Black50, line width=0.5pt] (0, -3.4) -- (10, -3.4);
-
-\end{tikzpicture}
-\end{center}
-
-\noindent Early episodes favor exploration (high $\varepsilon$), sampling many state-action pairs. As $\varepsilon$ decays, the agent increasingly exploits its learned Q-values, refining the policy.
-
-\begin{codebox}[Implementation]
-\begin{lstlisting}
-import random
-
-def model_free(env, action_values, gamma):
-    alpha = 0.1
-    eps = 1.0
-    eps_decay = 0.9995
-    eps_min = 0.01
-    num_episodes = 50000
-
-    for _ in range(num_episodes):
-        state = env.sample_start_state()
-        while True:
-            actions = env.get_actions(state)
-            if not actions:
-                break
-            # Epsilon-greedy action selection
-            if random.random() < eps:
-                idx = random.randrange(len(actions))
-            else:
-                idx = max(range(len(actions)),
-                    key=lambda i: action_values[state][i])
-            action = actions[idx]
-            nxt, reward = env.sample_transition(state, action)
-
-            # Q-learning update
-            nxt_acts = env.get_actions(nxt)
-            max_q = (max(action_values[nxt])
-                     if nxt_acts else 0.0)
-            td = reward + gamma * max_q
-            action_values[state][idx] += (
-                alpha * (td - action_values[state][idx]))
-
-            state = nxt
-        eps = max(eps_min, eps * eps_decay)
-
-    return action_values
-\end{lstlisting}
-\end{codebox}
+\vspace{5cm}
+\end{enumerate}
 
 % ============================================================================
 % END OF DOCUMENT
