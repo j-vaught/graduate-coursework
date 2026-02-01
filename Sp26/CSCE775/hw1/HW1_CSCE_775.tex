@@ -23,6 +23,8 @@
 \usepackage{float}
 \usepackage{bm}
 \usepackage{listings}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 % ============================================================================
 % HEADER AND FOOTER SETUP
@@ -375,43 +377,35 @@ The converged values ($\gamma = 0.9$) mapped onto the MRP structure. Node color 
 Iterative evaluation of $V(s)$ starting from $V_0 = \mathbf{0}$, $\gamma = 0.9$. Shows how each state's value evolves toward its fixed point.
 
 \begin{center}
-\begin{tikzpicture}[xscale=2.2, yscale=0.08]
-% Axes
-\draw[->, line width=0.8pt] (-0.3, 0) -- (5.3, 0);
-\draw[->, line width=0.8pt] (0, -30) -- (0, 42);
-\node[font=\small] at (5.5, 0) {Iteration};
-\node[font=\small, rotate=90] at (-0.6, 5) {$V(s)$};
-
-% Y-axis ticks
-\foreach \y/\l in {-20/-20, -10/-10, 0/0, 10/10, 20/20, 30/30, 40/40} {
-    \draw (0, \y) -- (-0.08, \y) node[left, font=\scriptsize] {\l};
-    \draw[USC_Black10, line width=0.3pt] (0, \y) -- (5, \y);
-}
-
-% X-axis labels
-\foreach \x/\l in {0/0, 1/1, 2/2, 3/3, 4.3/Conv.} {
-    \node[below, font=\scriptsize] at (\x, -32) {\l};
-}
-
-% Bar width
-\def\bw{0.12}
-% V(O) - Garnet
-\foreach \x/\v in {0/0, 1/-10, 2/-16.27, 3/-19.60, 4.3/-23.75} {
-    \fill[USC_Garnet] (\x-\bw, 0) rectangle (\x, \v);
-}
-% V(U) - Atlantic
-\foreach \x/\v in {0/0, 1/10, 2/18.27, 3/23.84, 4.3/32.01} {
-    \fill[USC_Atlantic] (\x, 0) rectangle (\x+\bw, \v);
-}
-% V(A) - Horseshoe
-\foreach \x/\v in {0/0, 1/-1, 2/-0.7, 3/0.32, 4.3/1.04} {
-    \fill[USC_Horseshoe] (\x+\bw, 0) rectangle (\x+2*\bw, \v);
-}
-
-% Legend
-\fill[USC_Garnet] (1.5, 38) rectangle (1.7, 40); \node[right, font=\scriptsize] at (1.7, 39) {$V(O)$};
-\fill[USC_Atlantic] (2.5, 38) rectangle (2.7, 40); \node[right, font=\scriptsize] at (2.7, 39) {$V(U)$};
-\fill[USC_Horseshoe] (3.5, 38) rectangle (3.7, 40); \node[right, font=\scriptsize] at (3.7, 39) {$V(A)$};
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=8pt,
+    width=0.88\textwidth,
+    height=7cm,
+    xlabel={Iteration},
+    ylabel={$V(s)$},
+    symbolic x coords={0,1,2,3,Converged},
+    xtick=data,
+    legend style={at={(0.02,0.98)}, anchor=north west, draw=none, font=\small},
+    ymin=-30, ymax=40,
+    ymajorgrids=true,
+    grid style={USC_Black10},
+    axis lines=left,
+    every axis x label/.style={at={(ticklabel* cs:1.0)}, anchor=west},
+    every axis y label/.style={at={(ticklabel* cs:1.0)}, anchor=south},
+]
+\addplot[fill=USC_Garnet, draw=USC_Garnet] coordinates {
+    (0, 0) (1, -10) (2, -16.27) (3, -19.60) (Converged, -23.75)
+};
+\addplot[fill=USC_Atlantic, draw=USC_Atlantic] coordinates {
+    (0, 0) (1, 10) (2, 18.27) (3, 23.84) (Converged, 32.01)
+};
+\addplot[fill=USC_Horseshoe, draw=USC_Horseshoe] coordinates {
+    (0, 0) (1, -1) (2, -0.7) (3, 0.32) (Converged, 1.04)
+};
+\legend{$V(O)$, $V(U)$, $V(A)$}
+\end{axis}
 \end{tikzpicture}
 \end{center}
 
@@ -420,50 +414,41 @@ Iterative evaluation of $V(s)$ starting from $V_0 = \mathbf{0}$, $\gamma = 0.9$.
 State values as a function of $\gamma$. Note $V(A)$ crosses zero near $\gamma \approx 0.5$.
 
 \begin{center}
-\begin{tikzpicture}[xscale=10, yscale=0.05]
-% Axes
-\draw[->, line width=0.8pt] (-0.03, 0) -- (1.05, 0);
-\draw[->, line width=0.8pt] (0, -55) -- (0, 85);
-\node[font=\small] at (1.08, 0) {$\gamma$};
-\node[font=\small, rotate=90] at (-0.07, 15) {$V(s)$};
-
-% Grid and ticks
-\foreach \y in {-50,-25,0,25,50,75} {
-    \draw[USC_Black10, line width=0.3pt] (0, \y) -- (1, \y);
-    \draw (0, \y) -- (-0.01, \y) node[left, font=\scriptsize] {\y};
-}
-\foreach \x in {0, 0.2, 0.4, 0.6, 0.8, 1.0} {
-    \draw (\x, 0) -- (\x, -2) node[below, font=\scriptsize] {\x};
-}
-
-% Zero line
-\draw[dashed, USC_Black50, line width=0.5pt] (0, 0) -- (1, 0);
-
-% V(O) - Garnet
-\draw[USC_Garnet, line width=1.5pt] plot coordinates {
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.88\textwidth,
+    height=7cm,
+    xlabel={$\gamma$},
+    ylabel={$V(s)$},
+    xmin=0, xmax=1,
+    ymin=-50, ymax=80,
+    ymajorgrids=true,
+    grid style={USC_Black10},
+    legend style={at={(0.02,0.98)}, anchor=north west, draw=none, font=\small},
+    axis lines=left,
+    every axis x label/.style={at={(ticklabel* cs:1.0)}, anchor=west},
+    every axis y label/.style={at={(ticklabel* cs:1.0)}, anchor=south},
+    line width=1.5pt,
+    extra y ticks={0},
+    extra y tick style={grid=major},
+]
+\addplot[color=USC_Garnet, mark=none] coordinates {
     (0,-10) (0.1,-10.63) (0.2,-11.36) (0.3,-12.22) (0.4,-13.24)
     (0.5,-14.50) (0.6,-16.11) (0.7,-18.26) (0.8,-21.30) (0.9,-23.75)
-    (0.95,-30.82)
+    (0.95,-30.82) (0.99,-72.12)
 };
-
-% V(U) - Atlantic (clipped at 80)
-\draw[USC_Atlantic, line width=1.5pt] plot coordinates {
+\addplot[color=USC_Atlantic, mark=none] coordinates {
     (0,10) (0.1,10.63) (0.2,11.36) (0.3,12.22) (0.4,13.24)
     (0.5,14.50) (0.6,16.11) (0.7,18.26) (0.8,21.30) (0.9,32.01)
     (0.95,52.49)
 };
-
-% V(A) - Horseshoe
-\draw[USC_Horseshoe, line width=1.5pt] plot coordinates {
+\addplot[color=USC_Horseshoe, mark=none] coordinates {
     (0,-1) (0.1,-1.00) (0.2,-0.97) (0.3,-0.89) (0.4,-0.72)
     (0.5,-0.40) (0.6,0.17) (0.7,1.14) (0.8,2.83) (0.9,1.04)
-    (0.95,8.84)
+    (0.95,8.84) (0.99,43.09)
 };
-
-% Legend
-\draw[USC_Garnet, line width=1.5pt] (0.55, 75) -- (0.62, 75); \node[right, font=\scriptsize] at (0.62, 75) {$V(O)$};
-\draw[USC_Atlantic, line width=1.5pt] (0.55, 68) -- (0.62, 68); \node[right, font=\scriptsize] at (0.62, 68) {$V(U)$};
-\draw[USC_Horseshoe, line width=1.5pt] (0.55, 61) -- (0.62, 61); \node[right, font=\scriptsize] at (0.62, 61) {$V(A)$};
+\legend{$V(O)$, $V(U)$, $V(A)$}
+\end{axis}
 \end{tikzpicture}
 \end{center}
 
@@ -818,50 +803,33 @@ The greedy policy $\pi(s) = \arg\max_a Q(s,a)$ yields $S_0 \to R$, $S_1 \to R$.
 $Q(S_0, R)$ and $Q(S_1, R)$ over the first 10 episodes ($\alpha = 0.1$, $\gamma = 1$). $S_1$ learns faster because it is one step from the reward; $S_0$ bootstraps off $S_1$.
 
 \begin{center}
-\begin{tikzpicture}[xscale=1.1, yscale=0.5]
-% Axes
-\draw[->, line width=0.8pt] (0, 0) -- (11.5, 0);
-\draw[->, line width=0.8pt] (0, 0) -- (0, 11.5);
-\node[font=\small] at (11.8, 0) {Episode};
-\node[font=\small, rotate=90] at (-0.7, 5.5) {$Q(s, R)$};
-
-% Grid
-\foreach \y in {0,2,4,6,8,10} {
-    \draw[USC_Black10, line width=0.3pt] (0, \y) -- (11, \y);
-    \draw (0, \y) -- (-0.15, \y) node[left, font=\scriptsize] {\y};
-}
-\foreach \x in {1,...,10} {
-    \draw (\x, 0) -- (\x, -0.15) node[below, font=\scriptsize] {\x};
-}
-
-% Target line
-\draw[dashed, USC_Black50, line width=0.8pt] (0, 10) -- (11, 10);
-\node[font=\scriptsize, USC_Black70] at (10.5, 10.5) {$Q^* = 10$};
-
-% Q(S1,R) - Garnet with square marks
-\draw[USC_Garnet, line width=1.5pt] plot coordinates {
+\begin{tikzpicture}
+\begin{axis}[
+    width=0.88\textwidth,
+    height=7cm,
+    xlabel={Episode},
+    ylabel={$Q(s, R)$},
+    xmin=0, xmax=11,
+    ymin=0, ymax=11,
+    xtick={1,2,3,4,5,6,7,8,9,10},
+    ymajorgrids=true,
+    grid style={USC_Black10},
+    legend style={at={(0.02,0.98)}, anchor=north west, draw=none, font=\small},
+    axis lines=left,
+    line width=1.5pt,
+    extra y ticks={10},
+    extra y tick labels={},
+    extra y tick style={grid=major},
+]
+\addplot[color=USC_Garnet, mark=square*, mark options={fill=USC_Garnet, scale=0.8}] coordinates {
     (1,1.0) (2,1.9) (3,2.71) (4,3.44) (5,4.10) (6,4.69) (7,5.22) (8,5.70) (9,6.13) (10,6.51)
 };
-\foreach \x/\y in {1/1.0, 2/1.9, 3/2.71, 4/3.44, 5/4.10, 6/4.69, 7/5.22, 8/5.70, 9/6.13, 10/6.51} {
-    \fill[USC_Garnet] (\x-0.08, \y-0.12) rectangle (\x+0.08, \y+0.12);
-}
-
-% Q(S0,R) - Atlantic with triangle marks
-\draw[USC_Atlantic, line width=1.5pt] plot coordinates {
+\addplot[color=USC_Atlantic, mark=triangle*, mark options={fill=USC_Atlantic, scale=0.8}] coordinates {
     (1,0) (2,0.10) (3,0.28) (4,0.50) (5,0.76) (6,1.04) (7,1.34) (8,1.66) (9,1.99) (10,2.34)
 };
-\foreach \x/\y in {1/0, 2/0.10, 3/0.28, 4/0.50, 5/0.76, 6/1.04, 7/1.34, 8/1.66, 9/1.99, 10/2.34} {
-    \fill[USC_Atlantic] (\x, \y+0.15) -- (\x-0.1, \y-0.1) -- (\x+0.1, \y-0.1) -- cycle;
-}
-
-% Legend
-\draw[USC_Garnet, line width=1.5pt] (1, 10.5) -- (1.8, 10.5);
-\fill[USC_Garnet] (1.32, 10.35) rectangle (1.48, 10.65);
-\node[right, font=\scriptsize] at (1.8, 10.5) {$Q(S_1, R)$};
-
-\draw[USC_Atlantic, line width=1.5pt] (4, 10.5) -- (4.8, 10.5);
-\fill[USC_Atlantic] (4.4, 10.65) -- (4.3, 10.35) -- (4.5, 10.35) -- cycle;
-\node[right, font=\scriptsize] at (4.8, 10.5) {$Q(S_0, R)$};
+\node[font=\scriptsize, text=USC_Black70] at (axis cs:9.5, 10.5) {$Q^* = 10$};
+\legend{{$Q(S_1, R)$}, {$Q(S_0, R)$}}
+\end{axis}
 \end{tikzpicture}
 \end{center}
 
