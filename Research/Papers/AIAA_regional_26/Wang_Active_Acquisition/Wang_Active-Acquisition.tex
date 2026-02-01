@@ -259,20 +259,15 @@ Each committed example stores the wide frame (or short clip), the transferred la
 \centering
 \caption{Dataset record schema for each accepted acquisition.}
 \label{tab:schema}
-\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}l@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}l@{\hspace{1.5em}}ll@{}}
 \toprule
-Field & Description \\
+Field & Description & Field & Description \\
 \midrule
-timestamp\_w & Wide-frame timestamp (monotonic) \\
-image\_w & Wide image (or video clip key) \\
-bbox\_w & Label box in wide coordinates \\
-class & Target class (airplane for the test case) \\
-score\_w & Wide detector confidence at time $t$ \\
-timestamp\_p & PTZ-frame timestamp used for confirmation \\
-telemetry\_p & PTZ pan/tilt/zoom, focus, exposure \\
-bbox\_p, score\_p & PTZ detector box and confidence \\
-quality\_metrics & Blur, saturation, occlusion flags \\
-site\_meta & Location, camera orientation, weather \\
+timestamp\_w & Wide-frame timestamp & timestamp\_p & PTZ-frame timestamp \\
+image\_w & Wide image or clip key & telemetry\_p & PTZ pan/tilt/zoom/exposure \\
+bbox\_w & Label box (wide coords) & bbox\_p, score\_p & PTZ box and confidence \\
+class & Target class & quality\_metrics & Blur, saturation, occlusion \\
+score\_w & Wide detector confidence & site\_meta & Location, orientation, weather \\
 \bottomrule
 \end{tabular*}
 \end{table}
@@ -324,24 +319,17 @@ The PTZ centering loop uses a PID controller running at 30\,Hz. Table~\ref{tab:t
 \centering
 \caption{Tracking controller parameters.}
 \label{tab:tracking}
-\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}cc@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}}cc@{\hspace{1.5em}}lcc@{}}
 \toprule
-Parameter & Value & Unit \\
+Parameter & Value & Unit & Parameter & Value & Unit \\
 \midrule
-PID proportional gain ($K_p$) & 1.5 & --- \\
-PID integral gain ($K_i$) & 0.05 & --- \\
-PID derivative gain ($K_d$) & 1.0 & --- \\
-Control rate & 30 & Hz \\
-Acquisition confidence & 0.40 & --- \\
-Tracking confidence & 0.35 & --- \\
-Center deadzone & 2 & \% \\
-Position tolerance & 0.2 & deg \\
-Lost threshold & 3.0 & s \\
-Acquisition timeout & 10 & s \\
-Reacquire timeout & 5 & s \\
-Max PTZ speed & 30 & deg/s \\
-Zoom levels (tracking) & 25, 35, 45 & \% \\
-Min zoom scale & 15 & \% \\
+PID gain $K_p$ & 1.5 & --- & Center deadzone & 2 & \% \\
+PID gain $K_i$ & 0.05 & --- & Position tolerance & 0.2 & deg \\
+PID gain $K_d$ & 1.0 & --- & Lost threshold & 3.0 & s \\
+Control rate & 30 & Hz & Acquire timeout & 10 & s \\
+Acquire confidence & 0.40 & --- & Reacquire timeout & 5 & s \\
+Track confidence & 0.35 & --- & Max PTZ speed & 30 & deg/s \\
+Zoom levels & 25, 35, 45 & \% & Min zoom scale & 15 & \% \\
 \bottomrule
 \end{tabular*}
 \end{table}
@@ -350,23 +338,16 @@ Min zoom scale & 15 & \% \\
 Video codec selection has a direct impact on tracking latency. The system initially used H.264, which requires dependency frames (I/P/B) and introduces 2--4 frames of buffering latency before the decoder can deliver a complete image to the detector. Switching to MJPEG, which encodes each frame independently, eliminates this pipeline stall and provides near-instant decode. The reduction in end-to-end latency is critical for closed-loop tracking of fast-moving targets. Even with MJPEG latency reduction, the PID controller remains necessary to prevent overshoot when the PTZ tracks targets with high angular velocity.
 
 \subsection{Drone Tracking Demonstration}
-To validate end-to-end system operation, we conducted an outdoor drone tracking test. The system autonomously acquired and tracked a small commercial drone over a 42-second flight, producing approximately 42,000 frames across both cameras. Figure~\ref{fig:drone_test} shows a representative frame from this test with simultaneous detections in both camera feeds. Figure~\ref{fig:montage} presents a temporal montage of selected frames spanning the full tracking sequence.
+To validate end-to-end system operation, we conducted an outdoor drone tracking test. The system autonomously acquired and tracked a small commercial drone over a 42-second flight, producing approximately 42,000 frames across both cameras. Figure~\ref{fig:montage} presents a temporal montage of selected frames spanning the tracking sequence.
 
-The stationary camera detected the drone at wide-angle resolution, providing bearing cues to the PTZ controller. The PTZ camera autonomously slewed to and tracked the target at optical zoom, maintaining centroid lock via PID control throughout the flight. The on-screen overlay (visible in both figures) displays the model type, accelerator assignment, and inference resolution for each camera, confirming simultaneous GPU and DLA operation.
+The stationary camera detected the drone at wide-angle resolution, providing bearing cues to the PTZ controller. The PTZ camera autonomously slewed to and tracked the target at optical zoom, maintaining centroid lock via PID control throughout the flight. The on-screen overlay (visible in Fig.~\ref{fig:montage}) displays the model type, accelerator assignment, and inference resolution for each camera, confirming simultaneous GPU and DLA operation.
 
 In the wide-angle view, the drone occupies approximately $20 \times 15$ pixels---insufficient for reliable classification. The PTZ view at 35--45\% zoom resolves the target at approximately $120 \times 90$ pixels, a $6\times$ increase in linear resolution that moves the target firmly into the regime where standard detectors achieve high accuracy.
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_drone_tracking.png}
-\caption{Active tracking during an outdoor drone test. The stationary camera (left) detects the drone in the wide field and provides bearing cues. The PTZ camera (center) autonomously slews to and tracks the target at optical zoom, maintaining centroid lock via PID control.}
-\label{fig:drone_test}
-\end{figure}
 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_tracking_montage.png}
-\caption{Temporal montage from the 42-second drone tracking sequence. (a)~System initialization and acquisition phase. (b)~Early tracking with PTZ slewing to target. (c)~Active tracking at medium zoom with drone visible in both cameras. (d)~PTZ detection at higher zoom with green bounding box on target. (e)~Sustained tracking in final flight segment. (f)~End of sequence with maintained lock.}
+\caption{Temporal montage from the 42-second drone tracking sequence. (a)~Early tracking with PTZ slewing to target. (b)~Active tracking at medium zoom with drone visible in both cameras. (c)~PTZ detection at higher zoom with green bounding box on target. (d)~Sustained tracking in final flight segment.}
 \label{fig:montage}
 \end{figure*}
 
