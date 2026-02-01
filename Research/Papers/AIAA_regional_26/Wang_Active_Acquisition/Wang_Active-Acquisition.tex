@@ -128,7 +128,11 @@ Our proposed "Active Acquisition" creates a fully automated hybrid. We use the s
 
 \section{System Overview and Formulation}
 \subsection{Hardware and Software Roles}
-The system consists of two cameras mounted with a fixed relative pose (Fig.~\ref{fig:hardware}): (1) a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector on the primary GPU, and (2) a PTZ camera whose pan, tilt, and zoom can be commanded via a control interface. The PTZ camera also runs a concurrent YOLO instance on the Deep Learning Accelerator (DLA) to verify targets once acquired. The baseline separation $b \approx 0.5$\,m is sufficiently small compared to the target range ($R > 100$\,m) that the parallax error is negligible for the initial open-loop slew command. The wide camera produces candidate detections and tracklets. A scheduling policy selects targets and commands the PTZ to re-center and zoom. The PTZ stream is analyzed to confirm class and refine bounding boxes. High-confidence PTZ detections are transferred back to the wide-angle frame to create dataset labels. A curation module filters low-quality frames and controls redundancy.
+The system consists of two FLIR M300C cameras mounted on a shared three-foot stand with a fixed relative pose (Fig.~\ref{fig:hardware}): (1) a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector on the primary GPU, and (2) a PTZ camera whose pan, tilt, and zoom can be commanded via a control interface. The PTZ camera also runs a concurrent YOLO instance on the Deep Learning Accelerator (DLA) to verify targets once acquired. Both cameras are powered by a 12.8\,V 50\,Ah LiFePO4 battery, selected because the dual-camera current draw exceeded the capacity of a standard DC power supply unit. The cameras connect to an NVIDIA Jetson Orin AGX via a PCIe Ethernet network card with IEEE 802.3at PoE detection, confirmed safe for the non-PoE FLIR devices. The baseline separation $b \approx 0.5$\,m is sufficiently small compared to the target range ($R > 100$\,m) that the parallax error is negligible for the initial open-loop slew command.
+
+The software architecture is organized in three layers. The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads: a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases: Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface to the PTZ. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
+
+The wide camera produces candidate detections and tracklets. A scheduling policy selects targets and commands the PTZ to re-center and zoom. The PTZ stream is analyzed to confirm class and refine bounding boxes. High-confidence PTZ detections are transferred back to the wide-angle frame to create dataset labels. A curation module filters low-quality frames and controls redundancy.
 
 The core operation involves a dynamic handover where the computer reads the wide camera, calculates a bearing, and commands the PTZ to intercept the moving target, compensating for processing and mechanical latencies.
 
@@ -165,7 +169,6 @@ a^\star = \arg\max_{a \in \mathcal{A}} \mathbb{E}\left[ U(I^p_{t_{arr}}, \tau_{t
 \end{equation}
 This optimization is subject to operational constraints: the PTZ must be available (not currently slewing) and the target must be within the reachable field of view. The utility function $U(\cdot)$ prioritizes high-confidence verification, localization precision, and sample diversity.
 
-{\color{red}
 \section{Calibration and Cross-View Geometry}
 \subsection{Camera Model}
 Both cameras are modeled with intrinsics $(K_w, K_p)$ and distortion parameters. Let $\Pi(\cdot)$ be perspective projection with distortion, and let $R_{pw}, t_{pw}$ map 3D points from wide-camera coordinates to PTZ-camera coordinates.
@@ -284,7 +287,7 @@ site\_meta & Location, camera orientation, weather \\
 \subsection{Operating Conditions and Target Characteristics}
 Airplanes introduce systematic small-object issues. In a wide-angle view, aircraft can be extremely small with strong scale variation as they traverse the sky and change apparent altitude and distance (Fig.~\ref{fig:zoomlevels}). Visual appearance changes with viewing angle, contrails, lighting, haze, and compression artifacts, matching known difficulty factors for small objects (low detail, interference, background ambiguity).
 \par
-Flying-object detection has been studied with YOLOv8 as a practical real-time architecture choice, and YOLO-family surveys emphasize why these models are frequently deployed in resource-constrained real-time settings.
+Default YOLO ``airplane'' class weights trained on COCO fail to detect targets below a threshold pixel size, rendering the stationary wide-angle camera ineffective for long-range acquisition without retraining. Custom detection models are therefore trained on a drone detection dataset and on the Fine-Grained Visual Classification (FGVC) aircraft dataset, which provides ground-up RGB imagery of aircraft at a range of scales and orientations representative of the surveillance scenario. Planned benchmarks will compare mAP of these custom models against default YOLO classes on a test set containing both long-distance and close-distance aircraft.
 
 
 
@@ -325,7 +328,11 @@ Ablations should isolate contributions from (i) trigger thresholds and hysteresi
 
 \section{Implementation Considerations}
 \subsection{Real-Time Constraints}
-The wide-angle detector must run at frame rate to maintain coverage. YOLO-family models are commonly selected for this regime; Ultralytics documentation notes YOLOv8 release and positioning as a speed--accuracy option for detection tasks, and survey work summarizes the evolution of YOLO variants and real-time deployment considerations.
+The wide-angle detector must run at frame rate to maintain coverage. Initial development used YOLOv8 due to mature Jetson Orin documentation, but the system has since transitioned to YOLOv11 for improved training performance. The two detector instances are split across compute units to avoid GPU time-slicing overhead: the stationary camera runs YOLOv11s on the GPU, where the larger model capacity is needed for feature extraction on distant, low-resolution targets, while the PTZ camera runs YOLOv11n on the DLA, where zoomed-in targets are easier to classify. This split achieves true parallel inference with no resource contention.
+\par
+Video codec selection has a direct impact on tracking latency. The system initially used H.264, which requires dependency frames (I/P/B) and introduces 2--4 frames of buffering latency before the decoder can deliver a complete image to the detector. Switching to MJPEG, which encodes each frame independently, provides near-instant decode and eliminates this pipeline stall. The reduction in end-to-end latency is critical for closed-loop tracking of fast-moving targets.
+\par
+Even with MJPEG latency reduction, a PID controller remains necessary to prevent overshoot when the PTZ tracks targets with high angular velocity. The combination of MJPEG decoding and PID-controlled PTZ commands yields responsive tracking for targets that would otherwise escape the narrow PTZ field of view between command cycles.
 \par
 The PTZ control loop must tolerate latency in (i) wide detection, (ii) command transmission, (iii) mechanical motion, and (iv) PTZ video encoding/decoding. A practical design uses a bounded queue for PTZ commands, drops stale commands, and prioritizes keeping the target near the PTZ image center over maximizing instantaneous zoom.
 
@@ -349,7 +356,6 @@ Multi-PTZ configurations can reduce contention and increase throughput. Joint sc
 
 \section{Conclusion}
 This paper presented a dual-camera active acquisition method for fully automated small-object dataset construction using a fixed wide-angle camera with real-time detection and a PTZ camera for zoom-based verification. For airplanes in the sky, the PTZ view provides higher-resolution evidence that can be transferred back to wide-angle frames to produce higher-quality labels, hard negatives, and metadata. We detailed calibration and control formulations, label transfer procedures, and drift-control gates grounded in pseudo-labeling and PTZ tracking insights from the literature. The proposed evaluation protocol measures label quality, confidence uplift, and downstream small-object performance, enabling rigorous assessment of whether sensor-driven ``auto-labeling'' can replace or substantially reduce manual annotation in small-object regimes.
-}
 
 \begin{thebibliography}{99}
 
