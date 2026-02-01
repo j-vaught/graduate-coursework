@@ -326,6 +326,147 @@ $\bm{\gamma}$ & $\mathbf{V(O)}$ & $\mathbf{V(U)}$ & $\mathbf{V(A)}$ \\
 
 \noindent At $\gamma = 0$, only immediate rewards matter so $V(s) = R(s)$. As $\gamma \to 1$, future rewards accumulate and the values diverge significantly. Note how $V(A)$ flips from negative to positive around $\gamma \approx 0.5$ as the future value of potentially reaching $U$ outweighs the $-1$ penalty.
 
+\subsection*{Value Propagation Diagram}
+
+The converged values ($\gamma = 0.9$) mapped onto the MRP structure. Node color intensity reflects value: {\color{USC_Rose}red for negative}, {\color{USC_Horseshoe}green for positive}.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    scale=0.85,
+    every edge/.style={draw=black, line width=1.2pt, ->, >=Stealth},
+    prob/.style={font=\bfseries\small, text=black, fill=white, inner sep=2pt},
+    statelabel/.style={font=\small\bfseries}
+]
+
+% O node: V = -23.75 (strong negative -> red)
+\node[circle, minimum size=1.8cm, draw=USC_Garnet, line width=2pt,
+      fill=USC_Rose!70, font=\bfseries\Large] (O) at (0, 0) {O};
+\node[statelabel, below=10pt of O] {$V = -23.75$};
+
+% U node: V = +32.01 (strong positive -> green)
+\node[circle, minimum size=1.8cm, draw=USC_Garnet, line width=2pt,
+      fill=USC_Horseshoe!60, font=\bfseries\Large] (U) at (8, 0) {U};
+\node[statelabel, below=10pt of U] {$V = +32.01$};
+
+% A node: V = +1.04 (weak positive -> light green)
+\node[circle, minimum size=1.8cm, draw=USC_Garnet, line width=2pt,
+      fill=USC_Horseshoe!10, font=\bfseries\Large] (A) at (4, -4.5) {A};
+\node[statelabel, below=10pt of A] {$V = +1.04$};
+
+% Self-loops
+\path (O) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (O);
+\path (U) edge[loop above, looseness=5, out=120, in=60, draw=USC_Garnet] node[prob, above=5pt] {0.7} (U);
+\path (A) edge[loop below, looseness=5, out=-60, in=-120, draw=USC_Garnet] node[prob, below=5pt] {$\frac{1}{3}$} (A);
+
+% Transitions
+\path (O) edge[bend left=15] node[prob, above=3pt] {0.1} (U);
+\path (U) edge[bend left=15] node[prob, below=3pt] {0.1} (O);
+\path (O) edge[bend left=12] node[prob, left=4pt, pos=0.45] {0.2} (A);
+\path (A) edge[bend left=12] node[prob, left=4pt, pos=0.55] {$\frac{1}{3}$} (O);
+\path (U) edge[bend right=12] node[prob, right=4pt, pos=0.45] {0.2} (A);
+\path (A) edge[bend right=12] node[prob, right=4pt, pos=0.55] {$\frac{1}{3}$} (U);
+
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Convergence by Iteration}
+
+Iterative evaluation of $V(s)$ starting from $V_0 = \mathbf{0}$, $\gamma = 0.9$. Shows how each state's value evolves toward its fixed point.
+
+\begin{center}
+\begin{tikzpicture}[xscale=2.2, yscale=0.08]
+% Axes
+\draw[->, line width=0.8pt] (-0.3, 0) -- (5.3, 0);
+\draw[->, line width=0.8pt] (0, -30) -- (0, 42);
+\node[font=\small] at (5.5, 0) {Iteration};
+\node[font=\small, rotate=90] at (-0.6, 5) {$V(s)$};
+
+% Y-axis ticks
+\foreach \y/\l in {-20/-20, -10/-10, 0/0, 10/10, 20/20, 30/30, 40/40} {
+    \draw (0, \y) -- (-0.08, \y) node[left, font=\scriptsize] {\l};
+    \draw[USC_Black10, line width=0.3pt] (0, \y) -- (5, \y);
+}
+
+% X-axis labels
+\foreach \x/\l in {0/0, 1/1, 2/2, 3/3, 4.3/Conv.} {
+    \node[below, font=\scriptsize] at (\x, -32) {\l};
+}
+
+% Bar width
+\def\bw{0.12}
+% V(O) - Garnet
+\foreach \x/\v in {0/0, 1/-10, 2/-16.27, 3/-19.60, 4.3/-23.75} {
+    \fill[USC_Garnet] (\x-\bw, 0) rectangle (\x, \v);
+}
+% V(U) - Atlantic
+\foreach \x/\v in {0/0, 1/10, 2/18.27, 3/23.84, 4.3/32.01} {
+    \fill[USC_Atlantic] (\x, 0) rectangle (\x+\bw, \v);
+}
+% V(A) - Horseshoe
+\foreach \x/\v in {0/0, 1/-1, 2/-0.7, 3/0.32, 4.3/1.04} {
+    \fill[USC_Horseshoe] (\x+\bw, 0) rectangle (\x+2*\bw, \v);
+}
+
+% Legend
+\fill[USC_Garnet] (1.5, 38) rectangle (1.7, 40); \node[right, font=\scriptsize] at (1.7, 39) {$V(O)$};
+\fill[USC_Atlantic] (2.5, 38) rectangle (2.7, 40); \node[right, font=\scriptsize] at (2.7, 39) {$V(U)$};
+\fill[USC_Horseshoe] (3.5, 38) rectangle (3.7, 40); \node[right, font=\scriptsize] at (3.7, 39) {$V(A)$};
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Effect of Discount Factor}
+
+State values as a function of $\gamma$. Note $V(A)$ crosses zero near $\gamma \approx 0.5$.
+
+\begin{center}
+\begin{tikzpicture}[xscale=10, yscale=0.05]
+% Axes
+\draw[->, line width=0.8pt] (-0.03, 0) -- (1.05, 0);
+\draw[->, line width=0.8pt] (0, -55) -- (0, 85);
+\node[font=\small] at (1.08, 0) {$\gamma$};
+\node[font=\small, rotate=90] at (-0.07, 15) {$V(s)$};
+
+% Grid and ticks
+\foreach \y in {-50,-25,0,25,50,75} {
+    \draw[USC_Black10, line width=0.3pt] (0, \y) -- (1, \y);
+    \draw (0, \y) -- (-0.01, \y) node[left, font=\scriptsize] {\y};
+}
+\foreach \x in {0, 0.2, 0.4, 0.6, 0.8, 1.0} {
+    \draw (\x, 0) -- (\x, -2) node[below, font=\scriptsize] {\x};
+}
+
+% Zero line
+\draw[dashed, USC_Black50, line width=0.5pt] (0, 0) -- (1, 0);
+
+% V(O) - Garnet
+\draw[USC_Garnet, line width=1.5pt] plot coordinates {
+    (0,-10) (0.1,-10.63) (0.2,-11.36) (0.3,-12.22) (0.4,-13.24)
+    (0.5,-14.50) (0.6,-16.11) (0.7,-18.26) (0.8,-21.30) (0.9,-23.75)
+    (0.95,-30.82)
+};
+
+% V(U) - Atlantic (clipped at 80)
+\draw[USC_Atlantic, line width=1.5pt] plot coordinates {
+    (0,10) (0.1,10.63) (0.2,11.36) (0.3,12.22) (0.4,13.24)
+    (0.5,14.50) (0.6,16.11) (0.7,18.26) (0.8,21.30) (0.9,32.01)
+    (0.95,52.49)
+};
+
+% V(A) - Horseshoe
+\draw[USC_Horseshoe, line width=1.5pt] plot coordinates {
+    (0,-1) (0.1,-1.00) (0.2,-0.97) (0.3,-0.89) (0.4,-0.72)
+    (0.5,-0.40) (0.6,0.17) (0.7,1.14) (0.8,2.83) (0.9,1.04)
+    (0.95,8.84)
+};
+
+% Legend
+\draw[USC_Garnet, line width=1.5pt] (0.55, 75) -- (0.62, 75); \node[right, font=\scriptsize] at (0.62, 75) {$V(O)$};
+\draw[USC_Atlantic, line width=1.5pt] (0.55, 68) -- (0.62, 68); \node[right, font=\scriptsize] at (0.62, 68) {$V(U)$};
+\draw[USC_Horseshoe, line width=1.5pt] (0.55, 61) -- (0.62, 61); \node[right, font=\scriptsize] at (0.62, 61) {$V(A)$};
+\end{tikzpicture}
+\end{center}
+
 \begin{codebox}[Implementation]
 \begin{lstlisting}
 import numpy as np
@@ -438,6 +579,101 @@ V_2(S_1) &= \max\!\big(\underbrace{0 + 0}_{L: 0},\; \underbrace{10 + 0}_{R: 10}\
 \begin{resultsbox}
 $V^*(S_0) = 10$, $V^*(S_1) = 10$. Optimal policy: $S_0 \xrightarrow{R} S_1 \xrightarrow{R} S_T$, collecting $+10$ total reward.
 \end{resultsbox}
+
+\subsection*{Grid World Intuition: Value Landscape and Policy}
+
+A $4 \times 3$ grid MDP illustrating how value iteration produces both a value landscape and a policy. The agent starts at the bottom-left; the goal (+10) is at the top-right, with a penalty state ($-10$) adjacent. Cell shading indicates value; arrows show the optimal policy.
+
+\begin{center}
+\begin{tikzpicture}[
+    scale=1.1,
+    cell/.style={minimum size=1.4cm, draw=USC_Black90, line width=0.8pt, font=\small},
+    arrow/.style={->, >=Stealth, line width=1.5pt, USC_Garnet}
+]
+% Grid cells with value-based coloring
+% Row 3 (top): values approx 7, 8, 9, 10(goal)
+\node[cell, fill=USC_Horseshoe!35] at (0, 3) {\footnotesize 7.0};
+\node[cell, fill=USC_Horseshoe!40] at (1.4, 3) {\footnotesize 8.0};
+\node[cell, fill=USC_Horseshoe!50] at (2.8, 3) {\footnotesize 9.0};
+\node[cell, fill=USC_Horseshoe!70, font=\small\bfseries] at (4.2, 3) {+10};
+
+% Row 2: values 6, wall, 5, -10(penalty)
+\node[cell, fill=USC_Horseshoe!30] at (0, 1.6) {\footnotesize 6.0};
+\node[cell, fill=USC_Black90, text=white] at (1.4, 1.6) {\footnotesize Wall};
+\node[cell, fill=USC_Horseshoe!25] at (2.8, 1.6) {\footnotesize 5.0};
+\node[cell, fill=USC_Rose!60, font=\small\bfseries] at (4.2, 1.6) {$-10$};
+
+% Row 1 (bottom): values 5, 4, 3, 2
+\node[cell, fill=USC_Horseshoe!25] at (0, 0.2) {\footnotesize 5.0};
+\node[cell, fill=USC_Horseshoe!20] at (1.4, 0.2) {\footnotesize 4.0};
+\node[cell, fill=USC_Horseshoe!15] at (2.8, 0.2) {\footnotesize 3.0};
+\node[cell, fill=USC_Horseshoe!10] at (4.2, 0.2) {\footnotesize 2.0};
+
+% Policy arrows
+% Row 3
+\draw[arrow] (-0.1, 3) -- (0.4, 3);  % right
+\draw[arrow] (1.3, 3) -- (1.8, 3);   % right
+\draw[arrow] (2.7, 3) -- (3.2, 3);   % right
+
+% Row 2
+\draw[arrow] (0, 1.9) -- (0, 2.4);   % up
+\draw[arrow] (2.8, 1.9) -- (2.8, 2.4);  % up
+
+% Row 1
+\draw[arrow] (0, 0.5) -- (0, 1.0);   % up
+\draw[arrow] (1.3, 0.2) -- (1.8, 0.2);  % right (can't go up, wall)
+\draw[arrow] (2.8, 0.5) -- (2.8, 1.0);  % up
+\draw[arrow] (4.2, 0.5) -- (4.2, 1.0);  % up (toward penalty--stuck)
+
+% Start label
+\node[font=\footnotesize\bfseries, USC_Atlantic] at (0, -0.3) {Start};
+
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Value Iteration Wavefront}
+
+How value information propagates backward from the terminal reward in the 2-state MDP. Each panel shows one iteration: the value ``wave'' reaches $S_1$ first, then $S_0$.
+
+\begin{center}
+\begin{tikzpicture}[
+    >=Stealth,
+    scale=0.65,
+    state/.style={circle, minimum size=1.2cm, draw=USC_Garnet, line width=1.5pt, font=\bfseries\small},
+    term/.style={circle, minimum size=1.2cm, draw=USC_Atlantic, line width=1.5pt, font=\bfseries\small},
+    arrow/.style={->, line width=1pt},
+    iterlab/.style={font=\bfseries, USC_Garnet}
+]
+
+% --- Iteration 0 ---
+\node[iterlab] at (2, 2.5) {Iter 0};
+\node[state, fill=white] (S0a) at (0, 0) {$S_0$};
+\node[below=2pt of S0a, font=\scriptsize] {$V\!=\!0$};
+\node[state, fill=white] (S1a) at (4, 0) {$S_1$};
+\node[below=2pt of S1a, font=\scriptsize] {$V\!=\!0$};
+\node[term, fill=USC_Atlantic!15] (STa) at (8, 0) {$S_T$};
+
+% --- Iteration 1 ---
+\node[iterlab] at (13, 2.5) {Iter 1};
+\node[state, fill=white] (S0b) at (11, 0) {$S_0$};
+\node[below=2pt of S0b, font=\scriptsize] {$V\!=\!0$};
+\node[state, fill=USC_Horseshoe!40] (S1b) at (15, 0) {$S_1$};
+\node[below=2pt of S1b, font=\scriptsize] {$V\!=\!10$};
+\node[term, fill=USC_Atlantic!15] (STb) at (19, 0) {$S_T$};
+\draw[arrow, USC_Horseshoe, line width=1.5pt] (S1b) -- node[above, font=\scriptsize] {$R$} (STb);
+
+% --- Iteration 2 ---
+\node[iterlab] at (24, 2.5) {Iter 2};
+\node[state, fill=USC_Horseshoe!40] (S0c) at (22, 0) {$S_0$};
+\node[below=2pt of S0c, font=\scriptsize] {$V\!=\!10$};
+\node[state, fill=USC_Horseshoe!40] (S1c) at (26, 0) {$S_1$};
+\node[below=2pt of S1c, font=\scriptsize] {$V\!=\!10$};
+\node[term, fill=USC_Atlantic!15] (STc) at (30, 0) {$S_T$};
+\draw[arrow, USC_Horseshoe, line width=1.5pt] (S0c) -- node[above, font=\scriptsize] {$R$} (S1c);
+\draw[arrow, USC_Horseshoe, line width=1.5pt] (S1c) -- node[above, font=\scriptsize] {$R$} (STc);
+
+\end{tikzpicture}
+\end{center}
 
 \begin{codebox}[Implementation]
 \begin{lstlisting}
@@ -576,6 +812,101 @@ After many episodes: $Q(S_0, R) \to 10$, $Q(S_1, R) \to 10$, matching the DP sol
 
 The greedy policy $\pi(s) = \arg\max_a Q(s,a)$ yields $S_0 \to R$, $S_1 \to R$.
 \end{resultsbox}
+
+\subsection*{Q-Value Convergence}
+
+$Q(S_0, R)$ and $Q(S_1, R)$ over the first 10 episodes ($\alpha = 0.1$, $\gamma = 1$). $S_1$ learns faster because it is one step from the reward; $S_0$ bootstraps off $S_1$.
+
+\begin{center}
+\begin{tikzpicture}[xscale=1.1, yscale=0.5]
+% Axes
+\draw[->, line width=0.8pt] (0, 0) -- (11.5, 0);
+\draw[->, line width=0.8pt] (0, 0) -- (0, 11.5);
+\node[font=\small] at (11.8, 0) {Episode};
+\node[font=\small, rotate=90] at (-0.7, 5.5) {$Q(s, R)$};
+
+% Grid
+\foreach \y in {0,2,4,6,8,10} {
+    \draw[USC_Black10, line width=0.3pt] (0, \y) -- (11, \y);
+    \draw (0, \y) -- (-0.15, \y) node[left, font=\scriptsize] {\y};
+}
+\foreach \x in {1,...,10} {
+    \draw (\x, 0) -- (\x, -0.15) node[below, font=\scriptsize] {\x};
+}
+
+% Target line
+\draw[dashed, USC_Black50, line width=0.8pt] (0, 10) -- (11, 10);
+\node[font=\scriptsize, USC_Black70] at (10.5, 10.5) {$Q^* = 10$};
+
+% Q(S1,R) - Garnet with square marks
+\draw[USC_Garnet, line width=1.5pt] plot coordinates {
+    (1,1.0) (2,1.9) (3,2.71) (4,3.44) (5,4.10) (6,4.69) (7,5.22) (8,5.70) (9,6.13) (10,6.51)
+};
+\foreach \x/\y in {1/1.0, 2/1.9, 3/2.71, 4/3.44, 5/4.10, 6/4.69, 7/5.22, 8/5.70, 9/6.13, 10/6.51} {
+    \fill[USC_Garnet] (\x-0.08, \y-0.12) rectangle (\x+0.08, \y+0.12);
+}
+
+% Q(S0,R) - Atlantic with triangle marks
+\draw[USC_Atlantic, line width=1.5pt] plot coordinates {
+    (1,0) (2,0.10) (3,0.28) (4,0.50) (5,0.76) (6,1.04) (7,1.34) (8,1.66) (9,1.99) (10,2.34)
+};
+\foreach \x/\y in {1/0, 2/0.10, 3/0.28, 4/0.50, 5/0.76, 6/1.04, 7/1.34, 8/1.66, 9/1.99, 10/2.34} {
+    \fill[USC_Atlantic] (\x, \y+0.15) -- (\x-0.1, \y-0.1) -- (\x+0.1, \y-0.1) -- cycle;
+}
+
+% Legend
+\draw[USC_Garnet, line width=1.5pt] (1, 10.5) -- (1.8, 10.5);
+\fill[USC_Garnet] (1.32, 10.35) rectangle (1.48, 10.65);
+\node[right, font=\scriptsize] at (1.8, 10.5) {$Q(S_1, R)$};
+
+\draw[USC_Atlantic, line width=1.5pt] (4, 10.5) -- (4.8, 10.5);
+\fill[USC_Atlantic] (4.4, 10.65) -- (4.3, 10.35) -- (4.5, 10.35) -- cycle;
+\node[right, font=\scriptsize] at (4.8, 10.5) {$Q(S_0, R)$};
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Exploration vs.\ Exploitation: $\varepsilon$-Greedy}
+
+\begin{center}
+\begin{tikzpicture}[scale=1]
+% --- Top: epsilon number line ---
+\node[font=\bfseries\small, anchor=east] at (-0.5, 0) {Action selection:};
+\draw[line width=1.5pt] (0, 0) -- (10, 0);
+\draw[line width=1.5pt] (0, -0.15) -- (0, 0.15);
+\draw[line width=1.5pt] (10, -0.15) -- (10, 0.15);
+\node[below, font=\small] at (0, -0.2) {0};
+\node[below, font=\small] at (10, -0.2) {1};
+
+% Epsilon marker at 0.3
+\draw[line width=2pt, USC_Garnet] (3, -0.2) -- (3, 0.2);
+\node[above, font=\small\bfseries, USC_Garnet] at (3, 0.25) {$\varepsilon$};
+
+% Regions
+\fill[USC_Atlantic!20] (0, -0.08) rectangle (3, 0.08);
+\fill[USC_Horseshoe!20] (3, -0.08) rectangle (10, 0.08);
+
+\node[font=\small\bfseries, USC_Atlantic] at (1.5, 0.7) {Explore};
+\node[font=\scriptsize, USC_Black70] at (1.5, 0.4) {random action};
+\node[font=\small\bfseries, USC_Horseshoe] at (6.5, 0.7) {Exploit};
+\node[font=\scriptsize, USC_Black70] at (6.5, 0.4) {$\arg\max_a Q(s,a)$};
+
+% --- Bottom: decay curve ---
+\node[font=\bfseries\small, anchor=east] at (-0.5, -2.5) {$\varepsilon$ schedule:};
+\draw[->, line width=1pt] (0, -3.5) -- (10.5, -3.5) node[right, font=\small] {Episode};
+\draw[->, line width=1pt] (0, -3.5) -- (0, -1.5) node[above, font=\small] {$\varepsilon$};
+
+% Decay curve: eps = max(0.01, 1.0 * 0.9995^t)
+\draw[USC_Garnet, line width=2pt] plot[smooth, domain=0:10, samples=50]
+    (\x, {-3.5 + 2*max(0.05, exp(-0.5*\x))});
+
+\node[font=\scriptsize, USC_Black70] at (1, -1.7) {$\varepsilon_0 = 1.0$};
+\node[font=\scriptsize, USC_Black70] at (8.5, -3.1) {$\varepsilon_{\min}$};
+\draw[dashed, USC_Black50, line width=0.5pt] (0, -3.4) -- (10, -3.4);
+
+\end{tikzpicture}
+\end{center}
+
+\noindent Early episodes favor exploration (high $\varepsilon$), sampling many state-action pairs. As $\varepsilon$ decays, the agent increasingly exploits its learned Q-values, refining the policy.
 
 \begin{codebox}[Implementation]
 \begin{lstlisting}
