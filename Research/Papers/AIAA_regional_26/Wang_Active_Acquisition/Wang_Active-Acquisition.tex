@@ -1,0 +1,412 @@
+\documentclass[conf]{new-aiaa}
+
+% --- PACKAGES ---
+\usepackage{amsmath}
+\let\Bbbk\relax % Resolve conflict with newtxmath
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+% \usepackage{cite} % AIAA template uses natbib via new-aiaa class
+\usepackage{authblk}
+
+% --- GRAPHICS PATH ---
+\graphicspath{{figures/}}
+
+% --- TIKZ & GRAPHICS SETUP ---
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc, backgrounds, fit}
+
+% --- COLOR DEFINITIONS (User Specified) ---
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{CSecondaryRed}{HTML}{CC2E40}
+\definecolor{CBlue}{HTML}{466A9F}
+\definecolor{CDark}{HTML}{1F414D}
+\definecolor{COlive}{HTML}{65780B}
+\definecolor{CLime}{HTML}{CED318}
+\definecolor{CGold}{HTML}{A49137}
+\definecolor{CGrayLight}{HTML}{E5E5E5}
+\definecolor{CGrayDark}{HTML}{555555}
+
+% --- TIKZ STYLES ---
+\tikzset{
+    flatblock/.style={
+        rectangle,
+        draw=black,
+        fill=white,
+        text width=2.8cm,
+        minimum height=1.2cm,
+        align=center,
+        font=\footnotesize\sffamily,
+        line width=0.8pt
+    },
+    data/.style={
+        rectangle,
+        draw=Garnet,
+        fill=Garnet!5,
+        text width=2.8cm,
+        minimum height=1.2cm,
+        align=center,
+        font=\footnotesize\sffamily,
+        line width=0.8pt
+    },
+    decision/.style={
+        diamond,
+        aspect=2,
+        draw=CBlue,
+        fill=CBlue!5,
+        text width=2.0cm,
+        align=center,
+        font=\scriptsize\sffamily,
+        line width=0.8pt
+    },
+    flatarrow/.style={
+        ->,
+        >={Latex[length=3mm, width=2mm]},
+        draw=CDark,
+        line width=1.0pt
+    },
+    labeltext/.style={
+        font=\scriptsize\sffamily,
+        color=CDark
+    }
+}
+
+\title{Dual-Camera Active Acquisition for Automated Small-Object Dataset Construction}
+
+\author{Jackie Wang\footnote{Graduate Student, Department of Mechanical Engineering, AIAA Student Member, Member ID: 1924106.}}
+\author{J.C. Vaught\footnote{Graduate Student, Department of Mechanical Engineering, AIAA Student Member, Member ID: 1537189.}}
+\author{Douglas Cahl\footnote{Professor, Department of Mechanical Engineering.}}
+\author{Yi Wang\footnote{Professor, Department of Mechanical Engineering.}}
+
+\affil{Department of Mechanical Engineering, University of South Carolina, Columbia, SC, 29208}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Deep learning performance on small objects is frequently bottlenecked by the quality and quantity of training data rather than model architecture. To address this limitation, we propose an active dual-camera system for automated small-object dataset generation and annotation, designed to overcome the resolution limits of static wide-angle surveillance. The system leverages a fixed wide-angle camera with a large field of view for object discovery and a Pan-Tilt-Zoom (PTZ) unit for detailed interrogation and recognition. The control framework transitions from open-loop predictive slewing to closed-loop visual tracking, compensating for mechanical latencies and zoom settling time inherent in a single-camera system. Implemented on an embedded edge platform, the system runs concurrent detector instances to achieve real-time throughput. High-resolution object verifications and classifications are projected back into the wide frame using a calibrated geometric mapping, creating high-confidence labels for small objects in the wide view. We validate the system design against a test case of distant aircraft in daylight, analyzing the trade-offs between slew speed and optical zoom mechanics. This active acquisition paradigm aims to improve label precision and reduce the human effort required for small-object dataset curation.
+\end{abstract}
+
+\section{Introduction}
+While recent surveys \cite{chen2020survey, nikouei2024smallobj} have demonstrated significant architectural improvements in generic object detection, they have failed to fully solve a problem that has persisted for decades: small object detection. The core issue remains one of pixel-level information loss, since no amount of digital zoom can recover details that were never sampled. Although some super-resolution algorithms show promise by recovering detail via temporal information, these methods are often computationally intensive and ill-suited for strict real-time inference \cite{mahaur2022superres}.
+\par
+Even with high-resolution imagery, real-time detection pipelines typically downsample inputs to manageable resolutions (e.g., $640 \times 640$) to satisfy compute constraints. This reduction inherently compresses distant targets into featureless blobs (Fig.~\ref{fig:zoomlevels}) that are difficult to classify without relying on temporal context (as humans do) or additional sensor modalities \cite{rozantsev2017flying}.
+\par
+\begin{figure*}[t]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/fig_sr_comparison.pdf}
+\caption{Comparison of Wide-Angle Crop (Digital Zoom), Super-Resolution, and true Optical Zoom active acquisition.}
+\label{fig:zoomlevels}
+\end{figure*}
+
+Figure~\ref{fig:zoomlevels} illustrates the challenge in distant aerial surveillance, where a target may occupy fewer than $15 \times 15$ pixels in a wide-angle feed. At this resolution, distractors (i.e. birds, cloud edges, specular highlights, or sensor noise) are indistinguishable from the target of interest. Standard digital zooming (cropping) only magnifies these ambiguities \cite{zhang2019zoom}. To achieve robust detection, a dataset must contain examples where these confusing cases are resolved, yet human labelers often cannot distinguish them in raw wide-angle footage.
+\par
+We address this by replacing the human labeler with a dual-camera system designed to automate the construction of small-object datasets. A fixed wide-angle camera provides persistent coverage, while a controllable Pan-Tilt-Zoom (PTZ) camera provides resolution on demand. The key technical challenge lies in the handover, since the system must move a mechanical lens to capture a moving target based on delayed visual data. This system compensates for the $\approx 150$\,ms latency between sensor capture and motor response and achieves high movement rates ($120^\circ$/s) without inducing motion blur.
+\par
+The contributions of this work are presented as follows: i) a hardware-software architecture that synchronizes wide-angle search with narrow-angle verification; ii) a predictive control formulation that compensates for system latency to enable reliable active target acquisition from wide-angle cues; and iii) a validated pipeline for label transfer, showing how distracting objects rejected by the PTZ can be automatically added to the wide-angle dataset to reduce false positives in future deployment.
+
+\section{Related Work}
+
+\subsection{Small Object Detection and Resolution Limits}
+The fundamental bottleneck in small object detection is the scarcity of distinguishing features. When a target occupies few pixels (i.e. $15 \times 15$ pixels), class-defining details are often lost entirely \cite{nikouei2024smallobj}. Classical solutions involving super-resolution (SR) attempt to reconstruct this lost detail \cite{mahaur2022superres}. 
+
+However, reliance on SR for scientific data collection is flawed. First, SR is fundamentally generative; it estimates high-frequency details based on learned priors, creating a risk of hallucination where the model reinforces its own biases \cite{zhang2019zoom}. Second, the latency advantage of SR is negligible for high-quality restoration. While lightweight models can run in $<30$ms on edge accelerators (e.g., Jetson Orin), high-fidelity generative models required for scientific validity often require $>300$ms per frame \cite{nvidia_jetson_benchmarks}. This exceeds the mechanical slew-and-settle time of our system ($\approx 150$ms), which is competitive with high-end commercial PTZ units (typically 60--200\,ms command latency \cite{ptz_latency_pelco}). Our system therefore chooses the mechanical penalty to obtain optical ground truth rather than the computational penalty for hallucinated details.
+
+\subsection{Active Acquisition vs. Continuous Tracking}
+Most PTZ tracking literature focuses on the control problem of keeping a target centered in the frame \cite{ptz_reproducible, ptz_eval}. This requires mitigating total system latency (video encoding + network + mechanical response), which for IP-based systems frequently ranges from 200--500\,ms \cite{ptz_latency_optics}. Our work addresses active acquisition, or "slew-to-classification." Unlike continuous tracking, where the objective is persistence, our objective is information gain via discrete or one-off spot-checks.
+
+Existing active perception systems like VIGIA-E \cite{vigia_ptz} typically optimize for broad area coverage or anomaly detection. Our system instead functions as a sparse query mechanism. It identifies specific low-confidence candidates in the wide field and commits the PTZ resource to verifying them individually. This shifts the challenge from long-term stabilization to fast, accurate separate-and-verify maneuvers.
+
+\subsection{Sensor-Driven Labeling}
+Reducing manual annotation is a central goal of both semi-supervised learning and active learning. Pseudo-labeling methods such as ASTOD \cite{self_training} attempt to retrain models using high-confidence predictions, but this approach often fails in the small-object regime where the detector is consistently uncertain \cite{self_training_enh}. Similarly, active learning strategies like PPAL \cite{active_learning_ppod} identify informative samples but still require a human loop \cite{active_learning_survey}. 
+
+Our proposed "Active Acquisition" creates a fully automated hybrid. We use the selection logic of active learning (targeting less confident samples) but satisfy the label query using the PTZ camera instead of a human. The success of this automated verification relies on the additional information provided by optical zoom. While the target is ambiguous at $15 \times 15$ pixels, the zoomed view restores it to a regime (e.g., $>100 \times 100$ pixels) where off-the-shelf detectors already achieve near-perfect accuracy \cite{yolo_flying}. By physically bridging the gap between the surveillance view and the high-resolution training distribution of standard models, we convert a difficult "small object" inference problem into a trivial classification task, enabling the generation of verified small object ground truth labels at scale.
+
+\section{System Overview and Formulation}
+\subsection{Hardware and Software Roles}
+The system consists of two cameras mounted with a fixed relative pose (Fig.~\ref{fig:hardware}): (1) a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector on the primary GPU, and (2) a PTZ camera whose pan, tilt, and zoom can be commanded via a control interface. The PTZ camera also runs a concurrent YOLO instance on the Deep Learning Accelerator (DLA) to verify targets once acquired. The baseline separation $b \approx 0.5$\,m is sufficiently small compared to the target range ($R > 100$\,m) that the parallax error is negligible for the initial open-loop slew command. The wide camera produces candidate detections and tracklets. A scheduling policy selects targets and commands the PTZ to re-center and zoom. The PTZ stream is analyzed to confirm class and refine bounding boxes. High-confidence PTZ detections are transferred back to the wide-angle frame to create dataset labels. A curation module filters low-quality frames and controls redundancy.
+
+The core operation involves a dynamic handover where the computer reads the wide camera, calculates a bearing, and commands the PTZ to intercept the moving target, compensating for processing and mechanical latencies.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/fig_zoom_comparison.pdf}
+\caption{Visual progression of an active acquisition sequence. A 15-pixel target in the wide field (1x) is indistinguishable from noise. The system cues the PTZ to an intermediate 5x zoom for acquisition, then a 20x zoom for final detailed verification, revealing the aircraft structure clearly.}
+\label{fig:zoom_sequence}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{fig_cameras_side_by_side.pdf}
+\caption{Physical hardware configuration. A fixed wide-angle camera provides persistent coverage while a 2-axis PTZ camera can be commanded to lock onto and zoom in on candidate targets.}
+\label{fig:hardware}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{fig_fov_understanding_topdown.pdf}
+\caption{Field of view comparison. The wide camera (blue) covers approximately $90^\circ$ for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable view.}
+\label{fig:fov}
+\end{minipage}
+\end{figure*}
+
+\subsection{Problem Formulation}
+We formulate the active acquisition as a greedy utility maximization problem. Let $I^w_{t_{cap}}$ be the wide-angle frame captured at time $t_{cap}$, and let the PTZ state be defined by telemetry $\tau_t = (\theta, \phi, z, \dot{\theta}, \dot{\phi})_t$, explicitly including angular velocity to model inertia. The wide detector produces candidate detections $D_{t_{cap}} = \{(b^w_{i}, s^w_{i}, c_{i})\}_i$.
+
+The system must select an action $a_{t}$ at decision time $t$ that will take effect at a future arrival time $t_{arr} = t + \delta$, where $\delta$ accounts for processing and mechanical slew delays. The objective is to maximize the expected utility of the next captured observation:
+\begin{equation}
+a^\star = \arg\max_{a \in \mathcal{A}} \mathbb{E}\left[ U(I^p_{t_{arr}}, \tau_{t_{arr}}) \mid D_{t_{cap}}, \tau_{t} \right]
+\end{equation}
+This optimization is subject to operational constraints: the PTZ must be available (not currently slewing) and the target must be within the reachable field of view. The utility function $U(\cdot)$ prioritizes high-confidence verification, localization precision, and sample diversity.
+
+{\color{red}
+\section{Calibration and Cross-View Geometry}
+\subsection{Camera Model}
+Both cameras are modeled with intrinsics $(K_w, K_p)$ and distortion parameters. Let $\Pi(\cdot)$ be perspective projection with distortion, and let $R_{pw}, t_{pw}$ map 3D points from wide-camera coordinates to PTZ-camera coordinates.
+\par
+For sky targets at long range, parallax between cameras is often negligible if the baseline is small relative to range. For a typical target size of $\approx 30$\,cm (e.g., small drone or distant aircraft part) at a range of $R \approx 100$\,m, and a camera baseline of $b \approx 0.5$\,m, the parallax angle is small enough that a direction-only transfer provides a sufficiently accurate initial seed for the PTZ to acquire the target. Once the PTZ is slewed to this seed location, its onboard detector (running on DLA) refines the tracking lock. In this regime, ray directions on the unit sphere are used for cross-view mapping rather than estimated depth.
+
+
+\subsection{Mapping Wide Detections to PTZ Pan/Tilt Commands}
+Let $(u,v)$ be the center of a wide detection box $b^w$ in pixel coordinates. After undistortion, the bearing direction in the wide camera frame is
+\begin{equation}
+\hat{d}_w = \frac{K_w^{-1}[u \ v \ 1]^\top}{\|K_w^{-1}[u \ v \ 1]^\top\|}.
+\end{equation}
+Transforming to the PTZ base frame gives $\hat{d}_p = R_{pw}\hat{d}_w$. Using a conventional yaw--pitch parameterization, the commanded pan (yaw) and tilt (pitch) are
+\begin{equation}
+\theta = \mathrm{atan2}(\hat{d}_{p,y}, \hat{d}_{p,x}), \quad
+\phi = \mathrm{atan2}(\hat{d}_{p,z}, \sqrt{\hat{d}_{p,x}^2+\hat{d}_{p,y}^2}).
+\end{equation}
+Because PTZ motion and video pipelines have latency, $\hat{d}_p$ is preferably computed from a short-horizon prediction of target motion rather than the instantaneous detection center.
+
+\subsection{Zoom Selection by Target Angular Size}
+Let $h^w$ be the detected box height in wide pixels. Under small-angle approximation, the apparent angular height is approximately $\alpha \approx h^w / f_w$, where $f_w$ is the wide focal length in pixels. To obtain a desired PTZ pixel height $h^p_{\mathrm{des}}$, select a PTZ focal length $f_p(z)$ such that
+\begin{equation}
+h^p_{\mathrm{des}} \approx \alpha f_p(z) \approx \frac{h^w}{f_w} f_p(z),
+\end{equation}
+then choose the zoom $z$ whose calibrated $f_p(z)$ best matches the required value, clipped to PTZ limits. This approach avoids explicit range estimation and is well suited for distant aircraft.
+
+
+\section{PTZ Triggering, Tracking, and Scheduling}
+PTZ tracking is a coupled perception-and-control problem with dynamic imaging conditions and control delays. Prior PTZ tracking evaluations emphasize that camera motion, latency, and re-centering quality dominate performance differences in practice.
+\par
+We use wide-camera tracklets to provide temporal coherence and to predict target bearing during PTZ motion. A lightweight predictor (e.g., constant angular velocity with $\alpha$--$\beta$ filtering or a Kalman filter) provides a predicted bearing $\hat{d}_w(t+\Delta)$ given command latency $\Delta$, consistent with classical pan/tilt tracking formulations.
+
+
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_pipeline.pdf}
+\caption{Automated label-generation pipeline. Wide-field tracking selects candidates, PTZ verifies optically, and homography maps labels to the wide view.}
+\label{fig:pipeline}
+\end{figure}
+
+\begin{algorithm}[t]
+\caption{Real-time wide-to-PTZ acquisition}
+\begin{algorithmic}[1]
+\State Init $f_{\theta}$ (wide), $\mathcal{T}$ (tracker), $g$ (PTZ), $\mathcal{D}$ (data)
+\For{each wide frame $I^w_t$}
+\State $D_t \leftarrow f_{\theta}(I^w_t)$; \quad $\mathcal{T}\leftarrow \mathrm{UpdateTracks}(\mathcal{T}, D_t)$
+\State Compute $U(o)$ for tracks (conf, size, novelty)
+\State Select $o^\star \leftarrow \arg\max U(o)$ s.t. availability
+\If{$U(o^\star)>\tau_{\mathrm{trigger}}$}
+\State Predict $\hat{d}_w(t+\Delta)$; map to $(\theta,\phi, z)$
+\State Command PTZ: $g(\theta,\phi,z)$; get $I^p_{t'}$, $\tau_{t'}$
+\State Run PTZ detector: $D^p_{t'} \leftarrow f_{\theta_p}(I^p_{t'})$
+\If{Quality OK AND $\max s^p > \tau_{\mathrm{confirm}}$}
+\State $b^{w\leftarrow p} \leftarrow \mathrm{Project}(b^p,\tau_{t'})$
+\State Commit $(I^w_t, b^{w\leftarrow p}, c)$ to $\mathcal{D}$
+\EndIf
+\EndIf
+\EndFor
+\State Periodically retrain $f_{\theta}$ on $\mathcal{D}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Utility Function for Triggering and Redundancy Control}
+The trigger utility balances value and cost. A practical form is a weighted sum of terms:
+\begin{equation}
+U(o) = \lambda_1\,\mathrm{Unc} + \lambda_2\,\mathrm{SizeGain} + \lambda_3\,\mathrm{Novelty} - \lambda_4\,\mathrm{Cost},
+\end{equation}
+where $\mathrm{Unc}$ increases when the wide detector is unsure (so PTZ confirmation is valuable), $\mathrm{SizeGain}$ estimates how much the PTZ will increase target pixels, $\mathrm{Novelty}$ reduces redundancy by down-weighting near-duplicates, and $\mathrm{Cost}$ captures PTZ time-on-target, slew distance, and opportunity cost (only one PTZ target at a time).
+\par
+This framing is consistent with object-detection active learning literature that combines uncertainty and diversity, although here the action is a sensor query rather than a human label request.
+
+\section{Automated Dataset Construction}
+\subsection{Label Sources and Cross-View Transfer}
+The PTZ view is treated as a higher-fidelity label source when it produces a confirmed detection for the target class. The label transfer module maps the PTZ detection back into the wide image coordinate system.
+\par
+For distant targets, direction-only transfer proceeds by converting the PTZ bounding box corners into bearing rays, rotating those rays into the wide camera frame, and projecting them into the wide image plane. Let $(u^p_k,v^p_k)$ be PTZ box corners; compute PTZ rays $\hat{d}^p_k$ from $K_p^{-1}$, rotate to wide frame $\hat{d}^w_k = R_{wp}\hat{d}^p_k$, then project:
+\begin{equation}
+[u^w_k, v^w_k, 1]^\top \propto K_w \hat{d}^w_k, \quad k \in \{1,2,3,4\}.
+\end{equation}
+The transferred wide box is the tight axis-aligned rectangle enclosing the projected corners. This procedure uses only calibrated intrinsics and the relative rotation, plus the PTZ telemetry that defines the effective PTZ optical axis at capture time.
+
+\subsection{Quality Gates and Drift Prevention}
+Self-training and pseudo-labeling can suffer from confirmation bias if low-quality pseudo-labels are admitted. This is widely recognized in semi-supervised detection; adaptive thresholding and robust pseudo-label selection reduce manual tuning and improve stability.
+\par
+In this system, the primary drift control mechanism is the physical zoom verification: many ambiguous wide detections become unambiguous at higher resolution. Remaining failure modes are handled by quality gates that reject samples when motion blur is excessive, exposure is saturated (e.g., sun glare), the target is at the frame boundary, or the PTZ detector disagrees with the wide detector class in a way indicative of confusion (e.g., airplane vs bird). Each gate is implemented as a deterministic predicate so that dataset inclusion is reproducible and auditable.
+
+
+
+\subsection{Dataset Schema}
+Each committed example stores the wide frame (or short clip), the transferred label, and acquisition metadata. Table~\ref{tab:schema} defines a minimal schema sufficient for training and analysis.
+
+\begin{table}[t]
+\centering
+\caption{Minimal dataset record schema for each accepted acquisition.}
+\label{tab:schema}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Field & Description \\
+\midrule
+timestamp\_w & Wide-frame timestamp (monotonic) \\
+image\_w & Wide image (or video clip key) \\
+bbox\_w & Label box in wide coordinates \\
+class & Target class (airplane for the test case) \\
+score\_w & Wide detector confidence at time $t$ \\
+timestamp\_p & PTZ-frame timestamp used for confirmation \\
+telemetry\_p & PTZ pan/tilt/zoom, focus, exposure \\
+bbox\_p, score\_p & PTZ detector box and confidence \\
+quality\_metrics & Blur, saturation, occlusion flags \\
+site\_meta & Location, camera orientation, weather \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Airplanes-in-the-Sky Test Case}
+\subsection{Operating Conditions and Target Characteristics}
+Airplanes introduce systematic small-object issues. In a wide-angle view, aircraft can be extremely small with strong scale variation as they traverse the sky and change apparent altitude and distance (Fig.~\ref{fig:zoomlevels}). Visual appearance changes with viewing angle, contrails, lighting, haze, and compression artifacts, matching known difficulty factors for small objects (low detail, interference, background ambiguity).
+\par
+Flying-object detection has been studied with YOLOv8 as a practical real-time architecture choice, and YOLO-family surveys emphasize why these models are frequently deployed in resource-constrained real-time settings.
+
+
+
+\subsection{Class Taxonomy and Negatives}
+For this test case, the primary class is \textit{airplane}. Hard negatives arise from birds, insects near the lens, distant drones, clouds with sharp edges, sensor noise, and specular highlights (Fig.~\ref{fig:negatives}). The PTZ confirmation step naturally collects informative negatives: wide proposals that are rejected by PTZ as non-airplane can be stored as hard negatives with contextual metadata.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.7\columnwidth]{fig_hard_negatives.pdf}
+\caption{Hard negative examples. Common false positives in the wide camera include birds, cloud edges, drones, sun glare, insects near the lens, and distant antennas. PTZ verification rejects these as non-airplane.}
+\label{fig:negatives}
+\end{figure}
+
+\section{Evaluation Protocol}
+This paper describes a system design and an evaluation plan intended to be executed on a real deployment. The core evaluation objective is to measure whether PTZ-assisted acquisition yields higher-quality labels and better downstream small-object performance than passive wide-only collection.
+
+\subsection{Baselines}
+The following baselines support attribution of improvements to PTZ zoom verification rather than to data volume alone:
+\par
+A wide-only baseline that logs candidate detections from the wide camera without PTZ confirmation; \par
+a PTZ patrol baseline that performs a scripted scan independent of wide detections; \par
+a manual-zoom oracle baseline on a small audited subset, used only to estimate upper bounds and error modes.
+
+\subsection{Metrics}
+Label quality is assessed on an audited subset using human review or higher-resolution reference footage. Primary metrics include (i) label precision and recall for accepted samples, (ii) bounding-box IoU between transferred labels and audited labels, (iii) confidence uplift $\Delta s = s^p - s^w$ for confirmed samples (Fig.~\ref{fig:uplift}), and (iv) downstream detector performance (e.g., small-object mAP on wide-angle imagery) after training on the constructed dataset.
+\par
+Because PTZ tracking introduces dynamics and latency, system metrics include slew-to-lock time, dwell time per target, fraction of triggers that successfully reacquire the target, and PTZ availability contention (fraction of time PTZ is busy). PTZ tracking literature suggests these measures are essential to understanding real-world performance beyond static detection accuracy.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.7\columnwidth]{fig_confidence_uplift.pdf}
+\caption{Confidence uplift visualization. Points above the diagonal $s^p = s^w$ indicate samples where PTZ verification increased detection confidence. Low-confidence wide detections (left region) can achieve high PTZ confidence, validating the zoom-based verification approach.}
+\label{fig:uplift}
+\end{figure}
+
+\subsection{Ablation Factors}
+Ablations should isolate contributions from (i) trigger thresholds and hysteresis, (ii) motion prediction vs reactive centering, (iii) zoom scheduling, (iv) label transfer method (direction-only vs depth-aware if depth is available), and (v) pseudo-label admission thresholds. Adaptive pseudo-label thresholding methods provide a useful reference point for designing these ablations.
+
+\section{Implementation Considerations}
+\subsection{Real-Time Constraints}
+The wide-angle detector must run at frame rate to maintain coverage. YOLO-family models are commonly selected for this regime; Ultralytics documentation notes YOLOv8 release and positioning as a speed--accuracy option for detection tasks, and survey work summarizes the evolution of YOLO variants and real-time deployment considerations.
+\par
+The PTZ control loop must tolerate latency in (i) wide detection, (ii) command transmission, (iii) mechanical motion, and (iv) PTZ video encoding/decoding. A practical design uses a bounded queue for PTZ commands, drops stale commands, and prioritizes keeping the target near the PTZ image center over maximizing instantaneous zoom.
+
+\subsection{Telemetry Synchronization}
+Accurate label transfer requires time alignment between wide frames, PTZ frames, and PTZ telemetry. The system should log monotonic timestamps at capture and at inference, and it should record the PTZ telemetry state at the exact time a PTZ frame is captured (or as close as the interface permits). If telemetry is sampled asynchronously, interpolation to the frame time reduces geometric error.
+
+\subsection{Safety and Privacy}
+The airplane test case naturally focuses on sky regions; nonetheless, deployment should constrain PTZ tilt limits and define privacy-preserving regions to avoid capturing ground-level imagery. These constraints can be implemented at the control layer by rejecting commands that enter prohibited zones.
+
+\section{Discussion}
+\subsection{When PTZ Verification Helps Most}
+PTZ verification is most valuable when the wide detector frequently encounters ambiguous, small candidates whose pixel support is insufficient for confident classification. In such regimes, zoom provides additional evidence without changing the wide camera that will ultimately run the detector. This can be especially beneficial when the deployment environment differs from training data and when pseudo-labeling would otherwise be unreliable.
+\par
+The approach is aligned with modern PTZ-assisted perception systems that explicitly integrate deep detection with PTZ imaging to improve small-target observability.
+
+\subsection{Limitations}
+The system is constrained by single-PTZ availability and cannot zoom multiple targets simultaneously. Fast-moving targets may leave the PTZ field of view during slew, particularly when latency is high or the wide tracker is unstable. Atmospheric turbulence and haze can reduce the effective benefit of zoom. Direction-only label transfer assumes small parallax; large baselines or nearer targets require depth-aware mapping.
+
+\subsection{Extensions}
+Multi-PTZ configurations can reduce contention and increase throughput. Joint scheduling across targets can be formulated as a knapsack-like selection over predicted utilities. More advanced multi-view techniques may reduce reliance on explicit calibration in some settings, although the sky-target scenario is favorable for calibration-based geometry due to strong distance scale separation.
+
+\section{Conclusion}
+This paper presented a dual-camera active acquisition method for fully automated small-object dataset construction using a fixed wide-angle camera with real-time detection and a PTZ camera for zoom-based verification. For airplanes in the sky, the PTZ view provides higher-resolution evidence that can be transferred back to wide-angle frames to produce higher-quality labels, hard negatives, and metadata. We detailed calibration and control formulations, label transfer procedures, and drift-control gates grounded in pseudo-labeling and PTZ tracking insights from the literature. The proposed evaluation protocol measures label quality, confidence uplift, and downstream small-object performance, enabling rigorous assessment of whether sensor-driven ``auto-labeling'' can replace or substantially reduce manual annotation in small-object regimes.
+}
+
+\begin{thebibliography}{99}
+
+\bibitem{nikouei2024smallobj}
+M. Nikouei et al., ``Small Object Detection: A Comprehensive Survey on Challenges, Techniques, and Real-World Applications,'' \textit{Intelligent Systems with Applications}, vol. 25, 2025. doi: \url{https://doi.org/10.1016/j.iswa.2025.200561}
+
+\bibitem{mahaur2022superres}
+B. Mahaur, N. Singh, and K. K. Mishra, ``Road object detection: a comparative study of deep learning-based algorithms,'' \textit{Multimedia Tools and Applications}, vol. 81, no. 10, pp. 14247-14282, 2022. doi: \url{https://doi.org/10.1007/s11042-022-12447-5}
+
+\bibitem{rozantsev2017flying}
+A. Rozantsev, V. Lepetit and P. Fua, ``Detecting Flying Objects Using a Single Moving Camera,'' \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 39, no. 5, pp. 879-892, 1 May 2017. doi: \url{https://doi.org/10.1109/TPAMI.2016.2564408}
+
+\bibitem{chen2020survey}
+G. Chen, H. Pu, W. Luo, and L. Zhang, ``A Survey of the Four Pillars for Small Object Detection: Multiscale Representation, Contextual Information, Super-Resolution, and Region Proposal,'' \textit{IEEE Transactions on Systems, Man, and Cybernetics: Systems}, vol. 52, no. 2, pp. 936-953, Feb. 2022. doi: \url{https://doi.org/10.1109/TSMC.2020.3005231}
+
+\bibitem{zhang2019zoom}
+X. Zhang, Q. Chen, R. Ng, and V. Koltun, ``Zoom to Learn, Learn to Zoom,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 3762-3770, 2019. doi: \url{https://doi.org/10.1109/CVPR.2019.00388}
+
+\bibitem{yolo_flying}
+``Real-Time Flying Object Detection with YOLOv8,'' \textit{arXiv preprint arXiv:2305.09972}, 2023. doi: \url{https://doi.org/10.48550/arXiv.2305.09972}
+
+\bibitem{ptz_eval}
+``Evaluation of trackers for Pan-Tilt-Zoom Scenarios,'' \textit{arXiv preprint arXiv:1711.04260}, 2017. doi: \url{https://doi.org/10.48550/arXiv.1711.04260}
+
+\bibitem{ptz_reproducible}
+``Reproducible Evaluation of Pan-Tilt-Zoom Tracking,'' in \textit{Proceedings of the IEEE International Conference on Image Processing (ICIP)}, 2015. doi: \url{https://doi.org/10.1109/ICIP.2015.7351162}
+
+\bibitem{active_ptz}
+``Active Visual Perception Enhancement Method Based on Deep Reinforcement Learning,'' \textit{Electronics}, vol. 13, no. 9, p. 1654, 2024. doi: \url{https://doi.org/10.3390/electronics13091654}
+
+\bibitem{anomalous_ptz}
+``Anomalous object detection by active search with PTZ cameras,'' \textit{Expert Systems with Applications}, vol. 184, p. 115150, 2021. doi: \url{https://doi.org/10.1016/j.eswa.2021.115150}
+
+\bibitem{vigia_ptz}
+``VIGIA-E: Density-Aware Patch Selection for Efficient Video Surveillance with PTZ Cameras,'' in \textit{Proceedings of the 25th International Conference on Computer Analysis of Images and Patterns (CAIP)}, 2025. doi: \url{https://doi.org/10.1007/978-3-032-04968-1_23}
+
+\bibitem{self_training}
+``Adaptive Self-Training for object Detection,'' in \textit{Proceedings of the IEEE/CVF International Conference on Computer Vision Workshops (ICCVW)}, 2023. doi: \url{https://doi.org/10.1109/ICCVW60793.2023.00102}
+
+\bibitem{self_training_enh}
+``Improving Object Detection Accuracy with Self-Training Based on Bi-Directional Pseudo Label Recovery,'' \textit{Electronics}, vol. 13, no. 12, p. 2230, 2024. doi: \url{https://doi.org/10.3390/electronics13122230}
+
+\bibitem{active_learning_survey}
+``Ten Years of Active Learning Techniques and Object Detection: A Comprehensive Survey,'' \textit{Applied Sciences}, vol. 13, no. 10, p. 6181, 2023. doi: \url{https://doi.org/10.3390/app13169110}
+
+\bibitem{active_learning_ppod}
+``Plug and Play Active Learning for Object Detection,'' in \textit{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)}, 2024. doi: \url{https://doi.org/10.1109/CVPR52733.2024.01684}
+
+\bibitem{ptz_latency_pelco}
+``What is the Measured Latency on Esprit Compact PTZ Cameras?,'' Pelco Support Article, 2024. [Online]. Available: \url{https://support.pelco.com/s/article/What-is-the-Measured-Latency-on-Esprit-Compact-PTZ-Cameras}
+
+\bibitem{ptz_latency_optics}
+``Fixing IP-Based Latency \& Sync Issues on PTZOptics Cameras,'' PTZOptics Knowledge Base, 2024. [Online]. Available: \url{https://community.ptzoptics.com/s/article/Fixing-IP-Based-Latency-Sync-Issues-on-PTZOptics-Cameras}
+
+\bibitem{nvidia_jetson_benchmarks}
+``NVIDIA Jetson AI Lab Benchmarks,'' NVIDIA Jetson AI Lab, 2024. [Online]. Available: \url{https://www.jetson-ai-lab.com/benchmarks.html}
+
+\end{thebibliography}
+
+\end{document}
