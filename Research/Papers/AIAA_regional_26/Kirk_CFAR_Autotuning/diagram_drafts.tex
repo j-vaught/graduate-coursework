@@ -1,9 +1,12 @@
 \documentclass[12pt]{article}
-\usepackage[margin=0.75in]{geometry}
+\usepackage[margin=0.5in,landscape]{geometry}
 \usepackage{tikz}
-\usetikzlibrary{patterns,arrows.meta,decorations.pathreplacing,calc,positioning}
+\usetikzlibrary{patterns,arrows.meta,decorations.pathreplacing,calc,positioning,
+  patterns.meta}
 \usepackage{amsmath,amssymb}
 \usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 % Brand colors
 \definecolor{garnet}{HTML}{73000A}
@@ -25,172 +28,255 @@
 \begin{document}
 
 %% ============================================================
-%% DIAGRAM 1: CFAR Sliding Window — 9×1 linear with power profile
+%% DIAGRAM 1 — CFAR Sliding Window (landscape, multi-position + variants)
 %% ============================================================
 \begin{center}
-\textbf{\Large Diagram 1: CFAR Sliding Window Variants}
+\textbf{\Large Diagram 1: CFAR Sliding Window}
 \end{center}
-\vspace{0.3cm}
+\vspace{-0.1cm}
 
 \begin{center}
-\begin{tikzpicture}[scale=0.62, every node/.style={font=\small}]
+\begin{tikzpicture}[scale=0.52, every node/.style={font=\small}]
 
-% --- Power values for 1-D range line (19 cells) ---
-\def\pwr{{2,3,2,4,3,2,3,2, 5, 18, 5, 2,3,2,4,3,2,3,2}}
-\def\N{18} % 0..18
+% ====================================================================
+% TOP SECTION: 1-D range line with power profile at THREE window positions
+% ====================================================================
+% Power values for 25-cell range line (indices 0..24)
+% Two targets at cells 9 and 18, noise floor ~2-4
+\def\pwr{{3,2,4,2,3,2,3,2,5,18,6,3,2,4,3,2,3,4,14,5,3,2,3,2,3}}
+\def\Ncells{24}
 
-% ========= TOP: shared range-cell strip with power profile =========
-\begin{scope}[shift={(0,14)}]
-  % Power profile (bar chart behind)
-  \foreach \i in {0,...,\N}{
+% --- Power profile bar chart ---
+\begin{scope}[shift={(0,19)}]
+  \draw[-{Stealth[length=4pt]},gray70] (-0.3,0) -- (\Ncells*0.72+1,0);
+  \draw[-{Stealth[length=4pt]},gray70] (-0.3,0) -- (-0.3,4.8);
+  \node[font=\tiny,gray70] at (\Ncells*0.72+1.3,0) {Range bin};
+  \node[font=\tiny,gray70,rotate=90] at (-0.7,2.4) {Power};
+
+  % Noise floor shading
+  \fill[gray10] (0,0) rectangle (\Ncells*0.72+0.65,0.7);
+  \draw[gray30,dashed] (0,0.7) -- (\Ncells*0.72+0.65,0.7);
+  \node[font=\tiny,gray50,right] at (\Ncells*0.72+0.7,0.7) {Noise floor};
+
+  \foreach \i in {0,...,\Ncells}{
     \pgfmathtruncatemacro{\v}{\pwr[\i]}
-    \pgfmathsetmacro{\h}{\v*0.22}
-    \fill[gray30] (\i*0.9, 0) rectangle ++(0.8, \h);
-    \draw[gray50] (\i*0.9, 0) rectangle ++(0.8, \h);
-  }
-  % Threshold line (e.g. T=8 -> 1.76)
-  \draw[garnet, thick, dashed] (0,1.76) -- (\N*0.9+0.8,1.76);
-  \node[right, font=\footnotesize, garnet] at (\N*0.9+1.0,1.76) {$T$};
-
-  % Cell strip
-  \foreach \i in {0,...,\N}{
-    \pgfmathtruncatemacro{\v}{\pwr[\i]}
-    % Color by zone relative to CUT=9
-    \pgfmathtruncatemacro{\iscut}{(\i==9)?1:0}
-    \pgfmathtruncatemacro{\isguard}{(\i>=8 && \i<=10 && \iscut==0)?1:0}
-    \pgfmathtruncatemacro{\islead}{(\i>=4 && \i<8)?1:0}
-    \pgfmathtruncatemacro{\istrail}{(\i>10 && \i<=14)?1:0}
-    \ifnum\iscut=1
-      \fill[garnet] (\i*0.9,-1.2) rectangle ++(0.8,0.8);
-    \else\ifnum\isguard=1
-      \fill[gray50] (\i*0.9,-1.2) rectangle ++(0.8,0.8);
-    \else\ifnum\islead=1
-      \fill[atlantic!50] (\i*0.9,-1.2) rectangle ++(0.8,0.8);
-    \else\ifnum\istrail=1
-      \fill[congaree!40] (\i*0.9,-1.2) rectangle ++(0.8,0.8);
-    \else
-      \fill[gray10] (\i*0.9,-1.2) rectangle ++(0.8,0.8);
-    \fi\fi\fi\fi
-    \draw[gray70] (\i*0.9,-1.2) rectangle ++(0.8,0.8);
-    \node[font=\tiny] at (\i*0.9+0.4,-0.8) {\v};
+    \pgfmathsetmacro{\h}{\v*0.24}
+    \fill[gray30] (\i*0.72, 0) rectangle ++(0.62, \h);
+    \draw[gray50,thin] (\i*0.72, 0) rectangle ++(0.62, \h);
+    \node[font=\tiny,gray70] at (\i*0.72+0.31,-0.3) {\i};
   }
 
-  % Braces
-  \draw[decorate,decoration={brace,amplitude=4pt,mirror},atlantic,thick]
-    (4*0.9,-1.4) -- (7*0.9+0.8,-1.4);
-  \node[below=4pt,font=\tiny,atlantic] at (5.5*0.9+0.4,-1.4) {Leading ($N_l\!=\!4$)};
-
-  \draw[decorate,decoration={brace,amplitude=4pt,mirror},congaree,thick]
-    (11*0.9,-1.4) -- (14*0.9+0.8,-1.4);
-  \node[below=4pt,font=\tiny,congaree] at (12.5*0.9+0.4,-1.4) {Trailing ($N_t\!=\!4$)};
-
-  \draw[decorate,decoration={brace,amplitude=4pt},gray70,thick]
-    (8*0.9,0.1) -- (10*0.9+0.8,0.1);
-  \node[above=3pt,font=\tiny,gray70] at (9*0.9+0.4,0.1) {Guard};
-
-  % Sliding arrow
-  \draw[-{Stealth[length=5pt]},thick,rose] (1*0.9,-2.6) -- (5*0.9,-2.6);
-  \node[font=\tiny,rose,above] at (3*0.9,-2.6) {Window slides};
+  % Target peaks labeled
+  \fill[garnet] (9*0.72+0.31, 18*0.24+0.15) circle (0.15);
+  \fill[garnet] (18*0.72+0.31, 14*0.24+0.15) circle (0.15);
 \end{scope}
 
-% ========= BOTTOM ROW: three variant panels (CA, GO, SO) =========
-% Each shows a 2D 9×9 grid with CUT at center
-
-\newcommand{\variantGrid}[3]{% #1=x-offset, #2=title, #3=mode (0=CA,1=GO,2=SO)
-\begin{scope}[shift={(#1,0)}]
-  \node[font=\bfseries] at (2.7,6.8) {#2};
-  \def\sz{0.58}
-  % 9x9 grid, CUT at (4,4), guard 1-cell, ref 2-cell band
-  \foreach \r in {0,...,8}{
-    \foreach \c in {0,...,8}{
-      \pgfmathtruncatemacro{\dr}{abs(\r-4)}
-      \pgfmathtruncatemacro{\dc}{abs(\c-4)}
-      \pgfmathtruncatemacro{\cheb}{max(\dr,\dc)}
-      \pgfmathtruncatemacro{\iscut}{(\cheb==0)?1:0}
-      \pgfmathtruncatemacro{\isguard}{(\cheb==1)?1:0}
-      \pgfmathtruncatemacro{\isref}{(\cheb>=2 && \cheb<=3)?1:0}
-      % leading = r<4 (top half), trailing = r>4 (bottom half)
-      \pgfmathtruncatemacro{\islead}{(\r<4 && \isref==1)?1:0}
-      \pgfmathtruncatemacro{\istrail}{(\r>4 && \isref==1)?1:0}
-      \pgfmathtruncatemacro{\isside}{(\r==4 && \isref==1)?1:0}
-      %
-      \ifnum\iscut=1
-        \fill[garnet] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-      \else\ifnum\isguard=1
-        \fill[gray50] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-      \else
-        % CA: all reference same
-        \ifnum#3=0
-          \ifnum\isref=1
-            \fill[atlantic!50] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else
-            \fill[gray10] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \fi
-        \fi
-        % GO: leading bold, trailing dim
-        \ifnum#3=1
-          \ifnum\islead=1
-            \fill[atlantic!70] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else\ifnum\istrail=1
-            \fill[atlantic!18] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else\ifnum\isside=1
-            \fill[atlantic!45] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else
-            \fill[gray10] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \fi\fi\fi
-        \fi
-        % SO: trailing bold, leading dim
-        \ifnum#3=2
-          \ifnum\istrail=1
-            \fill[atlantic!70] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else\ifnum\islead=1
-            \fill[atlantic!18] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else\ifnum\isside=1
-            \fill[atlantic!45] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \else
-            \fill[gray10] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-          \fi\fi\fi
-        \fi
-      \fi\fi
-      \draw[gray70,thin] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
-    }
+% --- Three window positions shown on cell strip ---
+% Position 1: CUT=5 (no target), Position 2: CUT=9 (target), Position 3: CUT=18 (target)
+\newcommand{\windowStrip}[3]{% #1=y-shift, #2=CUT index, #3=label
+\begin{scope}[shift={(0,#1)}]
+  \node[font=\footnotesize\bfseries,gray90,left] at (-0.5,0.4) {#3};
+  \foreach \i in {0,...,\Ncells}{
+    \pgfmathtruncatemacro{\v}{\pwr[\i]}
+    % Zones: guard=CUT±1, leading=CUT-5..CUT-2, trailing=CUT+2..CUT+5
+    \pgfmathtruncatemacro{\cutidx}{#2}
+    \pgfmathtruncatemacro{\d}{\i-\cutidx}
+    \pgfmathtruncatemacro{\absd}{abs(\d)}
+    \pgfmathtruncatemacro{\iscut}{(\i==\cutidx)?1:0}
+    \pgfmathtruncatemacro{\isguard}{(\absd>=1 && \absd<=1 && \iscut==0)?1:0}
+    \pgfmathtruncatemacro{\islead}{(\d>=-5 && \d<=-2)?1:0}
+    \pgfmathtruncatemacro{\istrail}{(\d>=2 && \d<=5)?1:0}
+    %
+    \ifnum\iscut=1
+      \fill[garnet] (\i*0.72,0) rectangle ++(0.62,0.8);
+    \else\ifnum\isguard=1
+      \fill[gray50] (\i*0.72,0) rectangle ++(0.62,0.8);
+    \else\ifnum\islead=1
+      \fill[atlantic!50] (\i*0.72,0) rectangle ++(0.62,0.8);
+    \else\ifnum\istrail=1
+      \fill[congaree!40] (\i*0.72,0) rectangle ++(0.62,0.8);
+    \else
+      \fill[gray10] (\i*0.72,0) rectangle ++(0.62,0.8);
+    \fi\fi\fi\fi
+    \draw[gray70,thin] (\i*0.72,0) rectangle ++(0.62,0.8);
+    \node[font=\tiny] at (\i*0.72+0.31,0.4) {\v};
   }
-
-  % Dimension annotations
-  \draw[{Stealth[length=3pt]}-{Stealth[length=3pt]},gray70]
-    (-0.25,2*\sz) -- (-0.25,6*\sz+\sz);
-  \node[left,font=\tiny,gray70,rotate=90] at (-0.35,4*\sz+\sz/2) {$2N_r\!+\!2G\!+\!1$};
-
-  % Averaging operator icon
-  \ifnum#3=0
-    \node[font=\tiny,atlantic] at (4.5*\sz,-0.6) {$Z = \frac{1}{2N}\sum x_i$};
+  % Braces
+  \pgfmathtruncatemacro{\lstart}{#2-5}
+  \pgfmathtruncatemacro{\lend}{#2-2}
+  \pgfmathtruncatemacro{\tstart}{#2+2}
+  \pgfmathtruncatemacro{\tend}{#2+5}
+  \ifnum\lstart<0 \else
+    \draw[decorate,decoration={brace,amplitude=3pt,mirror},atlantic,thick]
+      (\lstart*0.72,-0.15) -- (\lend*0.72+0.62,-0.15);
+    \node[below=3pt,font=\tiny,atlantic] at ({(\lstart+\lend)*0.36+0.31},-0.15) {Leading};
   \fi
-  \ifnum#3=1
-    \node[font=\tiny,atlantic] at (4.5*\sz,-0.6) {$Z = \max(\bar{x}_L,\,\bar{x}_T)$};
+  \ifnum\tend>\Ncells \else
+    \draw[decorate,decoration={brace,amplitude=3pt,mirror},congaree,thick]
+      (\tstart*0.72,-0.15) -- (\tend*0.72+0.62,-0.15);
+    \node[below=3pt,font=\tiny,congaree] at ({(\tstart+\tend)*0.36+0.31},-0.15) {Trailing};
   \fi
-  \ifnum#3=2
-    \node[font=\tiny,atlantic] at (4.5*\sz,-0.6) {$Z = \min(\bar{x}_L,\,\bar{x}_T)$};
+  % Threshold arrow from CUT
+  \pgfmathtruncatemacro{\cutval}{\pwr[\cutidx]}
+  % Decision indicator
+  \pgfmathtruncatemacro{\detected}{(\cutval>7)?1:0}
+  \ifnum\detected=1
+    \node[font=\small,horseshoe] at (\cutidx*0.72+0.31,1.2) {\checkmark};
+  \else
+    \node[font=\small,rose] at (\cutidx*0.72+0.31,1.2) {$\times$};
   \fi
 \end{scope}
 }
 
-\variantGrid{0}{CA-CFAR}{0}
-\variantGrid{6.5}{GO-CFAR}{1}
-\variantGrid{13}{SO-CFAR}{2}
+\windowStrip{14.5}{5}{Pos.\ 1: CUT\,=\,5}
+\windowStrip{12.0}{9}{Pos.\ 2: CUT\,=\,9}
+\windowStrip{9.5}{18}{Pos.\ 3: CUT\,=\,18}
+
+% Sliding arrows between positions
+\draw[-{Stealth[length=4pt]},rose,thick] (5*0.72+0.31,14.3) -- (9*0.72+0.31,12.95);
+\draw[-{Stealth[length=4pt]},rose,thick] (9*0.72+0.31,11.8) -- (18*0.72+0.31,10.45);
+
+% ====================================================================
+% BOTTOM SECTION: Three 11×11 2-D variant grids
+% ====================================================================
+\def\gsz{0.44}
+\def\gn{10} % 0..10, center=5
+
+\newcommand{\varGrid}[3]{% #1=x-offset, #2=title, #3=mode 0=CA 1=GO 2=SO
+\begin{scope}[shift={(#1,0)}]
+  \node[font=\bfseries] at (5*\gsz+\gsz/2,\gn*\gsz+\gsz+0.6) {#2};
+
+  \foreach \r in {0,...,\gn}{
+    \foreach \c in {0,...,\gn}{
+      \pgfmathtruncatemacro{\cheb}{max(abs(\r-5),abs(\c-5))}
+      \pgfmathtruncatemacro{\iscut}{(\cheb==0)?1:0}
+      \pgfmathtruncatemacro{\isguard}{(\cheb==1)?1:0}
+      \pgfmathtruncatemacro{\isref}{(\cheb>=2 && \cheb<=4)?1:0}
+      \pgfmathtruncatemacro{\islead}{(\r<5 && \isref==1)?1:0}
+      \pgfmathtruncatemacro{\istrail}{(\r>5 && \isref==1)?1:0}
+      \pgfmathtruncatemacro{\isside}{(\r==5 && \isref==1)?1:0}
+      %
+      \ifnum\iscut=1
+        \fill[garnet] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+      \else\ifnum\isguard=1
+        \fill[gray50] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+      \else
+        % === CA ===
+        \ifnum#3=0
+          \ifnum\isref=1
+            \fill[atlantic!45] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else
+            \fill[gray10] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \fi
+        \fi
+        % === GO: leading bold, trailing cross-hatched ===
+        \ifnum#3=1
+          \ifnum\islead=1
+            \fill[atlantic!65] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else\ifnum\istrail=1
+            \fill[atlantic!12] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+            \fill[pattern=north east lines, pattern color=atlantic!30]
+              (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else\ifnum\isside=1
+            \fill[atlantic!40] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else
+            \fill[gray10] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \fi\fi\fi
+        \fi
+        % === SO: trailing bold, leading cross-hatched ===
+        \ifnum#3=2
+          \ifnum\istrail=1
+            \fill[atlantic!65] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else\ifnum\islead=1
+            \fill[atlantic!12] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+            \fill[pattern=north east lines, pattern color=atlantic!30]
+              (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else\ifnum\isside=1
+            \fill[atlantic!40] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \else
+            \fill[gray10] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+          \fi\fi\fi
+        \fi
+      \fi\fi
+      \draw[gray70,very thin] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+    }
+  }
+
+  % Zone boundary outlines
+  \draw[garnet,very thick] (5*\gsz,5*\gsz) rectangle ++(\gsz,\gsz);
+  \draw[gray90,thick,dashed] (4*\gsz,4*\gsz) rectangle ++(3*\gsz,3*\gsz);
+  \draw[atlantic,thick] (1*\gsz,1*\gsz) rectangle ++(9*\gsz,9*\gsz);
+
+  % Dimension annotations (left side)
+  \draw[{Stealth[length=2.5pt]}-{Stealth[length=2.5pt]},gray70]
+    (-0.2,1*\gsz) -- (-0.2,4*\gsz);
+  \node[left,font=\tiny,gray70] at (-0.2,2.5*\gsz) {$N_r$};
+  \draw[{Stealth[length=2.5pt]}-{Stealth[length=2.5pt]},gray70]
+    (-0.2,4*\gsz) -- (-0.2,5*\gsz);
+  \node[left,font=\tiny,gray70] at (-0.2,4.5*\gsz) {$G$};
+
+  % Selection arrow for GO/SO
+  \ifnum#3=1
+    \draw[-{Stealth[length=4pt]},rose,very thick]
+      (11*\gsz+0.3,7.5*\gsz) -- (11*\gsz+0.3,9*\gsz);
+    \node[right,font=\tiny,rose] at (11*\gsz+0.35,8.2*\gsz) {max};
+  \fi
+  \ifnum#3=2
+    \draw[-{Stealth[length=4pt]},horseshoe,very thick]
+      (11*\gsz+0.3,3.5*\gsz) -- (11*\gsz+0.3,1.5*\gsz);
+    \node[right,font=\tiny,horseshoe] at (11*\gsz+0.35,2.5*\gsz) {min};
+  \fi
+
+  % Operator formula
+  \ifnum#3=0
+    \node[font=\tiny,atlantic] at (5.5*\gsz,-0.7)
+      {$Z = \dfrac{1}{2N}\displaystyle\sum_{i=1}^{2N} x_i$};
+  \fi
+  \ifnum#3=1
+    \node[font=\tiny,atlantic] at (5.5*\gsz,-0.7)
+      {$Z = \max\!\bigl(\bar{x}_L,\;\bar{x}_T\bigr)$};
+  \fi
+  \ifnum#3=2
+    \node[font=\tiny,atlantic] at (5.5*\gsz,-0.7)
+      {$Z = \min\!\bigl(\bar{x}_L,\;\bar{x}_T\bigr)$};
+  \fi
+
+  % Threshold decision rule
+  \node[font=\tiny,gray90] at (5.5*\gsz,-1.4)
+    {Detect if $x_{\mathrm{CUT}} > \alpha \cdot Z$};
+\end{scope}
+}
+
+\varGrid{1}{CA-CFAR}{0}
+\varGrid{7.5}{GO-CFAR}{1}
+\varGrid{14}{SO-CFAR}{2}
 
 % Legend
-\begin{scope}[shift={(0,-1.6)}]
-  \fill[garnet] (0,0) rectangle ++(0.45,0.35);
-  \node[right,font=\footnotesize] at (0.55,0.17) {CUT};
-  \fill[gray50] (2.5,0) rectangle ++(0.45,0.35);
-  \node[right,font=\footnotesize] at (3.05,0.17) {Guard};
-  \fill[atlantic!70] (5.3,0) rectangle ++(0.45,0.35);
-  \node[right,font=\footnotesize] at (5.85,0.17) {Selected Ref.};
-  \fill[atlantic!18] (8.8,0) rectangle ++(0.45,0.35);
-  \node[right,font=\footnotesize] at (9.35,0.17) {Unused Ref.};
-  \fill[gray10] (12.2,0) rectangle ++(0.45,0.35);
-  \draw[gray70,thin] (12.2,0) rectangle ++(0.45,0.35);
-  \node[right,font=\footnotesize] at (12.75,0.17) {Outside};
+\begin{scope}[shift={(1,-2.3)}]
+  \fill[garnet] (0,0) rectangle ++(0.4,0.3);
+  \node[right,font=\footnotesize] at (0.5,0.15) {CUT};
+  %
+  \fill[gray50] (2.2,0) rectangle ++(0.4,0.3);
+  \node[right,font=\footnotesize] at (2.7,0.15) {Guard};
+  %
+  \fill[atlantic!65] (4.6,0) rectangle ++(0.4,0.3);
+  \node[right,font=\footnotesize] at (5.1,0.15) {Selected Ref.};
+  %
+  \fill[atlantic!12] (7.8,0) rectangle ++(0.4,0.3);
+  \fill[pattern=north east lines, pattern color=atlantic!30] (7.8,0) rectangle ++(0.4,0.3);
+  \node[right,font=\footnotesize] at (8.3,0.15) {Unused Ref.};
+  %
+  \fill[atlantic!50] (11.2,0) rectangle ++(0.4,0.3);
+  \node[right,font=\footnotesize] at (11.7,0.15) {Leading};
+  %
+  \fill[congaree!40] (13.4,0) rectangle ++(0.4,0.3);
+  \node[right,font=\footnotesize] at (13.9,0.15) {Trailing};
+  %
+  \node[font=\small,horseshoe] at (15.8,0.15) {\checkmark};
+  \node[right,font=\footnotesize] at (16.0,0.15) {Detected};
+  %
+  \node[font=\small,rose] at (18,0.15) {$\times$};
+  \node[right,font=\footnotesize] at (18.2,0.15) {Below $T$};
 \end{scope}
 
 \end{tikzpicture}
@@ -199,7 +285,7 @@
 \newpage
 
 %% ============================================================
-%% DIAGRAM 2: Range-Azimuth to PPI Mapping
+%% DIAGRAM 2: Range-Azimuth to PPI Mapping (unchanged)
 %% ============================================================
 \begin{center}
 \textbf{\Large Diagram 2: Range-Azimuth to PPI Mapping}
@@ -209,12 +295,8 @@
 \begin{center}
 \begin{tikzpicture}[scale=0.78]
 
-% --- Left: Range-Azimuth Matrix (8 rows × 6 cols) with heatmap ---
 \node[font=\bfseries] at (3,9.3) {Range-Azimuth Matrix};
 
-\def\nrows{8}
-\def\ncols{6}
-% Simulated reflectivity values (row-major, 8×6 = 48 values)
 \def\rvals{{1,2,1,0,0,0,
              2,5,3,1,0,0,
              1,4,8,5,1,0,
@@ -224,22 +306,18 @@
              0,0,1,3,2,0,
              0,0,0,1,1,0}}
 
-% Row headers (azimuth)
 \foreach \r/\lbl in {7/$0$,6/$45$,5/$90$,4/$135$,3/$180$,2/$225$,1/$270$,0/$315$}{
   \node[font=\tiny,text=gray70] at (-0.5,\r+0.5) {\lbl\textdegree};
 }
-% Col headers (range)
 \foreach \c in {0,...,5}{
   \pgfmathtruncatemacro{\rb}{\c+1}
   \node[font=\tiny,text=gray70] at (\c+0.5,8.5) {$r_{\rb}$};
 }
 
-% Heatmap cells
 \foreach \r in {0,...,7}{
   \foreach \c in {0,...,5}{
     \pgfmathtruncatemacro{\idx}{\r*6+\c}
     \pgfmathtruncatemacro{\val}{\rvals[\idx]}
-    % Color intensity: 0=white, 9=garnet
     \pgfmathsetmacro{\pct}{\val*11}
     \fill[garnet!\pct!white] (\c,7-\r) rectangle ++(1,1);
     \draw[gray30,thin] (\c,7-\r) rectangle ++(1,1);
@@ -254,15 +332,12 @@
   }
 }
 
-% Highlight two rows to show mapping
-\draw[atlantic,very thick] (0,7) rectangle ++(6,1); % row 0 = 0 deg
-\draw[rose,very thick] (0,3) rectangle ++(6,1); % row 4 = 180 deg
+\draw[atlantic,very thick] (0,7) rectangle ++(6,1);
+\draw[rose,very thick] (0,3) rectangle ++(6,1);
 
-% Axis labels
 \node[font=\small,text=gray70,rotate=90] at (-1.3,4) {Azimuth};
 \node[font=\small,text=gray70] at (3,-0.5) {Range Bin};
 
-% Color bar
 \begin{scope}[shift={(7.2,0)}]
   \foreach \i in {0,...,9}{
     \pgfmathsetmacro{\pct}{\i*11}
@@ -274,7 +349,6 @@
   \node[font=\tiny,text=gray70,rotate=90] at (-0.25,3.6) {dBZ};
 \end{scope}
 
-% --- Arrow ---
 \begin{scope}[shift={(8.5,3.5)}]
   \draw[-{Stealth[length=7pt]},very thick,garnet] (0,0.5) -- (2.2,0.5);
   \node[font=\footnotesize,above,text=gray90] at (1.1,0.65) {$(r,\theta)$};
@@ -282,12 +356,8 @@
   \node[font=\footnotesize,below,text=gray90] at (1.1,-0.05) {$(r\!\cos\theta,\,r\!\sin\theta)$};
 \end{scope}
 
-% --- Right: PPI Display ---
 \begin{scope}[shift={(15,4)}]
   \node[font=\bfseries] at (0,5.3) {PPI Display};
-
-  % Filled sectors (simulated weather return, arc-shaped)
-  % Storm cell roughly NE quadrant
   \foreach \a in {20,30,...,70}{
     \pgfmathsetmacro{\rin}{1.5+0.3*sin(\a*3)}
     \pgfmathsetmacro{\rout}{3.2+0.4*cos(\a*2)}
@@ -296,7 +366,6 @@
       arc[start angle=\a,end angle=\a+10,radius=\rout]
       -- (\a+10:\rin) arc[start angle=\a+10,end angle=\a,radius=\rin] -- cycle;
   }
-  % Second cluster SW
   \foreach \a in {200,210,...,250}{
     \pgfmathsetmacro{\rin}{0.8+0.2*sin(\a*2)}
     \pgfmathsetmacro{\rout}{2.0+0.3*cos(\a*3)}
@@ -305,39 +374,25 @@
       arc[start angle=\a,end angle=\a+10,radius=\rout]
       -- (\a+10:\rin) arc[start angle=\a+10,end angle=\a,radius=\rin] -- cycle;
   }
-
-  % Range rings
   \foreach \rad/\lbl in {1/$r_1$,2/$r_3$,3/$r_5$,4/$r_6$}{
     \draw[gray30,thin] (0,0) circle (\rad);
     \node[font=\tiny,text=gray50] at (\rad+0.2,0.15) {\lbl};
   }
-
-  % Cardinal spokes
   \foreach \ang/\lbl in {90/N,0/E,270/S,180/W}{
     \draw[gray50,thin] (0,0) -- (\ang:4.2);
     \node[font=\tiny,text=gray70] at (\ang:4.5) {\lbl};
   }
-  % Intermediate spokes
   \foreach \ang in {45,135,225,315}{
     \draw[gray10,thin] (0,0) -- (\ang:4.2);
   }
-
-  % Highlighted spokes matching matrix rows
-  \draw[atlantic,thick] (0,0) -- (90:4);   % 0 deg = North
-  \draw[rose,thick] (0,0) -- (270:4);      % 180 deg = South
-
-  % North arrow
+  \draw[atlantic,thick] (0,0) -- (90:4);
+  \draw[rose,thick] (0,0) -- (270:4);
   \draw[-{Stealth[length=5pt]},thick,garnet] (0,4.2) -- (0,4.8);
-
-  % Radar origin
   \fill[garnet] (0,0) circle (0.1);
-
-  % Azimuth sweep arc
   \draw[-{Stealth[length=4pt]},gray50,thick] (60:4.6) arc[start angle=60,end angle=20,radius=4.6];
   \node[font=\tiny,gray70] at (40:5.0) {Sweep};
 \end{scope}
 
-% Connection curves (row → spoke)
 \draw[-{Stealth[length=5pt]},dashed,atlantic,thick]
   (6,7.5) to[out=10,in=160] (11.5,7.8);
 \draw[-{Stealth[length=5pt]},dashed,rose,thick]
@@ -349,94 +404,173 @@
 \newpage
 
 %% ============================================================
-%% DIAGRAM 3: Coverage Scoring Visual
+%% DIAGRAM 3 — Coverage Scoring (landscape, richer)
 %% ============================================================
 \begin{center}
 \textbf{\Large Diagram 3: Coverage Score Illustration}
 \end{center}
-\vspace{0.2cm}
+\vspace{-0.1cm}
 
 \begin{center}
-\begin{tikzpicture}[scale=0.95]
+\begin{tikzpicture}[scale=0.82, every node/.style={font=\small}]
 
-% Irregular storm-like blob path (reused)
+% --- Irregular weather-return blob (more complex shape) ---
 \def\blobpath{
-  (0.2,0.8) .. controls (0.1,2.0) and (0.3,3.5) ..
-  (1.2,4.2) .. controls (1.8,4.6) and (2.8,4.5) ..
-  (3.6,4.0) .. controls (4.4,3.4) and (4.8,2.5) ..
-  (4.6,1.5) .. controls (4.3,0.6) and (3.4,0.1) ..
-  (2.4,-0.1) .. controls (1.3,-0.2) and (0.4,0.2) ..
-  (0.2,0.8)
+  (0.5,1.0) .. controls (0.15,1.8) and (0.1,3.0) ..
+  (0.4,3.8) .. controls (0.7,4.6) and (1.4,5.2) ..
+  (2.2,5.4) .. controls (3.0,5.5) and (3.8,5.1) ..
+  (4.5,4.6) .. controls (5.3,4.0) and (5.8,3.5) ..
+  (5.6,2.8) .. controls (5.9,2.2) and (5.5,1.4) ..
+  (5.0,0.9) .. controls (4.4,0.4) and (3.8,0.1) ..
+  (3.0,0.0) .. controls (2.2,-0.1) and (1.5,0.1) ..
+  (1.0,0.5) .. controls (0.7,0.7) and (0.55,0.85) ..
+  (0.5,1.0)
 }
 
-\newcommand{\coverPanel}[5]{% #1=xshift, #2=rho, #3=score, #4=fill height, #5=dot density seed
-\begin{scope}[shift={(#1,0)}]
+% ===============================================================
+% PANEL MACRO
+% ===============================================================
+\newcommand{\covPanel}[6]{%
+  % #1=xshift, #2=rho, #3=score, #4=fill-height, #5=seed, #6=num-false-alarms
+  \begin{scope}[shift={(#1,0)}]
 
-  % Missed region (unfilled interior) — light hatching
-  \begin{scope}
-    \clip \blobpath;
-    \fill[gray10] (0,-0.5) rectangle (5,5);
-  \end{scope}
+    % --- Unfilled interior (missed) ---
+    \begin{scope}
+      \clip \blobpath;
+      \fill[gray10] (-0.5,-1) rectangle (7,6.5);
+      % Missed-region crosshatch above fill line
+      \fill[pattern=north west lines, pattern color=gray30]
+        (-0.5,#4) rectangle (7,6.5);
+    \end{scope}
 
-  % Detected fill: scattered dots clipped to blob below fill height
-  \begin{scope}
-    \clip \blobpath;
-    % Solid fill region
-    \fill[atlantic!35] (-0.5,-0.5) rectangle (5.5,#4);
-    % Gradient edge: partial row of dots above solid fill
+    % --- Detected: scattered dots (not solid fill) ---
+    \begin{scope}
+      \clip \blobpath;
+      % Base tint
+      \fill[atlantic!20] (-0.5,-1) rectangle (7,#4);
+      % Scattered detection pixels
+      \pgfmathseed{#5}
+      \foreach \i in {1,...,200}{
+        \pgfmathsetmacro{\px}{-0.2+rand*6.2}
+        \pgfmathsetmacro{\py}{-0.3+rand*5.8}
+        \pgfmathsetmacro{\ht}{#4}
+        \ifdim\py pt<\ht pt
+          \fill[atlantic!55] (\px,\py) circle (0.07);
+        \fi
+      }
+      % Sparser fringe dots near boundary
+      \foreach \i in {1,...,50}{
+        \pgfmathsetmacro{\px}{-0.1+rand*6.0}
+        \pgfmathsetmacro{\py}{#4 - 0.2 + rand*0.6}
+        \fill[atlantic!30] (\px,\py) circle (0.06);
+      }
+    \end{scope}
+
+    % --- Ground truth outline ---
+    \draw[garnet, very thick] \blobpath;
+
+    % --- False alarms outside blob ---
     \pgfmathseed{#5}
-    \foreach \i in {1,...,60}{
-      \pgfmathsetmacro{\px}{0.2+rand*4.4}
-      \pgfmathsetmacro{\py}{#4 + rand*0.6}
-      \fill[atlantic!25] (\px,\py) circle (0.08);
+    \foreach \i in {1,...,#6}{
+      \pgfmathsetmacro{\fx}{-0.6+rand*7.0}
+      \pgfmathsetmacro{\fy}{-0.8+rand*0.6}
+      \fill[rose] (\fx,\fy) circle (0.09);
+      \draw[rose,thin] (\fx-0.12,\fy-0.12) -- (\fx+0.12,\fy+0.12);
+      \draw[rose,thin] (\fx-0.12,\fy+0.12) -- (\fx+0.12,\fy-0.12);
     }
-  \end{scope}
-
-  % False alarm dots outside blob
-  \pgfmathseed{#5}
-  \foreach \i in {1,...,4}{
-    \pgfmathsetmacro{\fx}{0.5+rand*4.0}
-    \pgfmathsetmacro{\fy}{-0.5+rand*0.3}
-    \node[font=\tiny,rose] at (\fx,\fy) {$\times$};
-  }
-
-  % Ground truth outline
-  \draw[garnet,very thick] \blobpath;
-
-  % Coverage fill bar (vertical thermometer on right)
-  \begin{scope}[shift={(5.4,0)}]
-    \draw[gray30] (0,0) rectangle (0.35,4.5);
-    \pgfmathsetmacro{\barh}{#4*0.96}
-    \fill[atlantic!50] (0,0) rectangle (0.35,\barh);
-    \draw[gray70,thin] (0,0) rectangle (0.35,4.5);
-    % Tick marks
-    \foreach \frac/\lbl in {0/0,1.125/25,2.25/50,3.375/75,4.5/100}{
-      \draw[gray50] (0.35,\frac) -- (0.5,\frac);
-      \node[right,font=\tiny,gray70] at (0.5,\frac) {\lbl\%};
+    % Top-side false alarms
+    \foreach \i in {1,...,#6}{
+      \pgfmathsetmacro{\fx}{0.5+rand*4.5}
+      \pgfmathsetmacro{\fy}{5.5+rand*0.5}
+      \fill[rose] (\fx,\fy) circle (0.09);
+      \draw[rose,thin] (\fx-0.12,\fy-0.12) -- (\fx+0.12,\fy+0.12);
+      \draw[rose,thin] (\fx-0.12,\fy+0.12) -- (\fx+0.12,\fy-0.12);
     }
-  \end{scope}
 
-  % Labels
-  \node[font=\small,text=gray90] at (2.4,-1.0) {$\rho = #2$};
-  \node[font=\small,text=garnet,font=\bfseries] at (2.4,-1.6) {$s = #3$};
-\end{scope}
+    % --- Coverage thermometer bar ---
+    \begin{scope}[shift={(6.6,0)}]
+      \draw[gray30] (0,0) rectangle (0.4,5.5);
+      \pgfmathsetmacro{\barh}{#4*0.98}
+      \fill[atlantic!45] (0,0) rectangle (0.4,\barh);
+      \draw[gray70,thin] (0,0) rectangle (0.4,5.5);
+      % Ticks
+      \foreach \frac/\lbl in {0/0,1.375/25,2.75/50,4.125/75,5.5/100}{
+        \draw[gray50] (0.4,\frac) -- (0.55,\frac);
+        \node[right,font=\tiny,gray70] at (0.55,\frac) {\lbl\%};
+      }
+      % Marker line at current fill
+      \draw[garnet,thick] (-0.05,\barh) -- (0.45,\barh);
+    \end{scope}
+
+    % --- FA count badge ---
+    \pgfmathtruncatemacro{\facount}{#6*2}
+    \node[draw=rose,fill=rose!10,font=\tiny\bfseries,rose,
+      inner sep=2pt] at (5.8,-1.2) {FA\,=\,\facount};
+
+    % --- Labels ---
+    \node[font=\normalsize,text=gray90] at (3,-1.2) {$\rho = #2$};
+    \node[font=\normalsize\bfseries,text=garnet] at (3,-1.8) {$s = #3$};
+  \end{scope}
 }
 
-\coverPanel{0}{0.20}{0.25}{0.9}{42}
-\coverPanel{7}{0.60}{0.75}{2.7}{137}
-\coverPanel{14}{0.95}{1.00}{4.3}{253}
+\covPanel{0}{0.15}{0.18}{0.9}{42}{6}
+\covPanel{9}{0.55}{0.68}{3.0}{137}{3}
+\covPanel{18}{0.92}{0.97}{5.1}{253}{1}
 
-% Legend row
-\begin{scope}[shift={(0,-2.8)}]
-  \fill[atlantic!35] (0,0) rectangle ++(0.5,0.35);
-  \node[right,font=\footnotesize] at (0.6,0.17) {Detected};
-  \fill[gray10] (3.5,0) rectangle ++(0.5,0.35);
-  \draw[gray30,thin] (3.5,0) rectangle ++(0.5,0.35);
-  \node[right,font=\footnotesize] at (4.1,0.17) {Missed};
-  \draw[garnet,very thick] (7,0.17) -- ++(0.5,0);
-  \node[right,font=\footnotesize] at (7.6,0.17) {Ground Truth};
-  \node[font=\footnotesize,rose] at (11.5,0.17) {$\times$};
-  \node[right,font=\footnotesize] at (11.8,0.17) {False Alarm};
+% --- Score curve (rho vs score) ---
+\begin{scope}[shift={(28,0.5)}]
+  \begin{axis}[
+    width=5.5cm, height=6.5cm,
+    xlabel={$\rho$},
+    ylabel={Score $s$},
+    xmin=0, xmax=1, ymin=0, ymax=1.05,
+    xtick={0,0.25,0.5,0.75,1.0},
+    ytick={0,0.25,0.5,0.75,1.0},
+    grid=major,
+    grid style={gray30,thin},
+    axis lines=left,
+    every axis label/.style={font=\footnotesize,text=gray90},
+    tick label style={font=\tiny,text=gray70},
+    axis line style={gray70},
+  ]
+    % Score curve (sigmoid-like)
+    \addplot[domain=0:1, samples=80, very thick, atlantic]
+      {1/(1+exp(-10*(x-0.4)))};
+    % Operating points
+    \addplot[only marks, mark=*, mark size=2.5pt, garnet]
+      coordinates {(0.15,0.18) (0.55,0.68) (0.92,0.97)};
+    % Dashed drop lines
+    \draw[garnet,dashed,thin] (axis cs:0.15,0) -- (axis cs:0.15,0.18)
+      -- (axis cs:0,0.18);
+    \draw[garnet,dashed,thin] (axis cs:0.55,0) -- (axis cs:0.55,0.68)
+      -- (axis cs:0,0.68);
+    \draw[garnet,dashed,thin] (axis cs:0.92,0) -- (axis cs:0.92,0.97)
+      -- (axis cs:0,0.97);
+  \end{axis}
+\end{scope}
+
+% ---- LEGEND ----
+\begin{scope}[shift={(0,-3.2)}]
+  \fill[atlantic!55] (0,0) circle (0.1);
+  \fill[atlantic!55] (0.25,0) circle (0.1);
+  \fill[atlantic!55] (0.5,0) circle (0.1);
+  \node[right,font=\footnotesize] at (0.65,0) {Detected pixels};
+  %
+  \fill[gray10] (4,-.15) rectangle ++(0.5,0.3);
+  \fill[pattern=north west lines, pattern color=gray30] (4,-.15) rectangle ++(0.5,0.3);
+  \node[right,font=\footnotesize] at (4.6,0) {Missed region};
+  %
+  \draw[garnet,very thick] (8,0) -- ++(0.5,0);
+  \node[right,font=\footnotesize] at (8.6,0) {Ground truth};
+  %
+  \fill[rose] (11.5,0) circle (0.09);
+  \draw[rose,thin] (11.5-0.12,-0.12) -- (11.5+0.12,0.12);
+  \draw[rose,thin] (11.5-0.12,0.12) -- (11.5+0.12,-0.12);
+  \node[right,font=\footnotesize] at (11.7,0) {False alarm};
+  %
+  \fill[atlantic!45] (14.5,-0.15) rectangle ++(0.35,0.3);
+  \draw[gray70,thin] (14.5,-0.15) rectangle ++(0.35,0.3);
+  \node[right,font=\footnotesize] at (14.95,0) {Coverage bar};
 \end{scope}
 
 \end{tikzpicture}
@@ -445,7 +579,7 @@
 \newpage
 
 %% ============================================================
-%% DIAGRAM 4: Guard Cell Size Effect
+%% DIAGRAM 4: Guard Cell Size Effect (unchanged)
 %% ============================================================
 \begin{center}
 \textbf{\Large Diagram 4: Guard Cell Size Effect}
@@ -455,12 +589,9 @@
 \begin{center}
 \begin{tikzpicture}[scale=0.58]
 
-% ====== Panel A: Guard Too Small ======
 \begin{scope}[shift={(0,0)}]
   \node[font=\bfseries] at (4.5,11.5) {(a) Guard Too Small};
-
   \def\sz{0.9}
-  % 9×9 grid, CUT at (4,4), guard=1 cell
   \foreach \r in {0,...,8}{
     \foreach \c in {0,...,8}{
       \pgfmathtruncatemacro{\cheb}{max(abs(\r-4),abs(\c-4))}
@@ -479,15 +610,11 @@
       \draw[gray70,thin] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
     }
   }
-
-  % Target energy: extends from CUT into guard AND reference
-  % Gradient halo around CUT
-  \fill[rose,opacity=0.9] (4*\sz,4*\sz) rectangle ++(\sz,\sz); % CUT = target peak
+  \fill[rose,opacity=0.9] (4*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.6] (3*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.6] (5*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.6] (4*\sz,3*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.6] (4*\sz,5*\sz) rectangle ++(\sz,\sz);
-  % Bleed into reference cells
   \fill[rose,opacity=0.35] (2*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.35] (6*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.35] (4*\sz,2*\sz) rectangle ++(\sz,\sz);
@@ -496,31 +623,23 @@
   \fill[rose,opacity=0.2] (5*\sz,5*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.2] (3*\sz,5*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.2] (5*\sz,3*\sz) rectangle ++(\sz,\sz);
-  % Redraw grid lines over fills
   \foreach \r in {0,...,8}{
     \foreach \c in {0,...,8}{
       \draw[gray70,thin] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
     }
   }
-
-  % Zone outlines
   \draw[garnet,very thick] (4*\sz,4*\sz) rectangle ++(\sz,\sz);
-  \draw[gray90,thick,dashed] (3*\sz,3*\sz) rectangle ++(3*\sz,3*\sz); % guard boundary
-  \draw[atlantic,thick] (2*\sz,2*\sz) rectangle ++(5*\sz,5*\sz); % ref inner
-  \draw[atlantic,thick] (1*\sz,1*\sz) rectangle ++(7*\sz,7*\sz); % ref outer
+  \draw[gray90,thick,dashed] (3*\sz,3*\sz) rectangle ++(3*\sz,3*\sz);
+  \draw[atlantic,thick] (2*\sz,2*\sz) rectangle ++(5*\sz,5*\sz);
+  \draw[atlantic,thick] (1*\sz,1*\sz) rectangle ++(7*\sz,7*\sz);
 
-  % Power profile along center row (row 4)
   \begin{scope}[shift={(0,-4.5)}]
-    \def\ppwr{{0.5,0.5,1.8,3.5,5.0,9.0,5.0,3.5,1.8,0.5,0.5}}
     \draw[->,gray70] (0,0) -- (9*\sz+0.5,0);
     \draw[->,gray70] (0,0) -- (0,3.5);
     \node[font=\tiny,gray70,right] at (9*\sz+0.5,-0.1) {Range};
     \node[font=\tiny,gray70,above] at (0,3.5) {Power};
-
-    % Bars
     \foreach \i in {0,...,8}{
       \pgfmathsetmacro{\xp}{\i*\sz}
-      % simulated power: Gaussian-like centered at 4
       \pgfmathsetmacro{\pw}{0.4+8.5*exp(-(\i-4)*(\i-4)/2.0)}
       \pgfmathtruncatemacro{\cheb}{abs(\i-4)}
       \pgfmathtruncatemacro{\isref}{(\cheb>=2 && \cheb<=3)?1:0}
@@ -531,32 +650,21 @@
       \fi
       \draw[gray50,thin] (\xp,0) rectangle ++(\sz,\pw*0.35);
     }
-
-    % Noise-only threshold
     \draw[horseshoe,thick,dashed] (0,0.35) -- (9*\sz,0.35);
     \node[font=\tiny,horseshoe,right] at (9*\sz,0.35) {$T_{ideal}$};
-
-    % Inflated threshold due to bleed
     \draw[rose,thick,dashed] (0,0.8) -- (9*\sz,0.8);
     \node[font=\tiny,rose,right] at (9*\sz,0.8) {$T_{biased}$};
-
-    % Target peak
     \fill[garnet] (4*\sz+\sz/2, 3.15*0.35) circle (0.12);
     \draw[->,garnet,thick] (4*\sz+\sz/2, 3.15*0.35-0.15) -- (4*\sz+\sz/2, 0.85);
     \node[font=\tiny,garnet,right] at (4*\sz+\sz/2+0.1,1.8) {Below $T_{biased}$};
-
-    % X mark = missed
     \node[font=\normalsize,rose] at (4*\sz+\sz/2, -0.5) {$\times$};
     \node[font=\tiny,rose,right] at (4*\sz+\sz/2+0.2, -0.5) {Missed};
   \end{scope}
 \end{scope}
 
-% ====== Panel B: Guard Appropriate ======
 \begin{scope}[shift={(12,0)}]
   \node[font=\bfseries] at (4.5,11.5) {(b) Guard Appropriate};
-
   \def\sz{0.9}
-  % 9×9 grid, CUT at (4,4), guard=2 cells
   \foreach \r in {0,...,8}{
     \foreach \c in {0,...,8}{
       \pgfmathtruncatemacro{\cheb}{max(abs(\r-4),abs(\c-4))}
@@ -575,8 +683,6 @@
       \draw[gray70,thin] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
     }
   }
-
-  % Target energy: fully contained in guard
   \fill[rose,opacity=0.9] (4*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.6] (3*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.6] (5*\sz,4*\sz) rectangle ++(\sz,\sz);
@@ -586,31 +692,25 @@
   \fill[rose,opacity=0.25] (5*\sz,5*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.25] (3*\sz,5*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.25] (5*\sz,3*\sz) rectangle ++(\sz,\sz);
-  % Faint tail into guard ring 2 — but NOT into reference
   \fill[rose,opacity=0.08] (2*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.08] (6*\sz,4*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.08] (4*\sz,2*\sz) rectangle ++(\sz,\sz);
   \fill[rose,opacity=0.08] (4*\sz,6*\sz) rectangle ++(\sz,\sz);
-  % Redraw grid
   \foreach \r in {0,...,8}{
     \foreach \c in {0,...,8}{
       \draw[gray70,thin] (\c*\sz,\r*\sz) rectangle ++(\sz,\sz);
     }
   }
-
-  % Zone outlines
   \draw[garnet,very thick] (4*\sz,4*\sz) rectangle ++(\sz,\sz);
-  \draw[gray90,thick,dashed] (2*\sz,2*\sz) rectangle ++(5*\sz,5*\sz); % guard boundary
-  \draw[atlantic,thick] (1*\sz,1*\sz) rectangle ++(7*\sz,7*\sz); % ref inner
-  \draw[atlantic,thick] (0*\sz,0*\sz) rectangle ++(9*\sz,9*\sz); % ref outer
+  \draw[gray90,thick,dashed] (2*\sz,2*\sz) rectangle ++(5*\sz,5*\sz);
+  \draw[atlantic,thick] (1*\sz,1*\sz) rectangle ++(7*\sz,7*\sz);
+  \draw[atlantic,thick] (0*\sz,0*\sz) rectangle ++(9*\sz,9*\sz);
 
-  % Power profile along center row
   \begin{scope}[shift={(0,-4.5)}]
     \draw[->,gray70] (0,0) -- (9*\sz+0.5,0);
     \draw[->,gray70] (0,0) -- (0,3.5);
     \node[font=\tiny,gray70,right] at (9*\sz+0.5,-0.1) {Range};
     \node[font=\tiny,gray70,above] at (0,3.5) {Power};
-
     \foreach \i in {0,...,8}{
       \pgfmathsetmacro{\xp}{\i*\sz}
       \pgfmathsetmacro{\pw}{0.4+8.5*exp(-(\i-4)*(\i-4)/2.0)}
@@ -623,22 +723,15 @@
       \fi
       \draw[gray50,thin] (\xp,0) rectangle ++(\sz,\pw*0.35);
     }
-
-    % Threshold (no inflation — clean reference)
     \draw[horseshoe,thick,dashed] (0,0.35) -- (9*\sz,0.35);
     \node[font=\tiny,horseshoe,right] at (9*\sz,0.35) {$T_{clean}$};
-
-    % Target peak clearly above threshold
     \fill[garnet] (4*\sz+\sz/2, 3.15*0.35) circle (0.12);
     \draw[->,horseshoe,thick] (4*\sz+\sz/2, 0.4) -- (4*\sz+\sz/2, 3.15*0.35-0.15);
-
-    % Check mark = detected
     \node[font=\normalsize,horseshoe] at (4*\sz+\sz/2, -0.5) {\checkmark};
     \node[font=\tiny,horseshoe,right] at (4*\sz+\sz/2+0.2, -0.5) {Detected};
   \end{scope}
 \end{scope}
 
-% Legend
 \begin{scope}[shift={(1,-7)}]
   \fill[rose,opacity=0.7] (0,0) rectangle ++(0.5,0.4);
   \node[right,font=\footnotesize] at (0.6,0.2) {Target Energy};
@@ -656,7 +749,7 @@
 \newpage
 
 %% ============================================================
-%% DIAGRAM 5: Integral Image / Summed Area Table
+%% DIAGRAM 5: Integral Image / Summed Area Table (unchanged)
 %% ============================================================
 \begin{center}
 \textbf{\Large Diagram 5: Integral Image (Summed Area Table)}
@@ -666,7 +759,6 @@
 \begin{center}
 \begin{tikzpicture}[scale=0.95]
 
-% --- Left: Original 6×6 Image with intensity shading ---
 \node[font=\bfseries] at (3,7.2) {Original Image $f(x,y)$};
 \def\ovals{{2,1,3,0,1,2,
              1,5,2,1,0,3,
@@ -691,10 +783,8 @@
   }
 }
 
-% Highlight a sub-region (rows 1-3, cols 1-3)
 \draw[garnet,very thick] (1,2) rectangle ++(3,3);
 
-% Row/col indices
 \foreach \c in {0,...,5}{
   \node[font=\tiny,gray70] at (\c+0.5,6.3) {\c};
 }
@@ -702,19 +792,10 @@
   \node[font=\tiny,gray70] at (-0.3,5.5-\r) {\r};
 }
 
-% --- Arrow ---
 \draw[-{Stealth[length=7pt]},very thick,garnet] (6.5,3) -- (8,3);
 \node[font=\small,above,text=gray90] at (7.25,3.15) {$I(x,y) = \sum\limits_{i\le x}\sum\limits_{j\le y} f(i,j)$};
 
-% --- Right: Integral Image 6×6 ---
 \node[font=\bfseries] at (11.5,7.2) {Integral Image $I(x,y)$};
-% Pre-computed integral image values:
-% Row 0: 2, 3, 6, 6, 7, 9
-% Row 1: 3, 9,14,15,16,21
-% Row 2: 3,12,24,29,31,36
-% Row 3: 7,18,31,42,47,53
-% Row 4: 8,19,35,48,58,66
-% Row 5:11,23,39,53,65,77
 \def\ivals{{2,3,6,6,7,9,
              3,9,14,15,16,21,
              3,12,24,29,31,36,
@@ -733,7 +814,6 @@
   }
 }
 
-% Row/col indices
 \foreach \c in {0,...,5}{
   \node[font=\tiny,gray70] at (9+\c,6.3) {\c};
 }
@@ -741,25 +821,16 @@
   \node[font=\tiny,gray70] at (8.2,5.5-\r) {\r};
 }
 
-% Highlight corners of the query rectangle on integral image
-% Query: rows 1-3, cols 1-3 → corners at I(0,0), I(0,3), I(3,0), I(3,3)
-% A = I(0,0) = 2, B = I(0,3) = 6, C = I(3,0) = 7, D = I(3,3) = 42
-\fill[garnet] (9.5,5) circle (0.18); % (1,0) -> I val at corner (0,0)
-\fill[atlantic] (12.5,5) circle (0.18); % (4,0) -> I val at corner (0,3+1)
-\fill[congaree] (9.5,2) circle (0.18); % (1,3) -> I val at corner (3+1,0)
-\fill[horseshoe!80!black] (12.5,2) circle (0.18); % (4,3+1)
+\fill[garnet] (9.5,5) circle (0.18);
+\fill[atlantic] (12.5,5) circle (0.18);
+\fill[congaree] (9.5,2) circle (0.18);
+\fill[horseshoe!80!black] (12.5,2) circle (0.18);
 
-% Connect corners with rectangle
 \draw[garnet,very thick] (9.5,2) rectangle ++(3,3);
 
-% --- Bottom: Box-sum decomposition ---
 \begin{scope}[shift={(1,-4)}]
-
-  % Four mini-grids showing inclusion-exclusion
   \def\minisz{0.55}
-  \def\minirows{6}
 
-  % Panel: +D (full rectangle)
   \begin{scope}[shift={(0,0)}]
     \foreach \r in {0,...,5}{
       \foreach \c in {0,...,5}{
@@ -775,7 +846,6 @@
     \node[font=\footnotesize,horseshoe!80!black,right] at (3*\minisz+\minisz/2+0.15, 5*\minisz-3*\minisz+\minisz/2) {42};
   \end{scope}
 
-  % Panel: -B
   \begin{scope}[shift={(4.5,0)}]
     \foreach \r in {0,...,5}{
       \foreach \c in {0,...,5}{
@@ -791,7 +861,6 @@
     \node[font=\footnotesize,atlantic,right] at (0*\minisz+\minisz/2+0.15, 5*\minisz-3*\minisz+\minisz/2) {7};
   \end{scope}
 
-  % Panel: -C
   \begin{scope}[shift={(9,0)}]
     \foreach \r in {0,...,5}{
       \foreach \c in {0,...,5}{
@@ -807,7 +876,6 @@
     \node[font=\footnotesize,congaree,right] at (3*\minisz+\minisz/2+0.15, 5*\minisz+\minisz/2) {6};
   \end{scope}
 
-  % Panel: +A (double-subtracted corner)
   \begin{scope}[shift={(13.5,0)}]
     \foreach \r in {0,...,5}{
       \foreach \c in {0,...,5}{
@@ -823,12 +891,10 @@
     \node[font=\footnotesize,garnet,right] at (\minisz/2+0.15, 5*\minisz+\minisz/2) {2};
   \end{scope}
 
-  % Operators between panels
   \node[font=\Large,gray90] at (3.8,1.5*\minisz) {$-$};
   \node[font=\Large,gray90] at (8.3,1.5*\minisz) {$-$};
   \node[font=\Large,gray90] at (12.8,1.5*\minisz) {$+$};
 
-  % Result
   \node[font=\normalsize,gray90] at (8.5,-1.2)
     {$S = I(D) - I(B) - I(C) + I(A) = 42 - 7 - 6 + 2 = 31$};
 \end{scope}
