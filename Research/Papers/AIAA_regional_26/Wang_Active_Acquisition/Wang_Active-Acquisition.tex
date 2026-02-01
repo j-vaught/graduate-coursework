@@ -90,7 +90,7 @@
 \maketitle
 
 \begin{abstract}
-Deep learning performance on small objects is frequently bottlenecked by the quality and quantity of training data rather than model architecture. We present a dual-camera active acquisition system that automates small-object dataset generation by pairing a fixed wide-angle camera for persistent detection with a Pan-Tilt-Zoom (PTZ) camera for optical verification. The system runs concurrent YOLO detector instances on an embedded NVIDIA Jetson Orin AGX platform, achieving 35.9\,FPS on the GPU for wide-area search and 21.5\,FPS on the DLA for PTZ verification. A predictive control framework compensates for mechanical and pipeline latencies to transition from open-loop slewing to closed-loop PID tracking. We demonstrate the system on outdoor drone tracking, where the PTZ autonomously acquires and maintains lock on a small aerial target across a 42-second flight. The active acquisition paradigm replaces digital zoom and super-resolution with true optical zoom, providing optically verified imagery of targets that occupy fewer than $15 \times 15$ pixels in the wide field.
+Deep learning performance on small objects is frequently bottlenecked by the quality and quantity of training data rather than model architecture. We present a dual-camera active acquisition system that automates small-object dataset generation by pairing a fixed wide-angle camera for persistent detection with a Pan-Tilt-Zoom (PTZ) camera for optical verification. The system runs concurrent YOLO detector instances on an embedded NVIDIA Jetson Orin AGX platform, achieving 35.9\,FPS on the GPU for wide-area search and 21.5\,FPS on the DLA for PTZ verification. A predictive control framework performs \textit{slew-to-classification}, compensating for mechanical and pipeline latencies to transition from open-loop slewing to closed-loop PID tracking. We demonstrate the system on outdoor drone tracking, where the PTZ autonomously acquires and maintains lock on a small aerial target across a 42-second flight. The slew-to-classification paradigm replaces digital zoom and super-resolution with true optical zoom, providing optically verified imagery of targets that occupy fewer than $15 \times 15$ pixels in the wide field.
 \end{abstract}
 
 \section{Introduction}
@@ -112,7 +112,7 @@ A single high-resolution fixed camera does not solve this problem: processing 4K
 \par
 We address the data bottleneck by replacing the human labeler with a dual-camera system that automates the construction of small-object datasets. A fixed wide-angle camera provides persistent coverage, while a controllable Pan-Tilt-Zoom (PTZ) camera provides resolution on demand. The key technical challenge lies in the wide-to-PTZ handover: the system must slew a mechanical lens to capture a moving target based on delayed visual data, compensating for the combined pipeline and mechanical latency.
 \par
-The contributions of this work are: (i)~a hardware-software architecture that synchronizes wide-angle search with narrow-angle verification on an embedded edge platform; (ii)~a predictive control formulation that compensates for system latency to enable reliable active target acquisition from wide-angle cues; and (iii)~experimental characterization of detector throughput, GPU/DLA parallel inference, and a drone tracking demonstration validating end-to-end system operation.
+The contributions of this work are: (i)~a hardware-software architecture that synchronizes wide-angle search with narrow-angle verification on an embedded edge platform; (ii)~a predictive control formulation for \textit{slew-to-classification} that compensates for system latency to enable reliable target acquisition from wide-angle cues; and (iii)~experimental characterization of detector throughput, GPU/DLA parallel inference, and a drone tracking demonstration validating end-to-end system operation.
 
 \section{Related Work}
 
@@ -121,7 +121,7 @@ Classical solutions to the small-object bottleneck involve super-resolution (SR)
 
 However, reliance on SR for scientific data collection is problematic. First, SR is fundamentally generative; it estimates high-frequency details based on learned priors, creating a risk of hallucination where the model reinforces its own biases \cite{zhang2019zoom}. Second, high-fidelity generative models required for scientific validity often require $>300$\,ms per frame on edge accelerators \cite{nvidia_jetson_benchmarks}, whereas lightweight models sacrifice reconstruction quality. Our system achieves mechanical slew-and-settle in a comparable time window while obtaining true optical ground truth rather than hallucinated details.
 
-\subsection{Active Acquisition vs.\ Continuous Tracking}
+\subsection{Slew-to-Classification vs.\ Continuous Tracking}
 Most PTZ tracking literature focuses on the control problem of keeping a target centered in the frame \cite{ptz_reproducible, ptz_eval}. This requires mitigating total system latency (video encoding + network + mechanical response), which for IP-based systems frequently ranges from 200--500\,ms \cite{ptz_latency_optics}. Our work addresses a different objective we term \textit{slew-to-classification}: rather than maintaining persistent lock on one target, the system performs discrete acquisitions of ambiguous candidates to verify their identity.
 
 Existing active perception systems like VIGIA-E \cite{vigia_ptz} typically optimize for broad area coverage or anomaly detection. Our system instead functions as a sparse query mechanism: it identifies specific low-confidence candidates in the wide field and commits the PTZ resource to verifying them individually.
@@ -129,7 +129,7 @@ Existing active perception systems like VIGIA-E \cite{vigia_ptz} typically optim
 \subsection{Sensor-Driven Labeling}
 Reducing manual annotation is a central goal of both semi-supervised learning and active learning. Pseudo-labeling methods such as ASTOD \cite{self_training} attempt to retrain models using high-confidence predictions, but this approach often fails in the small-object regime where the detector is consistently uncertain \cite{self_training_enh}. Active learning strategies like PPAL \cite{active_learning_ppod} identify informative samples but still require a human loop \cite{active_learning_survey}.
 
-Our active acquisition creates a fully automated hybrid: the selection logic of active learning (targeting less confident samples) is paired with PTZ verification instead of a human annotator. While the target is ambiguous at $15 \times 15$ pixels, the zoomed view restores it to a regime ($>100 \times 100$ pixels) where off-the-shelf detectors achieve 99.1\% mAP50 \cite{yolo_flying}. By physically bridging the gap between the surveillance view and the high-resolution training distribution, we convert a difficult small-object inference problem into a trivial classification task.
+Our slew-to-classification approach creates a fully automated hybrid: the selection logic of active learning (targeting less confident samples) is paired with PTZ verification instead of a human annotator. While the target is ambiguous at $15 \times 15$ pixels, the zoomed view restores it to a regime ($>100 \times 100$ pixels) where off-the-shelf detectors achieve 99.1\% mAP50 \cite{yolo_flying}. By physically bridging the gap between the surveillance view and the high-resolution training distribution, we convert a difficult small-object inference problem into a trivial classification task.
 
 \section{System Overview and Formulation}
 \subsection{System Architecture}
@@ -147,7 +147,7 @@ The software architecture is organized in three layers (Fig.~\ref{fig:gui}). The
 \begin{figure*}[t]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_zoom_comparison.pdf}
-\caption{Visual progression of an active acquisition sequence. A 15-pixel target in the wide field (1x) is indistinguishable from noise. The system cues the PTZ to an intermediate 5x zoom for acquisition, then a 20x zoom for final detailed verification, revealing the aircraft structure clearly.}
+\caption{Visual progression of a slew-to-classification sequence. A 15-pixel target in the wide field (1x) is indistinguishable from noise. The system cues the PTZ to an intermediate 5x zoom for acquisition, then a 20x zoom for final detailed verification, revealing the aircraft structure clearly.}
 \label{fig:zoom_sequence}
 \end{figure*}
 
@@ -197,7 +197,7 @@ then choose the zoom $z$ whose calibrated $f_p(z)$ best matches the required val
 \label{fig:gui}
 \end{figure*}
 
-\section{PTZ Triggering, Tracking, and Scheduling}
+\section{Slew-to-Classification: Triggering, Tracking, and Control}
 \label{sec:prediction}
 We use wide-camera tracklets to provide temporal coherence and to predict target bearing during PTZ motion. The predictor uses a constant-velocity model with exponential moving average (EMA) smoothing. At each detection update, the instantaneous pixel velocity is computed from consecutive detection centers and filtered as $\mathbf{v}_t = \alpha\,\mathbf{v}_{t-1} + (1-\alpha)\,\mathbf{v}_{\mathrm{inst}}$ with smoothing factor $\alpha = 0.3$. The predicted bearing at command-arrival time is then
 \begin{equation}
@@ -213,7 +213,7 @@ where $\Delta$ is the estimated command latency. This model is sufficient for ta
 \end{figure}
 
 \begin{algorithm}[!ht]
-\caption{Real-time wide-to-PTZ acquisition}
+\caption{Real-time slew-to-classification}
 \begin{algorithmic}[1]
 \State Init $f_{\theta}$ (wide), $\mathcal{T}$ (tracker), $g$ (PTZ), $\mathcal{D}$ (data)
 \For{each wide frame $I^w_t$}
@@ -235,7 +235,7 @@ where $\Delta$ is the estimated command latency. This model is sufficient for ta
 \end{algorithm}
 
 \subsection{Triggering Policy}
-The system triggers PTZ acquisition on the largest detected target whose confidence exceeds the acquisition threshold ($s > 0.40$). Selecting the largest target maximizes the expected pixel-area gain under optical zoom, since larger wide-field detections correspond to closer or more resolvable targets. Because only one PTZ resource is available, the system processes candidates sequentially: if the PTZ is occupied, additional candidates are queued until the current acquisition completes or times out (10\,s). This greedy policy is sufficient for the single-target drone tracking scenario evaluated here; multi-target prioritization via uncertainty weighting or novelty scoring is deferred to future work.
+The system triggers slew-to-classification on the largest detected target whose confidence exceeds the acquisition threshold ($s > 0.40$). Selecting the largest target maximizes the expected pixel-area gain under optical zoom, since larger wide-field detections correspond to closer or more resolvable targets. Because only one PTZ resource is available, the system processes candidates sequentially: if the PTZ is occupied, additional candidates are queued until the current acquisition completes or times out (10\,s). This greedy policy is sufficient for the single-target drone tracking scenario evaluated here; multi-target prioritization via uncertainty weighting or novelty scoring is deferred to future work.
 
 \subsection{Centering Controller and State Machine}
 The PTZ centering loop uses a PID controller running at 30\,Hz. PID gains were iteratively hand-tuned starting from $K_p{=}3.0$, $K_i{=}0.1$, $K_d{=}0.5$; $K_p$ was halved to reduce overshoot, $K_i$ reduced to prevent integral windup, and $K_d$ doubled to increase damping, yielding final values of $K_p{=}1.5$, $K_i{=}0.05$, $K_d{=}1.0$. The controller applies inverse-square speed scaling with zoom level: at maximum zoom, PTZ speed is limited to 15\% of the base rate, matching the narrower field of view to prevent the target from exiting the frame during corrections. A 2\% centering deadzone suppresses jitter when the target is near frame center.
@@ -338,7 +338,7 @@ In-laboratory testing (Fig.~\ref{fig:inlab}) confirmed that default YOLOv8n COCO
 \end{figure}
 
 \section{Conclusion}
-This paper presented a dual-camera active acquisition system for automated small-object dataset construction. A fixed wide-angle camera with real-time detection provides persistent coverage, while a PTZ camera delivers optical zoom for verification. The system runs on an NVIDIA Jetson Orin AGX, achieving 35.9\,FPS (GPU) and 21.5\,FPS (DLA) through a parallel GPU/DLA inference split that eliminates resource contention. PID-controlled PTZ tracking with MJPEG codec selection minimizes pipeline latency for closed-loop operation. We demonstrated end-to-end functionality through a 42-second outdoor drone tracking test, where the system autonomously acquired and maintained lock on a small aerial target, resolving it from ${\sim}20$ pixels in the wide view to ${\sim}120$ pixels under optical zoom. The active acquisition paradigm provides optically verified imagery that neither digital zoom nor super-resolution can match, enabling automated dataset construction for small-object regimes where manual annotation is impractical.
+This paper presented a dual-camera active acquisition system for automated small-object dataset construction. A fixed wide-angle camera with real-time detection provides persistent coverage, while a PTZ camera delivers optical zoom for verification. The system runs on an NVIDIA Jetson Orin AGX, achieving 35.9\,FPS (GPU) and 21.5\,FPS (DLA) through a parallel GPU/DLA inference split that eliminates resource contention. PID-controlled PTZ tracking with MJPEG codec selection minimizes pipeline latency for slew-to-classification. We demonstrated end-to-end functionality through a 42-second outdoor drone tracking test, where the system autonomously acquired and maintained lock on a small aerial target, resolving it from ${\sim}20$ pixels in the wide view to ${\sim}120$ pixels under optical zoom. The active acquisition paradigm provides optically verified imagery that neither digital zoom nor super-resolution can match, enabling automated dataset construction for small-object regimes where manual annotation is impractical.
 \par
 Current limitations include single-PTZ availability (no simultaneous multi-target zoom), potential target loss during slew for fast-moving objects, and the small-parallax assumption for label transfer. Future work will evaluate label quality against manual annotation baselines, benchmark custom YOLO models trained on FGVC aircraft data against COCO-pretrained weights for small-target regimes, and explore multi-PTZ scheduling for higher-throughput acquisition.
 
