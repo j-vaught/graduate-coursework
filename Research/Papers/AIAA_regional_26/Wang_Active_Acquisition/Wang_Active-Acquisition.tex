@@ -11,6 +11,7 @@
 \usepackage{algpseudocode}
 % \usepackage{cite} % AIAA template uses natbib via new-aiaa class
 \usepackage{authblk}
+\usepackage{float}
 
 % --- GRAPHICS PATH ---
 \graphicspath{{figures/}}
@@ -96,7 +97,7 @@ While recent surveys \cite{chen2020survey, nikouei2024smallobj} have demonstrate
 \par
 Even with high-resolution imagery, real-time detection pipelines typically downsample inputs to manageable resolutions (e.g., $640 \times 640$) to satisfy compute constraints. This reduction inherently compresses distant targets into featureless blobs (Fig.~\ref{fig:zoomlevels}) that are difficult to classify without relying on temporal context (as humans do) or additional sensor modalities \cite{rozantsev2017flying}.
 \par
-\begin{figure*}[t]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_sr_comparison.pdf}
 \caption{Comparison of Wide-Angle Crop (Digital Zoom), Super-Resolution, and true Optical Zoom active acquisition.}
@@ -136,31 +137,28 @@ The wide camera produces candidate detections and tracklets. A scheduling policy
 
 The core operation involves a dynamic handover where the computer reads the wide camera, calculates a bearing, and commands the PTZ to intercept the moving target, compensating for processing and mechanical latencies.
 
-\begin{figure*}[t]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_zoom_comparison.pdf}
 \caption{Visual progression of an active acquisition sequence. A 15-pixel target in the wide field (1x) is indistinguishable from noise. The system cues the PTZ to an intermediate 5x zoom for acquisition, then a 20x zoom for final detailed verification, revealing the aircraft structure clearly.}
 \label{fig:zoom_sequence}
 \end{figure*}
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
-\begin{minipage}[t]{0.48\textwidth}
-\centering
-\includegraphics[width=\linewidth]{figures/fig_hardware_photo.png}
+\includegraphics[width=0.65\columnwidth]{figures/fig_hardware_photo.png}
 \caption{Physical hardware configuration. Two FLIR M300C cameras are mounted on a shared three-foot stand with $\approx 0.5$\,m baseline separation. The left unit serves as the fixed wide-angle camera; the right unit operates as the PTZ camera.}
 \label{fig:hardware}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.48\textwidth}
+\end{figure}
+
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{fig_fov_understanding_topdown.pdf}
+\includegraphics[width=0.75\columnwidth]{fig_fov_understanding_topdown.pdf}
 \caption{Field of view comparison. The wide camera (blue) covers approximately $90^\circ$ for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable view.}
 \label{fig:fov}
-\end{minipage}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[t]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_gui_dual_feed.png}
 \caption{Live screenshot of the three-layer software interface during a drone tracking test. The stationary camera (left) runs YOLOv11s on the GPU at $1024\times1024$ resolution for wide-area detection. The PTZ camera (center) runs YOLOv11n on the DLA at $640\times640$, here tracking the drone at optical zoom. The control panel (right) exposes PTZ zoom, movement speed, tracking mode selection, and PID tuning parameters.}
@@ -210,14 +208,14 @@ We use wide-camera tracklets to provide temporal coherence and to predict target
 
 
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\columnwidth]{fig_pipeline.pdf}
 \caption{Automated label-generation pipeline. Wide-field tracking selects candidates, PTZ verifies optically, and homography maps labels to the wide view.}
 \label{fig:pipeline}
 \end{figure}
 
-\begin{algorithm}[t]
+\begin{algorithm}[htbp]
 \caption{Real-time wide-to-PTZ acquisition}
 \begin{algorithmic}[1]
 \State Init $f_{\theta}$ (wide), $\mathcal{T}$ (tracker), $g$ (PTZ), $\mathcal{D}$ (data)
@@ -268,7 +266,7 @@ In this system, the primary drift control mechanism is the physical zoom verific
 \subsection{Dataset Schema}
 Each committed example stores the wide frame (or short clip), the transferred label, and acquisition metadata. Table~\ref{tab:schema} defines a minimal schema sufficient for training and analysis.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering
 \caption{Minimal dataset record schema for each accepted acquisition.}
 \label{tab:schema}
@@ -290,20 +288,21 @@ site\_meta & Location, camera orientation, weather \\
 \end{tabular}
 \end{table}
 
+\clearpage
 \section{Airplanes-in-the-Sky Test Case}
 \subsection{Operating Conditions and Target Characteristics}
 Airplanes introduce systematic small-object issues. In a wide-angle view, aircraft can be extremely small with strong scale variation as they traverse the sky and change apparent altitude and distance (Fig.~\ref{fig:zoomlevels}). Visual appearance changes with viewing angle, contrails, lighting, haze, and compression artifacts, matching known difficulty factors for small objects (low detail, interference, background ambiguity).
 \par
 Default YOLO ``airplane'' class weights trained on COCO fail to detect targets below a threshold pixel size, rendering the stationary wide-angle camera ineffective for long-range acquisition without retraining. Custom detection models are therefore trained on a drone detection dataset and on the Fine-Grained Visual Classification (FGVC) aircraft dataset, which provides ground-up RGB imagery of aircraft at a range of scales and orientations representative of the surveillance scenario. Planned benchmarks will compare mAP of these custom models against default YOLO classes on a test set containing both long-distance and close-distance aircraft. In-laboratory testing (Fig.~\ref{fig:inlab}) confirmed that the default YOLOv8n COCO ``airplane'' class can detect large, high-resolution aircraft imagery but fails on the small pixel footprints typical of the wide-angle surveillance view. An outdoor drone tracking test (Fig.~\ref{fig:drone_test}) subsequently validated the end-to-end acquisition pipeline prior to aircraft deployment.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_inlab_test.png}
 \caption{In-laboratory validation of the dual-camera system. The PTZ camera (center feed) detects and tracks an aircraft displayed on a monitor using YOLOv8n with COCO weights, confirming the detection pipeline and GUI control interface before outdoor deployment.}
 \label{fig:inlab}
 \end{figure}
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_drone_tracking.png}
 \caption{Active tracking during an outdoor drone test. The stationary camera (left) detects the drone in the wide field and provides bearing cues. The PTZ camera (center) autonomously slews to and tracks the target at optical zoom, maintaining centroid lock via PID control. The on-screen overlay shows model type, accelerator assignment, and inference resolution for each camera.}
@@ -313,7 +312,7 @@ Default YOLO ``airplane'' class weights trained on COCO fail to detect targets b
 \subsection{Class Taxonomy and Negatives}
 For this test case, the primary class is \textit{airplane}. Hard negatives arise from birds, insects near the lens, distant drones, clouds with sharp edges, sensor noise, and specular highlights (Fig.~\ref{fig:negatives}). The PTZ confirmation step naturally collects informative negatives: wide proposals that are rejected by PTZ as non-airplane can be stored as hard negatives with contextual metadata.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.7\columnwidth]{fig_hard_negatives.pdf}
 \caption{Hard negative examples. Common false positives in the wide camera include birds, cloud edges, drones, sun glare, insects near the lens, and distant antennas. PTZ verification rejects these as non-airplane.}
@@ -335,7 +334,7 @@ Label quality is assessed on an audited subset using human review or higher-reso
 \par
 Because PTZ tracking introduces dynamics and latency, system metrics include slew-to-lock time, dwell time per target, fraction of triggers that successfully reacquire the target, and PTZ availability contention (fraction of time PTZ is busy). PTZ tracking literature suggests these measures are essential to understanding real-world performance beyond static detection accuracy.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.7\columnwidth]{fig_confidence_uplift.pdf}
 \caption{Confidence uplift visualization. Points above the diagonal $s^p = s^w$ indicate samples where PTZ verification increased detection confidence. Low-confidence wide detections (left region) can achieve high PTZ confidence, validating the zoom-based verification approach.}
@@ -361,6 +360,7 @@ Accurate label transfer requires time alignment between wide frames, PTZ frames,
 \subsection{Safety and Privacy}
 The airplane test case naturally focuses on sky regions; nonetheless, deployment should constrain PTZ tilt limits and define privacy-preserving regions to avoid capturing ground-level imagery. These constraints can be implemented at the control layer by rejecting commands that enter prohibited zones.
 
+\clearpage
 \section{Discussion}
 \subsection{When PTZ Verification Helps Most}
 PTZ verification is most valuable when the wide detector frequently encounters ambiguous, small candidates whose pixel support is insufficient for confident classification. In such regimes, zoom provides additional evidence without changing the wide camera that will ultimately run the detector. This can be especially beneficial when the deployment environment differs from training data and when pseudo-labeling would otherwise be unreliable.
