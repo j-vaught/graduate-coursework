@@ -173,9 +173,54 @@
 \def\gsz{0.44}
 \def\gn{10} % 0..10, center=5
 
+% --- Intensity values for each cell (11x11, row-major, center=target) ---
+% Synthetic power values: target at center, gradient falloff + noise
+\def\cellpwr{{1,1,2,1,2,1,2,1,2,1,1,
+               1,2,1,2,2,3,2,2,1,2,1,
+               2,1,2,3,3,4,3,3,2,1,2,
+               1,2,3,3,5,6,5,3,3,2,1,
+               2,2,3,5,8,9,8,5,3,2,2,
+               1,3,4,6,9,18,9,6,4,3,1,
+               2,2,3,5,8,9,8,5,3,2,2,
+               1,2,3,3,5,6,5,3,3,2,1,
+               2,1,2,3,3,4,3,3,2,1,2,
+               1,2,1,2,2,3,2,2,1,2,1,
+               1,1,2,1,2,1,2,1,2,1,1}}
+
+% === Raw intensity grid (CUT highlighted, all others show power as color) ===
+\newcommand{\rawGrid}[2]{% #1=x-offset, #2=title
+\begin{scope}[shift={(#1,0)}]
+  \node[font=\bfseries] at (5*\gsz+\gsz/2,\gn*\gsz+\gsz+0.4) {#2};
+  \foreach \r in {0,...,\gn}{
+    \foreach \c in {0,...,\gn}{
+      \pgfmathtruncatemacro{\idx}{\r*11+\c}
+      \pgfmathtruncatemacro{\val}{\cellpwr[\idx]}
+      \pgfmathtruncatemacro{\cheb}{max(abs(\r-5),abs(\c-5))}
+      \pgfmathtruncatemacro{\iscut}{(\cheb==0)?1:0}
+      \pgfmathsetmacro{\pct}{min(\val*5.5,100)}
+      \ifnum\iscut=1
+        \fill[garnet] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+        \node[font=\tiny,white] at (\c*\gsz+\gsz/2,\r*\gsz+\gsz/2) {\val};
+      \else
+        \fill[atlantic!\pct!white] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+        \pgfmathtruncatemacro{\bright}{(\val>10)?1:0}
+        \ifnum\bright=1
+          \node[font=\tiny,white] at (\c*\gsz+\gsz/2,\r*\gsz+\gsz/2) {\val};
+        \else
+          \node[font=\tiny,black] at (\c*\gsz+\gsz/2,\r*\gsz+\gsz/2) {\val};
+        \fi
+      \fi
+      \draw[gray70,very thin] (\c*\gsz,\r*\gsz) rectangle ++(\gsz,\gsz);
+    }
+  }
+  \draw[garnet,very thick] (5*\gsz,5*\gsz) rectangle ++(\gsz,\gsz);
+\end{scope}
+}
+
+% === CFAR variant grid (zone coloring, no annotations) ===
 \newcommand{\varGrid}[3]{% #1=x-offset, #2=title, #3=mode 0=CA 1=GO 2=SO
 \begin{scope}[shift={(#1,0)}]
-  \node[font=\bfseries] at (5*\gsz+\gsz/2,\gn*\gsz+\gsz+0.6) {#2};
+  \node[font=\bfseries] at (5*\gsz+\gsz/2,\gn*\gsz+\gsz+0.4) {#2};
 
   \foreach \r in {0,...,\gn}{
     \foreach \c in {0,...,\gn}{
@@ -238,27 +283,7 @@
   \draw[gray90,thick,dashed] (4*\gsz,4*\gsz) rectangle ++(3*\gsz,3*\gsz);
   \draw[atlantic,thick] (1*\gsz,1*\gsz) rectangle ++(9*\gsz,9*\gsz);
 
-  % Dimension annotations (left side)
-  \draw[{Stealth[length=2.5pt]}-{Stealth[length=2.5pt]},gray70]
-    (-0.2,1*\gsz) -- (-0.2,4*\gsz);
-  \node[left,font=\tiny] at (-0.2,2.5*\gsz) {$N_r$};
-  \draw[{Stealth[length=2.5pt]}-{Stealth[length=2.5pt]},gray70]
-    (-0.2,4*\gsz) -- (-0.2,5*\gsz);
-  \node[left,font=\tiny] at (-0.2,4.5*\gsz) {$G$};
-
-  % Selection arrow for GO/SO
-  \ifnum#3=1
-    \draw[-{Stealth[length=4pt]},black,very thick]
-      (11*\gsz+0.3,7.5*\gsz) -- (11*\gsz+0.3,9*\gsz);
-    \node[right,font=\tiny] at (11*\gsz+0.35,8.2*\gsz) {max};
-  \fi
-  \ifnum#3=2
-    \draw[-{Stealth[length=4pt]},black,very thick]
-      (11*\gsz+0.3,3.5*\gsz) -- (11*\gsz+0.3,1.5*\gsz);
-    \node[right,font=\tiny] at (11*\gsz+0.35,2.5*\gsz) {min};
-  \fi
-
-  % Operator formula
+  % Operator formula only
   \ifnum#3=0
     \node[font=\tiny] at (5.5*\gsz,-0.7)
       {$Z = \dfrac{1}{2N}\displaystyle\sum_{i=1}^{2N} x_i$};
@@ -271,10 +296,6 @@
     \node[font=\tiny] at (5.5*\gsz,-0.7)
       {$Z = \min\!\bigl(\bar{x}_L,\;\bar{x}_T\bigr)$};
   \fi
-
-  % Threshold decision rule
-  \node[font=\tiny] at (5.5*\gsz,-1.4)
-    {Detect if $x_{\mathrm{CUT}} > \alpha \cdot Z$};
 \end{scope}
 }
 
@@ -282,12 +303,28 @@
 \savebox{\cfarvariants}{%
 \begin{tikzpicture}[every node/.style={font=\small,text=black}]
 
+% --- TOP ROW: Raw intensity grids ---
+\begin{scope}[shift={(0,7.5)}]
+  \rawGrid{1}{Raw Power}
+  \rawGrid{7.5}{Raw Power}
+  \rawGrid{14}{Raw Power}
+\end{scope}
+
+% --- Downward arrows ---
+\draw[-{Stealth[length=5pt]},gray70,thick]
+  (1+5.5*\gsz, 7.2) -- (1+5.5*\gsz, 6.2);
+\draw[-{Stealth[length=5pt]},gray70,thick]
+  (7.5+5.5*\gsz, 7.2) -- (7.5+5.5*\gsz, 6.2);
+\draw[-{Stealth[length=5pt]},gray70,thick]
+  (14+5.5*\gsz, 7.2) -- (14+5.5*\gsz, 6.2);
+
+% --- BOTTOM ROW: CFAR variant grids ---
 \varGrid{1}{CA-CFAR}{0}
 \varGrid{7.5}{GO-CFAR}{1}
 \varGrid{14}{SO-CFAR}{2}
 
 % Legend
-\begin{scope}[shift={(1,-2.3)}]
+\begin{scope}[shift={(1,-1.5)}]
   \fill[garnet] (0,0) rectangle ++(0.4,0.3);
   \node[right,font=\footnotesize] at (0.5,0.15) {CUT};
   %
@@ -300,9 +337,6 @@
   \fill[atlantic!12] (7.8,0) rectangle ++(0.4,0.3);
   \fill[pattern=north east lines, pattern color=atlantic!30] (7.8,0) rectangle ++(0.4,0.3);
   \node[right,font=\footnotesize] at (8.3,0.15) {Unused Ref.};
-  %
-  \fill[atlantic!45] (11.2,0) rectangle ++(0.4,0.3);
-  \node[right,font=\footnotesize] at (11.7,0.15) {All Ref. (CA)};
 \end{scope}
 
 \end{tikzpicture}%
