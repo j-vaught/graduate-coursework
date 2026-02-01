@@ -173,28 +173,53 @@
 \def\gsz{0.44}
 \def\gn{10} % 0..10, center=5
 
-% --- Intensity values for each cell (11x11, row-major, center=target) ---
-% Synthetic power values: target at center, gradient falloff + noise
-\def\cellpwr{{1,1,2,1,2,1,2,1,2,1,1,
-               1,2,1,2,2,3,2,2,1,2,1,
-               2,1,2,3,3,4,3,3,2,1,2,
-               1,2,3,3,5,6,5,3,3,2,1,
-               2,2,3,5,8,9,8,5,3,2,2,
-               1,3,4,6,9,18,9,6,4,3,1,
-               2,2,3,5,8,9,8,5,3,2,2,
-               1,2,3,3,5,6,5,3,3,2,1,
-               2,1,2,3,3,4,3,3,2,1,2,
-               1,2,1,2,2,3,2,2,1,2,1,
-               1,1,2,1,2,1,2,1,2,1,1}}
+% --- Three distinct power arrays for CA / GO / SO scenarios ---
+% CA scene: uniform low clutter, target at center
+\def\pwrCA{{2,1,2,1,2,1,2,1,2,1,2,
+             1,2,1,2,2,2,2,2,1,2,1,
+             2,1,2,2,3,3,3,2,2,1,2,
+             1,2,2,3,3,3,3,3,2,2,1,
+             2,2,3,3,3,4,3,3,3,2,2,
+             1,2,3,3,4,15,4,3,3,2,1,
+             2,2,3,3,3,4,3,3,3,2,2,
+             1,2,2,3,3,3,3,3,2,2,1,
+             2,1,2,2,3,3,3,2,2,1,2,
+             1,2,1,2,2,2,2,2,1,2,1,
+             2,1,2,1,2,1,2,1,2,1,2}}
+% GO scene: strong interferer on leading (top) side
+\def\pwrGO{{8,9,10,9,8,7,8,9,10,9,8,
+             9,10,11,10,9,8,9,10,11,10,9,
+             8,9,12,11,9,8,9,11,12,9,8,
+             7,8,9,10,8,7,8,10,9,8,7,
+             3,3,3,3,4,4,4,3,3,3,3,
+             2,2,2,3,4,15,4,3,2,2,2,
+             2,1,2,2,3,3,3,2,2,1,2,
+             1,2,1,2,2,2,2,2,1,2,1,
+             2,1,1,1,2,2,2,1,1,1,2,
+             1,1,2,1,1,1,1,1,2,1,1,
+             1,2,1,1,2,1,2,1,1,2,1}}
+% SO scene: strong interferer on trailing (bottom) side
+\def\pwrSO{{1,2,1,1,2,1,2,1,1,2,1,
+             1,1,2,1,1,1,1,1,2,1,1,
+             2,1,1,1,2,2,2,1,1,1,2,
+             1,2,1,2,2,2,2,2,1,2,1,
+             2,1,2,2,3,3,3,2,2,1,2,
+             2,2,2,3,4,15,4,3,2,2,2,
+             3,3,3,3,4,4,4,3,3,3,3,
+             7,8,9,10,8,7,8,10,9,8,7,
+             8,9,12,11,9,8,9,11,12,9,8,
+             9,10,11,10,9,8,9,10,11,10,9,
+             8,9,10,9,8,7,8,9,10,9,8}}
 
-% === Raw intensity grid (CUT highlighted, all others show power as color) ===
-\newcommand{\rawGrid}[2]{% #1=x-offset, #2=title
+% === Raw intensity grid — takes x-offset, title, and macro name ===
+% #1=x-offset, #2=title, #3=data macro (e.g. \pwrCA)
+\newcommand{\rawGrid}[3]{%
 \begin{scope}[shift={(#1,0)}]
   \node[font=\bfseries] at (5*\gsz+\gsz/2,\gn*\gsz+\gsz+0.4) {#2};
   \foreach \r in {0,...,\gn}{
     \foreach \c in {0,...,\gn}{
       \pgfmathtruncatemacro{\idx}{\r*11+\c}
-      \pgfmathtruncatemacro{\val}{\cellpwr[\idx]}
+      \pgfmathtruncatemacro{\val}{#3[\idx]}
       \pgfmathtruncatemacro{\cheb}{max(abs(\r-5),abs(\c-5))}
       \pgfmathtruncatemacro{\iscut}{(\cheb==0)?1:0}
       \pgfmathsetmacro{\pct}{min(\val*5.5,100)}
@@ -305,9 +330,9 @@
 
 % --- TOP ROW: Raw intensity grids ---
 \begin{scope}[shift={(0,7.5)}]
-  \rawGrid{1}{Raw Power}
-  \rawGrid{7.5}{Raw Power}
-  \rawGrid{14}{Raw Power}
+  \rawGrid{1}{Uniform Clutter}{\pwrCA}
+  \rawGrid{7.5}{Strong Leading Edge}{\pwrGO}
+  \rawGrid{14}{Strong Trailing Edge}{\pwrSO}
 \end{scope}
 
 % --- Downward arrows ---
