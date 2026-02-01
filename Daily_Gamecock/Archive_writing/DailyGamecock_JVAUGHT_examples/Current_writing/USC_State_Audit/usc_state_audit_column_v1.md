@@ -1,4 +1,4 @@
-# State-Assisted, State-Controlled
+# Column: The legislature is using a hostile takeover to enforce political surveillance
 
 *By J.C. Vaught*
 

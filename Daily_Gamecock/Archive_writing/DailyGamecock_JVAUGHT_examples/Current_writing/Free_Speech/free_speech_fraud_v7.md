@@ -21,7 +21,7 @@ Turning Point USA claims to champion free speech — while maintaining a [Profes
 
 Charlie Kirk [said](https://www.insidehighered.com/news/2016/11/22/new-website-seeks-register-professors-accused-liberal-bias-and-anti-american-values) to CBS News: "Our site is not intolerance or censorship. It's about information... gives parents and students a way to decide if they need to look deeper and learn more." PEN America [saw it differently](https://www.thefire.org/news/dual-purpose-tpusa-watchlist-warrants-two-toned-response), calling the Watchlist "a noxious purveyor of precisely what it claims to deride: the intimidation and ostracization of those who express controversial views on campus."
 
-At Diablo Valley College, political science professor Albert Ponce had a lecture on white supremacy edited into a two-minute clip and circulated through Fox News and Breitbart. He received threats against himself and his nine-year-old daughter. Family photos were posted online. He told his daughter not to open the mail.
+At Diablo Valley College, political science professor Albert Ponce had a lecture on white supremacy edited into a two-minute clip and circulated through Fox News and Breitbart. He received threats against himself and his nine-year-old daughter. Family photos were posted online.
 
 Boston University sociology professor Saida Grundy, listed for a tweet, [said](https://www.chronicle.com/article/charlie-kirks-watch-list-made-some-professors-lives-a-living-hell): "It was the greatest stress of my life, and I literally was just coming off having stage-three breast cancer. It was far more stressful than the cancer, far more stressful."
 

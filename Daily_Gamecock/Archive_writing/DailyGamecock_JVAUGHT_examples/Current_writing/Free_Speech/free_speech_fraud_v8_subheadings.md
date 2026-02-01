@@ -46,7 +46,7 @@ Simply attacking people you disagree with is not enough – after all, you still
 
 Since 2021, its allies have passed more than 70 laws restricting what professors can teach, which books students can read and which perspectives universities can value in hiring. In 2025 alone, 21 censorship bills became law in 15 states – the highest single-year total on record. Every single one of those legislatures was Republican-controlled.
 
-At Texas A&M, a Republican state lawmaker filmed a professor teaching that there are more than two sexes – a scientific fact – in a children's literature class and posted the video online. Governor Greg Abbott publicly called for the professor's dismissal. A few hours later, the professor lost their job along with two administrators.
+At Texas A&M, a Republican state lawmaker filmed a professor teaching that there are more than two sexes – a scientific fact – in a children's literature class and posted the video online. Gov. Greg Abbott publicly called for the professor's dismissal. A few hours later, the professor lost their job along with two administrators.
 
 PEN America documented 6,870 book bans in the 2024-2025 school year across 23 states and 87 districts. Eighty percent came from just three states – Florida, Texas and Tennessee. The American Library Association reports that 72 percent of censorship demands come from organized conservative movements, elected officials and school board members.
 
@@ -68,6 +68,7 @@ How has USC responded to all of this? With bouncy houses.
 
 After the Student Senate reversed its funding denial under legal pressure, over 1,000 students gathered at Blatt Field for Blatt Bonanza – free food, bouncy castles, Spikeball and a rage room. The student body president at the time told WIS, "This is the event on our campus. It's not an alternative or counter event."
 
+
 Nobody believed that. Student Kristen Issa told the Daily Gamecock she came because she "didn't feel safe protesting and didn't feel like there was anything that would actually come out of it." Jarissa Adams, a fourth-year criminology student, said she came to Blatt Bonanza so she "would be safe and not in the presence of bad vibes."
 
 President Amiridis condemned the speakers' "vile and juvenile rhetoric" and quoted Justice Brandeis on the value of more speech over enforced silence. The president claimed neutrality, then showed up at Blatt Bonanza for selfies. Bouncy houses are not a free speech policy. They are an admission that the university knows exactly what it is platforming and would rather distract than confront.
@@ -80,7 +81,7 @@ They labeled Kirk a "known disrupter to a population" – without defining eithe
 
 Then came the firings. At Clemson, a professor was terminated for sharing a post that criticized Kirk's gun positions and explicitly condemned violence. A Republican state legislator threatened to defund the university. In Tennessee, a professor shared Kirk's own words about gun deaths being the price of the Second Amendment.
 
-Senator Marsha Blackburn shared his contact information publicly. He was fired – then reinstated with a $500,000 settlement after the university admitted it violated his rights. Nationwide, at least 40 educators faced discipline for commenting on Kirk's death. Free speech for the provocateur but termination for the professor seems to be the motto here.
+Sen. Marsha Blackburn shared his contact information publicly. He was fired – then reinstated with a $500,000 settlement after the university admitted it violated his rights. Nationwide, at least 40 educators faced discipline for commenting on Kirk's death. Free speech for the provocateur but termination for the professor seems to be the motto here.
 
 ## Stop funding the cycle
 

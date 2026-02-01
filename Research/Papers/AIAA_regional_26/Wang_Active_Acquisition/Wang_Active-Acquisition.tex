@@ -98,7 +98,7 @@ While recent surveys \cite{chen2020survey, nikouei2024smallobj} have demonstrate
 \par
 Even with high-resolution imagery, real-time detection pipelines typically downsample inputs to manageable resolutions (e.g., $640 \times 640$) to satisfy compute constraints. This reduction inherently compresses distant targets into featureless blobs (Fig.~\ref{fig:zoomlevels}) that are difficult to classify without relying on temporal context (as humans do) or additional sensor modalities \cite{rozantsev2017flying}.
 \par
-\begin{figure*}[htbp]
+\begin{figure*}[t]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_sr_comparison.pdf}
 \caption{Comparison of Wide-Angle Crop (Digital Zoom), Super-Resolution, and true Optical Zoom active acquisition.}
@@ -132,34 +132,20 @@ Our active acquisition creates a fully automated hybrid: the selection logic of 
 \subsection{Hardware and Software Roles}
 The system consists of two FLIR M300C cameras mounted on a shared three-foot stand with a fixed relative pose (Fig.~\ref{fig:hardware}): (1)~a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector on the primary GPU, and (2)~a PTZ camera whose pan, tilt, and zoom are commanded via an HTTP control interface. Both cameras are powered by a 12.8\,V 50\,Ah LiFePO4 battery, selected because the dual-camera current draw exceeded the capacity of a standard DC power supply unit. The cameras connect to an NVIDIA Jetson Orin AGX (JetPack 4.7, CUDA 12.6) via a PCIe Ethernet network card with IEEE~802.3at PoE detection, confirmed safe for the non-PoE FLIR devices. The baseline separation $b \approx 0.5$\,m produces a parallax angle of $\arctan(0.5/100) \approx 0.29^\circ$ at 100\,m range, which is negligible for the initial open-loop slew command.
 
-The software architecture is organized in three layers (Fig.~\ref{fig:gui}). The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads: a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases: Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
-
-\begin{figure*}[htbp]
-\centering
-\includegraphics[width=1.0\textwidth]{figures/fig_zoom_comparison.pdf}
-\caption{Visual progression of an active acquisition sequence. A 15-pixel target in the wide field (1x) is indistinguishable from noise. The system cues the PTZ to an intermediate 5x zoom for acquisition, then a 20x zoom for final detailed verification, revealing the aircraft structure clearly.}
-\label{fig:zoom_sequence}
-\end{figure*}
-
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
 \includegraphics[width=0.75\columnwidth]{figures/fig_hardware_photo.jpeg}
 \caption{Physical hardware configuration. Two FLIR M300C cameras are mounted on a shared three-foot stand with $\approx 0.5$\,m baseline separation. The left unit serves as the fixed wide-angle camera; the right unit operates as the PTZ camera.}
 \label{fig:hardware}
 \end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.75\columnwidth]{fig_fov_understanding_topdown.pdf}
-\caption{Field of view comparison. The wide camera (blue) covers approximately $60^\circ$ horizontally for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable view.}
-\label{fig:fov}
-\end{figure}
+The software architecture is organized in three layers (Fig.~\ref{fig:gui}). The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads: a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases: Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
 
-\begin{figure*}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=1.0\textwidth]{figures/fig_gui_dual_feed.png}
-\caption{Live screenshot of the three-layer software interface during a drone tracking test. The stationary camera (left) runs YOLOv11s on the GPU at $1024\times1024$ resolution for wide-area detection. The PTZ camera (center) runs YOLOv11n on the DLA at $640\times640$, here tracking the drone at optical zoom. The control panel (right) exposes PTZ zoom, movement speed, tracking mode selection, and PID tuning parameters.}
-\label{fig:gui}
+\includegraphics[width=1.0\textwidth]{figures/fig_zoom_comparison.pdf}
+\caption{Visual progression of an active acquisition sequence. A 15-pixel target in the wide field (1x) is indistinguishable from noise. The system cues the PTZ to an intermediate 5x zoom for acquisition, then a 20x zoom for final detailed verification, revealing the aircraft structure clearly.}
+\label{fig:zoom_sequence}
 \end{figure*}
 
 \subsection{Problem Formulation}
@@ -174,7 +160,14 @@ This optimization is subject to operational constraints: the PTZ must be availab
 \section{Calibration and Cross-View Geometry}
 \subsection{Camera Model}
 Both cameras are modeled with intrinsics $(K_w, K_p)$ and distortion parameters. Let $\Pi(\cdot)$ be perspective projection with distortion, and let $R_{pw}, t_{pw}$ map 3D points from wide-camera coordinates to PTZ-camera coordinates.
-\par
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.75\columnwidth]{fig_fov_understanding_topdown.pdf}
+\caption{Field of view comparison. The wide camera (blue) covers approximately $60^\circ$ horizontally for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable view.}
+\label{fig:fov}
+\end{figure}
+
 For sky targets at long range, parallax between cameras is negligible when the baseline is small relative to range. With a camera baseline of $b = 0.5$\,m and a minimum operating range of $R = 100$\,m, the angular parallax is $\arctan(b/R) = \arctan(0.5/100) \approx 0.29^\circ$. This is well within the PTZ field of view at any zoom level, so a direction-only transfer provides a sufficiently accurate initial seed for the PTZ to acquire the target. Once the PTZ is slewed to this seed location, its onboard detector refines the tracking lock. In this regime, ray directions on the unit sphere are used for cross-view mapping rather than estimated depth.
 
 
@@ -198,21 +191,26 @@ h^p_{\mathrm{des}} \approx \alpha f_p(z) \approx \frac{h^w}{f_w} f_p(z),
 then choose the zoom $z$ whose calibrated $f_p(z)$ best matches the required value, clipped to PTZ limits. This approach avoids explicit range estimation and is well suited for distant aircraft.
 
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/fig_gui_dual_feed.png}
+\caption{Live screenshot of the three-layer software interface during a drone tracking test. The stationary camera (left) runs YOLOv11s on the GPU at $1024\times1024$ resolution for wide-area detection. The PTZ camera (center) runs YOLOv11n on the DLA at $640\times640$, here tracking the drone at optical zoom. The control panel (right) exposes PTZ zoom, movement speed, tracking mode selection, and PID tuning parameters.}
+\label{fig:gui}
+\end{figure*}
+
 \section{PTZ Triggering, Tracking, and Scheduling}
 PTZ tracking is a coupled perception-and-control problem with dynamic imaging conditions and control delays. Prior PTZ tracking evaluations emphasize that camera motion, latency, and re-centering quality dominate performance differences in practice.
 \par
 We use wide-camera tracklets to provide temporal coherence and to predict target bearing during PTZ motion. A lightweight predictor (e.g., constant angular velocity with $\alpha$--$\beta$ filtering or a Kalman filter) provides a predicted bearing $\hat{d}_w(t+\Delta)$ given command latency $\Delta$, consistent with classical pan/tilt tracking formulations.
 
-
-
-\begin{figure}[htbp]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_pipeline.pdf}
 \caption{Automated label-generation pipeline. Wide-field tracking selects candidates, PTZ verifies optically, and homography maps labels to the wide view.}
 \label{fig:pipeline}
 \end{figure}
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[t]
 \caption{Real-time wide-to-PTZ acquisition}
 \begin{algorithmic}[1]
 \State Init $f_{\theta}$ (wide), $\mathcal{T}$ (tracker), $g$ (PTZ), $\mathcal{D}$ (data)
@@ -257,7 +255,7 @@ Self-training and pseudo-labeling can suffer from confirmation bias if low-quali
 \subsection{Dataset Schema}
 Each committed example stores the wide frame (or short clip), the transferred label, and acquisition metadata. Table~\ref{tab:schema} defines the record schema.
 
-\begin{table}[htbp]
+\begin{table}[b]
 \centering
 \caption{Dataset record schema for each accepted acquisition.}
 \label{tab:schema}
@@ -284,7 +282,7 @@ site\_meta & Location, camera orientation, weather \\
 \subsection{System Configuration}
 The complete system runs on an NVIDIA Jetson Orin AGX with JetPack~4.7 and CUDA~12.6. Table~\ref{tab:sysconfig} summarizes the hardware and software configuration. The stationary wide camera provides a $60^\circ \times 45^\circ$ field of view for persistent surveillance, while the PTZ camera operates at configurable zoom levels of 25\%, 35\%, and 45\% during tracking.
 
-\begin{table}[htbp]
+\begin{table}[t]
 \centering
 \caption{System hardware and software configuration.}
 \label{tab:sysconfig}
@@ -309,7 +307,7 @@ The two detector instances are split across compute units to avoid GPU time-slic
 
 Table~\ref{tab:throughput} reports measured throughput from benchmark runs on the Jetson Orin AGX. The GPU delivers 2.2--2.8$\times$ higher throughput than the DLA per model, but running both models on the GPU causes time-slicing that degrades aggregate performance. The GPU/DLA split provides concurrent operation at 35.9 + 21.5 = 57.4 aggregate FPS with no contention.
 
-\begin{table}[htbp]
+\begin{table}[t]
 \centering
 \caption{Measured detector throughput on Jetson Orin AGX. All models use $640 \times 640$ input with FP16 precision.}
 \label{tab:throughput}
@@ -331,7 +329,7 @@ The production configuration uses YOLOv11s on GPU (27.9\,ms, 35.9\,FPS) for the 
 \subsection{Tracking Controller}
 The PTZ centering loop uses a PID controller running at 30\,Hz. Table~\ref{tab:tracking} lists the controller parameters. Confidence thresholds are set asymmetrically: the acquisition threshold (0.40) is higher than the tracking threshold (0.35) to prevent the system from acquiring weak detections while allowing it to maintain lock through brief confidence dips. If the target is lost for more than 3.0\,s, the system reverts to Phase~1 acquisition from the stationary camera.
 
-\begin{table}[htbp]
+\begin{table}[t]
 \centering
 \caption{Tracking controller parameters.}
 \label{tab:tracking}
@@ -367,14 +365,14 @@ The stationary camera detected the drone at wide-angle resolution, providing bea
 
 In the wide-angle view, the drone occupies approximately $20 \times 15$ pixels---insufficient for reliable classification. The PTZ view at 35--45\% zoom resolves the target at approximately $120 \times 90$ pixels, a $6\times$ increase in linear resolution that moves the target firmly into the regime where standard detectors achieve high accuracy.
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_drone_tracking.png}
 \caption{Active tracking during an outdoor drone test. The stationary camera (left) detects the drone in the wide field and provides bearing cues. The PTZ camera (center) autonomously slews to and tracks the target at optical zoom, maintaining centroid lock via PID control.}
 \label{fig:drone_test}
 \end{figure}
 
-\begin{figure*}[htbp]
+\begin{figure*}[!t]
 \centering
 \includegraphics[width=1.0\textwidth]{figures/fig_tracking_montage.png}
 \caption{Temporal montage from the 42-second drone tracking sequence. (a)~System initialization and acquisition phase. (b)~Early tracking with PTZ slewing to target. (c)~Active tracking at medium zoom with drone visible in both cameras. (d)~PTZ detection at higher zoom with green bounding box on target. (e)~Sustained tracking in final flight segment. (f)~End of sequence with maintained lock.}
@@ -385,7 +383,7 @@ In the wide-angle view, the drone occupies approximately $20 \times 15$ pixels--
 \subsection{In-Lab Airplane Detection}
 In-laboratory testing (Fig.~\ref{fig:inlab}) confirmed that the default YOLOv8n COCO ``airplane'' class detects large, high-resolution aircraft imagery displayed on a monitor but fails on small pixel footprints typical of the wide-angle surveillance view. This motivated training custom detection models on a drone detection dataset and on the Fine-Grained Visual Classification (FGVC) aircraft dataset, which provides ground-up RGB imagery of aircraft at a range of scales and orientations representative of the surveillance scenario.
 
-\begin{figure}[htbp]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_inlab_test.png}
 \caption{In-laboratory validation. The PTZ camera detects and tracks an aircraft displayed on a monitor using YOLOv8n with COCO weights, confirming the detection pipeline and GUI control interface.}

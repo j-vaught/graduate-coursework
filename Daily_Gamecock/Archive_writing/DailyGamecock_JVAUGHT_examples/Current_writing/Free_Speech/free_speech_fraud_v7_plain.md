@@ -3,6 +3,9 @@ must use AP style generally. "said" instead of "argued" or whatnot.
 Sentences need to be under 30 words each. hard enforcement
 Grafs need to be under 100 words, MAX 140 in worst case. hard enforcement
 italics used for emphasis, not bold, and not quotes.
+
+ARGUMENT: 
+basically, conservatives take advantage of free speech rules, especially at USC, yet they dont act what they preach. A small balance for progressives, then a final argument about maybe USC should not be funding these orgs entirely. Maybe it'd be better to just stop all political speech rather than allow all speech but let conservative push you around in way where they get all the say. 
 # Column: Free speech has become "My Speech" at USC
 
 On September 18, 2024, Milo Yiannopoulos and Proud Boys founder Gavin McInnes spoke to a sparse audience behind metal barricades at the University of South Carolina's Russell House. Uncensored America — a supposedly "nonpartisan, nonprofit organization dedicated to fighting for freedom of speech" — had its $3,576.99 funding request rejected by the Student Senate. Conservative media called it censorship, and FIRE agreed, calling it "a clear violation of the First Amendment."
