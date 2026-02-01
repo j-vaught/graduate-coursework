@@ -130,7 +130,7 @@ Our proposed "Active Acquisition" creates a fully automated hybrid. We use the s
 \subsection{Hardware and Software Roles}
 The system consists of two FLIR M300C cameras mounted on a shared three-foot stand with a fixed relative pose (Fig.~\ref{fig:hardware}): (1) a fixed wide-angle camera providing continuous coverage and running a real-time YOLO-family detector on the primary GPU, and (2) a PTZ camera whose pan, tilt, and zoom can be commanded via a control interface. The PTZ camera also runs a concurrent YOLO instance on the Deep Learning Accelerator (DLA) to verify targets once acquired. Both cameras are powered by a 12.8\,V 50\,Ah LiFePO4 battery, selected because the dual-camera current draw exceeded the capacity of a standard DC power supply unit. The cameras connect to an NVIDIA Jetson Orin AGX via a PCIe Ethernet network card with IEEE 802.3at PoE detection, confirmed safe for the non-PoE FLIR devices. The baseline separation $b \approx 0.5$\,m is sufficiently small compared to the target range ($R > 100$\,m) that the parallax error is negligible for the initial open-loop slew command.
 
-The software architecture is organized in three layers. The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads: a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases: Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface to the PTZ. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
+The software architecture is organized in three layers (Fig.~\ref{fig:gui}). The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads: a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases: Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface to the PTZ. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
 
 The wide camera produces candidate detections and tracklets. A scheduling policy selects targets and commands the PTZ to re-center and zoom. The PTZ stream is analyzed to confirm class and refine bounding boxes. High-confidence PTZ detections are transferred back to the wide-angle frame to create dataset labels. A curation module filters low-quality frames and controls redundancy.
 
@@ -158,6 +158,13 @@ The core operation involves a dynamic handover where the computer reads the wide
 \caption{Field of view comparison. The wide camera (blue) covers approximately $90^\circ$ for persistent surveillance, while the PTZ camera (red) provides a narrow, steerable view.}
 \label{fig:fov}
 \end{minipage}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/fig_gui_dual_feed.png}
+\caption{Live screenshot of the three-layer software interface during a drone tracking test. The stationary camera (left) runs YOLOv11s on the GPU at $1024\times1024$ resolution for wide-area detection. The PTZ camera (center) runs YOLOv11n on the DLA at $640\times640$, here tracking the drone at optical zoom. The control panel (right) exposes PTZ zoom, movement speed, tracking mode selection, and PID tuning parameters.}
+\label{fig:gui}
 \end{figure*}
 
 \subsection{Problem Formulation}
@@ -287,9 +294,16 @@ site\_meta & Location, camera orientation, weather \\
 \subsection{Operating Conditions and Target Characteristics}
 Airplanes introduce systematic small-object issues. In a wide-angle view, aircraft can be extremely small with strong scale variation as they traverse the sky and change apparent altitude and distance (Fig.~\ref{fig:zoomlevels}). Visual appearance changes with viewing angle, contrails, lighting, haze, and compression artifacts, matching known difficulty factors for small objects (low detail, interference, background ambiguity).
 \par
-Default YOLO ``airplane'' class weights trained on COCO fail to detect targets below a threshold pixel size, rendering the stationary wide-angle camera ineffective for long-range acquisition without retraining. Custom detection models are therefore trained on a drone detection dataset and on the Fine-Grained Visual Classification (FGVC) aircraft dataset, which provides ground-up RGB imagery of aircraft at a range of scales and orientations representative of the surveillance scenario. Planned benchmarks will compare mAP of these custom models against default YOLO classes on a test set containing both long-distance and close-distance aircraft.
+Default YOLO ``airplane'' class weights trained on COCO fail to detect targets below a threshold pixel size, rendering the stationary wide-angle camera ineffective for long-range acquisition without retraining. Custom detection models are therefore trained on a drone detection dataset and on the Fine-Grained Visual Classification (FGVC) aircraft dataset, which provides ground-up RGB imagery of aircraft at a range of scales and orientations representative of the surveillance scenario. Planned benchmarks will compare mAP of these custom models against default YOLO classes on a test set containing both long-distance and close-distance aircraft. An outdoor drone tracking test (Fig.~\ref{fig:drone_test}) validated the end-to-end acquisition pipeline prior to aircraft deployment.
 
 
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_drone_tracking.png}
+\caption{Active tracking during an outdoor drone test. The stationary camera (left) detects the drone in the wide field and provides bearing cues. The PTZ camera (center) autonomously slews to and tracks the target at optical zoom, maintaining centroid lock via PID control. The on-screen overlay shows model type, accelerator assignment, and inference resolution for each camera.}
+\label{fig:drone_test}
+\end{figure}
 
 \subsection{Class Taxonomy and Negatives}
 For this test case, the primary class is \textit{airplane}. Hard negatives arise from birds, insects near the lens, distant drones, clouds with sharp edges, sensor noise, and specular highlights (Fig.~\ref{fig:negatives}). The PTZ confirmation step naturally collects informative negatives: wide proposals that are rejected by PTZ as non-airplane can be stored as hard negatives with contextual metadata.
