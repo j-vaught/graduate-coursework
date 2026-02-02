@@ -140,7 +140,7 @@ The system consists of two FLIR M300C cameras mounted on a shared 0.9\,m stand w
 \label{fig:hardware}
 \end{figure}
 
-The software architecture is organized in three layers (Fig.~\ref{fig:gui}). The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads: a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases. Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
+The software architecture is organized in three layers (Fig.~\ref{fig:gui}). The first layer (L1) provides a Kivy-based GUI with a streamer thread displaying dual camera feeds and exposing controls for zoom, movement speed, tracking mode, and PID tuning parameters. The second layer (L2) runs six threads, including a capture thread, a YOLO processing thread, and a draw thread for each camera. The third layer (L3) implements the tracker process, which operates in two phases. Phase~1 performs target acquisition from the stationary camera, and Phase~2 transitions to active tracking on the PTZ camera via a coordinate mapper, centering controller, zoom controller, PID controller, and HTTP command interface. If the PTZ loses detection during Phase~2, the system falls back to stationary camera tracking; once the PTZ reacquires the target, it resumes PTZ-based control.
 
 \begin{figure*}[t]
 \centering
@@ -195,7 +195,7 @@ then choose the zoom $z$ whose calibrated $f_p(z)$ best matches the required val
 \label{fig:gui}
 \end{figure*}
 
-\section{Slew-to-Classification: Triggering, Tracking, and Control}
+\section{Slew-to-Classification Triggering, Tracking, and Control}
 \label{sec:prediction}
 We use wide-camera tracklets to provide temporal coherence and to predict target bearing during PTZ motion. The predictor uses a constant-velocity model with exponential moving average (EMA) smoothing. At each detection update, the instantaneous pixel velocity is computed from consecutive detection centers and filtered as $\mathbf{v}_t = \alpha\,\mathbf{v}_{t-1} + (1-\alpha)\,\mathbf{v}_{\mathrm{inst}}$ with smoothing factor $\alpha = 0.3$. The predicted bearing at command-arrival time is then
 \begin{equation}
@@ -244,7 +244,7 @@ The tracker operates as a five-state machine---IDLE (home position, awaiting tar
 \subsection{Label Sources and Cross-View Transfer}
 The PTZ view is treated as a higher-fidelity label source when it produces a confirmed detection for the target class. The label transfer module maps the PTZ detection back into the wide image coordinate system.
 \par
-For distant targets, direction-only transfer proceeds by converting the PTZ bounding box corners into bearing rays, rotating those rays into the wide camera frame, and projecting them into the wide image plane. Let $(u^p_k,v^p_k)$ be PTZ box corners; compute PTZ rays $\hat{d}^p_k$ from $K_p^{-1}$, rotate to wide frame $\hat{d}^w_k = R_{wp}\hat{d}^p_k$, then project:
+For distant targets, direction-only transfer proceeds by converting the PTZ bounding box corners into bearing rays, rotating those rays into the wide camera frame, and projecting them into the wide image plane. Let $(u^p_k,v^p_k)$ be PTZ box corners; compute PTZ rays $\hat{d}^p_k$ from $K_p^{-1}$, rotate to wide frame $\hat{d}^w_k = R_{wp}\hat{d}^p_k$, then project
 \begin{equation}
 [u^w_k, v^w_k, 1]^\top \propto K_w \hat{d}^w_k, \quad k \in \{1,2,3,4\}.
 \end{equation}
