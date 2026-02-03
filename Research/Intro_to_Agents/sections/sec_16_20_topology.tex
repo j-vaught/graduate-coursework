@@ -1,0 +1,307 @@
+%% Sections 16-20: Topology and Orchestration Patterns
+%% Part of Intro_to_Agents article
+%% Author: J.C. Vaught
+
+\section{Serial Agent Chains}\label{sec:serial}
+
+In a serial agent chain, workers execute sequentially, forming a pipeline topology. The output of Worker A becomes the input to Worker B, which feeds Worker C, and so on. The master orchestrator coordinates handoffs between stages, ensuring each worker receives the correct input at the appropriate time.
+
+This topology maps naturally onto transformation chains, where data must pass through multiple processing stages in a fixed order. For example, a document processing pipeline might parse raw text, analyze its structure, and format the output. Each stage depends on the previous stage's output, making parallelization impossible. Similarly, refinement chains implement sequential improvement: an initial draft is generated, reviewed for quality, and then revised based on feedback.
+
+The serial topology offers predictability and simplicity. Dependencies are explicit and linear. Debugging is straightforward because you can inspect the data flowing between each stage. The primary limitation is latency: total execution time equals the sum of all stage durations, with no opportunity for parallel speedup.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=2.5cm and 3cm]
+  % Orchestrator at top
+  \node[agentbox=garnet] (orch) {Orchestrator};
+
+  % Pipeline workers
+  \node[workerbox, below left=1.5cm and 3cm of orch] (wa) {Worker A};
+  \node[workerbox, right=of wa] (wb) {Worker B};
+  \node[workerbox, right=of wb] (wc) {Worker C};
+  \node[agentbox=congaree, right=of wc] (result) {Result};
+
+  % Pipeline flow
+  \draw[dataarrow] (wa) -- node[above] {\footnotesize raw data} (wb);
+  \draw[dataarrow] (wb) -- node[above] {\footnotesize analysis} (wc);
+  \draw[dataarrow] (wc) -- node[above] {\footnotesize formatted} (result);
+
+  % Coordination from orchestrator
+  \draw[dataarrow, dashed, thin] (orch) -- node[left, pos=0.7] {\footnotesize coordinate} (wa);
+  \draw[dataarrow, dashed, thin] (orch) -- node[above left, pos=0.5] {\footnotesize coordinate} (wb);
+  \draw[dataarrow, dashed, thin] (orch) -- node[above right, pos=0.5] {\footnotesize coordinate} (wc);
+\end{tikzpicture}
+\caption{Serial agent chain with orchestrated handoffs. Each worker processes its input and passes results to the next stage.}
+\label{fig:serial_chain}
+\end{figure*}
+
+Figure~\ref{fig:serial_chain} illustrates the serial topology. The orchestrator coordinates the pipeline but does not participate in data transformation. Workers operate independently once launched, with coordination limited to handoff timing and error handling.
+
+\section{Parallel Agent Execution}\label{sec:parallel_agents}
+
+Parallel agent execution enables workers to operate simultaneously on independent tasks. The orchestrator fans out work and collects results. Unlike serial chains, parallel execution offers the potential for significant speedup when tasks are independent and workers have sufficient computational resources.
+
+The key challenge in parallel execution is synchronization: when should the orchestrator proceed with the results it has received? Three barrier types govern this decision, each suited to different requirements.
+
+A \textbf{full barrier} waits for all workers to complete before proceeding. This is required when every result is necessary for correctness. For example, when aggregating statistics across multiple data partitions, missing even one partition would corrupt the final result. Full barriers maximize correctness at the cost of latency: the slowest worker determines total execution time.
+
+A \textbf{partial barrier} or k-of-n barrier proceeds when k workers finish, where k < n. This pattern supports consensus mechanisms (majority vote requires $k > n/2$) and redundant task execution (take the first k results and discard the rest). Partial barriers reduce sensitivity to slow workers but require careful design to ensure that proceeding with incomplete results does not violate correctness requirements.
+
+A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever results are available. This implements best-effort execution: the system prioritizes responsiveness over completeness. Timeout barriers are appropriate when partial results have value and when strict deadlines matter more than exhaustive coverage. The orchestrator must handle missing results gracefully, either by synthesizing incomplete data or by flagging gaps in coverage.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 1.5cm]
+  % Full Barrier
+  \node[agentbox=garnet] (orch1) {Orchestrator};
+  \node[workerbox, below left=of orch1, xshift=-1cm] (w11) {W1};
+  \node[workerbox, right=0.8cm of w11] (w12) {W2};
+  \node[workerbox, right=0.8cm of w12] (w13) {W3};
+  \node[workerbox, right=0.8cm of w13] (w14) {W4};
+
+  \coordinate (barrier1) at ($(w11)!0.5!(w14) + (0,-1.2)$);
+  \draw[line width=2pt, garnet] ($(barrier1) + (-2.5,0)$) -- node[below, pos=0.5] {\footnotesize wait all} ($(barrier1) + (2.5,0)$);
+
+  \node[agentbox=congaree, below=1.5cm of barrier1] (syn1) {Synthesize};
+
+  \foreach \w in {w11,w12,w13,w14} {
+    \draw[dataarrow] (orch1) -- (\w);
+    \draw[dataarrow] (\w) -- (barrier1 |- \w);
+  }
+  \draw[dataarrow] (barrier1) -- (syn1);
+
+  \node[above=0.3cm of orch1, font=\bfseries] {Full Barrier};
+
+  % Partial Barrier
+  \begin{scope}[xshift=8cm]
+    \node[agentbox=garnet] (orch2) {Orchestrator};
+    \node[workerbox, below left=of orch2, xshift=-1cm] (w21) {W1};
+    \node[workerbox, right=0.8cm of w21] (w22) {W2};
+    \node[workerbox, right=0.8cm of w22] (w23) {W3};
+    \node[workerbox, right=0.8cm of w23, fill=bk30!30] (w24) {W4};
+
+    \coordinate (barrier2) at ($(w21)!0.5!(w24) + (0,-1.2)$);
+    \draw[line width=2pt, garnet, dashed] ($(barrier2) + (-2.5,0)$) -- node[below, pos=0.5] {\footnotesize wait 3 of 4} ($(barrier2) + (2.5,0)$);
+
+    \node[agentbox=congaree, below=1.5cm of barrier2] (syn2) {Synthesize};
+
+    \foreach \w in {w21,w22,w23,w24} {
+      \draw[dataarrow] (orch2) -- (\w);
+      \draw[dataarrow] (\w) -- (barrier2 |- \w);
+    }
+    \draw[dataarrow] (barrier2) -- (syn2);
+
+    \node[above=0.3cm of orch2, font=\bfseries] {Partial Barrier (k/n)};
+  \end{scope}
+
+  % Timeout Barrier
+  \begin{scope}[xshift=16cm]
+    \node[agentbox=garnet] (orch3) {Orchestrator};
+    \node[workerbox, below left=of orch3, xshift=-1cm] (w31) {W1};
+    \node[workerbox, right=0.8cm of w31] (w32) {W2};
+    \node[workerbox, right=0.8cm of w32] (w33) {W3};
+    \node[workerbox, right=0.8cm of w33, fill=bk30!30] (w34) {W4};
+
+    \coordinate (barrier3) at ($(w31)!0.5!(w34) + (0,-1.2)$);
+    \draw[line width=2pt, garnet, dashed] ($(barrier3) + (-2.5,0)$) -- node[below, pos=0.5] {\footnotesize t=30s} ($(barrier3) + (2.5,0)$);
+
+    \node[agentbox=congaree, below=1.5cm of barrier3] (syn3) {Synthesize};
+
+    \foreach \w in {w31,w32,w33,w34} {
+      \draw[dataarrow] (orch3) -- (\w);
+      \draw[dataarrow] (\w) -- (barrier3 |- \w);
+    }
+    \draw[dataarrow] (barrier3) -- (syn3);
+
+    \node[above=0.3cm of orch3, font=\bfseries] {Timeout Barrier};
+  \end{scope}
+\end{tikzpicture}
+\caption{Three barrier types for parallel execution. Full barriers wait for all workers. Partial barriers proceed when k workers finish. Timeout barriers enforce deadlines.}
+\label{fig:parallel_exec}
+\end{figure*}
+
+Figure~\ref{fig:parallel_exec} compares the three barrier types. Grayed workers in the partial and timeout variants indicate workers whose results are not required for the orchestrator to proceed. The choice of barrier depends on the task's tolerance for incomplete results and its latency requirements.
+
+\section{Tree-Structured Agent Hierarchies}\label{sec:tree}
+
+Tree-structured hierarchies extend the master-worker pattern with intermediate delegation layers. A root master delegates to lead agents, who in turn delegate to specialist workers. This topology is about the shape of delegation, not about formal layering or rigid role definitions.
+
+Information flows bidirectionally in a tree hierarchy. Tasks and context flow downward via solid edges: the root provides high-level goals to leads, who decompose them into subtasks for specialists. Results and status flow upward via dashed edges: specialists report to leads, who synthesize and report to the root. Each node acts as both a worker (for its parent) and a master (for its children).
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  level 1/.style={sibling distance=6cm, level distance=2cm},
+  level 2/.style={sibling distance=2.5cm, level distance=2cm},
+  edge from parent/.style={dataarrow=garnet},
+  edge from parent path={(\tikzparentnode.south) -- (\tikzchildnode.north)}
+]
+  \node[agentbox=garnet] {Root}
+    child {
+      node[agentbox=atlantic] {Lead A}
+      child { node[workerbox] {S1} }
+      child { node[workerbox] {S2} }
+    }
+    child {
+      node[agentbox=atlantic] {Lead B}
+      child { node[workerbox] {S3} }
+      child { node[workerbox] {S4} }
+    }
+    child {
+      node[agentbox=atlantic] {Lead C}
+      child { node[workerbox] {S5} }
+      child { node[workerbox] {S6} }
+    };
+
+  % Add upward dashed arrows (results flow)
+  \draw[dataarrow=atlantic, dashed] (0,-4.5) -- ++(0,0.3) node[pos=0, below] {\footnotesize results $\uparrow$};
+  \draw[dataarrow=garnet] (0,-2) -- ++(0,-0.3) node[pos=1, below] {\footnotesize tasks $\downarrow$};
+
+  % Side labels removed (already shown on arrows above)
+\end{tikzpicture}
+\caption{Tree-structured agent hierarchy with three levels. Tasks flow down (solid arrows), results flow up (dashed arrows).}
+\label{fig:tree_hierarchy}
+\end{figure*}
+
+Tree hierarchies enable delegation at scale, but depth is limited by token costs. Each level multiplies total token consumption: if the root's prompt is 1000 tokens and each lead receives a similar context, and each specialist likewise, the total context across all agents can reach tens of thousands of tokens. Practical systems rarely exceed three levels due to these costs and the coordination overhead of deep hierarchies.
+
+Figure~\ref{fig:tree_hierarchy} shows a three-level tree. The root delegates to three leads, each managing two specialists. Solid edges represent task delegation; dashed edges represent result aggregation. The root never communicates directly with specialists; all communication is mediated by the leads.
+
+\section{Unidirectional vs.\ Bidirectional Communication}\label{sec:uni_bi}
+
+Communication between master and worker can be unidirectional or bidirectional. The choice affects protocol complexity, adaptability, and predictability.
+
+In \textbf{unidirectional communication}, the master sends a task and the worker returns a result. No mid-task communication occurs. The worker cannot ask for clarification, request additional context, or negotiate scope. It must work with what it was given. This simplicity offers isolation and predictability: each worker operates independently, and the master's responsibilities are limited to task assignment and result collection.
+
+Unidirectional communication is appropriate when tasks are well-specified and workers have sufficient context to operate autonomously. The cost of this simplicity is rigidity: if the worker encounters ambiguity or missing information, it must make assumptions or fail. The master has no opportunity to intervene mid-task.
+
+In \textbf{bidirectional communication}, the worker can interrupt the master to ask questions, request clarification, or negotiate scope changes. This adaptability enables workers to handle underspecified tasks and to refine their approach based on runtime discoveries. The master must handle interrupts, which complicates the orchestration protocol. Bidirectional communication increases coupling: the master and worker must agree on an interrupt protocol, and the master's availability becomes a bottleneck.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=3cm and 6cm]
+  % Unidirectional
+  \node[agentbox=garnet] (m1) {Master};
+  \node[workerbox, below=of m1] (w1) {Worker};
+
+  \draw[dataarrow, line width=1.5pt] (m1) -- node[left] {\footnotesize task} (w1);
+  \draw[dataarrow, dashed, line width=1.5pt] (w1) -- node[right] {\footnotesize result} (m1);
+
+  \node[above=0.3cm of m1, font=\bfseries] {Unidirectional};
+
+  % Bidirectional
+  \begin{scope}[xshift=8cm]
+    \node[agentbox=garnet] (m2) {Master};
+    \node[workerbox, below=of m2] (w2) {Worker};
+
+    \draw[dataarrow, line width=1.5pt] (m2) -- node[left, pos=0.3] {\footnotesize 1. task} (w2);
+    \draw[dataarrow, dashed, line width=1.5pt] (w2) -- node[right, pos=0.3] {\footnotesize 4. result} (m2);
+
+    % Mid-task communication
+    \draw[dataarrow=rose, ->] ($(w2.north) + (0.5,0)$) -- node[right, pos=0.4] {\footnotesize\color{rose} 2. clarification?} ($(m2.south) + (0.5,0)$);
+    \draw[dataarrow=rose, ->] ($(m2.south) + (1.0,0)$) -- node[right, pos=0.6] {\footnotesize\color{rose} 3. context} ($(w2.north) + (1.0,0)$);
+
+    \node[above=0.3cm of m2, font=\bfseries] {Bidirectional};
+  \end{scope}
+\end{tikzpicture}
+\caption{Unidirectional communication (left) vs.\ bidirectional communication (right). Bidirectional workers can request clarification mid-task.}
+\label{fig:uni_vs_bi}
+\end{figure*}
+
+Figure~\ref{fig:uni_vs_bi} contrasts the two models. The unidirectional case shows a clean request-response cycle. The bidirectional case adds mid-task clarification (step 2) and additional context (step 3), shown in a distinct color to emphasize the interrupt protocol. Sequence numbers indicate the temporal ordering of messages.
+
+\section{Canonical Orchestration Patterns}\label{sec:canonical}
+
+The building blocks introduced in previous sections combine to form four canonical orchestration patterns. Each pattern represents a distinct solution to a recurring coordination problem.
+
+The \textbf{pipeline} pattern combines serial topology, single-pass orchestration, and unidirectional communication. It implements transformation chains where data flows through sequential stages. Each stage performs a well-defined transformation and passes results forward. The pattern is simple and predictable but offers no parallelism.
+
+The \textbf{fan-out/fan-in} pattern combines parallel topology, single-pass orchestration, and unidirectional communication. The orchestrator fans out independent subtasks to multiple workers and synthesizes their results. This pattern exploits task parallelism for speedup but requires that subtasks be independent.
+
+The \textbf{master-worker pool} pattern combines parallel topology, iterative orchestration, and unidirectional communication. The master maintains a queue of tasks and assigns them to workers as they become available. Workers execute tasks independently and return results. The master continues until the queue is empty. This pattern efficiently handles batch processing and load balancing.
+
+The \textbf{feedback loop} pattern combines serial topology, iterative orchestration, and bidirectional communication. The planner generates a plan, the executor attempts it, and the executor reports results back to the planner for refinement. This pattern enables iterative improvement and adaptive planning but incurs higher coordination overhead.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 1.5cm, scale=0.85, every node/.style={scale=0.85}]
+  % Pipeline
+  \node[agentbox=garnet, minimum width=1cm] (p1) {S};
+  \node[agentbox=atlantic, right=1cm of p1, minimum width=1cm] (p2) {P};
+  \node[agentbox=congaree, right=1cm of p2, minimum width=1cm] (p3) {E1};
+  \node[agentbox=horseshoe, right=1cm of p3, minimum width=1cm] (p4) {E2};
+
+  \draw[dataarrow] (p1) -- (p2);
+  \draw[dataarrow] (p2) -- (p3);
+  \draw[dataarrow] (p3) -- (p4);
+
+  \node[above=0.3cm of p2, font=\bfseries] {Pipeline};
+
+  % Fan-Out/Fan-In
+  \begin{scope}[xshift=7cm]
+    \node[agentbox=atlantic] (fo1) {P};
+    \node[workerbox, below left=1cm and 0.3cm of fo1] (fo2) {E1};
+    \node[workerbox, below=1cm of fo1] (fo3) {E2};
+    \node[workerbox, below right=1cm and 0.3cm of fo1] (fo4) {E3};
+    \node[agentbox=congaree, below=1.8cm of fo3] (fo5) {Syn};
+
+    \foreach \w in {fo2,fo3,fo4} {
+      \draw[dataarrow] (fo1) -- (\w);
+      \draw[dataarrow] (\w) -- (fo5);
+    }
+
+    \node[above=0.3cm of fo1, font=\bfseries] {Fan-Out/Fan-In};
+  \end{scope}
+
+  % Master-Worker Pool
+  \begin{scope}[xshift=12cm]
+    \node[agentbox=garnet] (mw1) {Master};
+    \node[workerbox, below left=1cm and 0.3cm of mw1] (mw2) {W1};
+    \node[workerbox, below=1cm of mw1] (mw3) {W2};
+    \node[workerbox, below right=1cm and 0.3cm of mw1] (mw4) {W3};
+
+    \foreach \w in {mw2,mw3,mw4} {
+      \draw[dataarrow, <->] (mw1) -- (\w);
+    }
+
+    \draw[dataarrow, <-] (mw1.north east) arc[start angle=0, end angle=340, radius=0.4cm];
+    \node[above right=0.1cm and 0.1cm of mw1, font=\footnotesize] {iterate};
+
+    \node[above=0.3cm of mw1, font=\bfseries] {Master-Worker Pool};
+  \end{scope}
+
+  % Feedback Loop
+  \begin{scope}[xshift=17.5cm]
+    \node[agentbox=atlantic] (fb1) {P};
+    \node[agentbox=congaree, below=1.5cm of fb1] (fb2) {E};
+
+    \draw[dataarrow] (fb1) -- (fb2);
+    \draw[dataarrow, dashed] (fb2.west) -- ++(-0.5,0) -- ++(0,1.5) -- node[above, pos=0.5] {\footnotesize refine} (fb1.west);
+
+    \node[above=0.3cm of fb1, font=\bfseries] {Feedback Loop};
+  \end{scope}
+\end{tikzpicture}
+\caption{Four canonical orchestration patterns. Each combines topology, orchestration mode, and communication direction in a distinct way.}
+\label{fig:canonical_summary}
+\end{figure*}
+
+Figure~\ref{fig:canonical_summary} visualizes these four patterns. Each diagram uses consistent node sizes and color coding to emphasize structural differences. Table~\ref{tab:pattern_decision} maps each pattern onto its constituent building blocks and identifies its primary use case.
+
+\begin{table}[t]
+\centering
+\caption{Canonical orchestration patterns and their building blocks.}
+\label{tab:pattern_decision}
+\begin{tabularx}{\columnwidth}{lXlll}
+\toprule
+\textbf{Pattern} & \textbf{Topology} & \textbf{Orchestration} & \textbf{Direction} & \textbf{Best For} \\
+\midrule
+Pipeline & Serial & Single-pass & Unidirectional & Transformation chains \\
+Fan-Out/Fan-In & Parallel & Single-pass & Unidirectional & Independent subtasks \\
+Master-Worker Pool & Parallel & Iterative & Unidirectional & Batch processing \\
+Feedback Loop & Serial & Iterative & Bidirectional & Iterative refinement \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+These patterns are not mutually exclusive. Real systems often combine multiple patterns within a single architecture, nesting fan-out within a pipeline stage or embedding a feedback loop inside a worker pool. The value of canonical patterns lies in their composability: once you understand the primitives, you can combine them to build arbitrarily complex orchestration logic.

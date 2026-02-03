@@ -1,0 +1,297 @@
+%% Section 7: What Is a Sub-Agent?
+\section{What Is a Sub-Agent?}\label{sec:subagent}
+
+A sub-agent is architecturally identical to the agent described in Section~\ref{sec:agent}. It possesses the same core components: an LLM capable of reasoning and tool use, a system prompt that defines its behavior, and access to tools for interacting with the environment. The critical distinction is not in its internal structure but in its invocation: a sub-agent is called by another agent rather than directly by a human user.
+
+This architectural equivalence allows for significant flexibility in deployment. A sub-agent may run the same model as its parent, but more commonly it uses a different model optimized for its specialized task. A parent agent handling general orchestration might use a large, capable model, while delegating narrowly-scoped work to sub-agents running smaller, faster, or domain-tuned models. Similarly, the system prompt of a sub-agent is typically specialized for a particular domain—code refactoring, test execution, documentation generation, data validation—rather than the general-purpose instructions given to a primary agent.
+
+Tool access is also scoped to the sub-agent's responsibilities. Where a parent agent might have access to the full suite of development tools, a sub-agent focused on testing might be restricted to test execution frameworks and assertion libraries. This scoping reduces complexity, improves safety, and allows the sub-agent's reasoning to focus on a well-defined problem space.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.3cm and 1.5cm]
+
+% Parent Agent
+\node[agentbox, minimum width=2cm] (parent-llm) {LLM (Large)};
+\node[sysprompt, below=of parent-llm] (parent-prompt) {General Prompt};
+\node[tooldef, below=of parent-prompt] (parent-tools) {All Tools};
+% Child Agent
+\node[agentbox=atlantic, minimum width=2cm, right=5.5cm of parent-llm] (child-llm) {LLM (Small)};
+\node[sysprompt, below=of child-llm] (child-prompt) {Specialized Prompt};
+\node[tooldef, below=of child-prompt] (child-tools) {Scoped Tools};
+
+% Wrapper boxes on background layer
+\begin{scope}[on background layer]
+  \node[wrapperbox, draw=garnet, dashed, fit=(parent-llm)(parent-prompt)(parent-tools), inner sep=8pt] (parent-wrapper) {};
+  \node[wrapperbox, draw=atlantic, dashed, fit=(child-llm)(child-prompt)(child-tools), inner sep=8pt] (child-wrapper) {};
+\end{scope}
+
+\node[above=0.1cm of parent-wrapper.north, font=\bfseries] {Parent Agent};
+\node[above=0.1cm of child-wrapper.north, font=\bfseries, text=atlantic] {Child Agent};
+
+% Arrow
+\draw[dataarrow, line width=1.5pt] (parent-wrapper.east) -- (child-wrapper.west)
+  node[midway, above, font=\small] {delegates};
+
+\end{tikzpicture}
+\caption{A sub-agent shares the same architecture as a standard agent (Section~\ref{sec:agent}) but differs in its model selection, system prompt specialization, and tool access scope.}
+\label{fig:subagent}
+\end{figure*}
+
+%% Section 8: Sub-Agent Workflow
+\section{Sub-Agent Workflow}\label{sec:subagent_workflow}
+
+The lifecycle of a sub-agent begins when the parent agent constructs a detailed prompt describing the task to be performed. This prompt is delivered to the sub-agent, where it is combined with the sub-agent's own system prompt to form the complete context for execution. The system prompt provides domain expertise and behavioral constraints, while the parent's prompt supplies the specific task instance and any relevant data.
+
+Once initialized, the sub-agent executes its task using any of the three reasoning patterns described in Sections~\ref{sec:streaming}--\ref{sec:parallel_exec}. A sub-agent for code refactoring might use streaming mode to interactively rewrite functions, a testing sub-agent might operate in batch mode to execute a suite and compile results, and a documentation sub-agent might parallelize the generation of API reference sections. The choice of execution pattern is determined by the sub-agent's design and the nature of its task, not by the fact that it is a sub-agent.
+
+Upon completion, the sub-agent returns control to its parent. The exact form of this return varies: the sub-agent may include its result directly in a completion message, write outputs to disk and signal completion, or employ a hybrid approach. Regardless of the mechanism, the parent receives notification that the sub-agent has finished and can then integrate the result into its own reasoning process. This integration might involve validating the sub-agent's output, using it as input to another sub-agent, or incorporating it into a final deliverable for the user.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 1.2cm]
+
+% Horizontal flow
+\node[agentbox, minimum width=2cm] (parent) {Parent Agent};
+\node[agentbox=bk70, right=of parent] (prompt) {Detailed Prompt};
+\node[agentbox=atlantic, right=of prompt, minimum width=2cm] (subllm) {Sub-Agent};
+\node[agentbox=horseshoe, right=of subllm] (exec) {Execute Tools};
+\node[agentbox=congaree, right=of exec] (result) {Result};
+
+% System prompt feeding into sub-agent from above
+\node[sysprompt, above=0.6cm of subllm] (sysp) {System Prompt};
+\draw[dataarrow=rose] (sysp) -- (subllm);
+
+
+% Main flow arrows
+\draw[dataarrow] (parent) -- (prompt);
+\draw[dataarrow] (prompt) -- (subllm);
+\draw[dataarrow] (subllm) -- (exec);
+\draw[dataarrow] (exec) -- (result);
+
+% Loop back to parent
+\draw[dataarrow] (result.south) -- ++(0,-0.6) -| (parent.south);
+
+\end{tikzpicture}
+\caption{Sub-agent lifecycle. The parent crafts a detailed prompt, the sub-agent combines it with its own system prompt, executes tools using any execution pattern, and returns results to the parent.}
+\label{fig:subagent_lifecycle}
+\end{figure*}
+
+%% Section 9: How Do We Manage Sub-Agents?
+\section{How Do We Manage Sub-Agents?}\label{sec:manage}
+
+The orchestrator-worker pattern provides the foundation for managing multiple sub-agents. In this architecture, a master agent serves as the orchestrator, responsible for decomposing complex work into discrete tasks and distributing those tasks to specialized worker sub-agents. The master does not perform the work itself; instead, it coordinates, tracks progress, and synthesizes results.
+
+A critical element of this pattern is the completion signal. Regardless of the communication mechanism employed—direct return, file-mediated output, or hybrid approaches—every worker must signal when it has finished its assigned task. This signal may be as simple as a boolean flag or as rich as a structured status message, but its presence is non-negotiable. Without reliable completion signals, the orchestrator cannot accurately track system state or make informed decisions about subsequent actions.
+
+The orchestrator maintains state about the entire pool of workers. This state includes which workers are currently executing, which have completed their tasks, what results have been received, and what work remains to be distributed. When a worker signals completion, the orchestrator updates its internal model, evaluates whether dependencies have been satisfied, and determines the next steps. This might involve launching additional workers to handle newly unblocked tasks, aggregating results from completed workers to produce a final output, or escalating issues when a worker reports failure.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.6cm]
+
+% Master on the left
+\node[agentbox=garnet, minimum width=3.5cm, minimum height=3.8cm] (master) {\large Orchestrator};
+
+% Workers stacked on the right
+\node[workerbox, right=4cm of master, yshift=1.2cm, minimum width=2.5cm] (w1) {Worker A};
+\node[workerbox, right=4cm of master, yshift=0.0cm, minimum width=2.5cm] (w2) {Worker B};
+\node[workerbox, right=4cm of master, yshift=-1.2cm, minimum width=2.5cm] (w3) {Worker C};
+
+% Task arrows: master to workers (solid, straight horizontal)
+\draw[dataarrow=garnet] (master.east |- w1) -- (w1.west)
+  node[midway, above, font=\footnotesize] {task};
+\draw[dataarrow=garnet] (master.east |- w2) -- (w2.west)
+  node[midway, above, font=\footnotesize] {task};
+\draw[dataarrow=garnet] (master.east |- w3) -- (w3.west)
+  node[midway, above, font=\footnotesize] {task};
+
+% Result arrows: workers to master (dashed, offset slightly below)
+\draw[dataarrow=atlantic, dashed] ([yshift=-0.15cm]w1.west) -- ([yshift=-0.15cm]master.east |- w1)
+  node[midway, below, font=\footnotesize] {result};
+\draw[dataarrow=atlantic, dashed] ([yshift=-0.15cm]w2.west) -- ([yshift=-0.15cm]master.east |- w2)
+  node[midway, below, font=\footnotesize] {result};
+\draw[dataarrow=atlantic, dashed] ([yshift=-0.15cm]w3.west) -- ([yshift=-0.15cm]master.east |- w3)
+  node[midway, below, font=\footnotesize] {result};
+
+\end{tikzpicture}
+\caption{The orchestrator-worker pattern. The orchestrator assigns tasks to workers via straight delegation (solid) and receives results back (dashed). Each worker operates independently with its own context.}
+\label{fig:orchestrator_workers}
+\end{figure*}
+
+%% Section 10: Communication Patterns
+\section{Communication Patterns}\label{sec:comm}
+
+The communication pattern between orchestrator and worker determines how results flow back to the master. Three patterns dominate in practice, each suited to different types of tasks and output characteristics.
+
+\textbf{Direct return} embeds the result directly in the completion message. This pattern is appropriate when the master requires the worker's answer to make an immediate decision. A testing worker might return a simple pass/fail verdict, an installation worker might report success or error codes, and a query worker might return a small dataset or configuration value. The advantage is immediacy and simplicity: the orchestrator receives everything it needs in a single message. The disadvantage is scalability: large results bloat messages and may exceed protocol limits.
+
+\textbf{File-mediated communication} separates the completion signal from the result. The worker writes its output to disk—a dataset, a rendered image, a binary artifact, newly generated source files—and then sends a minimal completion message to the orchestrator. The master can then read the file if and when it needs the data. This pattern is essential for large outputs that would be impractical to transmit inline. It also naturally handles side effects: when a code generation worker produces new source files, those files are the deliverable, not a message describing them. The worker still sends a completion flag to notify the orchestrator that the work is done, but the substantive output lives on disk.
+
+\textbf{Hybrid communication}, the most common pattern in production systems, combines both approaches. The worker writes detailed artifacts to disk and simultaneously returns a summary in its completion message. A test runner might write full logs and stack traces to a file while returning "14 passed, 2 failed" to the orchestrator. A data processing worker might serialize a large DataFrame to disk while returning basic statistics (row count, schema, validation errors) inline. This gives the orchestrator enough information to make decisions without forcing it to parse large files, while preserving complete outputs for debugging, auditing, or downstream consumption.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 2.5cm]
+
+% Worker and Master
+\node[workerbox, minimum width=2.5cm] (w1) {Worker};
+\node[agentbox, right=3cm of w1, minimum width=2.5cm] (m1) {Master};
+
+% Single thick arrow with result
+\draw[dataarrow=garnet, line width=1.5pt] (w1) -- (m1)
+  node[midway, above, font=\small] {result data};
+
+\end{tikzpicture}
+\caption{Direct return: the worker embeds its result in the completion message. Simple and immediate, suited for small results like pass/fail verdicts or status codes.}
+\label{fig:comm_direct}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 2cm]
+
+% Worker and Master on top
+\node[workerbox, minimum width=2.5cm] (w2) {Worker};
+\node[agentbox, right=4cm of w2, minimum width=2.5cm] (m2) {Master};
+
+% Wide file system bar underneath
+\node[rectangle, draw=bk50, fill=bk10, minimum width=8.5cm, minimum height=1cm,
+  below=1.2cm of $(w2.south)!0.5!(m2.south)$, font=\small\sffamily] (file) {File System};
+
+% Worker read/write (solid, bidirectional)
+\draw[dataarrow=garnet, line width=1.5pt] ([xshift=-0.15cm]w2.south) -- ([xshift=-0.15cm]w2.south |- file.north)
+  node[midway, left, font=\small] {write};
+\draw[dataarrow=garnet, line width=1.5pt] ([xshift=0.15cm]w2.south |- file.north) -- ([xshift=0.15cm]w2.south)
+  node[midway, right, font=\small] {read};
+
+% Master read/write (solid, bidirectional)
+\draw[dataarrow=garnet, line width=1.5pt] ([xshift=-0.15cm]m2.south) -- ([xshift=-0.15cm]m2.south |- file.north)
+  node[midway, left, font=\small] {write};
+\draw[dataarrow=garnet, line width=1.5pt] ([xshift=0.15cm]m2.south |- file.north) -- ([xshift=0.15cm]m2.south)
+  node[midway, right, font=\small] {read};
+
+\end{tikzpicture}
+\caption{File-mediated: the worker writes output to a shared file system and sends only a completion signal. The master reads the file when needed. Suited for large artifacts, binaries, or generated source files.}
+\label{fig:comm_file}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 2cm]
+
+% Worker and Master on top
+\node[workerbox, minimum width=2.5cm] (w3) {Worker};
+\node[agentbox, right=4cm of w3, minimum width=2.5cm] (m3) {Master};
+
+% Wide file system bar underneath
+\node[rectangle, draw=bk50, fill=bk10, minimum width=8.5cm, minimum height=1cm,
+  below=1.2cm of $(w3.south)!0.5!(m3.south)$, font=\small\sffamily] (file3) {File System};
+
+% Worker read/write (solid)
+\draw[dataarrow=garnet, line width=1.5pt] ([xshift=-0.15cm]w3.south) -- ([xshift=-0.15cm]w3.south |- file3.north)
+  node[midway, left, font=\small] {write};
+\draw[dataarrow=garnet, line width=1.5pt] ([xshift=0.15cm]w3.south |- file3.north) -- ([xshift=0.15cm]w3.south)
+  node[midway, right, font=\small] {read};
+
+% Master read/write (dashed)
+\draw[dataarrow=atlantic, dashed, line width=1.5pt] ([xshift=-0.15cm]m3.south) -- ([xshift=-0.15cm]m3.south |- file3.north)
+  node[midway, left, font=\small] {write};
+\draw[dataarrow=atlantic, dashed, line width=1.5pt] ([xshift=0.15cm]m3.south |- file3.north) -- ([xshift=0.15cm]m3.south)
+  node[midway, right, font=\small] {read};
+
+% Summary arrow directly to master
+\draw[dataarrow=garnet, line width=1.5pt] (w3) -- (m3)
+  node[midway, above, font=\small] {summary};
+
+\end{tikzpicture}
+\caption{Hybrid (most common): the worker writes detailed artifacts to a shared file system and returns a concise summary directly to the master. Example: a test runner writes full logs to a file but returns ``14 passed, 2 failed.''}
+\label{fig:comm_hybrid}
+\end{figure*}
+
+%% Section 11: Orchestrator Control Models
+\section{Orchestrator Control Models}\label{sec:control}
+
+The orchestrator's control model determines the distribution of intelligence between master and worker. Three models exist along a spectrum from fully centralized to fully distributed decision-making.
+
+In the \textbf{imperative model}, the master agent dictates exact steps for the worker to execute. The orchestrator's prompt might read: "Profile the function \texttt{compute\_similarity}, identify the bottleneck in the inner loop, replace the nested iteration with a vectorized NumPy operation, and verify the output matches the original implementation." Intelligence resides in the master, which has performed the analysis and determined the precise remedy. The worker is a capable executor but makes no strategic decisions. This model offers high predictability and tight control, making it suitable for tasks where the orchestrator has domain expertise and the solution path is well understood. The cost is brittleness: if the prescribed steps encounter unexpected conditions, the worker has no autonomy to adapt.
+
+The \textbf{declarative model} inverts this relationship. The master states only the goal: "Make the function \texttt{compute\_similarity} more efficient." The worker receives this objective and autonomously determines how to achieve it. It might profile the code, analyze algorithmic complexity, explore alternative data structures, or apply compiler optimizations—all without further direction from the master. Intelligence lives in the worker, which must possess both domain expertise and strategic reasoning. This model offers maximum flexibility and can discover solutions the orchestrator never considered. The cost is reduced predictability and control: the master cannot easily constrain the solution space or guarantee particular approaches.
+
+The \textbf{hybrid model}, dominant in practice, blends goal specification with constraints. The orchestrator might instruct: "Optimize the function \texttt{compute\_similarity}. The optimization must pass all existing tests without modification, must not introduce new dependencies, and should target a 2× speedup." This shares intelligence between master and worker. The master encodes domain knowledge and project constraints, while the worker applies technical expertise to find a solution within those bounds. The balance is tunable: more constraints shift control toward the imperative end, fewer constraints toward the declarative end.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.4cm and 0.8cm]
+
+% === LEFT: Imperative ===
+\node[font=\large\bfseries] (imp-title) {Imperative};
+
+% Orchestrator
+\node[agentbox=garnet, below=0.6cm of imp-title, minimum width=3cm] (imp-orch) {Orchestrator};
+
+% Many small workers on same level, centered on orchestrator
+\node[workerbox, below=1.5cm of imp-orch, minimum width=1.4cm, minimum height=0.5cm, font=\scriptsize\sffamily] (iw3) {rewrite};
+\node[workerbox, left=0.3cm of iw3, minimum width=1.4cm, minimum height=0.5cm, font=\scriptsize\sffamily] (iw2) {find bug};
+\node[workerbox, left=0.3cm of iw2, minimum width=1.4cm, minimum height=0.5cm, font=\scriptsize\sffamily] (iw1) {profile};
+\node[workerbox, right=0.3cm of iw3, minimum width=1.4cm, minimum height=0.5cm, font=\scriptsize\sffamily] (iw4) {vectorize};
+\node[workerbox, right=0.3cm of iw4, minimum width=1.4cm, minimum height=0.5cm, font=\scriptsize\sffamily] (iw5) {verify};
+
+% 90-degree bend arrows
+\draw[dataarrow=garnet] (imp-orch.south) -- ++(0,-0.5) -| (iw1.north);
+\draw[dataarrow=garnet] (imp-orch.south) -- ++(0,-0.5) -| (iw2.north);
+\draw[dataarrow=garnet] (imp-orch.south) -- ++(0,-0.5) -| (iw3.north);
+\draw[dataarrow=garnet] (imp-orch.south) -- ++(0,-0.5) -| (iw4.north);
+\draw[dataarrow=garnet] (imp-orch.south) -- ++(0,-0.5) -| (iw5.north);
+
+% Small arrows between workers showing sequential dependency
+\draw[dataarrow=bk50, thin] (iw1.east) -- (iw2.west);
+\draw[dataarrow=bk50, thin] (iw2.east) -- (iw3.west);
+\draw[dataarrow=bk50, thin] (iw3.east) -- (iw4.west);
+\draw[dataarrow=bk50, thin] (iw4.east) -- (iw5.west);
+
+% Label
+\node[labelnode, below=0.3cm of iw3, font=\footnotesize, align=center] {many small, cheap workers\\one task each};
+
+% === RIGHT: Declarative ===
+\node[font=\large\bfseries, right=7cm of imp-title] (dec-title) {Declarative};
+
+% Orchestrator (same size)
+\node[agentbox=garnet, below=0.6cm of dec-title, minimum width=3cm] (dec-orch) {Orchestrator};
+
+% One smart worker (same size as orchestrator)
+\node[agentbox=atlantic, below=1.5cm of dec-orch, minimum width=3cm] (dw1) {Worker};
+
+\draw[dataarrow=garnet] (dec-orch) -- (dw1)
+  node[midway, right, font=\footnotesize] {``optimize f()''};
+
+% Label
+\node[labelnode, below=0.3cm of dw1, font=\footnotesize, align=center] {one capable, expensive worker\\autonomous reasoning};
+
+% === Separator ===
+\draw[dashed, bk30, thick] ($(imp-title.east)!0.5!(dec-title.west)$) ++(0,0.3) -- ++(0,-5.5);
+
+\end{tikzpicture}
+\caption{Imperative vs.\ declarative control models. With imperative control, the orchestrator decomposes work into micro-tasks and delegates each to a small, inexpensive worker. With declarative control, the orchestrator states the goal and a single capable worker reasons autonomously. The orchestrator's intelligence remains constant; what changes is the granularity of delegation.}
+\label{fig:control_models}
+\end{figure*}
+
+Table~\ref{tab:control_comparison} summarizes the tradeoffs. Imperative control offers predictability at the cost of flexibility. Declarative control enables creative problem-solving but sacrifices determinism. Hybrid control, by allowing the orchestrator to tune the constraint set, provides a practical middle ground for most production agent systems.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of orchestrator control models.}
+\label{tab:control_comparison}
+\begin{tabularx}{\columnwidth}{lXXX}
+\toprule
+\textbf{Property} & \textbf{Imperative} & \textbf{Declarative} & \textbf{Hybrid} \\
+\midrule
+Intelligence location & Master & Worker & Shared \\
+Message size & Large & Small & Medium \\
+Worker autonomy & Low & High & Medium \\
+Predictability & High & Low & Medium \\
+Flexibility & Low & High & Medium \\
+Best use case & Well-understood tasks with known solutions & Open-ended problems requiring creativity & Constrained optimization with clear requirements \\
+\bottomrule
+\end{tabularx}
+\end{table}

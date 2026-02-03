@@ -1,0 +1,472 @@
+%% Sections 26--31: Common Patterns in Multi-Agent Systems
+%% This file contains \section commands, figures, and tables for \input into main document
+
+\section{The Pipeline Pattern}\label{sec:pipeline}
+
+The pipeline pattern organizes computation as a strictly sequential chain of transformations.
+Each stage receives input from the previous stage, performs a specific transformation, and passes the result to the next stage.
+Stages execute one after another---there is no parallelism within the pipeline itself.
+The orchestrator's role is minimal: it assembles the chain, initiates the first stage, and monitors for failures.
+
+This pattern offers several advantages.
+The sequential structure makes pipelines simple to reason about and debug---each intermediate output can be inspected in isolation.
+Pipelines naturally fit transformation workflows where each step builds on the previous result: data ingestion, parsing, analysis, formatting, and output.
+The clear separation of concerns allows each stage to be developed, tested, and maintained independently.
+
+However, pipelines have inherent limitations.
+Total latency is the sum of all stage latencies---no overlap is possible.
+A failure at any stage blocks the entire pipeline, requiring careful error handling at each boundary.
+For tasks with independent subtasks, the pipeline's strict sequencing wastes potential parallelism.
+Despite these constraints, pipelines remain a fundamental building block for workflows that require ordered transformations.
+
+Figure~\ref{fig:patterns_pipe_fan} (top) illustrates a five-stage pipeline for document processing.
+Raw input enters the Ingest stage, producing structured data for Parse, which feeds analyzed content to Analyze, then formatted output to Format, and finally the polished result to Output.
+The orchestrator establishes the chain and monitors each stage, but the data flows strictly left-to-right through the sequence.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=1.2cm and 1.5cm,
+  every node/.style={font=\small}
+]
+
+% TOP HALF: Pipeline Pattern
+\node[agentbox=garnet, minimum width=1.2cm] (orch) {Orchestrator};
+\node[agentbox=garnet, below=1.5cm of orch, xshift=-4cm, minimum width=1.2cm] (ingest) {Ingest};
+\node[agentbox=atlantic, right=of ingest, minimum width=1.2cm] (parse) {Parse};
+\node[agentbox=congaree, right=of parse, minimum width=1.2cm] (analyze) {Analyze};
+\node[agentbox=horseshoe, right=of analyze, minimum width=1.2cm] (format) {Format};
+\node[agentbox=bk70, right=of format, minimum width=1.2cm] (output) {Output};
+
+% Pipeline flow with data labels
+\draw[dataarrow] (ingest) -- node[labelnode, above] {raw} (parse);
+\draw[dataarrow] (parse) -- node[labelnode, above] {structured} (analyze);
+\draw[dataarrow] (analyze) -- node[labelnode, above] {analyzed} (format);
+\draw[dataarrow] (format) -- node[labelnode, above] {formatted} (output);
+
+% Orchestrator coordination (thin dashed)
+\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (ingest.north);
+\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (parse.north);
+\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (analyze.north);
+\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (format.north);
+\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (output.north);
+
+% Label
+\node[left=0.2cm of ingest, font=\footnotesize\bfseries] {Pipeline:};
+
+% SEPARATOR
+\draw[dashed, bk50, thick] (-5.5,-3.5) -- (5.5,-3.5);
+
+% BOTTOM HALF: Fan-Out / Fan-In Pattern
+\node[agentbox=garnet, below=3.5cm of orch, minimum width=1.2cm] (orch2) {Orchestrator};
+\node[agentbox=garnet, below left=1.5cm and 2cm of orch2, minimum width=1.2cm] (planner) {Planner};
+
+\node[workerbox, below=1.5cm of planner, yshift=0.8cm] (w1) {Worker 1};
+\node[workerbox, below=0.3cm of w1] (w2) {Worker 2};
+\node[workerbox, below=0.3cm of w2] (w3) {Worker 3};
+
+\node[agentbox=horseshoe, below right=1.5cm and 2cm of orch2, minimum width=1.2cm] (synth) {Synthesizer};
+\node[agentbox=congaree, right=1.5cm of synth, minimum width=1.2cm] (result) {Result};
+
+% Fan-out arrows
+\draw[dataarrow] (planner.east) -- ++(0.5,0) |- (w1.west);
+\draw[dataarrow] (planner.east) -- ++(0.5,0) |- (w2.west);
+\draw[dataarrow] (planner.east) -- ++(0.5,0) |- (w3.west);
+
+% Fan-in arrows
+\draw[dataarrow] (w1.east) -| ([xshift=-0.5cm]synth.west) -- (synth.west);
+\draw[dataarrow] (w2.east) -| ([xshift=-0.5cm]synth.west);
+\draw[dataarrow] (w3.east) -| ([xshift=-0.5cm]synth.west);
+
+% Final result
+\draw[dataarrow] (synth) -- (result);
+
+% Orchestrator coordination
+\draw[dashed, garnet, very thin, ->] (orch2.south) |- (planner.north);
+\draw[dashed, garnet, very thin, ->] (orch2.south) |- (synth.north);
+
+% Label
+\node[left=0.2cm of planner, font=\footnotesize\bfseries] {Fan-Out/Fan-In:};
+
+\end{tikzpicture}
+\caption{%
+  \textbf{Top:} The pipeline pattern processes data through a sequential chain of transformations.
+  Each stage performs a specific operation and forwards the result to the next stage.
+  The orchestrator coordinates the chain but does not participate in data transformation.
+  \textbf{Bottom:} The fan-out/fan-in pattern distributes independent subtasks to parallel workers.
+  The planner decomposes the problem, workers execute in parallel, and the synthesizer merges results.
+}
+\label{fig:patterns_pipe_fan}
+\end{figure*}
+
+\section{The Fan-Out/Fan-In Pattern}\label{sec:fanout}
+
+The fan-out/fan-in pattern exploits task parallelism by decomposing work into independent subtasks, executing them concurrently, and merging the results.
+A planner examines the overall task, identifies subtasks that can proceed without coordination, and distributes them to a set of parallel workers.
+Each worker executes its subtask independently---no inter-worker communication is required.
+A synthesizer collects all worker outputs and combines them into a unified result.
+
+This pattern is ubiquitous in tasks with natural parallelism.
+Literature reviews fan out queries to multiple databases or search engines, then synthesize the combined bibliography.
+Code reviews fan out file-level analyses to separate workers, then merge findings.
+Testing frameworks fan out test suites to parallel executors, then aggregate pass/fail results.
+The key enabling assumption is subtask independence: each worker must be able to complete its work without information from other workers.
+
+The planner's decomposition step is critical.
+If subtasks have hidden dependencies---shared state, ordering constraints, or required coordination---results may be inconsistent or incomplete.
+Conversely, correct decomposition yields significant speedup: total latency becomes the maximum worker latency rather than the sum of all subtask latencies.
+The pattern also provides natural fault tolerance: if a worker fails, the orchestrator can retry that subtask without affecting other workers.
+
+Figure~\ref{fig:patterns_pipe_fan} (bottom) shows a fan-out/fan-in workflow.
+The planner distributes three subtasks to three workers operating in parallel.
+Each worker independently completes its assignment and returns results to the synthesizer, which merges them into a final output.
+The orchestrator monitors both planning and synthesis but does not participate in subtask execution.
+
+\section{The Master-Worker Pool Pattern}\label{sec:master_worker}
+
+The master-worker pool pattern manages large-scale batch processing through a centralized task queue and a pool of interchangeable workers.
+A master agent maintains the queue, adding tasks as they arrive or as prior results generate new work.
+Workers pull tasks from the queue, execute them, return results to the master, and immediately request the next task.
+Workers are stateless and interchangeable---if one worker fails, another can retry the same task.
+The master tracks completion and decides when the queue is empty or a stopping condition is met.
+
+This pattern excels at throughput-oriented workflows.
+Analyzing thousands of log files, running extensive test suites, processing batches of data records, or generating multiple variations of a design all fit naturally into the master-worker model.
+The pool size can scale dynamically: add workers to increase throughput, remove workers when load decreases.
+The master can implement sophisticated scheduling policies: prioritize high-value tasks, load-balance across workers, or retry failed tasks with backoff.
+
+The iterative nature distinguishes this pattern from simple fan-out.
+The master may add new tasks to the queue based on results from completed tasks, creating a feedback loop.
+For example, a web crawler's master enqueues initial seed URLs; as workers fetch pages, they report discovered links, which the master adds to the queue.
+This dynamic task generation continues until no new work is discovered or a resource limit is reached.
+
+Figure~\ref{fig:patterns_pool_feedback} (top) illustrates the master-worker pool.
+The master enqueues tasks \texttt{T1}, \texttt{T2}, \texttt{T3}, \texttt{T4}, and so on into a central queue.
+Four workers dequeue tasks, execute them, and return results to the master.
+The master can dynamically add new tasks based on those results, creating an iterative workflow.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=1.2cm and 1.5cm,
+  every node/.style={font=\small}
+]
+
+% TOP HALF: Master-Worker Pool Pattern
+\node[agentbox=garnet, minimum width=1.2cm] (master) {Master};
+\node[draw=bk30, fill=bk10, below=1.2cm of master, minimum width=3.5cm, minimum height=0.8cm, font=\footnotesize] (queue) {Task Queue: [T1, T2, T3, T4, ...]};
+
+\node[workerbox, below left=1.5cm and 1cm of queue] (w1) {W1};
+\node[workerbox, below=1.5cm of queue, xshift=-0.5cm] (w2) {W2};
+\node[workerbox, below=1.5cm of queue, xshift=0.5cm] (w3) {W3};
+\node[workerbox, below right=1.5cm and 1cm of queue] (w4) {W4};
+
+% Enqueue
+\draw[dataarrow] (master.south) -- node[labelnode, right] {enqueue} (queue.north);
+
+% Dequeue
+\draw[dataarrow] (queue.south) |- (w1.north);
+\draw[dataarrow] (queue.south) |- (w2.north);
+\draw[dataarrow] (queue.south) |- (w3.north);
+\draw[dataarrow] (queue.south) |- (w4.north);
+
+% Results back to master (dashed)
+\draw[dashed, atlantic, ->] (w1.north) -- ++(0,0.4) -| ([xshift=-0.8cm]master.south) -- (master.south);
+\draw[dashed, atlantic, ->] (w2.north) -- ++(0,0.4) -| ([xshift=-0.3cm]master.south);
+\draw[dashed, atlantic, ->] (w3.north) -- ++(0,0.4) -| ([xshift=0.3cm]master.south);
+\draw[dashed, atlantic, ->] (w4.north) -- ++(0,0.4) -| ([xshift=0.8cm]master.south);
+
+% Loop arrow on master
+\draw[->, garnet, thick] (master.east) -- ++(0.5,0) arc[start angle=0, end angle=270, radius=0.4cm] -- ([xshift=0.5cm]master.south east) node[labelnode, right, xshift=0.1cm, yshift=0.2cm] {add new tasks};
+
+% Label
+\node[left=1.5cm of master, font=\footnotesize\bfseries] {Master-Worker Pool:};
+
+% SEPARATOR
+\draw[dashed, bk50, thick] (-5.5,-5.5) -- (5.5,-5.5);
+
+% BOTTOM HALF: Feedback Loop Pattern
+\node[agentbox=garnet, below=4.5cm of master, minimum width=1.2cm] (planner2) {Planner};
+\node[agentbox=atlantic, right=2cm of planner2, minimum width=1.2cm] (executor) {Executor};
+\node[agentbox=horseshoe, right=2cm of executor, minimum width=1.2cm] (evaluator) {Evaluator};
+
+\node[agentbox=congaree, above right=0.5cm and 1cm of evaluator, minimum width=1.2cm] (done) {Done};
+
+% Forward flow
+\draw[dataarrow] (planner2) -- node[labelnode, above] {instructions} (executor);
+\draw[dataarrow] (executor) -- node[labelnode, above] {result} (evaluator);
+
+% Pass branch
+\draw[dataarrow] (evaluator.north) |- node[labelnode, above right, xshift=0.1cm, yshift=-0.1cm] {pass} (done.west);
+
+% Fail branch (feedback loop)
+\draw[dataarrow=rose, dashed] (evaluator.south) -- ++(0,-0.8) -| node[labelnode, below, xshift=2cm] {fail: feedback + deficiencies} (planner2.south);
+
+% Iteration label
+\node[labelnode, below=0.5cm of planner2, font=\footnotesize\itshape] {max $N$ iterations};
+
+% Label
+\node[left=0.2cm of planner2, font=\footnotesize\bfseries] {Feedback Loop:};
+
+\end{tikzpicture}
+\caption{%
+  \textbf{Top:} The master-worker pool pattern uses a centralized task queue and stateless workers.
+  The master enqueues tasks, workers dequeue and execute them, and results flow back to the master.
+  The master can add new tasks based on results, enabling iterative workflows.
+  \textbf{Bottom:} The feedback loop pattern refines results through iterative execution.
+  The planner issues instructions, the executor produces a result, the evaluator judges quality, and failures trigger revised planning with feedback about deficiencies.
+}
+\label{fig:patterns_pool_feedback}
+\end{figure*}
+
+\section{The Feedback Loop Pattern}\label{sec:feedback}
+
+The feedback loop pattern addresses tasks where initial attempts rarely achieve acceptable quality.
+Results from execution flow back to a planning agent for iterative refinement.
+The planner issues instructions, an executor produces a result, an evaluator judges quality, and failures trigger revised planning informed by specific deficiencies.
+This cycle continues until quality is sufficient or a maximum iteration count is reached.
+
+Bidirectional communication between planner and executor distinguishes this pattern from simple retry logic.
+The evaluator does not merely return pass/fail---it provides detailed feedback about what went wrong, which aspects need improvement, and which constraints were violated.
+The planner uses this feedback to adjust its next set of instructions, focusing on the identified deficiencies rather than starting from scratch.
+
+Common applications include code generation (write code, run tests, fix failures, repeat), document writing (draft text, review for clarity and accuracy, revise weak sections), and optimization (measure performance, identify bottlenecks, adjust parameters, re-measure).
+In each case, the first attempt provides valuable information that guides subsequent refinement.
+
+The feedback loop's iterative nature has cost implications.
+Each iteration consumes tokens for planning, execution, and evaluation.
+Setting appropriate stopping conditions is critical: too few iterations may yield poor quality, while too many waste resources on diminishing returns.
+Effective evaluators provide actionable feedback that enables rapid convergence, reducing the total iteration count needed.
+
+Figure~\ref{fig:patterns_pool_feedback} (bottom) shows the feedback loop structure.
+The planner sends instructions to the executor, which produces a result for the evaluator.
+If the evaluator judges the result acceptable, the workflow terminates.
+Otherwise, the evaluator returns detailed feedback to the planner, which incorporates those deficiencies into revised instructions for the next iteration.
+
+\section{Combining Patterns}\label{sec:combining}
+
+Real systems rarely use a single pattern in isolation.
+Complex workflows compose multiple patterns, each handling a phase suited to its strengths.
+A research pipeline might use fan-out for literature search, a sequential pipeline for data cleaning, a master-worker pool for running experiments, and feedback loops for manuscript writing.
+The orchestrator at the top selects and coordinates the appropriate pattern for each phase based on the task structure.
+
+The key design principle is matching the pattern to the task's inherent characteristics.
+Tasks with independent subtasks benefit from fan-out parallelism.
+Sequential transformations where each step depends on the previous result require a pipeline.
+Iterative refinement toward a quality target needs a feedback loop.
+Large-scale batch processing with uniform work items calls for a master-worker pool.
+By analyzing task dependencies, ordering constraints, quality requirements, and scale, designers can select the pattern that best exploits the task structure.
+
+Composition requires careful boundary management.
+Outputs from one pattern become inputs to the next, requiring compatible data formats and error-handling conventions.
+The top-level orchestrator manages these transitions, ensuring that failures in one pattern do not silently propagate to dependent patterns.
+State management becomes critical: which pattern owns intermediate results, how are they cached or persisted, and who is responsible for cleanup.
+
+Hybrid workflows also enable adaptive execution.
+The orchestrator can monitor pattern performance and switch strategies dynamically.
+A fan-out phase that discovers subtask dependencies might transition to a pipeline.
+A pipeline stage that encounters a large batch might spawn a master-worker pool for that stage alone.
+This flexibility allows systems to respond to workload characteristics discovered at runtime.
+
+Figure~\ref{fig:composite_workflow} illustrates a composite research workflow.
+The top-level research orchestrator coordinates four phases, each using a different pattern.
+The literature phase fans out queries to multiple sources and merges results.
+The data phase pipelines ingestion, cleaning, and validation.
+The experiment phase uses a master-worker pool to run many trials in parallel.
+The writing phase employs a feedback loop to iteratively draft and revise the manuscript.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.8cm and 1.5cm,
+  every node/.style={font=\footnotesize},
+  scale=0.9, transform shape
+]
+
+% Top orchestrator (wide)
+\node[agentbox=garnet, minimum width=8cm, minimum height=0.6cm] (top) {Research Orchestrator};
+
+% Branch 1: Literature (Fan-Out)
+\node[below left=1.5cm and 3cm of top, font=\footnotesize] (lit_label) {\textbf{Literature (Fan-Out)}};
+\node[agentbox=garnet, below=0.3cm of lit_label, minimum width=0.8cm, minimum height=0.5cm] (lit_plan) {Plan};
+\node[workerbox, below left=0.6cm and 0.3cm of lit_plan, minimum width=0.6cm, minimum height=0.4cm] (w1) {W1};
+\node[workerbox, below=0.6cm of lit_plan, minimum width=0.6cm, minimum height=0.4cm] (w2) {W2};
+\node[workerbox, below right=0.6cm and 0.3cm of lit_plan, minimum width=0.6cm, minimum height=0.4cm] (w3) {W3};
+\node[agentbox=horseshoe, below=1.8cm of lit_plan, minimum width=0.8cm, minimum height=0.5cm] (merge) {Merge};
+
+\draw[dataarrow, thin] (lit_plan) -- (w1);
+\draw[dataarrow, thin] (lit_plan) -- (w2);
+\draw[dataarrow, thin] (lit_plan) -- (w3);
+\draw[dataarrow, thin] (w1) |- (merge);
+\draw[dataarrow, thin] (w2) -- (merge);
+\draw[dataarrow, thin] (w3) |- (merge);
+\draw[dashed, garnet, very thin, ->] (top.south) |- (lit_plan.north);
+
+% Branch 2: Data (Pipeline)
+\node[below=1.5cm of top, xshift=-0.5cm, font=\footnotesize] (data_label) {\textbf{Data (Pipeline)}};
+\node[agentbox=atlantic, below=0.3cm of data_label, minimum width=0.7cm, minimum height=0.5cm] (d1) {Ingest};
+\node[agentbox=congaree, right=0.4cm of d1, minimum width=0.7cm, minimum height=0.5cm] (d2) {Clean};
+\node[agentbox=horseshoe, right=0.4cm of d2, minimum width=0.7cm, minimum height=0.5cm] (d3) {Valid};
+
+\draw[dataarrow, thin] (d1) -- (d2);
+\draw[dataarrow, thin] (d2) -- (d3);
+\draw[dashed, garnet, very thin, ->] (top.south) |- (d1.north);
+
+% Branch 3: Experiments (Master-Worker)
+\node[below right=1.5cm and 0.5cm of top, font=\footnotesize] (exp_label) {\textbf{Experiments (Master-Worker)}};
+\node[agentbox=garnet, below=0.3cm of exp_label, minimum width=0.8cm, minimum height=0.5cm] (exp_master) {Master};
+\node[workerbox, below left=0.6cm and 0.2cm of exp_master, minimum width=0.6cm, minimum height=0.4cm] (e1) {W1};
+\node[workerbox, below right=0.6cm and 0.2cm of exp_master, minimum width=0.6cm, minimum height=0.4cm] (e2) {W2};
+
+\draw[dataarrow, thin] (exp_master) -- (e1);
+\draw[dataarrow, thin] (exp_master) -- (e2);
+\draw[dashed, atlantic, thin, ->] (e1) -- (exp_master);
+\draw[dashed, atlantic, thin, ->] (e2) -- (exp_master);
+\draw[dashed, garnet, very thin, ->] (top.south) |- (exp_master.north);
+
+% Branch 4: Writing (Feedback)
+\node[below right=1.5cm and 3cm of top, font=\footnotesize] (write_label) {\textbf{Writing (Feedback)}};
+\node[agentbox=atlantic, below=0.3cm of write_label, minimum width=0.8cm, minimum height=0.5cm] (writer) {Writer};
+
+\draw[->, horseshoe, thick] (writer.east) -- ++(0.4,0) arc[start angle=0, end angle=-270, radius=0.4cm] -- (writer.south east);
+\node[labelnode, right=0.5cm of writer, font=\tiny] {iterate};
+\draw[dashed, garnet, very thin, ->] (top.south) |- (writer.north);
+
+\end{tikzpicture}
+\caption{%
+  A composite research workflow combines four patterns under a single orchestrator.
+  The literature phase uses fan-out to query multiple sources in parallel.
+  The data phase pipelines ingestion, cleaning, and validation steps.
+  The experiment phase employs a master-worker pool for high-throughput execution.
+  The writing phase uses a feedback loop to iteratively refine the manuscript.
+  Each pattern handles the phase best suited to its strengths.
+}
+\label{fig:composite_workflow}
+\end{figure*}
+
+\section{Pattern Selection Guide}\label{sec:selection}
+
+Choosing the right pattern---or combination of patterns---requires analyzing the task structure along several dimensions.
+Are subtasks independent, or does each depend on results from others?
+Must steps execute in a specific order, or can they run concurrently?
+Is iteration needed to achieve acceptable quality?
+Is the workload large and uniform, or small and varied?
+
+Independent subtasks with no ordering constraints favor fan-out/fan-in parallelism.
+If subtasks must execute sequentially---each transforming the output of the previous stage---a pipeline is appropriate.
+Tasks requiring iterative refinement call for a feedback loop, where each iteration incorporates lessons from prior attempts.
+Large-scale batch processing with uniform work items benefits from a master-worker pool, which maximizes throughput through dynamic load balancing.
+
+Table~\ref{tab:selection_guide} summarizes these considerations across seven dimensions.
+Task independence indicates whether subtasks can execute without coordination.
+Iteration captures whether quality improvement requires multiple passes.
+Scale reflects the typical number of subtasks: pipelines handle a few stages, fan-out manages moderate parallelism, and master-worker pools scale to hundreds of tasks.
+Quality emphasis distinguishes patterns optimized for throughput (master-worker) from those focused on refinement (feedback loop).
+
+Token cost varies by pattern.
+Pipelines incur linear cost proportional to the number of stages.
+Fan-out patterns pay for subtasks in parallel but avoid duplication.
+Master-worker pools consume tokens proportional to the total workload.
+Feedback loops multiply costs by the number of iterations, making early convergence critical.
+
+Complexity reflects both implementation difficulty and cognitive load during debugging.
+Pipelines are simplest to implement and reason about.
+Fan-out and master-worker patterns add coordination overhead.
+Feedback loops require careful evaluator design and stopping logic.
+
+Latency characteristics also differ.
+Pipeline latency is the sum of all stage latencies.
+Fan-out latency is determined by the slowest worker.
+Master-worker pools batch tasks, trading some latency for throughput.
+Feedback loops multiply latency by iteration count.
+
+The final row, ``Best for,'' summarizes canonical use cases.
+Pipelines excel at sequential transformations.
+Fan-out handles independent parallel work.
+Master-worker pools optimize batch processing.
+Feedback loops enable iterative refinement toward quality targets.
+
+By evaluating a task against these dimensions, designers can systematically select the pattern that best matches the task structure.
+
+\begin{table*}[t]
+\centering
+\caption{Pattern selection guide based on task characteristics.}
+\label{tab:selection_guide}
+\small
+\begin{tabularx}{\textwidth}{l X X X X}
+\toprule
+\textbf{Criterion} & \textbf{Pipeline} & \textbf{Fan-Out/Fan-In} & \textbf{Master-Worker} & \textbf{Feedback Loop} \\
+\midrule
+Task independence & Low & High & High & Low \\
+Iteration needed & No & No & Optional & Yes \\
+Scale (subtasks) & 3--5 & 3--20 & 10--100+ & 2--5 \\
+Quality emphasis & Moderate & Moderate & Throughput & High \\
+Token cost & Linear & Parallel & High & Moderate \\
+Complexity & Low & Medium & Medium & Medium \\
+Latency & Sum of stages & Max of workers & Batched & Iterations $\times$ stage \\
+Best for & Transforms & Independent work & Batch processing & Refinement \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+Figure~\ref{fig:taxonomy} places these patterns within a broader taxonomy of agent architectures.
+At the top level, architectures divide into single-agent and multi-agent categories.
+Single-agent systems may operate in streaming, batch, or parallel modes, but they lack the coordination mechanisms that define multi-agent patterns.
+
+Multi-agent systems further divide into flat and hierarchical organizations.
+Flat architectures distribute control: no agent has authority over others.
+The pipeline and fan-out/fan-in patterns are flat---the orchestrator coordinates but does not command.
+Hierarchical architectures establish explicit control relationships.
+Master-worker pools and feedback loops are hierarchical---the master or planner directs subordinate agents.
+
+This taxonomy provides a roadmap for navigating design space.
+Starting from the task characteristics, designers first decide single-agent versus multi-agent, then flat versus hierarchical, and finally select the specific pattern that best fits the task structure.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  level distance=1.5cm,
+  sibling distance=3cm,
+  edge from parent/.style={draw, garnet, thick, ->},
+  every node/.style={font=\small}
+]
+
+\node[agentbox=garnet, minimum width=2.5cm] {Agent Architectures}
+  child {
+    node[agentbox=atlantic, minimum width=2cm] {Single-Agent}
+    child {
+      node[font=\footnotesize, text width=2.5cm, align=center] {Streaming / Batch / Parallel}
+      edge from parent[draw=none]
+    }
+  }
+  child {
+    node[agentbox=atlantic, minimum width=2cm] {Multi-Agent}
+    child {
+      node[agentbox=congaree, minimum width=1.5cm] {Flat}
+      child {
+        node[workerbox, minimum width=1.3cm] {Pipeline}
+      }
+      child {
+        node[workerbox, minimum width=1.3cm, text width=1.5cm, align=center] {Fan-Out/\\Fan-In}
+      }
+    }
+    child {
+      node[agentbox=congaree, minimum width=1.5cm] {Hierarchical}
+      child {
+        node[workerbox, minimum width=1.3cm, text width=1.5cm, align=center] {Master-\\Worker}
+      }
+      child {
+        node[workerbox, minimum width=1.3cm, text width=1.5cm, align=center] {Feedback\\Loop}
+      }
+    }
+  };
+
+\end{tikzpicture}
+\caption{%
+  A taxonomy of agent architectures.
+  Single-agent systems may operate in streaming, batch, or parallel modes but lack multi-agent coordination.
+  Multi-agent systems divide into flat (pipeline, fan-out/fan-in) and hierarchical (master-worker, feedback loop) organizations.
+  This taxonomy provides a structured approach to pattern selection based on control flow and task structure.
+}
+\label{fig:taxonomy}
+\end{figure*}

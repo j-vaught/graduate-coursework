@@ -1,0 +1,152 @@
+%% sec_01_03_foundation.tex
+%% Sections 1-3: What is an LLM? / AI-Assisted Coding / AI Coding Agent
+
+\section{What Is an LLM?}\label{sec:llm}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.5cm and 2.5cm]
+    \node[agentbox=atlantic] (textin1) {Text Input};
+    \node[agentbox, right=of textin1, minimum width=2.5cm, minimum height=1.8cm] (llm1) {\large LLM};
+    \node[agentbox=congaree, right=of llm1] (textout1) {Text Output};
+
+    % System prompt above LLM
+    \node[sysprompt, above=0.8cm of llm1, minimum width=2.8cm] (sysprompt1) {System Prompt};
+    \draw[-latex, rose, thick] (sysprompt1) -- (llm1);
+
+    % Arrows
+    \draw[-latex, thick] (textin1) -- (llm1);
+    \draw[-latex, thick] (llm1) -- (textout1);
+\end{tikzpicture}
+\caption{The fundamental LLM interface: text enters, the model processes it under constraints defined by an invisible system prompt, and text emerges. The model retains no information between conversations.}
+\label{fig:llm_io}
+\end{figure*}
+
+Before understanding AI coding agents, we must understand the engine that powers them: the large language model, or LLM. Think of an LLM as a person who can talk but has no hands to manipulate objects, no persistent memory beyond the current conversation, and---usually---no eyes to see the world. This person has read vast amounts of text and learned patterns in language, allowing them to predict what words should come next in any conversation. When you send a message, the LLM generates a response based on everything said so far in the thread, then forgets the interaction the moment it ends.
+
+The lack of memory is worth emphasizing because it contradicts many users' intuitions. When you close your chat with an LLM and open a new conversation tomorrow, the model has no recollection of what you discussed previously. There is no learning, no accumulation of experience, no relationship building. Each conversation is a blank slate. The LLM does not remember your name, your preferences, or the bug you fixed together last week. If the chatbot seems to remember you across sessions, that is the work of external systems maintaining conversation logs and feeding them back as context, not the model itself retaining information. This statelessness has profound implications for agents: without external memory systems, an agent cannot improve its performance on your specific codebase over time unless explicitly given access to logs, documentation, or other persistent records as input.
+
+LLMs vary widely in capability. Some are small and fast but produce simple, sometimes unreliable output---like asking a novice for advice. Others are large and sophisticated, capable of nuanced reasoning and complex problem-solving, though they may take longer to respond. The key insight is that an LLM is fundamentally a prediction engine: given a sequence of text, it predicts the most likely continuation.
+
+This size-capability tradeoff is central to practical deployment. A small model might have a few billion parameters and run efficiently on consumer hardware or respond in milliseconds via cloud APIs. Such models excel at simple tasks like code autocompletion, grammar correction, or answering factual questions. But ask them to debug a subtle concurrency issue or reason about trade-offs in system architecture, and their responses become shallow or incorrect. Conversely, a large model with hundreds of billions of parameters demonstrates impressive reasoning abilities---it can follow multi-step logic, recognize edge cases, and produce creative solutions. However, these capabilities come at a cost: substantial computational resources, higher API fees, and slower response times measured in seconds rather than milliseconds. Choosing the right model for a given task requires balancing accuracy, latency, and cost. In agent systems, where the LLM may be invoked hundreds of times to complete a single user request, these trade-offs compound quickly.
+
+Some modern LLMs have gained ``eyes'' through multimodal capabilities, meaning they can accept images as input alongside text. This allows them to describe pictures, extract information from diagrams, or analyze visual data. However, the output remains purely textual. The LLM cannot draw, edit pixels, or manipulate files---it can only describe or reason about what it sees.
+
+A critical but invisible component shapes every LLM interaction: the system prompt. Before you type a single word, the LLM has already received instructions from the system designer. This prompt might say ``you are a helpful assistant'' or ``you are a Python expert who writes concise code.'' The system prompt establishes the LLM's persona, constraints, and priorities. Users never see this text, but it influences every response -- often to my chagrin. A playful chatbot and a formal legal assistant may use the same underlying model, differing only in their system prompts.
+
+To illustrate the power of system prompts, consider two interactions with the same LLM. First, with a system prompt reading ``You are a creative writing assistant who favors vivid imagery and emotional depth,'' a user asks, ``Describe a rainy day.'' The model might respond, ``The sky wept gray tears onto the cobblestones, each droplet a tiny percussion note in the city's melancholy symphony.'' Now give the same model a different system prompt: ``You are a technical weather analyst. Provide precise, factual descriptions.'' The identical user query yields, ``Precipitation of approximately 5 mm per hour with overcast cloud cover at 800 meters altitude, temperature 12 degrees Celsius, relative humidity 87 percent.'' Same model, same question, radically different output. The system prompt is not a minor detail---it is the lens through which the model interprets every user request. In agent systems, the system prompt often includes detailed instructions about when to call tools, how to format responses, and what safety checks to perform. A poorly crafted system prompt can render an otherwise capable model nearly useless for agent tasks.
+
+We are simplifying dramatically here but for understanding agents, the essential picture suffices -- structured text goes in, the LLM processes it according to learned patterns and its system prompt, and structured text comes out.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.5cm and 2.5cm]
+    \node[agentbox=atlantic] (image2) {Image};
+    \node[agentbox=atlantic, below=0.5cm of image2] (textin2) {Text Input};
+    \node[agentbox, right=of textin2, minimum width=2.5cm, minimum height=1.8cm] (llm2) {\large LLM};
+    \node[agentbox=congaree, right=of llm2] (textout2) {Text Output};
+
+    % System prompt above LLM
+    \node[sysprompt, above=0.8cm of llm2, minimum width=2.8cm] (sysprompt2) {System Prompt};
+    \draw[-latex, rose, thick] (sysprompt2) -- (llm2);
+
+    % Arrows
+    \draw[-latex, thick] (image2) -- (llm2);
+    \draw[-latex, thick] (textin2) -- (llm2);
+    \draw[-latex, thick] (llm2) -- (textout2);
+\end{tikzpicture}
+\caption{A multimodal LLM accepts images alongside text, but output remains purely textual. The model can describe, analyze, or reason about visual input---it cannot produce images.}
+\label{fig:llm_multimodal}
+\end{figure*}
+
+\section{What Is AI-Assisted Coding?}\label{sec:autocomplete}
+
+The simplest application of an LLM to software development is code autocompletion. Here, the LLM is given a system prompt that instructs it to act as a code completion engine: ``You are an expert programmer. Given partial code, predict the most likely continuation.'' The user types code into an editor, and whenever they pause, the LLM receives the text written so far and predicts what should come next. The prediction appears as gray ``ghost text'' that the user can accept with a keystroke or ignore by continuing to type.
+
+This is a relatively narrow task. The LLM often has no access to other files in the project, cannot read documentation, and cannot execute or test the code it suggests. It relies entirely on patterns learned during training and the context provided in the current file. If the user has defined a function \texttt{calculate\_area} earlier in the file, the LLM may predict a call to that function when it seems appropriate. But the LLM is not searching the codebase or verifying correctness---it is simply continuing the established pattern.
+
+Autocomplete represents the minimal intervention of AI in the coding process. The LLM does not take actions, make decisions, or interact with the development environment. It offers a single prediction, and the human decides whether to accept it. This simplicity is both a strength and a limitation. Autocomplete is fast, unobtrusive, and requires no additional infrastructure. But it cannot refactor code across multiple files, fetch API documentation, or debug a runtime error. For those tasks, we need something more capable: an agent.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm]
+    % LEFT PANEL: Before
+    \node[codebox] (before) {%
+        \textcolor{horseshoe}{\texttt{def main():}}\\
+        \textcolor{horseshoe}{\texttt{~~~~print("Hel}}\textcolor{bk50}{|}%
+    };
+    \node[above=0.3cm of before, font=\bfseries] {Before};
+
+    % RIGHT PANEL: After
+    \node[codebox, right=3cm of before] (after) {%
+        \textcolor{horseshoe}{\texttt{def main():}}\\
+        \textcolor{horseshoe}{\texttt{~~~~print("Hel}}\textcolor{atlantic!60!white}{\texttt{lo, World!")}}\textcolor{bk50}{|}%
+    };
+    \node[above=0.3cm of after, font=\bfseries] {After};
+
+    % Legend
+    \node[below=0.6cm of $(before.south east)!0.5!(after.south west)$, font=\footnotesize, align=center] (legend) {%
+        \textcolor{horseshoe}{Green} = human-written \quad
+        \textcolor{atlantic!60!white}{Light blue} = AI-generated%
+    };
+\end{tikzpicture}
+\caption{AI-assisted code completion: the user types partial code, the LLM predicts the continuation, and the suggestion appears inline. The model operates purely on visible context with no access to files, tools, or execution environments.}
+\label{fig:autocomplete}
+\end{figure*}
+
+\section{What Is an AI Coding Agent?}\label{sec:agent}
+
+An agent transforms an LLM from a passive predictor into an active collaborator. The LLM itself does not change---it still receives text and produces text. What changes is the infrastructure wrapped around it. A coding agent consists of the LLM plus a wrapper program that orchestrates interactions between the model, the development environment, and the user.
+
+The wrapper provides the LLM with two critical additions beyond the system prompt: tool definitions and an execution environment. Tool definitions describe actions the agent can take, such as ``read a file,'' ``run a command,'' or ``search the codebase.'' Each definition specifies the tool's name, parameters, and purpose. The LLM does not directly execute these tools---it cannot. Instead, when the LLM determines that a tool would help answer the user's request, it outputs a structured tool call in its response. The wrapper program parses this output, detects the tool call, executes the requested action in the real environment, and feeds the result back to the LLM as new context.
+
+This creates a loop. The user sends a request. The LLM considers the request alongside its system prompt, available tools, and conversation history, then produces a response. If the response contains a tool call, the wrapper executes it, appends the result to the conversation, and invokes the LLM again. The LLM now has additional information and can either call another tool or provide a final answer. This cycle continues until the LLM produces a response with no tool calls, signaling that the task is complete.
+
+The wrapper exerts control over what the agent can and cannot do. It decides which tools are available, enforces safety constraints (preventing destructive operations without confirmation), and manages the user interface. If the LLM requests a tool that does not exist or provides invalid parameters, the wrapper catches the error and may return a message to the LLM explaining the problem. The wrapper also handles concurrency, timeouts, and resource limits---concerns far beyond the LLM's domain.
+
+From the user's perspective, the agent appears to act autonomously. They might ask, ``Fix the bug in \texttt{parser.py},'' and observe the agent reading the file, analyzing the code, running tests, editing the file, and re-running tests to confirm the fix. But this autonomy is an illusion choreographed by the wrapper. The LLM is still only predicting text, albeit text that encodes tool calls. The wrapper translates those predictions into real-world actions.
+
+This architecture is extrmeely powerful. By giving the LLM access to file systems, compilers, debuggers, version control, and external APIs through tool calls, the agent can perform tasks that would be impossible for raw autocompletion. Yet it inherits all the LLM's limitations: no persistent memory across sessions, no ability to learn from mistakes without retraining, and occasional lapses in reasoning. The agent is not intelligent in a human sense---it is an LLM augmented with the ability to manipulate its environment, guided by a carefully crafted system prompt and constrained by the tools its wrapper provides.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 2cm, >={Latex[length=2mm]}]
+    % User node
+    \node[agentbox=bk70, minimum width=1.5cm, minimum height=1cm] (user) {User};
+
+    % LLM node
+    \node[agentbox, right=3cm of user, minimum width=2.5cm, minimum height=1.8cm] (llm) {LLM};
+
+    % System prompt directly above LLM, tool definitions to its right
+    \node[sysprompt, above=0.6cm of llm, minimum width=2.5cm, font=\small] (sysprompt) {System Prompt};
+    \node[tooldef, right=0.6cm of sysprompt, minimum width=2.2cm, font=\small] (tooldef) {Tool Definitions};
+    \draw[-latex, rose, thick] (sysprompt) -- (llm);
+    \draw[-latex, atlantic, thick] (tooldef) -- ([xshift=0.5cm]llm.north);
+
+    % Output parser
+    \node[agentbox=congaree, right=of llm, minimum width=1.8cm, minimum height=1.2cm] (parser) {Output\\Parser};
+
+    % Tool executor (below parser)
+    \node[agentbox=horseshoe, below=1.5cm of parser, minimum width=1.8cm, minimum height=1.2cm] (executor) {Tool\\Executor};
+
+    % User display (outside wrapper)
+    \node[agentbox=bk70, right=2.5cm of parser, minimum width=1.5cm, minimum height=1cm] (display) {User\\Display};
+
+    % Wrapper program container (behind all nodes)
+    \begin{scope}[on background layer]
+      \node[wrapperbox, fit=(sysprompt)(tooldef)(llm)(parser)(executor), inner sep=12pt] (wrapper) {};
+    \end{scope}
+    \node[above=0cm of wrapper.north, font=\bfseries\large] {Wrapper Program};
+
+    % Arrows
+    \draw[-latex, thick] (user) -- (llm) node[midway, above, font=\small] {request};
+    \draw[-latex, thick] (llm) -- (parser) node[midway, above, font=\small] {output};
+    \draw[-latex, thick] (parser) -- (executor) node[midway, right, font=\small, align=center] {tool\\calls};
+    \draw[-latex, thick] (parser) -- (display) node[midway, above, font=\small] {response};
+
+    % Feedback loop: left to under LLM, then up
+    \draw[-latex, thick] (executor.west) -- (executor.west -| llm.south) -- (llm.south) node[pos=-0.1, below, font=\small] {tool results};
+\end{tikzpicture}
+\caption{Architecture of an AI coding agent. The wrapper program mediates all interactions between the user and the LLM, parsing outputs to detect tool calls, executing those calls in the development environment, and feeding results back to the model. The LLM operates under constraints defined by its system prompt and the tools made available by the wrapper.}
+\label{fig:agent_architecture}
+\end{figure*}

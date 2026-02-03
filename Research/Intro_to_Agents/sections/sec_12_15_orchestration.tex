@@ -1,0 +1,148 @@
+%% Sections 12-15: Orchestration Patterns
+%% Part of the Intro to Agents tutorial document
+
+\section{The Orchestrator Cycle}\label{sec:orch_cycle}
+
+Every orchestrator, regardless of its sophistication, executes some variant of a fundamental five-step loop: \textbf{Plan}, \textbf{Delegate}, \textbf{Wait}, \textbf{Collect}, and \textbf{Decide}. This cycle forms the operational heartbeat of master-worker architectures. The orchestrator begins by planning what work needs to be done, delegates tasks to subordinate agents, waits for those agents to complete their assignments, collects the results, and then decides what to do next — synthesize a final answer, iterate with refined tasks, or terminate.
+
+The differences between orchestration strategies lie not in whether these steps occur, but in \emph{how} each step executes and whether the cycle repeats. A simple orchestrator may traverse the cycle exactly once, delegating all tasks upfront and terminating after collecting results. A sophisticated orchestrator may iterate through multiple cycles, refining its plan based on what previous workers discovered. A reactive orchestrator may skip explicit planning altogether, instead delegating minimal initial work and deciding on-the-fly how to respond to whatever comes back.
+
+It is important to recognize that this five-step cycle is an \textbf{abstraction}, not a rigid implementation requirement. Real orchestrators may combine steps, reorder operations, or execute multiple steps concurrently. For example, an orchestrator might overlap the Wait and Delegate phases by launching new workers while waiting for earlier workers to complete, effectively pipelining the cycle. A reactive orchestrator might merge Plan and Decide into a single decision function that simultaneously evaluates results and determines next actions. Some implementations may delegate tasks to workers that themselves run mini-orchestration cycles, creating recursive delegation patterns that do not cleanly map to the linear five-step model. Despite these variations, the conceptual model remains useful: every orchestrator must identify work to be done, assign that work to agents, observe the outcomes, and determine whether to continue or terminate. The five-step abstraction provides a shared vocabulary for reasoning about orchestration strategies, even when the underlying implementations diverge from the idealized cycle.
+
+Figure~\ref{fig:orch_single} illustrates the single-pass cycle: a straight line from Plan to Done with no feedback. Figure~\ref{fig:orch_iterative} shows the iterative variant, where a feedback loop from Decide back to Plan becomes the central mechanism for quality improvement and error recovery — the orchestrator explicitly routes control back to the planning phase for another round of delegation.
+
+The sections that follow explore three fundamental orchestration patterns: single-pass orchestration (Section~\ref{sec:single_pass}), which traverses the cycle once and terminates; iterative orchestration (Section~\ref{sec:iterative}), which repeats the cycle until a quality threshold or iteration limit is reached; and reactive orchestration (Section~\ref{sec:reactive}), which abandons upfront planning in favor of event-driven adaptation. Each pattern represents a different trade-off between simplicity, robustness, and latency.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  \node[agentbox] (p1) {Plan};
+  \node[agentbox=atlantic, right=of p1] (d1) {Delegate};
+  \node[agentbox=congaree, right=of d1] (w1) {Wait};
+  \node[agentbox=horseshoe, right=of w1] (c1) {Collect};
+  \node[agentbox=bk70, right=of c1] (de1) {Decide};
+  \node[agentbox=congaree, right=of de1] (done1) {Done};
+
+  \draw[dataarrow] (p1) -- (d1);
+  \draw[dataarrow] (d1) -- (w1);
+  \draw[dataarrow] (w1) -- (c1);
+  \draw[dataarrow] (c1) -- (de1);
+  \draw[dataarrow] (de1) -- (done1);
+\end{tikzpicture}
+\caption{Single-pass orchestration cycle. The orchestrator traverses the five-step sequence Plan $\to$ Delegate $\to$ Wait $\to$ Collect $\to$ Decide exactly once, then terminates. There is no feedback loop and no opportunity to refine the plan based on worker results.}
+\label{fig:orch_single}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  \node[agentbox] (p2) {Plan};
+  \node[agentbox=atlantic, right=of p2] (d2) {Delegate};
+  \node[agentbox=congaree, right=of d2] (w2) {Wait};
+  \node[agentbox=horseshoe, right=of w2] (c2) {Collect};
+  \node[agentbox=bk70, right=of c2] (de2) {Decide};
+  \node[agentbox=congaree, right=of de2] (done2) {Done};
+
+  \draw[dataarrow] (p2) -- (d2);
+  \draw[dataarrow] (d2) -- (w2);
+  \draw[dataarrow] (w2) -- (c2);
+  \draw[dataarrow] (c2) -- (de2);
+  \draw[dataarrow] (de2) -- (done2);
+
+  % Feedback loop: Decide back to Plan
+  \draw[dataarrow, garnet, line width=2pt]
+    (de2.south) -- ++(0,-0.7) -| (p2.south)
+    node[pos=0.5, below, font=\footnotesize\bfseries] {iterate};
+\end{tikzpicture}
+\caption{Iterative orchestration cycle. The same five-step sequence, but with a feedback loop (bold arrow) from Decide back to Plan. After collecting results, the orchestrator evaluates quality and either terminates or iterates with refined tasks, enabling error recovery and progressive refinement.}
+\label{fig:orch_iterative}
+\end{figure*}
+
+\section{Single-Pass Orchestration}\label{sec:single_pass}
+
+The simplest orchestration model is the single-pass architecture: one traversal through the cycle, no iteration, no recovery. The orchestrator plans once, delegates all identified tasks to workers, waits for completion, collects results, synthesizes a final answer in the Decide phase, and terminates. This design prioritizes latency and simplicity. There are no feedback loops, no quality checks, and no opportunity to refine the plan based on what workers discover.
+
+Single-pass orchestration works well when the problem is well-understood, the initial decomposition is correct, and workers reliably succeed. But these conditions rarely hold in practice. If the orchestrator misjudges the task breakdown — perhaps underestimating complexity or failing to anticipate dependencies — it has no recourse. If a worker fails due to an unavailable tool, an API timeout, or an unexpected data format, the master cannot retry, cannot delegate diagnostic work, and cannot adjust the plan. The orchestrator simply moves forward with whatever results it has.
+
+This leads to a critical failure mode: \textbf{the orchestrator either gives up entirely or synthesizes a partial or hallucinated answer}. When faced with incomplete results, a single-pass orchestrator has two options. The first is to admit defeat, returning a message like ``I was unable to complete your task.'' The second, more insidious option is to produce an answer anyway, filling gaps with plausible-sounding but incorrect information synthesized from the fragments it managed to collect. Both outcomes are unacceptable for production systems, yet single-pass architectures are common in early-generation coding agents and task assistants.
+
+The prevalence of single-pass orchestration in current coding agents explains many user frustrations with AI-assisted development tools. Consider a concrete example: a user asks an agent to refactor a Python module to use asynchronous I/O. The orchestrator decomposes this into three tasks: identify all synchronous I/O calls, update function signatures to use async/await, and update all call sites to await the new async functions. It delegates these tasks to three workers in parallel. The workers complete their assignments and return transformed code. The orchestrator collects the results, synthesizes them into a final patch, and presents it to the user. The user applies the patch, runs their test suite, and discovers that the application crashes on startup. The root cause: the refactoring also required updating configuration files that specify event loop policies, and the orchestrator never identified this as a required task. Because the orchestrator never considered configuration files in its initial decomposition, no worker was delegated to handle them, and the gap remained invisible until runtime. A single-pass orchestrator has no mechanism to detect such gaps — it cannot observe the test failure, cannot spawn a diagnostic worker to investigate, and cannot iterate to fill the missing piece. The result is broken code and a frustrated user who must either manually debug the issue or restart the entire interaction with more explicit instructions.
+
+This failure mode is not an edge case; it is \textbf{the fundamental limitation of single-pass orchestration}. When the initial task decomposition is incomplete or incorrect, there is no recovery path. The orchestrator commits fully to its upfront plan, and any flaws in that plan propagate directly into the final output. Users experience this as the agent ``not understanding the full scope of the task,'' ``missing obvious dependencies,'' or ``breaking working code.'' From the orchestrator's perspective, however, it executed flawlessly: it planned, delegated, collected, and synthesized exactly as designed. The architecture itself provides no feedback loop through which the orchestrator might learn that its plan was insufficient.
+
+The appeal of single-pass orchestration is its simplicity. There is no complex control flow, no iteration counters, no quality evaluation logic. The orchestrator is a straightforward pipeline: decompose, dispatch, wait, synthesize, done. But this simplicity comes at the cost of brittleness. Single-pass orchestrators fail silently, abandon tasks at the first obstacle, and provide no mechanism for the user or the system to understand why a failure occurred or how it might be remedied.
+
+Figure~\ref{fig:orch_single} illustrates this flow. Once the orchestrator reaches the Decide phase, it either synthesizes a final answer and terminates successfully, or — because there is no path back to planning, no retry logic, and no recovery mechanism — it gives up entirely or produces a partial, potentially hallucinated result.
+
+\section{Iterative Orchestration}\label{sec:iterative}
+
+Iterative orchestration extends the base cycle by adding explicit feedback: after collecting results, the Decide phase evaluates whether the work is complete and of sufficient quality. If not, the orchestrator plans \emph{new} tasks informed by what it learned from previous workers, delegates those tasks, and repeats the cycle. This continues until one of three termination conditions is met: a \textbf{quality threshold} is reached, a \textbf{maximum iteration count} is exceeded, or the orchestrator determines that \textbf{no new tasks are necessary}.
+
+The quality threshold termination condition requires the orchestrator to measure output quality against some objective or heuristic standard. In a coding agent, this might mean running a test suite and terminating when all tests pass, or invoking a static analyzer and iterating until all warnings are resolved. In a research assistant, it might mean evaluating a generated summary against a rubric of completeness and accuracy, using either a separate verification agent or a scoring function. The challenge is that many tasks lack clear quality metrics. How does an orchestrator measure whether a code refactoring is ``good enough''? One approach is to define proxy metrics: compilation succeeds, tests pass, code coverage remains stable, and static analysis reports no new issues. Another approach is to delegate the quality decision itself to a specialized verification agent that reviews the output and returns a binary approve/reject signal. Either way, the orchestrator must implement domain-specific evaluation logic in its Decide phase.
+
+The maximum iteration count termination condition is a safety mechanism to prevent infinite loops. If the orchestrator cannot satisfy its quality threshold — perhaps the task is genuinely impossible, or the workers are repeatedly failing for systemic reasons — it must eventually give up rather than burning resources indefinitely. The iteration limit is typically a configuration parameter, tuned based on task complexity and acceptable latency. A simple task might cap at three iterations; a complex multi-step workflow might allow ten or twenty. When the limit is reached, the orchestrator either returns the best result achieved so far (a degraded success) or admits failure, depending on whether partial progress is useful to the user.
+
+The no-new-tasks termination condition represents successful completion through exhaustion: the orchestrator has identified and executed all necessary work. This is distinct from reaching a quality threshold, because the orchestrator may complete all planned tasks and still fail to meet quality goals, triggering further iteration. Conversely, the orchestrator might reach the quality threshold before exhausting its task list, if earlier tasks turned out to be unnecessary or if workers exceeded expectations. The Decide phase must evaluate both dimensions — quality of output and completeness of task list — to determine whether to iterate or terminate.
+
+Compared to single-pass orchestration, iterative orchestration is \textbf{strictly more capable} but incurs higher token and latency costs. An iterative orchestrator can recover from initial planning errors, adapt to unexpected worker results, and refine its approach through successive cycles. However, each cycle requires at least one additional LLM invocation in the Plan phase, plus the token costs of delegating new workers and evaluating their results. Latency multiplies linearly with iteration count, as each cycle must complete before the next begins. For tasks where a correct upfront plan is achievable, single-pass orchestration is more efficient. For tasks where the problem structure is uncertain or workers may fail unpredictably, the added cost of iteration is justified by the increased likelihood of successful completion.
+
+The iterative model trades latency for quality and resilience. Where a single-pass orchestrator fails silently or gives up at the first obstacle, an iterative orchestrator can retry failed tasks with refined prompts, delegate diagnostic work to understand why a failure occurred, or spawn additional workers to fill gaps discovered during result synthesis. The orchestrator accumulates knowledge across iterations: each cycle refines the plan based on what previous workers discovered, what errors they encountered, and what intermediate results they produced.
+
+Consider a concrete example: an orchestrator tasked with implementing a feature in a large codebase. In iteration one, it delegates a worker to locate the relevant module and another to identify dependencies. The first worker succeeds, but the second reports that the dependency graph is more complex than expected. In iteration two, the orchestrator spawns additional workers to trace transitive dependencies and verify API contracts. One of these workers discovers a breaking change in an upstream library. In iteration three, the orchestrator delegates a worker to implement a compatibility shim. Only after this third cycle does the Decide phase determine that all preconditions are satisfied and approve the final implementation.
+
+This example illustrates the core advantage of iterative orchestration: \textbf{it transforms brittle failure into adaptive problem-solving}. The orchestrator does not need a perfect plan upfront; it can discover the true structure of the problem through successive refinement. Failed workers provide information — error messages, partial results, diagnostic traces — that the orchestrator uses to improve its next attempt.
+
+However, iteration introduces new challenges. The orchestrator must maintain state across cycles, tracking which tasks have been attempted, which have succeeded, and which need refinement. It must implement a quality evaluation function in the Decide phase, which may require domain-specific heuristics or external verification tools. And it must guard against infinite loops, implementing termination logic that balances thoroughness with resource constraints.
+
+Figure~\ref{fig:orch_iterative} shows the iterative cycle with the feedback loop from Decide to Plan rendered as a bold arrow labeled ``iterate.'' This loop is the defining characteristic of iterative orchestration. The orchestrator also includes an exit path labeled ``done,'' taken when a termination condition is met. The challenge in implementing iterative orchestration lies in deciding when to iterate and when to exit — a decision that depends on the task domain, the quality of intermediate results, and the cost of additional cycles.
+
+\section{Reactive Orchestration}\label{sec:reactive}
+
+Reactive orchestration abandons upfront planning altogether. Instead of decomposing the entire task before delegating any work, a reactive orchestrator starts with a minimal initial action — perhaps a single diagnostic query or a broad exploratory task — and then reacts to whatever comes back. If a worker succeeds, the orchestrator decides whether to continue along the same path or terminate. If a worker returns an error, the orchestrator spawns a diagnostic worker to investigate. If a worker discovers something unexpected — a missing file, an API incompatibility, a hidden dependency — the orchestrator adjusts its approach, delegating new tasks to handle the surprise.
+
+This is \textbf{event-driven} orchestration, not plan-driven. The orchestrator maintains minimal state and makes local decisions based on the most recent worker output. It does not attempt to construct a complete task graph upfront; instead, it builds the graph incrementally, one node at a time, guided by the results it observes. This makes reactive orchestration particularly well-suited for exploratory tasks where the problem space is poorly understood: debugging, codebase exploration, open-ended research, or adversarial testing.
+
+Consider debugging a test failure in an unfamiliar codebase. A plan-driven orchestrator would attempt to decompose the problem upfront: read the test file, identify the failing assertion, trace dependencies, inspect relevant modules, and so on. But this decomposition requires knowledge the orchestrator does not yet have — which modules are relevant? What dependencies matter? A reactive orchestrator, by contrast, begins with a single action: run the test and capture the failure output. It then reacts to that output. If the failure is a missing import, it delegates a worker to locate the missing module. If the failure is an assertion mismatch, it delegates a worker to inspect the function under test. Each worker output informs the next delegation.
+
+The advantage of reactive orchestration is its \textbf{adaptability}. The orchestrator does not commit to a fixed plan; it responds dynamically to the structure of the problem as it emerges. This reduces upfront planning overhead and avoids the pitfall of executing a plan that turns out to be inappropriate. The disadvantage is increased latency: each delegation requires a round-trip to a worker, and the orchestrator cannot parallelize tasks that might have been identified through upfront planning.
+
+Reactive orchestration also places greater demands on the orchestrator's decision-making. Without a plan to guide it, the orchestrator must decide at each step whether it has enough information to proceed, whether it needs to investigate further, or whether it should terminate. These decisions require either sophisticated heuristics or a powerful decision model — often the orchestrator itself is a large language model capable of reasoning about partial information and uncertain outcomes.
+
+Figure~\ref{fig:reactive} illustrates the reactive orchestration pattern. A central orchestrator delegates tasks to workers and receives three types of responses: success (the worker completed its task, and the orchestrator can continue or terminate), error (the worker failed, triggering delegation to a diagnostic agent), and unexpected (the worker discovered something that requires replanning). These three branches represent the core reactive logic: \textbf{adapt to what you learn, do not commit to what you assumed}.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 1.0cm]
+
+  % Orchestrator on the left, tall to span all three rows
+  \node[agentbox, minimum height=4.2cm, minimum width=2.2cm] (orch) {Orchestrator};
+
+  % Row 1: Error / Diagnostic (top)
+  \node[workerbox, right=2.0cm of orch, yshift=1.5cm] (w2) {Worker};
+  \node[failbox, right=5.9cm of w2, minimum width=2.2cm] (diag) {Diagnostic\\Agent};
+
+  \draw[dataarrow] (orch.east |- w2) -- node[above,font=\footnotesize] {task} (w2);
+  \draw[dataarrow] (w2) -- node[above,font=\footnotesize] {error} (diag);
+  % Diagnostic loops back: go down under everything, then left to orchestrator bottom
+  \draw[dataarrow] (diag.south) -- ++(0,-4.2) -| ([xshift=-0.4cm]orch.south);
+
+  % Row 2: Unexpected / Replan (middle)
+  \node[workerbox, right=2.0cm of orch] (w3) {Worker};
+  \node[agentbox=atlantic, right=3.7cm of w3, minimum width=2.2cm] (replan) {Replan};
+
+  \draw[dataarrow] (orch.east |- w3) -- node[above,font=\footnotesize] {task} (w3);
+  \draw[dataarrow] (w3) -- node[above,font=\footnotesize] {unexpected} (replan);
+  % Replan loops back: go down under everything, then left to orchestrator bottom
+  \draw[dataarrow] (replan.south) -- ++(0,-2.7) -| ([xshift=0.4cm]orch.south);
+
+  % Row 3: Success / Continue (bottom)
+  \node[workerbox, right=2.0cm of orch, yshift=-1.5cm] (w1) {Worker};
+  \node[agentbox=congaree, right=1.5cm of w1, minimum width=2.2cm] (cont) {Continue/\\Terminate};
+
+  \draw[dataarrow] (orch.east |- w1) -- node[above,font=\footnotesize] {task} (w1);
+  \draw[dataarrow] (w1) -- node[above,font=\footnotesize] {success} (cont);
+
+\end{tikzpicture}
+\caption{Reactive orchestration pattern. The orchestrator delegates tasks and reacts to three types of outcomes: unexpected (top row --- worker discovers something surprising, triggering replanning and a new orchestration cycle), error (middle row --- worker fails, diagnostic agent investigates and feeds back to the orchestrator), and success (bottom row --- worker completes, orchestrator continues or terminates).}
+\label{fig:reactive}
+\end{figure*}
