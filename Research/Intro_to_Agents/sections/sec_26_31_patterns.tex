@@ -250,70 +250,75 @@ The writing phase employs a feedback loop to iteratively draft and revise the ma
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[
-  node distance=0.8cm and 1.5cm,
-  every node/.style={font=\footnotesize},
-  scale=0.9, transform shape
-]
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
 
-% Top orchestrator (wide)
-\node[agentbox=garnet, minimum width=8cm, minimum height=0.6cm] (top) {Research Orchestrator};
+  % ===== COLUMN LABELS (above orchestrator) =====
+  \node[font=\footnotesize\bfseries] at ([xshift=-6cm]0,1.3) (lit_label) {Literature};
+  \node[font=\footnotesize] at ([yshift=-0.35cm]lit_label.south) {(Fan-Out)};
 
-% Branch 1: Literature (Fan-Out)
-\node[below left=1.5cm and 3cm of top, font=\footnotesize] (lit_label) {\textbf{Literature (Fan-Out)}};
-\node[agentbox=garnet, below=0.3cm of lit_label, minimum width=0.8cm, minimum height=0.5cm] (lit_plan) {Plan};
-\node[workerbox, below left=0.6cm and 0.3cm of lit_plan, minimum width=0.6cm, minimum height=0.4cm] (w1) {S1};
-\node[workerbox, below=0.6cm of lit_plan, minimum width=0.6cm, minimum height=0.4cm] (w2) {S2};
-\node[workerbox, below right=0.6cm and 0.3cm of lit_plan, minimum width=0.6cm, minimum height=0.4cm] (w3) {S3};
-\node[agentbox=horseshoe, below=1.8cm of lit_plan, minimum width=0.8cm, minimum height=0.5cm] (merge) {Merge};
+  \node[font=\footnotesize\bfseries] at ([xshift=-2cm]0,1.3) (data_label) {Data};
+  \node[font=\footnotesize] at ([yshift=-0.35cm]data_label.south) {(Pipeline)};
 
-\draw[dataarrow, thin] (lit_plan) -- (w1);
-\draw[dataarrow, thin] (lit_plan) -- (w2);
-\draw[dataarrow, thin] (lit_plan) -- (w3);
-\draw[dataarrow, thin] (w1) |- (merge);
-\draw[dataarrow, thin] (w2) -- (merge);
-\draw[dataarrow, thin] (w3) |- (merge);
-\draw[dashed, garnet, very thin, ->] (top.south) |- (lit_plan.north);
+  \node[font=\footnotesize\bfseries] at ([xshift=2cm]0,1.3) (exp_label) {Experiments};
+  \node[font=\footnotesize] at ([yshift=-0.35cm]exp_label.south) {(Master-Slave)};
 
-% Branch 2: Data (Pipeline)
-\node[below=1.5cm of top, xshift=-0.5cm, font=\footnotesize] (data_label) {\textbf{Data (Pipeline)}};
-\node[agentbox=atlantic, below=0.3cm of data_label, minimum width=0.7cm, minimum height=0.5cm] (d1) {Ingest};
-\node[agentbox=congaree, right=0.4cm of d1, minimum width=0.7cm, minimum height=0.5cm] (d2) {Clean};
-\node[agentbox=horseshoe, right=0.4cm of d2, minimum width=0.7cm, minimum height=0.5cm] (d3) {Valid};
+  \node[font=\footnotesize\bfseries] at ([xshift=6cm]0,1.3) (write_label) {Writing};
+  \node[font=\footnotesize] at ([yshift=-0.35cm]write_label.south) {(Feedback)};
 
-\draw[dataarrow, thin] (d1) -- (d2);
-\draw[dataarrow, thin] (d2) -- (d3);
-\draw[dashed, garnet, very thin, ->] (top.south) |- (d1.north);
+  % ===== TOP: Research Orchestrator =====
+  \node[agentbox=garnet, minimum width=\textwidth, minimum height=0.6cm] (orch) {Research Orchestrator};
 
-% Branch 3: Experiments (Master-Slave)
-\node[below right=1.5cm and 0.5cm of top, font=\footnotesize] (exp_label) {\textbf{Experiments (Master-Slave)}};
-\node[agentbox=garnet, below=0.3cm of exp_label, minimum width=0.8cm, minimum height=0.5cm] (exp_master) {Master};
-\node[workerbox, below left=0.6cm and 0.2cm of exp_master, minimum width=0.6cm, minimum height=0.4cm] (e1) {S1};
-\node[workerbox, below right=0.6cm and 0.2cm of exp_master, minimum width=0.6cm, minimum height=0.4cm] (e2) {S2};
+  % ===== COLUMN 1: Literature (Fan-Out) =====
+  \node[agentbox=atlantic, minimum width=2.2cm] at ([yshift=-1.0cm, xshift=-6cm]orch.south) (lit_plan) {Planner};
+  \node[workerbox, minimum width=1cm] at ([yshift=-2.4cm, xshift=-6.5cm]orch.south) (l1) {S1};
+  \node[workerbox, minimum width=1cm] at ([yshift=-2.4cm, xshift=-5.5cm]orch.south) (l2) {S2};
+  \node[agentbox=horseshoe, minimum width=2.2cm] at ([yshift=-3.8cm, xshift=-6cm]orch.south) (lit_merge) {Synthesizer};
 
-\draw[dataarrow, thin] (exp_master) -- (e1);
-\draw[dataarrow, thin] (exp_master) -- (e2);
-\draw[dashed, atlantic, thin, ->] (e1) -- (exp_master);
-\draw[dashed, atlantic, thin, ->] (e2) -- (exp_master);
-\draw[dashed, garnet, very thin, ->] (top.south) |- (exp_master.north);
+  \draw[dataarrow] (orch.south -| lit_plan) -- (lit_plan);
+  \draw[dataarrow] (lit_plan) -- (l1);
+  \draw[dataarrow] (lit_plan) -- (l2);
+  \draw[dataarrow] (l1) -- (lit_merge.north -| l1);
+  \draw[dataarrow] (l2) -- (lit_merge.north -| l2);
 
-% Branch 4: Writing (Feedback)
-\node[below right=1.5cm and 3cm of top, font=\footnotesize] (write_label) {\textbf{Writing (Feedback)}};
-\node[agentbox=atlantic, below=0.3cm of write_label, minimum width=0.8cm, minimum height=0.5cm] (writer) {Writer};
+  % ===== COLUMN 2: Data (Pipeline) =====
+  \node[agentbox=garnet, minimum width=1.8cm] at ([yshift=-1.0cm, xshift=-2cm]orch.south) (d1) {Ingest};
+  \node[agentbox=atlantic, minimum width=1.8cm] at ([yshift=-2.0cm, xshift=-2cm]orch.south) (d2) {Parse};
+  \node[agentbox=congaree, minimum width=1.8cm] at ([yshift=-3.0cm, xshift=-2cm]orch.south) (d3) {Clean};
+  \node[agentbox=horseshoe, minimum width=1.8cm] at ([yshift=-4.0cm, xshift=-2cm]orch.south) (d4) {Validate};
 
-\draw[->, horseshoe, thick] (writer.east) -- ++(0.4,0) arc[start angle=0, end angle=-270, radius=0.4cm] -- (writer.south east);
-\node[labelnode, right=0.5cm of writer, font=\tiny] {iterate};
-\draw[dashed, garnet, very thin, ->] (top.south) |- (writer.north);
+  \draw[dataarrow] (orch.south -| d1) -- (d1);
+  \draw[dataarrow] (d1) -- (d2);
+  \draw[dataarrow] (d2) -- (d3);
+  \draw[dataarrow] (d3) -- (d4);
+
+  % ===== COLUMN 3: Experiments (Master-Slave) =====
+  \node[agentbox=garnet, minimum width=2.2cm] at ([yshift=-1.0cm, xshift=2cm]orch.south) (exp_master) {Master};
+  \node[draw=black, line width=1pt, fill=bk10, minimum width=2.2cm, minimum height=0.5cm, font=\scriptsize] at ([yshift=-2.2cm, xshift=2cm]orch.south) (exp_queue) {Queue};
+  \node[workerbox, minimum width=1cm] at ([yshift=-3.4cm, xshift=1.5cm]orch.south) (e1) {S1};
+  \node[workerbox, minimum width=1cm] at ([yshift=-3.4cm, xshift=2.5cm]orch.south) (e2) {S2};
+
+  \draw[dataarrow] (orch.south -| exp_master) -- (exp_master);
+  \draw[dataarrow] (exp_master) -- (exp_queue);
+  \draw[dataarrow] (exp_queue.south -| e1) -- (e1);
+  \draw[dataarrow] (exp_queue.south -| e2) -- (e2);
+  \draw[dataarrow, dashed] ([xshift=-0.25cm]e1.north) -- ([xshift=-0.25cm]exp_queue.south -| e1);
+  \draw[dataarrow, dashed] ([xshift=-0.25cm]e2.north) -- ([xshift=-0.25cm]exp_queue.south -| e2);
+
+  % ===== COLUMN 4: Writing (Feedback) =====
+  \node[agentbox=atlantic, minimum width=1.8cm] at ([yshift=-1.0cm, xshift=6cm]orch.south) (w_plan) {Planner};
+  \node[agentbox=congaree, minimum width=1.8cm] at ([yshift=-2.2cm, xshift=6cm]orch.south) (w_exec) {Executor};
+  \node[agentbox=horseshoe, minimum width=1.8cm] at ([yshift=-3.4cm, xshift=6cm]orch.south) (w_eval) {Evaluator};
+
+  \draw[dataarrow] (orch.south -| w_plan) -- (w_plan);
+  \draw[dataarrow] (w_plan) -- (w_exec);
+  \draw[dataarrow] (w_exec) -- (w_eval);
+
+  % Feedback arrows (rose, on left side)
+  \draw[dataarrow=rose, dashed] ([xshift=-0.15cm]w_eval.north) -- ([xshift=-0.15cm]w_exec.south);
+  \draw[dataarrow=rose, dashed] ([xshift=-0.15cm]w_exec.north) -- ([xshift=-0.15cm]w_plan.south);
 
 \end{tikzpicture}
-\caption{%
-  A composite research workflow combines four patterns under a single master.
-  The literature phase uses fan-out to query multiple sources in parallel.
-  The data phase pipelines ingestion, cleaning, and validation steps.
-  The experiment phase employs a master-slave pool for high-throughput execution.
-  The writing phase uses a feedback loop to iteratively refine the manuscript.
-  Each pattern handles the phase best suited to its strengths.
-}
+\caption{A composite research workflow combines four patterns under a single orchestrator. The literature phase uses fan-out to query multiple sources in parallel. The data phase pipelines ingestion, parsing, cleaning, and validation. The experiment phase employs a master-slave pool for high-throughput execution. The writing phase uses a feedback loop to iteratively refine the manuscript.}
 \label{fig:composite_workflow}
 \end{figure*}
 
