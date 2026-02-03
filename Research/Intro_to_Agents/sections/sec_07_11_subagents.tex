@@ -1,21 +1,21 @@
-%% Section 7: What Is a Sub-Agent?
-\section{What Is a Sub-Agent?}\label{sec:subagent}
+%% Section 7: What Is a Slave?
+\section{What Is a Slave?}\label{sec:subagent}
 
-A sub-agent is architecturally identical to the agent described in Section~\ref{sec:agent}. It possesses the same core components: an LLM capable of reasoning and tool use, a system prompt that defines its behavior, and access to tools for interacting with the environment. The critical distinction is not in its internal structure but in its invocation: a sub-agent is called by another agent rather than directly by a human user.
+A slave is architecturally identical to the agent described in Section~\ref{sec:agent}. It possesses the same core components: an LLM capable of reasoning and tool use, a system prompt that defines its behavior, and access to tools for interacting with the environment. The critical distinction is not in its internal structure but in its invocation: a slave is called by another agent rather than directly by a human user.
 
-This architectural equivalence allows for significant flexibility in deployment. A sub-agent may run the same model as its parent, but more commonly it uses a different model optimized for its specialized task. A parent agent handling general orchestration might use a large, capable model, while delegating narrowly-scoped work to sub-agents running smaller, faster, or domain-tuned models. Similarly, the system prompt of a sub-agent is typically specialized for a particular domain—code refactoring, test execution, documentation generation, data validation—rather than the general-purpose instructions given to a primary agent.
+This architectural equivalence allows for significant flexibility in deployment. A slave may run the same model as its master, but more commonly it uses a different model optimized for its specialized task. A master agent handling general orchestration might use a large, capable model, while delegating narrowly-scoped work to slaves running smaller, faster, or domain-tuned models. Similarly, the system prompt of a slave is typically specialized for a particular domain—code refactoring, test execution, documentation generation, data validation—rather than the general-purpose instructions given to a primary agent.
 
-Tool access is also scoped to the sub-agent's responsibilities. Where a parent agent might have access to the full suite of development tools, a sub-agent focused on testing might be restricted to test execution frameworks and assertion libraries. This scoping reduces complexity, improves safety, and allows the sub-agent's reasoning to focus on a well-defined problem space.
+Tool access is also scoped to the slave's responsibilities. Where a master agent might have access to the full suite of development tools, a slave focused on testing might be restricted to test execution frameworks and assertion libraries. This scoping reduces complexity, improves safety, and allows the slave's reasoning to focus on a well-defined problem space.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.3cm and 1.5cm]
 
-% Parent Agent
+% Master Agent
 \node[agentbox, minimum width=2cm] (parent-llm) {LLM (Large)};
 \node[sysprompt, below=of parent-llm] (parent-prompt) {General Prompt};
 \node[tooldef, below=of parent-prompt] (parent-tools) {All Tools};
-% Child Agent
+% Slave Agent
 \node[agentbox=atlantic, minimum width=2cm, right=5.5cm of parent-llm] (child-llm) {LLM (Small)};
 \node[sysprompt, below=of child-llm] (child-prompt) {Specialized Prompt};
 \node[tooldef, below=of child-prompt] (child-tools) {Scoped Tools};
@@ -26,35 +26,35 @@ Tool access is also scoped to the sub-agent's responsibilities. Where a parent a
   \node[wrapperbox, draw=atlantic, dashed, fit=(child-llm)(child-prompt)(child-tools), inner sep=8pt] (child-wrapper) {};
 \end{scope}
 
-\node[above=0.1cm of parent-wrapper.north, font=\bfseries] {Parent Agent};
-\node[above=0.1cm of child-wrapper.north, font=\bfseries, text=atlantic] {Child Agent};
+\node[above=0.1cm of parent-wrapper.north, font=\bfseries] {Master};
+\node[above=0.1cm of child-wrapper.north, font=\bfseries, text=atlantic] {Slave};
 
 % Arrow
 \draw[dataarrow, line width=1.5pt] (parent-wrapper.east) -- (child-wrapper.west)
   node[midway, above, font=\small] {delegates};
 
 \end{tikzpicture}
-\caption{A sub-agent shares the same architecture as a standard agent (Section~\ref{sec:agent}) but differs in its model selection, system prompt specialization, and tool access scope.}
+\caption{A slave shares the same architecture as a standard agent (Section~\ref{sec:agent}) but differs in its model selection, system prompt specialization, and tool access scope.}
 \label{fig:subagent}
 \end{figure*}
 
-%% Section 8: Sub-Agent Workflow
-\section{Sub-Agent Workflow}\label{sec:subagent_workflow}
+%% Section 8: Slave Workflow
+\section{Slave Workflow}\label{sec:subagent_workflow}
 
-The lifecycle of a sub-agent begins when the parent agent constructs a detailed prompt describing the task to be performed. This prompt is delivered to the sub-agent, where it is combined with the sub-agent's own system prompt to form the complete context for execution. The system prompt provides domain expertise and behavioral constraints, while the parent's prompt supplies the specific task instance and any relevant data.
+The lifecycle of a slave begins when the master agent constructs a detailed prompt describing the task to be performed. This prompt is delivered to the slave, where it is combined with the slave's own system prompt to form the complete context for execution. The system prompt provides domain expertise and behavioral constraints, while the master's prompt supplies the specific task instance and any relevant data.
 
-Once initialized, the sub-agent executes its task using any of the three reasoning patterns described in Sections~\ref{sec:streaming}--\ref{sec:parallel_exec}. A sub-agent for code refactoring might use streaming mode to interactively rewrite functions, a testing sub-agent might operate in batch mode to execute a suite and compile results, and a documentation sub-agent might parallelize the generation of API reference sections. The choice of execution pattern is determined by the sub-agent's design and the nature of its task, not by the fact that it is a sub-agent.
+Once initialized, the slave executes its task using any of the three reasoning patterns described in Sections~\ref{sec:streaming}--\ref{sec:parallel_exec}. A slave for code refactoring might use streaming mode to interactively rewrite functions, a testing slave might operate in batch mode to execute a suite and compile results, and a documentation slave might parallelize the generation of API reference sections. The choice of execution pattern is determined by the slave's design and the nature of its task, not by the fact that it is a slave.
 
-Upon completion, the sub-agent returns control to its parent. The exact form of this return varies: the sub-agent may include its result directly in a completion message, write outputs to disk and signal completion, or employ a hybrid approach. Regardless of the mechanism, the parent receives notification that the sub-agent has finished and can then integrate the result into its own reasoning process. This integration might involve validating the sub-agent's output, using it as input to another sub-agent, or incorporating it into a final deliverable for the user.
+Upon completion, the slave returns control to its master. The exact form of this return varies: the slave may include its result directly in a completion message, write outputs to disk and signal completion, or employ a hybrid approach. Regardless of the mechanism, the master receives notification that the slave has finished and can then integrate the result into its own reasoning process. This integration might involve validating the slave's output, using it as input to another slave, or incorporating it into a final deliverable for the user.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.8cm and 1.2cm]
 
 % Horizontal flow
-\node[agentbox, minimum width=2cm] (parent) {Parent Agent};
+\node[agentbox, minimum width=2cm] (parent) {Master};
 \node[agentbox=bk70, right=of parent] (prompt) {Detailed Prompt};
-\node[agentbox=atlantic, right=of prompt, minimum width=2cm] (subllm) {Sub-Agent};
+\node[agentbox=atlantic, right=of prompt, minimum width=2cm] (subllm) {Slave};
 \node[agentbox=horseshoe, right=of subllm] (exec) {Execute Tools};
 \node[agentbox=congaree, right=of exec] (result) {Result};
 
@@ -73,14 +73,14 @@ Upon completion, the sub-agent returns control to its parent. The exact form of 
 \draw[dataarrow] (result.south) -- ++(0,-0.6) -| (parent.south);
 
 \end{tikzpicture}
-\caption{Sub-agent lifecycle. The parent crafts a detailed prompt, the sub-agent combines it with its own system prompt, executes tools using any execution pattern, and returns results to the parent.}
+\caption{Slave lifecycle. The master crafts a detailed prompt, the slave combines it with its own system prompt, executes tools using any execution pattern, and returns results to the master.}
 \label{fig:subagent_lifecycle}
 \end{figure*}
 
-%% Section 9: How Do We Manage Sub-Agents?
-\section{How Do We Manage Sub-Agents?}\label{sec:manage}
+%% Section 9: How Do We Manage Slaves?
+\section{How Do We Manage Slaves?}\label{sec:manage}
 
-The master-slave pattern provides the foundation for managing multiple sub-agents. In this architecture, a master agent serves as the coordinator, responsible for decomposing complex work into discrete tasks and distributing those tasks to specialized slave sub-agents. The master does not perform the work itself; instead, it coordinates, tracks progress, and synthesizes results.
+The master-slave pattern provides the foundation for managing multiple slaves. In this architecture, a master agent serves as the coordinator, responsible for decomposing complex work into discrete tasks and distributing those tasks to specialized slaves. The master does not perform the work itself; instead, it coordinates, tracks progress, and synthesizes results.
 
 A critical element of this pattern is the completion signal. Regardless of the communication mechanism employed—direct return, file-mediated output, or hybrid approaches—every slave must signal when it has finished its assigned task. This signal may be as simple as a boolean flag or as rich as a structured status message, but its presence is non-negotiable. Without reliable completion signals, the master cannot accurately track system state or make informed decisions about subsequent actions.
 
@@ -143,7 +143,7 @@ The communication pattern between master and slave determines how results flow b
   node[midway, above, font=\small] {result data};
 
 \end{tikzpicture}
-\caption{Direct return: the worker embeds its result in the completion message. Simple and immediate, suited for small results like pass/fail verdicts or status codes.}
+\caption{Direct return: the slave embeds its result in the completion message. Simple and immediate, suited for small results like pass/fail verdicts or status codes.}
 \label{fig:comm_direct}
 \end{figure*}
 
@@ -172,7 +172,7 @@ The communication pattern between master and slave determines how results flow b
   node[midway, right, font=\small] {read};
 
 \end{tikzpicture}
-\caption{File-mediated: the worker writes output to a shared file system and sends only a completion signal. The master reads the file when needed. Suited for large artifacts, binaries, or generated source files.}
+\caption{File-mediated: the slave writes output to a shared file system and sends only a completion signal. The master reads the file when needed. Suited for large artifacts, binaries, or generated source files.}
 \label{fig:comm_file}
 \end{figure*}
 
@@ -205,7 +205,7 @@ The communication pattern between master and slave determines how results flow b
   node[midway, above, font=\small] {summary};
 
 \end{tikzpicture}
-\caption{Hybrid (most common): the worker writes detailed artifacts to a shared file system and returns a concise summary directly to the master. Example: a test runner writes full logs to a file but returns ``14 passed, 2 failed.''}
+\caption{Hybrid (most common): the slave writes detailed artifacts to a shared file system and returns a concise summary directly to the master. Example: a test runner writes full logs to a file but returns ``14 passed, 2 failed.''}
 \label{fig:comm_hybrid}
 \end{figure*}
 
