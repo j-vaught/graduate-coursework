@@ -194,32 +194,34 @@ In \textbf{bidirectional communication}, the slave can interrupt the master to a
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[node distance=3cm and 6cm]
-  % Unidirectional
-  \node[agentbox=garnet] (m1) {Master};
-  \node[workerbox, below=of m1] (w1) {Slave};
+\begin{tikzpicture}[node distance=0.8cm and 1.5cm]
 
-  \draw[dataarrow, line width=1.5pt] (m1) -- node[left] {\footnotesize task} (w1);
-  \draw[dataarrow, dashed, line width=1.5pt] (w1) -- node[right] {\footnotesize result} (m1);
+  % TOP: Unidirectional (horizontal layout)
+  \node[font=\bfseries, anchor=east] (label1) {Unidirectional:};
+  \node[agentbox=garnet, right=0.5cm of label1, minimum width=1.6cm, minimum height=1.6cm] (m1) {Master};
+  \node[workerbox, right=5cm of m1, minimum width=1.6cm, minimum height=1.6cm] (w1) {Slave};
 
-  \node[above=0.3cm of m1, font=\bfseries] {Unidirectional};
+  % Task arrow (top, near edge)
+  \draw[dataarrow, line width=1.5pt] ([yshift=0.5cm]m1.east) -- node[above] {\footnotesize task} ([yshift=0.5cm]w1.west);
+  % Result arrow (bottom, near edge, dashed)
+  \draw[dataarrow, dashed, line width=1.5pt] ([yshift=-0.5cm]w1.west) -- node[below] {\footnotesize result} ([yshift=-0.5cm]m1.east);
 
-  % Bidirectional
-  \begin{scope}[xshift=8cm]
-    \node[agentbox=garnet] (m2) {Master};
-    \node[workerbox, below=of m2] (w2) {Slave};
+  % BOTTOM: Bidirectional (horizontal layout)
+  \node[font=\bfseries, anchor=east, below=3.2cm of label1] (label2) {Bidirectional:};
+  \node[agentbox=garnet, right=0.5cm of label2, minimum width=1.6cm, minimum height=1.6cm] (m2) {Master};
+  \node[workerbox, right=5cm of m2, minimum width=1.6cm, minimum height=1.6cm] (w2) {Slave};
 
-    \draw[dataarrow, line width=1.5pt] (m2) -- node[left, pos=0.3] {\footnotesize 1. task} (w2);
-    \draw[dataarrow, dashed, line width=1.5pt] (w2) -- node[right, pos=0.3] {\footnotesize 4. result} (m2);
+  % Task arrow (top, near edge)
+  \draw[dataarrow, line width=1.5pt] ([yshift=0.55cm]m2.east) -- node[above] {\footnotesize 1. task} ([yshift=0.55cm]w2.west);
+  % Result arrow (bottom, near edge, dashed)
+  \draw[dataarrow, dashed, line width=1.5pt] ([yshift=-0.55cm]w2.west) -- node[below] {\footnotesize 4. result} ([yshift=-0.55cm]m2.east);
 
-    % Mid-task communication
-    \draw[dataarrow=rose, ->] ($(w2.north) + (0.5,0)$) -- node[right, pos=0.4] {\footnotesize\color{rose} 2. clarification?} ($(m2.south) + (0.5,0)$);
-    \draw[dataarrow=rose, ->] ($(m2.south) + (1.0,0)$) -- node[right, pos=0.6] {\footnotesize\color{rose} 3. context} ($(w2.north) + (1.0,0)$);
+  % Mid-task communication (rose colored, close together in middle)
+  \draw[dataarrow=rose, line width=1.2pt] ([yshift=0.06cm]w2.west) -- node[above, pos=0.5] {\footnotesize\color{rose} 2. clarification?} ([yshift=0.06cm]m2.east);
+  \draw[dataarrow=rose, line width=1.2pt] ([yshift=-0.06cm]m2.east) -- node[below, pos=0.5] {\footnotesize\color{rose} 3. context} ([yshift=-0.06cm]w2.west);
 
-    \node[above=0.3cm of m2, font=\bfseries] {Bidirectional};
-  \end{scope}
 \end{tikzpicture}
-\caption{Unidirectional communication (left) vs.\ bidirectional communication (right). Bidirectional slaves can request clarification mid-task.}
+\caption{Unidirectional communication (top) vs.\ bidirectional communication (bottom). In unidirectional mode, the master sends a task and receives a result. In bidirectional mode, the slave can request clarification mid-task (steps 2--3 in rose).}
 \label{fig:uni_vs_bi}
 \end{figure*}
 
@@ -239,68 +241,93 @@ The \textbf{feedback loop} pattern combines serial topology, iterative orchestra
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[node distance=1.2cm and 1.5cm, scale=0.85, every node/.style={scale=0.85}]
-  % Pipeline
-  \node[agentbox=garnet, minimum width=1cm] (p1) {S};
-  \node[agentbox=atlantic, right=1cm of p1, minimum width=1cm] (p2) {P};
-  \node[agentbox=congaree, right=1cm of p2, minimum width=1cm] (p3) {E1};
-  \node[agentbox=horseshoe, right=1cm of p3, minimum width=1cm] (p4) {E2};
+\begin{tikzpicture}[node distance=0.8cm and 1.2cm]
+  \node[agentbox=garnet, minimum width=1.6cm, minimum height=1.2cm] (p1) {Stage 1};
+  \node[agentbox=atlantic, right=1.5cm of p1, minimum width=1.6cm, minimum height=1.2cm] (p2) {Stage 2};
+  \node[agentbox=congaree, right=1.5cm of p2, minimum width=1.6cm, minimum height=1.2cm] (p3) {Stage 3};
+  \node[agentbox=horseshoe, right=1.5cm of p3, minimum width=1.6cm, minimum height=1.2cm] (p4) {Stage 4};
 
   \draw[dataarrow] (p1) -- (p2);
   \draw[dataarrow] (p2) -- (p3);
   \draw[dataarrow] (p3) -- (p4);
-
-  \node[above=0.3cm of p2, font=\bfseries] {Pipeline};
-
-  % Fan-Out/Fan-In
-  \begin{scope}[xshift=7cm]
-    \node[agentbox=atlantic] (fo1) {P};
-    \node[workerbox, below left=1cm and 0.3cm of fo1] (fo2) {E1};
-    \node[workerbox, below=1cm of fo1] (fo3) {E2};
-    \node[workerbox, below right=1cm and 0.3cm of fo1] (fo4) {E3};
-    \node[agentbox=congaree, below=1.8cm of fo3] (fo5) {Syn};
-
-    \foreach \w in {fo2,fo3,fo4} {
-      \draw[dataarrow] (fo1) -- (\w);
-      \draw[dataarrow] (\w) -- (fo5);
-    }
-
-    \node[above=0.3cm of fo1, font=\bfseries] {Fan-Out/Fan-In};
-  \end{scope}
-
-  % Master-Slave Pool
-  \begin{scope}[xshift=12cm]
-    \node[agentbox=garnet] (mw1) {Master};
-    \node[workerbox, below left=1cm and 0.3cm of mw1] (mw2) {S1};
-    \node[workerbox, below=1cm of mw1] (mw3) {S2};
-    \node[workerbox, below right=1cm and 0.3cm of mw1] (mw4) {S3};
-
-    \foreach \w in {mw2,mw3,mw4} {
-      \draw[dataarrow, <->] (mw1) -- (\w);
-    }
-
-    \draw[dataarrow, <-] (mw1.north east) arc[start angle=0, end angle=340, radius=0.4cm];
-    \node[above right=0.1cm and 0.1cm of mw1, font=\footnotesize] {iterate};
-
-    \node[above=0.3cm of mw1, font=\bfseries] {Master-Slave Pool};
-  \end{scope}
-
-  % Feedback Loop
-  \begin{scope}[xshift=17.5cm]
-    \node[agentbox=atlantic] (fb1) {P};
-    \node[agentbox=congaree, below=1.5cm of fb1] (fb2) {E};
-
-    \draw[dataarrow] (fb1) -- (fb2);
-    \draw[dataarrow, dashed] (fb2.west) -- ++(-0.5,0) -- ++(0,1.5) -- node[above, pos=0.5] {\footnotesize refine} (fb1.west);
-
-    \node[above=0.3cm of fb1, font=\bfseries] {Feedback Loop};
-  \end{scope}
 \end{tikzpicture}
-\caption{Four canonical orchestration patterns. Each combines topology, orchestration mode, and communication direction in a distinct way.}
-\label{fig:canonical_summary}
+\caption{Pipeline pattern: sequential stages where each stage's output becomes the next stage's input. Serial topology, single-pass orchestration, unidirectional communication.}
+\label{fig:pattern_pipeline}
 \end{figure*}
 
-Figure~\ref{fig:canonical_summary} visualizes these four patterns. Each diagram uses consistent node sizes and color coding to emphasize structural differences. Table~\ref{tab:pattern_decision} maps each pattern onto its constituent building blocks and identifies its primary use case.
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 1.2cm]
+  % Planner bar
+  \node[agentbox=atlantic, minimum width=10cm, minimum height=0.6cm] (planner) {Planner};
+
+  % Slaves row - centered
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-3cm]planner.south) (e1) {Slave 1};
+  \node[workerbox] at ([yshift=-1.2cm]planner.south) (e2) {Slave 2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=3cm]planner.south) (e3) {Slave 3};
+
+  % Arrows down
+  \draw[dataarrow] (planner.south -| e1) -- (e1);
+  \draw[dataarrow] (planner.south -| e2) -- (e2);
+  \draw[dataarrow] (planner.south -| e3) -- (e3);
+
+  % Synthesizer bar
+  \node[agentbox=congaree, minimum width=10cm, minimum height=0.6cm] at ([yshift=-1.2cm]$(e1.south)!0.5!(e3.south)$) (syn) {Synthesizer};
+
+  % Arrows to synthesizer
+  \draw[dataarrow] (e1) -- (syn.north -| e1);
+  \draw[dataarrow] (e2) -- (syn.north -| e2);
+  \draw[dataarrow] (e3) -- (syn.north -| e3);
+\end{tikzpicture}
+\caption{Fan-out/fan-in pattern: the planner distributes independent subtasks to slaves, then a synthesizer merges results. Parallel topology, single-pass orchestration, unidirectional communication.}
+\label{fig:pattern_fanout}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 1.2cm]
+  % Master bar
+  \node[agentbox=garnet, minimum width=10cm, minimum height=0.6cm] (master) {Master};
+
+  % Slaves row - centered
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-3cm]master.south) (s1) {Slave 1};
+  \node[workerbox] at ([yshift=-1.2cm]master.south) (s2) {Slave 2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=3cm]master.south) (s3) {Slave 3};
+
+  % Bidirectional arrows
+  \draw[dataarrow] ([xshift=-0.15cm]master.south -| s1) -- ([xshift=-0.15cm]s1.north);
+  \draw[dataarrow] ([xshift=0.15cm]s1.north) -- ([xshift=0.15cm]master.south -| s1);
+
+  \draw[dataarrow] ([xshift=-0.15cm]master.south -| s2) -- ([xshift=-0.15cm]s2.north);
+  \draw[dataarrow] ([xshift=0.15cm]s2.north) -- ([xshift=0.15cm]master.south -| s2);
+
+  \draw[dataarrow] ([xshift=-0.15cm]master.south -| s3) -- ([xshift=-0.15cm]s3.north);
+  \draw[dataarrow] ([xshift=0.15cm]s3.north) -- ([xshift=0.15cm]master.south -| s3);
+
+  % Iterate loop
+  \draw[dataarrow, garnet, line width=1.5pt] (master.east) -- ++(0.5,0) |- ([yshift=0.5cm]master.north) -- (master.north) node[pos=0.25, right, font=\footnotesize] {iterate};
+\end{tikzpicture}
+\caption{Master-slave pool pattern: the master assigns tasks from a queue, slaves execute and return results, and the cycle repeats. Parallel topology, iterative orchestration, unidirectional communication.}
+\label{fig:pattern_pool}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 1.2cm]
+  \node[agentbox=atlantic, minimum width=1.8cm, minimum height=1.4cm] (planner) {Planner};
+  \node[agentbox=congaree, right=4cm of planner, minimum width=1.8cm, minimum height=1.4cm] (executor) {Executor};
+
+  % Forward arrow (top)
+  \draw[dataarrow, line width=1.5pt] ([yshift=0.3cm]planner.east) -- node[above] {\footnotesize plan} ([yshift=0.3cm]executor.west);
+
+  % Feedback arrow (bottom, dashed)
+  \draw[dataarrow, dashed, line width=1.5pt] ([yshift=-0.3cm]executor.west) -- node[below] {\footnotesize refine} ([yshift=-0.3cm]planner.east);
+\end{tikzpicture}
+\caption{Feedback loop pattern: the planner generates a plan, the executor attempts it and reports results back for refinement. Serial topology, iterative orchestration, bidirectional communication.}
+\label{fig:pattern_feedback}
+\end{figure*}
+
+Figures~\ref{fig:pattern_pipeline}, \ref{fig:pattern_fanout}, \ref{fig:pattern_pool}, and~\ref{fig:pattern_feedback} visualize the four canonical patterns. Each diagram uses consistent node sizes and color coding to emphasize structural differences. Table~\ref{tab:pattern_decision} maps each pattern onto its constituent building blocks and identifies its primary use case.
 
 \begin{table*}[t]
 \centering
