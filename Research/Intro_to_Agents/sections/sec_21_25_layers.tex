@@ -3,9 +3,9 @@
 
 \section{Why Multi-Layered Architectures?}\label{sec:why_layers}
 
-A flat orchestration model—one master managing everything—creates a bottleneck. As task complexity grows, the master's context fills with operational details: which files were changed, what errors occurred, what each worker reported. The master loses sight of the big picture. Consider an analogy: a CEO who personally writes deployment scripts has no time left for strategy. The fundamental problem is one of cognitive load. A single agent cannot simultaneously hold strategic vision, tactical planning, and execution details within a finite context window.
+A flat master model—one master managing everything—creates a bottleneck. As task complexity grows, the master's context fills with operational details: which files were changed, what errors occurred, what each slave reported. The master loses sight of the big picture. Consider an analogy: a CEO who personally writes deployment scripts has no time left for strategy. The fundamental problem is one of cognitive load. A single agent cannot simultaneously hold strategic vision, tactical planning, and execution details within a finite context window.
 
-Layering separates concerns. Strategic decisions occur at the top layer, where the agent reasons about goals, constraints, and success criteria. Tactical planning happens in the middle, where goals decompose into concrete task graphs with dependencies. Execution happens at the bottom, where specialized workers perform individual operations and report results. Each layer filters and abstracts information before passing it upward or downward. This separation is what allows multi-agent systems to scale beyond the limitations of a single context window.
+Layering separates concerns. Strategic decisions occur at the top layer, where the agent reasons about goals, constraints, and success criteria. Tactical planning happens in the middle, where goals decompose into concrete task graphs with dependencies. Execution happens at the bottom, where specialized slaves perform individual operations and report results. Each layer filters and abstracts information before passing it upward or downward. This separation is what allows multi-agent systems to scale beyond the limitations of a single context window.
 
 \begin{figure*}[t]
 \centering
@@ -15,7 +15,7 @@ Layering separates concerns. Strategic decisions occur at the top layer, where t
         % Master at center-top
         \node[agentbox=garnet, minimum width=2.5cm] (master) at (0,0) {Master};
 
-        % 10 workers arranged in two rows below
+        % 10 slaves arranged in two rows below
         \foreach \i in {0,...,4} {
             \node[workerbox, minimum width=1.8cm] (w1-\i) at ({-4.5+2*\i},-2) {W\i};
         }
@@ -73,24 +73,24 @@ Layering separates concerns. Strategic decisions occur at the top layer, where t
 \label{fig:flat_vs_layered}
 \end{figure*}
 
-Figure~\ref{fig:flat_vs_layered} contrasts these two approaches. The flat architecture shows a single master overwhelmed by direct connections to every worker. The layered architecture distributes coordination across multiple planning agents, each responsible for a subset of workers. The visual clarity of the layered diagram reflects the conceptual clarity it provides to the system.
+Figure~\ref{fig:flat_vs_layered} contrasts these two approaches. The flat architecture shows a single master overwhelmed by direct connections to every slave. The layered architecture distributes coordination across multiple planning agents, each responsible for a subset of slaves. The visual clarity of the layered diagram reflects the conceptual clarity it provides to the system.
 
 \section{Two-Layer Architecture}\label{sec:two_layer}
 
-The simplest multi-agent structure consists of one orchestrator and multiple workers. This is the architecture described in Sections~\ref{sec:manage}--\ref{sec:canonical}. The orchestrator holds the big picture, decomposes tasks into subtasks, and synthesizes results. Workers execute scoped tasks and report back. This division of labor is sufficient for many practical applications.
+The simplest multi-agent structure consists of one master and multiple slaves. This is the architecture described in Sections~\ref{sec:manage}--\ref{sec:canonical}. The master holds the big picture, decomposes tasks into subtasks, and synthesizes results. Slaves execute scoped tasks and report back. This division of labor is sufficient for many practical applications.
 
-The limitations become apparent at scale. The orchestrator is still a single point of failure and a potential bottleneck. It must simultaneously maintain strategic context—what are we trying to achieve?—and tactical details—which worker is doing what, what has completed, what failed? For small-to-medium tasks with three to five subtasks, this dual responsibility is manageable. Beyond that, the orchestrator's context window becomes strained. It begins to lose track of the big picture as it drowns in execution details.
+The limitations become apparent at scale. The master is still a single point of failure and a potential bottleneck. It must simultaneously maintain strategic context—what are we trying to achieve?—and tactical details—which slave is doing what, what has completed, what failed? For small-to-medium tasks with three to five subtasks, this dual responsibility is manageable. Beyond that, the master's context window becomes strained. It begins to lose track of the big picture as it drowns in execution details.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[scale=0.85, every node/.style={scale=0.85}]
     % LEFT: Two-Layer
     \begin{scope}[xshift=0cm]
-        % Orchestrator tier
-        \node[tierbox=garnet, minimum width=6cm, minimum height=1cm] (orch) at (0,0) {Orchestrator};
+        % Master tier
+        \node[tierbox=garnet, minimum width=6cm, minimum height=1cm] (orch) at (0,0) {Master};
         \node[labelnode, anchor=west, font=\footnotesize] at (3.2,0) {$\sim$80K tokens};
 
-        % Workers
+        % Slaves
         \foreach \i in {0,...,3} {
             \node[workerbox, minimum width=1.3cm] (w\i) at ({-2.5+1.7*\i},-2) {W\i};
         }
@@ -128,11 +128,11 @@ The limitations become apparent at scale. The orchestrator is still a single poi
         \node[labelnode, anchor=north, font=\large\bfseries] at (0,-3.8) {Three-Layer};
     \end{scope}
 \end{tikzpicture}
-\caption{Comparison of two-layer and three-layer agent architectures. The two-layer system places all strategic and tactical reasoning in a single orchestrator, consuming a large context budget. The three-layer system separates strategy from planning, allowing each layer to operate within a smaller, more focused context window. The execution layer scales horizontally by adding workers as needed.}
+\caption{Comparison of two-layer and three-layer agent architectures. The two-layer system places all strategic and tactical reasoning in a single master, consuming a large context budget. The three-layer system separates strategy from planning, allowing each layer to operate within a smaller, more focused context window. The execution layer scales horizontally by adding slaves as needed.}
 \label{fig:two_and_three_layer}
 \end{figure*}
 
-The left panel of Figure~\ref{fig:two_and_three_layer} illustrates the two-layer architecture. The orchestrator must allocate a substantial portion of its context window—approximately 80,000 tokens—to track both high-level goals and low-level worker state. Each worker operates with a smaller, task-specific context of roughly 30,000 tokens. This asymmetry is functional but places a heavy burden on the orchestrator.
+The left panel of Figure~\ref{fig:two_and_three_layer} illustrates the two-layer architecture. The master must allocate a substantial portion of its context window—approximately 80,000 tokens—to track both high-level goals and low-level slave state. Each slave operates with a smaller, task-specific context of roughly 30,000 tokens. This asymmetry is functional but places a heavy burden on the master.
 
 \section{Three-Layer Architecture}\label{sec:three_layer}
 
@@ -143,7 +143,7 @@ A three-layer architecture introduces an intermediate planning layer between str
 
 \item \textbf{Planning layer:} \textit{How do we break this into tasks?} This layer receives strategic goals and decomposes them into a task graph with dependencies, sequencing constraints, and resource allocations. It uses a moderate context budget—approximately 50,000 tokens—sufficient to represent a complex task structure without drowning in execution minutiae.
 
-\item \textbf{Execution layer:} \textit{Do the work.} Multiple agents at this layer execute individual tasks. Each receives a fresh context window containing only the information necessary for its specific task—typically 30,000 tokens. Execution agents never see the full strategic plan or the complete task graph. They operate on local information, which is precisely what allows them to scale.
+\item \textbf{Execution layer:} \textit{Do the work.} Multiple agents at this layer execute individual tasks. Each receives a fresh context window containing only the information necessary for its specific task—typically 30,000 tokens. Slave agents never see the full strategic plan or the complete task graph. They operate on local information, which is precisely what allows them to scale.
 \end{itemize}
 
 The key insight enabling this architecture is \textbf{information filtering}. Each layer abstracts and summarizes before passing information up or down. The strategy layer sees task completion summaries, not raw logs. The execution layer sees task specifications, not strategic rationale. This filtering is not accidental or optional—it is the mechanism that allows multi-layered systems to transcend the context limitations of individual agents.
@@ -157,7 +157,7 @@ How many layers should you use? The answer depends on task complexity, the numbe
 \begin{itemize}
 \item \textbf{1 layer (single agent):} Simple tasks with fewer than three subtasks, all of which fit comfortably within one context window. Example: analyzing a single file and generating a summary.
 
-\item \textbf{2 layers:} Most practical tasks. Three to five subtasks with moderate interdependencies. The orchestrator can track task state without becoming overwhelmed. Example: refactoring a module, running tests, and updating documentation.
+\item \textbf{2 layers:} Most practical tasks. Three to five subtasks with moderate interdependencies. The master can track task state without becoming overwhelmed. Example: refactoring a module, running tests, and updating documentation.
 
 \item \textbf{3 layers:} Complex projects with ten or more subtasks, multiple dependency chains, and a clear distinction between strategic and tactical concerns. Example: designing, implementing, testing, and deploying a new feature across multiple services.
 
@@ -226,9 +226,9 @@ Table~\ref{tab:layer_tradeoffs} summarizes the scaling behavior. Notice that tok
 
 \section{Domain Specialization Across Layers}\label{sec:specialization}
 
-Instead of adding more layers—going \textit{deeper}—you can add more specialists at the same level—going \textit{wider}. A single coordinator manages multiple domain experts: a code agent, a test agent, a documentation agent, a deployment agent. Each specialist has its own system prompt, tools, and context window. This horizontal scaling is often more effective than deep hierarchies because it reduces latency. Fewer handoffs mean faster execution. Specialization means each agent develops expertise within its domain rather than acting as a generalist bottleneck.
+Instead of adding more layers—going \textit{deeper}—you can add more specialists at the same level—going \textit{wider}. A single master manages multiple domain experts: a code agent, a test agent, a documentation agent, a deployment agent. Each specialist has its own system prompt, tools, and context window. This horizontal scaling is often more effective than deep hierarchies because it reduces latency. Fewer handoffs mean faster execution. Specialization means each agent develops expertise within its domain rather than acting as a generalist bottleneck.
 
-The tradeoff is that the coordinator must understand enough about each domain to delegate effectively. If the coordinator's context becomes overwhelmed by the breadth of domains—tracking what the code agent did, what the test agent found, what the documentation agent wrote, and what the deployment agent needs—that is the signal to add a planning layer above it. The coordinator then delegates domain orchestration to intermediate planning agents, each responsible for a subset of specialists.
+The tradeoff is that the master must understand enough about each domain to delegate effectively. If the master's context becomes overwhelmed by the breadth of domains—tracking what the code agent did, what the test agent found, what the documentation agent wrote, and what the deployment agent needs—that is the signal to add a planning layer above it. The master then delegates domain coordination to intermediate planning agents, each responsible for a subset of specialists.
 
 \begin{figure*}[t]
 \centering
@@ -258,7 +258,7 @@ The tradeoff is that the coordinator must understand enough about each domain to
     % RIGHT: Wide architecture
     \begin{scope}[xshift=10cm]
         % Root
-        \node[agentbox=garnet, minimum width=2.5cm] (wroot) at (0,0) {Coordinator};
+        \node[agentbox=garnet, minimum width=2.5cm] (wroot) at (0,0) {Master};
 
         % Six specialist children
         \node[workerbox, minimum width=1.5cm] (code) at (-5,-2.5) {Code};
@@ -268,7 +268,7 @@ The tradeoff is that the coordinator must understand enough about each domain to
         \node[workerbox, minimum width=1.5cm] (review) at (3,-2.5) {Review};
         \node[workerbox, minimum width=1.5cm] (monitor) at (5,-2.5) {Monitor};
 
-        % Arrows from coordinator to all specialists
+        % Arrows from master to all specialists
         \foreach \child in {code,test,docs,deploy,review,monitor} {
             \draw[dataarrow] (wroot) -- (\child);
         }
@@ -280,6 +280,6 @@ The tradeoff is that the coordinator must understand enough about each domain to
 \label{fig:wide_vs_deep}
 \end{figure*}
 
-Figure~\ref{fig:wide_vs_deep} contrasts deep and wide architectures. The deep system on the left requires four sequential handoffs to reach the execution layer. Each handoff adds latency and potential for information loss. The wide system on the right allows six specialists to operate in parallel, coordinated by a single layer above them. The visual contrast is stark: depth is tall and narrow, width is short and broad. The choice between them depends on whether your bottleneck is decomposition complexity (which benefits from depth) or domain coverage (which benefits from width).
+Figure~\ref{fig:wide_vs_deep} contrasts deep and wide architectures. The deep system on the left requires four sequential handoffs to reach the execution layer. Each handoff adds latency and potential for information loss. The wide system on the right allows six specialists to operate in parallel, coordinated by a single master above them. The visual contrast is stark: depth is tall and narrow, width is short and broad. The choice between them depends on whether your bottleneck is decomposition complexity (which benefits from depth) or domain coverage (which benefits from width).
 
-In practice, successful systems often combine both approaches. A three-layer architecture might have a strategic layer at the top, a planning layer that delegates to domain-specific coordinators in the middle, and domain specialists at the bottom. The strategic layer goes deep to separate concerns. The domain specialists go wide to cover diverse technical areas. This hybrid structure balances the competing demands of abstraction, specialization, and coordination.
+In practice, successful systems often combine both approaches. A three-layer architecture might have a strategic layer at the top, a planning layer that delegates to domain-specific masters in the middle, and domain specialists at the bottom. The strategic layer goes deep to separate concerns. The domain specialists go wide to cover diverse technical areas. This hybrid structure balances the competing demands of abstraction, specialization, and coordination.

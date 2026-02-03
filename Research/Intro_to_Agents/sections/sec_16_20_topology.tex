@@ -4,39 +4,39 @@
 
 \section{Serial Agent Chains}\label{sec:serial}
 
-In a serial agent chain, workers execute sequentially, forming a pipeline topology. The output of Worker A becomes the input to Worker B, which feeds Worker C, and so on. The master orchestrator coordinates handoffs between stages, ensuring each worker receives the correct input at the appropriate time.
+In a serial agent chain, slaves execute sequentially, forming a pipeline topology. The output of Slave A becomes the input to Slave B, which feeds Slave C, and so on. The master coordinates handoffs between stages, ensuring each slave receives the correct input at the appropriate time.
 
 This topology maps naturally onto transformation chains, where data must pass through multiple processing stages in a fixed order. For example, a document processing pipeline might parse raw text, analyze its structure, and format the output. Each stage depends on the previous stage's output, making parallelization impossible. Similarly, refinement chains implement sequential improvement: an initial draft is generated, reviewed for quality, and then revised based on feedback.
 
 The serial topology offers predictability and simplicity. Dependencies are explicit and linear. Debugging is straightforward because you can inspect the data flowing between each stage. The primary limitation is latency: total execution time equals the sum of all stage durations, with no opportunity for parallel speedup.
 
-The serial topology requires no dedicated figure; it is simply a chain of workers where each stage's output becomes the next stage's input. The orchestrator coordinates handoff timing but does not participate in data transformation. Workers operate independently once launched.
+The serial topology requires no dedicated figure; it is simply a chain of slaves where each stage's output becomes the next stage's input. The master coordinates handoff timing but does not participate in data transformation. Slaves operate independently once launched.
 
 \section{Parallel Agent Execution}\label{sec:parallel_agents}
 
-Parallel agent execution enables workers to operate simultaneously on independent tasks. The orchestrator fans out work and collects results. Unlike serial chains, parallel execution offers the potential for significant speedup when tasks are independent and workers have sufficient computational resources.
+Parallel agent execution enables slaves to operate simultaneously on independent tasks. The master fans out work and collects results. Unlike serial chains, parallel execution offers the potential for significant speedup when tasks are independent and slaves have sufficient computational resources.
 
-The key challenge in parallel execution is synchronization: when should the orchestrator proceed with the results it has received? Three barrier types govern this decision, each suited to different requirements.
+The key challenge in parallel execution is synchronization: when should the master proceed with the results it has received? Three barrier types govern this decision, each suited to different requirements.
 
-A \textbf{full barrier} waits for all workers to complete before proceeding. This is required when every result is necessary for correctness. For example, when aggregating statistics across multiple data partitions, missing even one partition would corrupt the final result. Full barriers maximize correctness at the cost of latency: the slowest worker determines total execution time.
+A \textbf{full barrier} waits for all slaves to complete before proceeding. This is required when every result is necessary for correctness. For example, when aggregating statistics across multiple data partitions, missing even one partition would corrupt the final result. Full barriers maximize correctness at the cost of latency: the slowest slave determines total execution time.
 
-A \textbf{partial barrier} or k-of-n barrier proceeds when k workers finish, where k < n. This pattern supports consensus mechanisms (majority vote requires $k > n/2$) and redundant task execution (take the first k results and discard the rest). Partial barriers reduce sensitivity to slow workers but require careful design to ensure that proceeding with incomplete results does not violate correctness requirements.
+A \textbf{partial barrier} or k-of-n barrier proceeds when k slaves finish, where k < n. This pattern supports consensus mechanisms (majority vote requires $k > n/2$) and redundant task execution (take the first k results and discard the rest). Partial barriers reduce sensitivity to slow slaves but require careful design to ensure that proceeding with incomplete results does not violate correctness requirements.
 
-A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever results are available. This implements best-effort execution: the system prioritizes responsiveness over completeness. Timeout barriers are appropriate when partial results have value and when strict deadlines matter more than exhaustive coverage. The orchestrator must handle missing results gracefully, either by synthesizing incomplete data or by flagging gaps in coverage.
+A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever results are available. This implements best-effort execution: the system prioritizes responsiveness over completeness. Timeout barriers are appropriate when partial results have value and when strict deadlines matter more than exhaustive coverage. The master must handle missing results gracefully, either by synthesizing incomplete data or by flagging gaps in coverage.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.8cm and 0.8cm]
-  % Orchestrator - wide bar
-  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch1) {Orchestrator};
+  % Master - wide bar
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch1) {Master};
 
-  % Workers row - explicitly centered under orchestrator
-  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch1.south) (w11) {W1};
-  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch1.south) (w12) {W2};
-  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]orch1.south)  (w13) {W3};
-  \node[workerbox] at ([yshift=-1.2cm, xshift=4.5cm]orch1.south)  (w14) {W4};
+  % Slaves row - explicitly centered under master
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch1.south) (w11) {S1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch1.south) (w12) {S2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]orch1.south)  (w13) {S3};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=4.5cm]orch1.south)  (w14) {S4};
 
-  % Arrows from orchestrator to workers
+  % Arrows from master to slaves
   \foreach \w in {w11,w12,w13,w14} {
     \draw[dataarrow] (orch1.south -| \w) -- (\w);
   }
@@ -44,7 +44,7 @@ A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever re
   % Barrier bar
   \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] at ([yshift=-1.2cm]$(w12.south)!0.5!(w13.south)$) (barrier1) {\footnotesize wait all};
 
-  % Arrows from workers to barrier
+  % Arrows from slaves to barrier
   \foreach \w in {w11,w12,w13,w14} {
     \draw[dataarrow] (\w) -- (barrier1.north -| \w);
   }
@@ -53,19 +53,19 @@ A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever re
   \node[agentbox=congaree, below=0.8cm of barrier1] (syn1) {Synthesize};
   \draw[dataarrow] (barrier1) -- (syn1);
 \end{tikzpicture}
-\caption{Full barrier: the orchestrator fans out tasks to all workers and waits for every worker to complete before proceeding to synthesis. The slowest worker determines total execution time.}
+\caption{Full barrier: the master fans out tasks to all slaves and waits for every slave to complete before proceeding to synthesis. The slowest slave determines total execution time.}
 \label{fig:barrier_full}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.8cm and 0.8cm]
-  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch2) {Orchestrator};
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch2) {Master};
 
-  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch2.south) (w21) {W1};
-  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch2.south) (w22) {W2};
-  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]orch2.south)  (w23) {W3};
-  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=4.5cm]orch2.south)  (w24) {W4};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch2.south) (w21) {S1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch2.south) (w22) {S2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]orch2.south)  (w23) {S3};
+  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=4.5cm]orch2.south)  (w24) {S4};
 
   \foreach \w in {w21,w22,w23,w24} {
     \draw[dataarrow] (orch2.south -| \w) -- (\w);
@@ -81,19 +81,19 @@ A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever re
   \node[agentbox=congaree, below=0.8cm of barrier2] (syn2) {Synthesize};
   \draw[dataarrow] (barrier2) -- (syn2);
 \end{tikzpicture}
-\caption{Partial barrier (k-of-n): the orchestrator proceeds when k workers finish, here 3 of 4. The grayed worker (W4) may still be running but its result is not required (dashed arrow). This reduces sensitivity to slow workers.}
+\caption{Partial barrier (k-of-n): the master proceeds when k slaves finish, here 3 of 4. The grayed slave (S4) may still be running but its result is not required (dashed arrow). This reduces sensitivity to slow slaves.}
 \label{fig:barrier_partial}
 \end{figure*}
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.8cm and 0.8cm]
-  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch3) {Orchestrator};
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch3) {Master};
 
-  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch3.south) (w31) {W1};
-  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch3.south) (w32) {W2};
-  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=1.5cm]orch3.south)  (w33) {W3};
-  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=4.5cm]orch3.south)  (w34) {W4};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch3.south) (w31) {S1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch3.south) (w32) {S2};
+  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=1.5cm]orch3.south)  (w33) {S3};
+  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=4.5cm]orch3.south)  (w34) {S4};
 
   \foreach \w in {w31,w32,w33,w34} {
     \draw[dataarrow] (orch3.south -| \w) -- (\w);
@@ -109,17 +109,17 @@ A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever re
   \node[agentbox=congaree, below=0.8cm of barrier3] (syn3) {Synthesize};
   \draw[dataarrow] (barrier3) -- (syn3);
 \end{tikzpicture}
-\caption{Timeout barrier: the orchestrator waits up to a fixed deadline (here 30 seconds), then proceeds with whatever results are available. Grayed workers with dashed arrows have not yet completed. This prioritizes responsiveness over completeness.}
+\caption{Timeout barrier: the master waits up to a fixed deadline (here 30 seconds), then proceeds with whatever results are available. Grayed slaves with dashed arrows have not yet completed. This prioritizes responsiveness over completeness.}
 \label{fig:barrier_timeout}
 \end{figure*}
 
-Figures~\ref{fig:barrier_full}, \ref{fig:barrier_partial}, and~\ref{fig:barrier_timeout} illustrate the three barrier types. Grayed workers indicate those whose results are not required (or not yet available) for the orchestrator to proceed. The choice of barrier depends on the task's tolerance for incomplete results and its latency requirements.
+Figures~\ref{fig:barrier_full}, \ref{fig:barrier_partial}, and~\ref{fig:barrier_timeout} illustrate the three barrier types. Grayed slaves indicate those whose results are not required (or not yet available) for the master to proceed. The choice of barrier depends on the task's tolerance for incomplete results and its latency requirements.
 
 \section{Tree-Structured Agent Hierarchies}\label{sec:tree}
 
-Tree-structured hierarchies extend the master-worker pattern with intermediate delegation layers. A root master delegates to lead agents, who in turn delegate to specialist workers. This topology is about the shape of delegation, not about formal layering or rigid role definitions.
+Tree-structured hierarchies extend the master-slave pattern with intermediate delegation layers. A root master delegates to lead agents, who in turn delegate to specialist slaves. This topology is about the shape of delegation, not about formal layering or rigid role definitions.
 
-Information flows bidirectionally in a tree hierarchy. Tasks and context flow downward via solid edges: the root provides high-level goals to leads, who decompose them into subtasks for specialists. Results and status flow upward via dashed edges: specialists report to leads, who synthesize and report to the root. Each node acts as both a worker (for its parent) and a master (for its children).
+Information flows bidirectionally in a tree hierarchy. Tasks and context flow downward via solid edges: the root provides high-level goals to leads, who decompose them into subtasks for specialists. Results and status flow upward via dashed edges: specialists report to leads, who synthesize and report to the root. Each node acts as both a slave (for its parent) and a master (for its children).
 
 \begin{figure*}[t]
 \centering
@@ -180,24 +180,24 @@ Information flows bidirectionally in a tree hierarchy. Tasks and context flow do
 
 Tree hierarchies enable delegation at scale, but depth is limited by token costs. Each level multiplies total token consumption: if the root's prompt is 1000 tokens and each lead receives a similar context, and each specialist likewise, the total context across all agents can reach tens of thousands of tokens. Practical systems rarely exceed three levels due to these costs and the coordination overhead of deep hierarchies.
 
-Figure~\ref{fig:tree_hierarchy} shows a three-level tree. The root delegates to three leads, each managing two specialists. Solid edges represent task delegation; dashed edges represent result aggregation. The root never communicates directly with specialists; all communication is mediated by the leads.
+Figure~\ref{fig:tree_hierarchy} shows a three-level tree. The root delegates to three leads, each managing two specialists. Solid edges represent task delegation; dashed edges represent result aggregation. The root never communicates directly with specialist slaves; all communication is mediated by the leads.
 
 \section{Unidirectional vs.\ Bidirectional Communication}\label{sec:uni_bi}
 
-Communication between master and worker can be unidirectional or bidirectional. The choice affects protocol complexity, adaptability, and predictability.
+Communication between master and slave can be unidirectional or bidirectional. The choice affects protocol complexity, adaptability, and predictability.
 
-In \textbf{unidirectional communication}, the master sends a task and the worker returns a result. No mid-task communication occurs. The worker cannot ask for clarification, request additional context, or negotiate scope. It must work with what it was given. This simplicity offers isolation and predictability: each worker operates independently, and the master's responsibilities are limited to task assignment and result collection.
+In \textbf{unidirectional communication}, the master sends a task and the slave returns a result. No mid-task communication occurs. The slave cannot ask for clarification, request additional context, or negotiate scope. It must work with what it was given. This simplicity offers isolation and predictability: each slave operates independently, and the master's responsibilities are limited to task assignment and result collection.
 
-Unidirectional communication is appropriate when tasks are well-specified and workers have sufficient context to operate autonomously. The cost of this simplicity is rigidity: if the worker encounters ambiguity or missing information, it must make assumptions or fail. The master has no opportunity to intervene mid-task.
+Unidirectional communication is appropriate when tasks are well-specified and slaves have sufficient context to operate autonomously. The cost of this simplicity is rigidity: if the slave encounters ambiguity or missing information, it must make assumptions or fail. The master has no opportunity to intervene mid-task.
 
-In \textbf{bidirectional communication}, the worker can interrupt the master to ask questions, request clarification, or negotiate scope changes. This adaptability enables workers to handle underspecified tasks and to refine their approach based on runtime discoveries. The master must handle interrupts, which complicates the orchestration protocol. Bidirectional communication increases coupling: the master and worker must agree on an interrupt protocol, and the master's availability becomes a bottleneck.
+In \textbf{bidirectional communication}, the slave can interrupt the master to ask questions, request clarification, or negotiate scope changes. This adaptability enables slaves to handle underspecified tasks and to refine their approach based on runtime discoveries. The master must handle interrupts, which complicates the orchestration protocol. Bidirectional communication increases coupling: the master and slave must agree on an interrupt protocol, and the master's availability becomes a bottleneck.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=3cm and 6cm]
   % Unidirectional
   \node[agentbox=garnet] (m1) {Master};
-  \node[workerbox, below=of m1] (w1) {Worker};
+  \node[workerbox, below=of m1] (w1) {Slave};
 
   \draw[dataarrow, line width=1.5pt] (m1) -- node[left] {\footnotesize task} (w1);
   \draw[dataarrow, dashed, line width=1.5pt] (w1) -- node[right] {\footnotesize result} (m1);
@@ -207,7 +207,7 @@ In \textbf{bidirectional communication}, the worker can interrupt the master to 
   % Bidirectional
   \begin{scope}[xshift=8cm]
     \node[agentbox=garnet] (m2) {Master};
-    \node[workerbox, below=of m2] (w2) {Worker};
+    \node[workerbox, below=of m2] (w2) {Slave};
 
     \draw[dataarrow, line width=1.5pt] (m2) -- node[left, pos=0.3] {\footnotesize 1. task} (w2);
     \draw[dataarrow, dashed, line width=1.5pt] (w2) -- node[right, pos=0.3] {\footnotesize 4. result} (m2);
@@ -219,7 +219,7 @@ In \textbf{bidirectional communication}, the worker can interrupt the master to 
     \node[above=0.3cm of m2, font=\bfseries] {Bidirectional};
   \end{scope}
 \end{tikzpicture}
-\caption{Unidirectional communication (left) vs.\ bidirectional communication (right). Bidirectional workers can request clarification mid-task.}
+\caption{Unidirectional communication (left) vs.\ bidirectional communication (right). Bidirectional slaves can request clarification mid-task.}
 \label{fig:uni_vs_bi}
 \end{figure*}
 
@@ -231,9 +231,9 @@ The building blocks introduced in previous sections combine to form four canonic
 
 The \textbf{pipeline} pattern combines serial topology, single-pass orchestration, and unidirectional communication. It implements transformation chains where data flows through sequential stages. Each stage performs a well-defined transformation and passes results forward. The pattern is simple and predictable but offers no parallelism.
 
-The \textbf{fan-out/fan-in} pattern combines parallel topology, single-pass orchestration, and unidirectional communication. The orchestrator fans out independent subtasks to multiple workers and synthesizes their results. This pattern exploits task parallelism for speedup but requires that subtasks be independent.
+The \textbf{fan-out/fan-in} pattern combines parallel topology, single-pass orchestration, and unidirectional communication. The master fans out independent subtasks to multiple slaves and synthesizes their results. This pattern exploits task parallelism for speedup but requires that subtasks be independent.
 
-The \textbf{master-worker pool} pattern combines parallel topology, iterative orchestration, and unidirectional communication. The master maintains a queue of tasks and assigns them to workers as they become available. Workers execute tasks independently and return results. The master continues until the queue is empty. This pattern efficiently handles batch processing and load balancing.
+The \textbf{master-slave pool} pattern combines parallel topology, iterative orchestration, and unidirectional communication. The master maintains a queue of tasks and assigns them to slaves as they become available. Slaves execute tasks independently and return results. The master continues until the queue is empty. This pattern efficiently handles batch processing and load balancing.
 
 The \textbf{feedback loop} pattern combines serial topology, iterative orchestration, and bidirectional communication. The planner generates a plan, the executor attempts it, and the executor reports results back to the planner for refinement. This pattern enables iterative improvement and adaptive planning but incurs higher coordination overhead.
 
@@ -268,12 +268,12 @@ The \textbf{feedback loop} pattern combines serial topology, iterative orchestra
     \node[above=0.3cm of fo1, font=\bfseries] {Fan-Out/Fan-In};
   \end{scope}
 
-  % Master-Worker Pool
+  % Master-Slave Pool
   \begin{scope}[xshift=12cm]
     \node[agentbox=garnet] (mw1) {Master};
-    \node[workerbox, below left=1cm and 0.3cm of mw1] (mw2) {W1};
-    \node[workerbox, below=1cm of mw1] (mw3) {W2};
-    \node[workerbox, below right=1cm and 0.3cm of mw1] (mw4) {W3};
+    \node[workerbox, below left=1cm and 0.3cm of mw1] (mw2) {S1};
+    \node[workerbox, below=1cm of mw1] (mw3) {S2};
+    \node[workerbox, below right=1cm and 0.3cm of mw1] (mw4) {S3};
 
     \foreach \w in {mw2,mw3,mw4} {
       \draw[dataarrow, <->] (mw1) -- (\w);
@@ -282,7 +282,7 @@ The \textbf{feedback loop} pattern combines serial topology, iterative orchestra
     \draw[dataarrow, <-] (mw1.north east) arc[start angle=0, end angle=340, radius=0.4cm];
     \node[above right=0.1cm and 0.1cm of mw1, font=\footnotesize] {iterate};
 
-    \node[above=0.3cm of mw1, font=\bfseries] {Master-Worker Pool};
+    \node[above=0.3cm of mw1, font=\bfseries] {Master-Slave Pool};
   \end{scope}
 
   % Feedback Loop
@@ -312,7 +312,7 @@ Figure~\ref{fig:canonical_summary} visualizes these four patterns. Each diagram 
 \midrule
 Pipeline & Serial & Single-pass & Unidirectional & Transformation chains \\
 Fan-Out/Fan-In & Parallel & Single-pass & Unidirectional & Independent subtasks \\
-Master-Worker Pool & Parallel & Iterative & Unidirectional & Batch processing \\
+Master-Slave Pool & Parallel & Iterative & Unidirectional & Batch processing \\
 Feedback Loop & Serial & Iterative & Bidirectional & Iterative refinement \\
 \bottomrule
 \end{tabularx}

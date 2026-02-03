@@ -80,23 +80,23 @@ Upon completion, the sub-agent returns control to its parent. The exact form of 
 %% Section 9: How Do We Manage Sub-Agents?
 \section{How Do We Manage Sub-Agents?}\label{sec:manage}
 
-The orchestrator-worker pattern provides the foundation for managing multiple sub-agents. In this architecture, a master agent serves as the orchestrator, responsible for decomposing complex work into discrete tasks and distributing those tasks to specialized worker sub-agents. The master does not perform the work itself; instead, it coordinates, tracks progress, and synthesizes results.
+The master-slave pattern provides the foundation for managing multiple sub-agents. In this architecture, a master agent serves as the coordinator, responsible for decomposing complex work into discrete tasks and distributing those tasks to specialized slave sub-agents. The master does not perform the work itself; instead, it coordinates, tracks progress, and synthesizes results.
 
-A critical element of this pattern is the completion signal. Regardless of the communication mechanism employed—direct return, file-mediated output, or hybrid approaches—every worker must signal when it has finished its assigned task. This signal may be as simple as a boolean flag or as rich as a structured status message, but its presence is non-negotiable. Without reliable completion signals, the orchestrator cannot accurately track system state or make informed decisions about subsequent actions.
+A critical element of this pattern is the completion signal. Regardless of the communication mechanism employed—direct return, file-mediated output, or hybrid approaches—every slave must signal when it has finished its assigned task. This signal may be as simple as a boolean flag or as rich as a structured status message, but its presence is non-negotiable. Without reliable completion signals, the master cannot accurately track system state or make informed decisions about subsequent actions.
 
-The orchestrator maintains state about the entire pool of workers. This state includes which workers are currently executing, which have completed their tasks, what results have been received, and what work remains to be distributed. When a worker signals completion, the orchestrator updates its internal model, evaluates whether dependencies have been satisfied, and determines the next steps. This might involve launching additional workers to handle newly unblocked tasks, aggregating results from completed workers to produce a final output, or escalating issues when a worker reports failure.
+The master maintains state about the entire pool of slaves. This state includes which slaves are currently executing, which have completed their tasks, what results have been received, and what work remains to be distributed. When a slave signals completion, the master updates its internal model, evaluates whether dependencies have been satisfied, and determines the next steps. This might involve launching additional slaves to handle newly unblocked tasks, aggregating results from completed slaves to produce a final output, or escalating issues when a slave reports failure.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.6cm]
 
 % Master on the left
-\node[agentbox=garnet, minimum width=3.5cm, minimum height=3.8cm] (master) {\large Orchestrator};
+\node[agentbox=garnet, minimum width=3.5cm, minimum height=3.8cm] (master) {\large Master};
 
 % Workers stacked on the right
-\node[workerbox, right=4cm of master, yshift=1.2cm, minimum width=2.5cm] (w1) {Worker A};
-\node[workerbox, right=4cm of master, yshift=0.0cm, minimum width=2.5cm] (w2) {Worker B};
-\node[workerbox, right=4cm of master, yshift=-1.2cm, minimum width=2.5cm] (w3) {Worker C};
+\node[workerbox, right=4cm of master, yshift=1.2cm, minimum width=2.5cm] (w1) {Slave A};
+\node[workerbox, right=4cm of master, yshift=0.0cm, minimum width=2.5cm] (w2) {Slave B};
+\node[workerbox, right=4cm of master, yshift=-1.2cm, minimum width=2.5cm] (w3) {Slave C};
 
 % Task arrows: master to workers (solid, straight horizontal)
 \draw[dataarrow=garnet] (master.east |- w1) -- (w1.west)
@@ -115,27 +115,27 @@ The orchestrator maintains state about the entire pool of workers. This state in
   node[midway, below, font=\footnotesize] {result};
 
 \end{tikzpicture}
-\caption{The orchestrator-worker pattern. The orchestrator assigns tasks to workers via straight delegation (solid) and receives results back (dashed). Each worker operates independently with its own context.}
+\caption{The master-slave pattern. The master assigns tasks to slaves via straight delegation (solid) and receives results back (dashed). Each slave operates independently with its own context.}
 \label{fig:orchestrator_workers}
 \end{figure*}
 
 %% Section 10: Communication Patterns
 \section{Communication Patterns}\label{sec:comm}
 
-The communication pattern between orchestrator and worker determines how results flow back to the master. Three patterns dominate in practice, each suited to different types of tasks and output characteristics.
+The communication pattern between master and slave determines how results flow back to the master. Three patterns dominate in practice, each suited to different types of tasks and output characteristics.
 
-\textbf{Direct return} embeds the result directly in the completion message. This pattern is appropriate when the master requires the worker's answer to make an immediate decision. A testing worker might return a simple pass/fail verdict, an installation worker might report success or error codes, and a query worker might return a small dataset or configuration value. The advantage is immediacy and simplicity: the orchestrator receives everything it needs in a single message. The disadvantage is scalability: large results bloat messages and may exceed protocol limits.
+\textbf{Direct return} embeds the result directly in the completion message. This pattern is appropriate when the master requires the slave's answer to make an immediate decision. A testing slave might return a simple pass/fail verdict, an installation slave might report success or error codes, and a query slave might return a small dataset or configuration value. The advantage is immediacy and simplicity: the master receives everything it needs in a single message. The disadvantage is scalability: large results bloat messages and may exceed protocol limits.
 
-\textbf{File-mediated communication} separates the completion signal from the result. The worker writes its output to disk—a dataset, a rendered image, a binary artifact, newly generated source files—and then sends a minimal completion message to the orchestrator. The master can then read the file if and when it needs the data. This pattern is essential for large outputs that would be impractical to transmit inline. It also naturally handles side effects: when a code generation worker produces new source files, those files are the deliverable, not a message describing them. The worker still sends a completion flag to notify the orchestrator that the work is done, but the substantive output lives on disk.
+\textbf{File-mediated communication} separates the completion signal from the result. The slave writes its output to disk—a dataset, a rendered image, a binary artifact, newly generated source files—and then sends a minimal completion message to the master. The master can then read the file if and when it needs the data. This pattern is essential for large outputs that would be impractical to transmit inline. It also naturally handles side effects: when a code generation slave produces new source files, those files are the deliverable, not a message describing them. The slave still sends a completion flag to notify the master that the work is done, but the substantive output lives on disk.
 
-\textbf{Hybrid communication}, the most common pattern in production systems, combines both approaches. The worker writes detailed artifacts to disk and simultaneously returns a summary in its completion message. A test runner might write full logs and stack traces to a file while returning "14 passed, 2 failed" to the orchestrator. A data processing worker might serialize a large DataFrame to disk while returning basic statistics (row count, schema, validation errors) inline. This gives the orchestrator enough information to make decisions without forcing it to parse large files, while preserving complete outputs for debugging, auditing, or downstream consumption.
+\textbf{Hybrid communication}, the most common pattern in production systems, combines both approaches. The slave writes detailed artifacts to disk and simultaneously returns a summary in its completion message. A test runner might write full logs and stack traces to a file while returning "14 passed, 2 failed" to the master. A data processing slave might serialize a large DataFrame to disk while returning basic statistics (row count, schema, validation errors) inline. This gives the master enough information to make decisions without forcing it to parse large files, while preserving complete outputs for debugging, auditing, or downstream consumption.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=1.2cm and 2.5cm]
 
 % Worker and Master
-\node[workerbox, minimum width=2.5cm] (w1) {Worker};
+\node[workerbox, minimum width=2.5cm] (w1) {Slave};
 \node[agentbox, right=3cm of w1, minimum width=2.5cm] (m1) {Master};
 
 % Single thick arrow with result
@@ -152,7 +152,7 @@ The communication pattern between orchestrator and worker determines how results
 \begin{tikzpicture}[node distance=1.2cm and 2cm]
 
 % Worker and Master on top
-\node[workerbox, minimum width=2.5cm] (w2) {Worker};
+\node[workerbox, minimum width=2.5cm] (w2) {Slave};
 \node[agentbox, right=4cm of w2, minimum width=2.5cm] (m2) {Master};
 
 % Wide file system bar underneath
@@ -181,7 +181,7 @@ The communication pattern between orchestrator and worker determines how results
 \begin{tikzpicture}[node distance=1.2cm and 2cm]
 
 % Worker and Master on top
-\node[workerbox, minimum width=2.5cm] (w3) {Worker};
+\node[workerbox, minimum width=2.5cm] (w3) {Slave};
 \node[agentbox, right=4cm of w3, minimum width=2.5cm] (m3) {Master};
 
 % Wide file system bar underneath
@@ -209,16 +209,16 @@ The communication pattern between orchestrator and worker determines how results
 \label{fig:comm_hybrid}
 \end{figure*}
 
-%% Section 11: Orchestrator Control Models
-\section{Orchestrator Control Models}\label{sec:control}
+%% Section 11: Master Control Models
+\section{Master Control Models}\label{sec:control}
 
-The orchestrator's control model determines the distribution of intelligence between master and worker. Three models exist along a spectrum from fully centralized to fully distributed decision-making.
+The master's control model determines the distribution of intelligence between master and slave. Three models exist along a spectrum from fully centralized to fully distributed decision-making.
 
-In the \textbf{imperative model}, the master agent dictates exact steps for the worker to execute. The orchestrator's prompt might read: "Profile the function \texttt{compute\_similarity}, identify the bottleneck in the inner loop, replace the nested iteration with a vectorized NumPy operation, and verify the output matches the original implementation." Intelligence resides in the master, which has performed the analysis and determined the precise remedy. The worker is a capable executor but makes no strategic decisions. This model offers high predictability and tight control, making it suitable for tasks where the orchestrator has domain expertise and the solution path is well understood. The cost is brittleness: if the prescribed steps encounter unexpected conditions, the worker has no autonomy to adapt.
+In the \textbf{imperative model}, the master agent dictates exact steps for the slave to execute. The master's prompt might read: "Profile the function \texttt{compute\_similarity}, identify the bottleneck in the inner loop, replace the nested iteration with a vectorized NumPy operation, and verify the output matches the original implementation." Intelligence resides in the master, which has performed the analysis and determined the precise remedy. The slave is a capable executor but makes no strategic decisions. This model offers high predictability and tight control, making it suitable for tasks where the master has domain expertise and the solution path is well understood. The cost is brittleness: if the prescribed steps encounter unexpected conditions, the slave has no autonomy to adapt.
 
-The \textbf{declarative model} inverts this relationship. The master states only the goal: "Make the function \texttt{compute\_similarity} more efficient." The worker receives this objective and autonomously determines how to achieve it. It might profile the code, analyze algorithmic complexity, explore alternative data structures, or apply compiler optimizations—all without further direction from the master. Intelligence lives in the worker, which must possess both domain expertise and strategic reasoning. This model offers maximum flexibility and can discover solutions the orchestrator never considered. The cost is reduced predictability and control: the master cannot easily constrain the solution space or guarantee particular approaches.
+The \textbf{declarative model} inverts this relationship. The master states only the goal: "Make the function \texttt{compute\_similarity} more efficient." The slave receives this objective and autonomously determines how to achieve it. It might profile the code, analyze algorithmic complexity, explore alternative data structures, or apply compiler optimizations—all without further direction from the master. Intelligence lives in the slave, which must possess both domain expertise and strategic reasoning. This model offers maximum flexibility and can discover solutions the master never considered. The cost is reduced predictability and control: the master cannot easily constrain the solution space or guarantee particular approaches.
 
-The \textbf{hybrid model}, dominant in practice, blends goal specification with constraints. The orchestrator might instruct: "Optimize the function \texttt{compute\_similarity}. The optimization must pass all existing tests without modification, must not introduce new dependencies, and should target a 2× speedup." This shares intelligence between master and worker. The master encodes domain knowledge and project constraints, while the worker applies technical expertise to find a solution within those bounds. The balance is tunable: more constraints shift control toward the imperative end, fewer constraints toward the declarative end.
+The \textbf{hybrid model}, dominant in practice, blends goal specification with constraints. The master might instruct: "Optimize the function \texttt{compute\_similarity}. The optimization must pass all existing tests without modification, must not introduce new dependencies, and should target a 2× speedup." This shares intelligence between master and slave. The master encodes domain knowledge and project constraints, while the slave applies technical expertise to find a solution within those bounds. The balance is tunable: more constraints shift control toward the imperative end, fewer constraints toward the declarative end.
 
 \begin{figure*}[t]
 \centering
@@ -228,7 +228,7 @@ The \textbf{hybrid model}, dominant in practice, blends goal specification with 
 \node[font=\large\bfseries] (imp-title) {Imperative};
 
 % Orchestrator
-\node[agentbox=garnet, below=0.6cm of imp-title, minimum width=3cm] (imp-orch) {Orchestrator};
+\node[agentbox=garnet, below=0.6cm of imp-title, minimum width=3cm] (imp-orch) {Master};
 
 % Many small workers on same level, centered on orchestrator
 \node[workerbox, below=1.5cm of imp-orch, minimum width=1.4cm, minimum height=0.5cm, font=\scriptsize\sffamily] (iw3) {rewrite};
@@ -257,36 +257,36 @@ The \textbf{hybrid model}, dominant in practice, blends goal specification with 
 \node[font=\large\bfseries, right=7cm of imp-title] (dec-title) {Declarative};
 
 % Orchestrator (same size)
-\node[agentbox=garnet, below=0.6cm of dec-title, minimum width=3cm] (dec-orch) {Orchestrator};
+\node[agentbox=garnet, below=0.6cm of dec-title, minimum width=3cm] (dec-orch) {Master};
 
 % One smart worker (same size as orchestrator)
-\node[agentbox=atlantic, below=1.5cm of dec-orch, minimum width=3cm] (dw1) {Worker};
+\node[agentbox=atlantic, below=1.5cm of dec-orch, minimum width=3cm] (dw1) {Slave};
 
 \draw[dataarrow=garnet] (dec-orch) -- (dw1)
   node[midway, right, font=\footnotesize] {``optimize f()''};
 
 % Label
-\node[labelnode, below=0.3cm of dw1, font=\footnotesize, align=center] {one capable, expensive worker\\autonomous reasoning};
+\node[labelnode, below=0.3cm of dw1, font=\footnotesize, align=center] {one capable, expensive slave\\autonomous reasoning};
 
 % === Separator ===
 \draw[dashed, bk30, thick] ($(imp-title.east)!0.5!(dec-title.west)$) ++(0,0.3) -- ++(0,-5.5);
 
 \end{tikzpicture}
-\caption{Imperative vs.\ declarative control models. With imperative control, the orchestrator decomposes work into micro-tasks and delegates each to a small, inexpensive worker. With declarative control, the orchestrator states the goal and a single capable worker reasons autonomously. The orchestrator's intelligence remains constant; what changes is the granularity of delegation.}
+\caption{Imperative vs.\ declarative control models. With imperative control, the master decomposes work into micro-tasks and delegates each to a small, inexpensive slave. With declarative control, the master states the goal and a single capable slave reasons autonomously. The master's intelligence remains constant; what changes is the granularity of delegation.}
 \label{fig:control_models}
 \end{figure*}
 
-Table~\ref{tab:control_comparison} summarizes the tradeoffs. Imperative control offers predictability at the cost of flexibility. Declarative control enables creative problem-solving but sacrifices determinism. Hybrid control, by allowing the orchestrator to tune the constraint set, provides a practical middle ground for most production agent systems.
+Table~\ref{tab:control_comparison} summarizes the tradeoffs. Imperative control offers predictability at the cost of flexibility. Declarative control enables creative problem-solving but sacrifices determinism. Hybrid control, by allowing the master to tune the constraint set, provides a practical middle ground for most production agent systems.
 
 \begin{table}[H]
 \centering
-\caption{Comparison of orchestrator control models.}
+\caption{Comparison of master control models.}
 \label{tab:control_comparison}
 \begin{tabularx}{\columnwidth}{lXXX}
 \toprule
 \textbf{Property} & \textbf{Imperative} & \textbf{Declarative} & \textbf{Hybrid} \\
 \midrule
-Intelligence location & Master & Worker & Shared \\
+Intelligence location & Master & Slave & Shared \\
 Message size & Large & Small & Medium \\
 Worker autonomy & Low & High & Medium \\
 Predictability & High & Low & Medium \\
