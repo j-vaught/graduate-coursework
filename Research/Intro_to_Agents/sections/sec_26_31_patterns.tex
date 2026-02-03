@@ -19,84 +19,36 @@ A failure at any stage blocks the entire pipeline, requiring careful error handl
 For tasks with independent subtasks, the pipeline's strict sequencing wastes potential parallelism.
 Despite these constraints, pipelines remain a fundamental building block for workflows that require ordered transformations.
 
-Figure~\ref{fig:patterns_pipe_fan} (top) illustrates a five-stage pipeline for document processing.
+Figure~\ref{fig:pipeline_pattern} illustrates a five-stage pipeline for document processing.
 Raw input enters the Ingest stage, producing structured data for Parse, which feeds analyzed content to Analyze, then formatted output to Format, and finally the polished result to Output.
 The master establishes the chain and monitors each stage, but the data flows strictly left-to-right through the sequence.
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[
-  node distance=1.2cm and 1.5cm,
-  every node/.style={font=\small}
-]
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Master bar - text width
+  \node[agentbox=garnet, minimum width=\textwidth, minimum height=0.6cm] (master) {Master};
 
-% TOP HALF: Pipeline Pattern
-\node[agentbox=garnet, minimum width=1.2cm] (orch) {Master};
-\node[agentbox=garnet, below=1.5cm of orch, xshift=-4cm, minimum width=1.2cm] (ingest) {Ingest};
-\node[agentbox=atlantic, right=of ingest, minimum width=1.2cm] (parse) {Parse};
-\node[agentbox=congaree, right=of parse, minimum width=1.2cm] (analyze) {Analyze};
-\node[agentbox=horseshoe, right=of analyze, minimum width=1.2cm] (format) {Format};
-\node[agentbox=bk70, right=of format, minimum width=1.2cm] (output) {Output};
+  % 5 pipeline stages in one row
+  \node[agentbox=garnet, minimum width=2.2cm] at ([yshift=-1.2cm, xshift=-6.4cm]master.south) (ingest) {Ingest};
+  \node[agentbox=atlantic, minimum width=2.2cm] at ([yshift=-1.2cm, xshift=-3.2cm]master.south) (parse) {Parse};
+  \node[agentbox=congaree, minimum width=2.2cm] at ([yshift=-1.2cm]master.south) (analyze) {Analyze};
+  \node[agentbox=horseshoe, minimum width=2.2cm] at ([yshift=-1.2cm, xshift=3.2cm]master.south) (format) {Format};
+  \node[agentbox=bk70, minimum width=2.2cm] at ([yshift=-1.2cm, xshift=6.4cm]master.south) (output) {Output};
 
-% Pipeline flow with data labels
-\draw[dataarrow] (ingest) -- node[labelnode, above] {raw} (parse);
-\draw[dataarrow] (parse) -- node[labelnode, above] {structured} (analyze);
-\draw[dataarrow] (analyze) -- node[labelnode, above] {analyzed} (format);
-\draw[dataarrow] (format) -- node[labelnode, above] {formatted} (output);
+  % Arrows from master to stages
+  \foreach \s in {ingest,parse,analyze,format,output} {
+    \draw[dataarrow] (master.south -| \s) -- (\s);
+  }
 
-% Master coordination (thin dashed)
-\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (ingest.north);
-\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (parse.north);
-\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (analyze.north);
-\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (format.north);
-\draw[dashed, garnet, very thin, ->] (orch.south) -- ++(0,-0.3) -| (output.north);
-
-% Label
-\node[left=0.2cm of ingest, font=\footnotesize\bfseries] {Pipeline:};
-
-% SEPARATOR
-\draw[dashed, bk50, thick] (-5.5,-3.5) -- (5.5,-3.5);
-
-% BOTTOM HALF: Fan-Out / Fan-In Pattern
-\node[agentbox=garnet, below=3.5cm of orch, minimum width=1.2cm] (orch2) {Master};
-\node[agentbox=garnet, below left=1.5cm and 2cm of orch2, minimum width=1.2cm] (planner) {Planner};
-
-\node[workerbox, below=1.5cm of planner, yshift=0.8cm] (w1) {Slave 1};
-\node[workerbox, below=0.3cm of w1] (w2) {Slave 2};
-\node[workerbox, below=0.3cm of w2] (w3) {Slave 3};
-
-\node[agentbox=horseshoe, below right=1.5cm and 2cm of orch2, minimum width=1.2cm] (synth) {Synthesizer};
-\node[agentbox=congaree, right=1.5cm of synth, minimum width=1.2cm] (result) {Result};
-
-% Fan-out arrows
-\draw[dataarrow] (planner.east) -- ++(0.5,0) |- (w1.west);
-\draw[dataarrow] (planner.east) -- ++(0.5,0) |- (w2.west);
-\draw[dataarrow] (planner.east) -- ++(0.5,0) |- (w3.west);
-
-% Fan-in arrows
-\draw[dataarrow] (w1.east) -| ([xshift=-0.5cm]synth.west) -- (synth.west);
-\draw[dataarrow] (w2.east) -| ([xshift=-0.5cm]synth.west);
-\draw[dataarrow] (w3.east) -| ([xshift=-0.5cm]synth.west);
-
-% Final result
-\draw[dataarrow] (synth) -- (result);
-
-% Master coordination
-\draw[dashed, garnet, very thin, ->] (orch2.south) |- (planner.north);
-\draw[dashed, garnet, very thin, ->] (orch2.south) |- (synth.north);
-
-% Label
-\node[left=0.2cm of planner, font=\footnotesize\bfseries] {Fan-Out/Fan-In:};
-
+  % Pipeline flow arrows
+  \draw[dataarrow] (ingest) -- (parse);
+  \draw[dataarrow] (parse) -- (analyze);
+  \draw[dataarrow] (analyze) -- (format);
+  \draw[dataarrow] (format) -- (output);
 \end{tikzpicture}
-\caption{%
-  \textbf{Top:} The pipeline pattern processes data through a sequential chain of transformations.
-  Each stage performs a specific operation and forwards the result to the next stage.
-  The master coordinates the chain but does not participate in data transformation.
-  \textbf{Bottom:} The fan-out/fan-in pattern distributes independent subtasks to parallel slaves.
-  The planner decomposes the problem, slaves execute in parallel, and the synthesizer merges results.
-}
-\label{fig:patterns_pipe_fan}
+\caption{Pipeline pattern: data flows through a sequential chain of transformations. Each stage performs a specific operation and forwards the result to the next. The master coordinates the chain but does not participate in data transformation.}
+\label{fig:pipeline_pattern}
 \end{figure*}
 
 \section{The Fan-Out/Fan-In Pattern}\label{sec:fanout}
@@ -117,10 +69,42 @@ If subtasks have hidden dependencies---shared state, ordering constraints, or re
 Conversely, correct decomposition yields significant speedup: total latency becomes the maximum slave latency rather than the sum of all subtask latencies.
 The pattern also provides natural fault tolerance: if a slave fails, the master can retry that subtask without affecting other slaves.
 
-Figure~\ref{fig:patterns_pipe_fan} (bottom) shows a fan-out/fan-in workflow.
+Figure~\ref{fig:fanout_pattern} shows a fan-out/fan-in workflow.
 The planner distributes three subtasks to three slaves operating in parallel.
 Each slave independently completes its assignment and returns results to the synthesizer, which merges them into a final output.
 The master monitors both planning and synthesis but does not participate in subtask execution.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Planner bar
+  \node[agentbox=atlantic, minimum width=10cm, minimum height=0.6cm] (planner) {Planner};
+
+  % 3 slaves in one row
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-3cm]planner.south) (s1) {Slave 1};
+  \node[workerbox] at ([yshift=-1.2cm]planner.south) (s2) {Slave 2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=3cm]planner.south) (s3) {Slave 3};
+
+  % Arrows from planner to slaves
+  \draw[dataarrow] (planner.south -| s1) -- (s1);
+  \draw[dataarrow] (planner.south -| s2) -- (s2);
+  \draw[dataarrow] (planner.south -| s3) -- (s3);
+
+  % Synthesizer bar
+  \node[agentbox=horseshoe, minimum width=10cm, minimum height=0.6cm] at ([yshift=-1.2cm]$(s1.south)!0.5!(s3.south)$) (synth) {Synthesizer};
+
+  % Arrows from slaves to synthesizer
+  \draw[dataarrow] (s1) -- (synth.north -| s1);
+  \draw[dataarrow] (s2) -- (synth.north -| s2);
+  \draw[dataarrow] (s3) -- (synth.north -| s3);
+
+  % Result
+  \node[agentbox=congaree, minimum width=2cm] at ([yshift=-1.2cm]synth.south) (result) {Result};
+  \draw[dataarrow] (synth) -- (result);
+\end{tikzpicture}
+\caption{Fan-out/fan-in pattern: the planner decomposes work into independent subtasks and distributes them to parallel slaves. Each slave executes independently, and the synthesizer merges all results into a unified output.}
+\label{fig:fanout_pattern}
+\end{figure*}
 
 \section{The Master-Slave Pool Pattern}\label{sec:master_slave}
 
@@ -140,83 +124,46 @@ The master may add new tasks to the queue based on results from completed tasks,
 For example, a web crawler's master enqueues initial seed URLs; as slaves fetch pages, they report discovered links, which the master adds to the queue.
 This dynamic task generation continues until no new work is discovered or a resource limit is reached.
 
-Figure~\ref{fig:patterns_pool_feedback} (top) illustrates the master-slave pool.
+Figure~\ref{fig:master_slave_pool} illustrates the master-slave pool.
 The master enqueues tasks \texttt{T1}, \texttt{T2}, \texttt{T3}, \texttt{T4}, and so on into a central queue.
 Four slaves dequeue tasks, execute them, and return results to the master.
 The master can dynamically add new tasks based on those results, creating an iterative workflow.
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[
-  node distance=1.2cm and 1.5cm,
-  every node/.style={font=\small}
-]
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Master bar
+  \node[agentbox=garnet, minimum width=\textwidth, minimum height=0.6cm] (master) {Master};
 
-% TOP HALF: Master-Slave Pool Pattern
-\node[agentbox=garnet, minimum width=1.2cm] (master) {Master};
-\node[draw=bk30, fill=bk10, below=1.2cm of master, minimum width=3.5cm, minimum height=0.8cm, font=\footnotesize] (queue) {Task Queue: [T1, T2, T3, T4, ...]};
+  % Task queue bar
+  \node[draw=black, line width=1pt, fill=bk10, minimum width=12cm, minimum height=0.6cm, font=\footnotesize] at ([yshift=-1.2cm]master.south) (queue) {Task Queue: [T1, T2, T3, T4, ...]};
 
-\node[workerbox, below left=1.5cm and 1cm of queue] (w1) {S1};
-\node[workerbox, below=1.5cm of queue, xshift=-0.5cm] (w2) {S2};
-\node[workerbox, below=1.5cm of queue, xshift=0.5cm] (w3) {S3};
-\node[workerbox, below right=1.5cm and 1cm of queue] (w4) {S4};
+  % 4 slaves in one row
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]queue.south) (s1) {S1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]queue.south) (s2) {S2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]queue.south) (s3) {S3};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=4.5cm]queue.south) (s4) {S4};
 
-% Enqueue
-\draw[dataarrow] (master.south) -- node[labelnode, right] {enqueue} (queue.north);
+  % Arrows from master to queue
+  \draw[dataarrow] (master) -- (queue);
 
-% Dequeue
-\draw[dataarrow] (queue.south) |- (w1.north);
-\draw[dataarrow] (queue.south) |- (w2.north);
-\draw[dataarrow] (queue.south) |- (w3.north);
-\draw[dataarrow] (queue.south) |- (w4.north);
+  % Arrows from queue to slaves
+  \draw[dataarrow] (queue.south -| s1) -- (s1);
+  \draw[dataarrow] (queue.south -| s2) -- (s2);
+  \draw[dataarrow] (queue.south -| s3) -- (s3);
+  \draw[dataarrow] (queue.south -| s4) -- (s4);
 
-% Results back to master (dashed)
-\draw[dashed, atlantic, ->] (w1.north) -- ++(0,0.4) -| ([xshift=-0.8cm]master.south) -- (master.south);
-\draw[dashed, atlantic, ->] (w2.north) -- ++(0,0.4) -| ([xshift=-0.3cm]master.south);
-\draw[dashed, atlantic, ->] (w3.north) -- ++(0,0.4) -| ([xshift=0.3cm]master.south);
-\draw[dashed, atlantic, ->] (w4.north) -- ++(0,0.4) -| ([xshift=0.8cm]master.south);
+  % Results back to master (dashed)
+  \draw[dataarrow, dashed] ([xshift=-0.15cm]s1.north) -- ([xshift=-0.15cm]queue.south -| s1);
+  \draw[dataarrow, dashed] ([xshift=-0.15cm]s2.north) -- ([xshift=-0.15cm]queue.south -| s2);
+  \draw[dataarrow, dashed] ([xshift=-0.15cm]s3.north) -- ([xshift=-0.15cm]queue.south -| s3);
+  \draw[dataarrow, dashed] ([xshift=-0.15cm]s4.north) -- ([xshift=-0.15cm]queue.south -| s4);
 
-% Loop arrow on master
-\draw[->, garnet, thick] (master.east) -- ++(0.5,0) arc[start angle=0, end angle=270, radius=0.4cm] -- ([xshift=0.5cm]master.south east) node[labelnode, right, xshift=0.1cm, yshift=0.2cm] {add new tasks};
-
-% Label
-\node[left=1.5cm of master, font=\footnotesize\bfseries] {Master-Slave Pool:};
-
-% SEPARATOR
-\draw[dashed, bk50, thick] (-5.5,-5.5) -- (5.5,-5.5);
-
-% BOTTOM HALF: Feedback Loop Pattern
-\node[agentbox=garnet, below=4.5cm of master, minimum width=1.2cm] (planner2) {Planner};
-\node[agentbox=atlantic, right=2cm of planner2, minimum width=1.2cm] (executor) {Executor};
-\node[agentbox=horseshoe, right=2cm of executor, minimum width=1.2cm] (evaluator) {Evaluator};
-
-\node[agentbox=congaree, above right=0.5cm and 1cm of evaluator, minimum width=1.2cm] (done) {Done};
-
-% Forward flow
-\draw[dataarrow] (planner2) -- node[labelnode, above] {instructions} (executor);
-\draw[dataarrow] (executor) -- node[labelnode, above] {result} (evaluator);
-
-% Pass branch
-\draw[dataarrow] (evaluator.north) |- node[labelnode, above right, xshift=0.1cm, yshift=-0.1cm] {pass} (done.west);
-
-% Fail branch (feedback loop)
-\draw[dataarrow=rose, dashed] (evaluator.south) -- ++(0,-0.8) -| node[labelnode, below, xshift=2cm] {fail: feedback + deficiencies} (planner2.south);
-
-% Iteration label
-\node[labelnode, below=0.5cm of planner2, font=\footnotesize\itshape] {max $N$ iterations};
-
-% Label
-\node[left=0.2cm of planner2, font=\footnotesize\bfseries] {Feedback Loop:};
-
+  % Iterate loop on master
+  \draw[dataarrow, garnet, line width=1.5pt] (master.east) -- ++(0.5,0) |- ([yshift=0.5cm]master.north) -- (master.north) node[pos=0.25, right, font=\footnotesize] {iterate};
 \end{tikzpicture}
-\caption{%
-  \textbf{Top:} The master-slave pool pattern uses a centralized task queue and stateless slaves.
-  The master enqueues tasks, slaves dequeue and execute them, and results flow back to the master.
-  The master can add new tasks based on results, enabling iterative workflows.
-  \textbf{Bottom:} The feedback loop pattern refines results through iterative execution.
-  The planner issues instructions, the executor produces a result, the evaluator judges quality, and failures trigger revised planning with feedback about deficiencies.
-}
-\label{fig:patterns_pool_feedback}
+\caption{Master-slave pool pattern: the master enqueues tasks, slaves dequeue and execute them, and results flow back. The master can add new tasks based on results, enabling iterative batch processing.}
+\label{fig:master_slave_pool}
 \end{figure*}
 
 \section{The Feedback Loop Pattern}\label{sec:feedback}
@@ -238,10 +185,36 @@ Each iteration consumes tokens for planning, execution, and evaluation.
 Setting appropriate stopping conditions is critical: too few iterations may yield poor quality, while too many waste resources on diminishing returns.
 Effective evaluators provide actionable feedback that enables rapid convergence, reducing the total iteration count needed.
 
-Figure~\ref{fig:patterns_pool_feedback} (bottom) shows the feedback loop structure.
+Figure~\ref{fig:feedback_loop} shows the feedback loop structure.
 The planner sends instructions to the executor, which produces a result for the evaluator.
 If the evaluator judges the result acceptable, the workflow terminates.
 Otherwise, the evaluator returns detailed feedback to the planner, which incorporates those deficiencies into revised instructions for the next iteration.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 1.2cm]
+  % Three stages in a row
+  \node[agentbox=atlantic, minimum width=2cm, minimum height=1.4cm] (planner) {Planner};
+  \node[agentbox=congaree, right=3cm of planner, minimum width=2cm, minimum height=1.4cm] (executor) {Executor};
+  \node[agentbox=horseshoe, right=3cm of executor, minimum width=2cm, minimum height=1.4cm] (evaluator) {Evaluator};
+
+  % Done box
+  \node[agentbox=garnet, right=2cm of evaluator, minimum width=1.6cm, minimum height=1.2cm] (done) {Done};
+
+  % Forward flow (top arrows)
+  \draw[dataarrow, line width=1.5pt] ([yshift=0.3cm]planner.east) -- node[above] {\footnotesize instructions} ([yshift=0.3cm]executor.west);
+  \draw[dataarrow, line width=1.5pt] ([yshift=0.3cm]executor.east) -- node[above] {\footnotesize result} ([yshift=0.3cm]evaluator.west);
+
+  % Pass branch
+  \draw[dataarrow, line width=1.5pt] (evaluator.east) -- node[above] {\footnotesize pass} (done.west);
+
+  % Fail branch (feedback loop at bottom)
+  \draw[dataarrow=rose, dashed, line width=1.5pt] ([yshift=-0.3cm]evaluator.west) -- node[below] {\footnotesize\color{rose} fail} ([yshift=-0.3cm]executor.east);
+  \draw[dataarrow=rose, dashed, line width=1.5pt] ([yshift=-0.3cm]executor.west) -- node[below] {\footnotesize\color{rose} feedback} ([yshift=-0.3cm]planner.east);
+\end{tikzpicture}
+\caption{Feedback loop pattern: the planner issues instructions, the executor produces a result, and the evaluator judges quality. Failures trigger feedback to the planner for revised instructions. The cycle continues until the evaluator passes or a maximum iteration count is reached.}
+\label{fig:feedback_loop}
+\end{figure*}
 
 \section{Combining Patterns}\label{sec:combining}
 
