@@ -10,33 +10,7 @@ This topology maps naturally onto transformation chains, where data must pass th
 
 The serial topology offers predictability and simplicity. Dependencies are explicit and linear. Debugging is straightforward because you can inspect the data flowing between each stage. The primary limitation is latency: total execution time equals the sum of all stage durations, with no opportunity for parallel speedup.
 
-\begin{figure*}[t]
-\centering
-\begin{tikzpicture}[node distance=2.5cm and 3cm]
-  % Orchestrator at top
-  \node[agentbox=garnet] (orch) {Orchestrator};
-
-  % Pipeline workers
-  \node[workerbox, below left=1.5cm and 3cm of orch] (wa) {Worker A};
-  \node[workerbox, right=of wa] (wb) {Worker B};
-  \node[workerbox, right=of wb] (wc) {Worker C};
-  \node[agentbox=congaree, right=of wc] (result) {Result};
-
-  % Pipeline flow
-  \draw[dataarrow] (wa) -- node[above] {\footnotesize raw data} (wb);
-  \draw[dataarrow] (wb) -- node[above] {\footnotesize analysis} (wc);
-  \draw[dataarrow] (wc) -- node[above] {\footnotesize formatted} (result);
-
-  % Coordination from orchestrator
-  \draw[dataarrow, dashed, thin] (orch) -- node[left, pos=0.7] {\footnotesize coordinate} (wa);
-  \draw[dataarrow, dashed, thin] (orch) -- node[above left, pos=0.5] {\footnotesize coordinate} (wb);
-  \draw[dataarrow, dashed, thin] (orch) -- node[above right, pos=0.5] {\footnotesize coordinate} (wc);
-\end{tikzpicture}
-\caption{Serial agent chain with orchestrated handoffs. Each worker processes its input and passes results to the next stage.}
-\label{fig:serial_chain}
-\end{figure*}
-
-Figure~\ref{fig:serial_chain} illustrates the serial topology. The orchestrator coordinates the pipeline but does not participate in data transformation. Workers operate independently once launched, with coordination limited to handoff timing and error handling.
+The serial topology requires no dedicated figure; it is simply a chain of workers where each stage's output becomes the next stage's input. The orchestrator coordinates handoff timing but does not participate in data transformation. Workers operate independently once launched.
 
 \section{Parallel Agent Execution}\label{sec:parallel_agents}
 
@@ -52,76 +26,94 @@ A \textbf{timeout barrier} waits up to t seconds, then proceeds with whatever re
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[node distance=1.2cm and 1.5cm]
-  % Full Barrier
-  \node[agentbox=garnet] (orch1) {Orchestrator};
-  \node[workerbox, below left=of orch1, xshift=-1cm] (w11) {W1};
-  \node[workerbox, right=0.8cm of w11] (w12) {W2};
-  \node[workerbox, right=0.8cm of w12] (w13) {W3};
-  \node[workerbox, right=0.8cm of w13] (w14) {W4};
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Orchestrator - wide bar
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch1) {Orchestrator};
 
-  \coordinate (barrier1) at ($(w11)!0.5!(w14) + (0,-1.2)$);
-  \draw[line width=2pt, garnet] ($(barrier1) + (-2.5,0)$) -- node[below, pos=0.5] {\footnotesize wait all} ($(barrier1) + (2.5,0)$);
+  % Workers row - explicitly centered under orchestrator
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch1.south) (w11) {W1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch1.south) (w12) {W2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]orch1.south)  (w13) {W3};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=4.5cm]orch1.south)  (w14) {W4};
 
-  \node[agentbox=congaree, below=1.5cm of barrier1] (syn1) {Synthesize};
-
+  % Arrows from orchestrator to workers
   \foreach \w in {w11,w12,w13,w14} {
-    \draw[dataarrow] (orch1) -- (\w);
-    \draw[dataarrow] (\w) -- (barrier1 |- \w);
+    \draw[dataarrow] (orch1.south -| \w) -- (\w);
   }
+
+  % Barrier bar
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] at ([yshift=-1.2cm]$(w12.south)!0.5!(w13.south)$) (barrier1) {\footnotesize wait all};
+
+  % Arrows from workers to barrier
+  \foreach \w in {w11,w12,w13,w14} {
+    \draw[dataarrow] (\w) -- (barrier1.north -| \w);
+  }
+
+  % Synthesize
+  \node[agentbox=congaree, below=0.8cm of barrier1] (syn1) {Synthesize};
   \draw[dataarrow] (barrier1) -- (syn1);
-
-  \node[above=0.3cm of orch1, font=\bfseries] {Full Barrier};
-
-  % Partial Barrier
-  \begin{scope}[xshift=8cm]
-    \node[agentbox=garnet] (orch2) {Orchestrator};
-    \node[workerbox, below left=of orch2, xshift=-1cm] (w21) {W1};
-    \node[workerbox, right=0.8cm of w21] (w22) {W2};
-    \node[workerbox, right=0.8cm of w22] (w23) {W3};
-    \node[workerbox, right=0.8cm of w23, fill=bk30!30] (w24) {W4};
-
-    \coordinate (barrier2) at ($(w21)!0.5!(w24) + (0,-1.2)$);
-    \draw[line width=2pt, garnet, dashed] ($(barrier2) + (-2.5,0)$) -- node[below, pos=0.5] {\footnotesize wait 3 of 4} ($(barrier2) + (2.5,0)$);
-
-    \node[agentbox=congaree, below=1.5cm of barrier2] (syn2) {Synthesize};
-
-    \foreach \w in {w21,w22,w23,w24} {
-      \draw[dataarrow] (orch2) -- (\w);
-      \draw[dataarrow] (\w) -- (barrier2 |- \w);
-    }
-    \draw[dataarrow] (barrier2) -- (syn2);
-
-    \node[above=0.3cm of orch2, font=\bfseries] {Partial Barrier (k/n)};
-  \end{scope}
-
-  % Timeout Barrier
-  \begin{scope}[xshift=16cm]
-    \node[agentbox=garnet] (orch3) {Orchestrator};
-    \node[workerbox, below left=of orch3, xshift=-1cm] (w31) {W1};
-    \node[workerbox, right=0.8cm of w31] (w32) {W2};
-    \node[workerbox, right=0.8cm of w32] (w33) {W3};
-    \node[workerbox, right=0.8cm of w33, fill=bk30!30] (w34) {W4};
-
-    \coordinate (barrier3) at ($(w31)!0.5!(w34) + (0,-1.2)$);
-    \draw[line width=2pt, garnet, dashed] ($(barrier3) + (-2.5,0)$) -- node[below, pos=0.5] {\footnotesize t=30s} ($(barrier3) + (2.5,0)$);
-
-    \node[agentbox=congaree, below=1.5cm of barrier3] (syn3) {Synthesize};
-
-    \foreach \w in {w31,w32,w33,w34} {
-      \draw[dataarrow] (orch3) -- (\w);
-      \draw[dataarrow] (\w) -- (barrier3 |- \w);
-    }
-    \draw[dataarrow] (barrier3) -- (syn3);
-
-    \node[above=0.3cm of orch3, font=\bfseries] {Timeout Barrier};
-  \end{scope}
 \end{tikzpicture}
-\caption{Three barrier types for parallel execution. Full barriers wait for all workers. Partial barriers proceed when k workers finish. Timeout barriers enforce deadlines.}
-\label{fig:parallel_exec}
+\caption{Full barrier: the orchestrator fans out tasks to all workers and waits for every worker to complete before proceeding to synthesis. The slowest worker determines total execution time.}
+\label{fig:barrier_full}
 \end{figure*}
 
-Figure~\ref{fig:parallel_exec} compares the three barrier types. Grayed workers in the partial and timeout variants indicate workers whose results are not required for the orchestrator to proceed. The choice of barrier depends on the task's tolerance for incomplete results and its latency requirements.
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch2) {Orchestrator};
+
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch2.south) (w21) {W1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch2.south) (w22) {W2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.5cm]orch2.south)  (w23) {W3};
+  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=4.5cm]orch2.south)  (w24) {W4};
+
+  \foreach \w in {w21,w22,w23,w24} {
+    \draw[dataarrow] (orch2.south -| \w) -- (\w);
+  }
+
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] at ([yshift=-1.2cm]$(w22.south)!0.5!(w23.south)$) (barrier2) {\footnotesize wait 3 of 4};
+
+  \draw[dataarrow] (w21) -- (barrier2.north -| w21);
+  \draw[dataarrow] (w22) -- (barrier2.north -| w22);
+  \draw[dataarrow] (w23) -- (barrier2.north -| w23);
+  \draw[dataarrow, dashed] (w24) -- (barrier2.north -| w24);
+
+  \node[agentbox=congaree, below=0.8cm of barrier2] (syn2) {Synthesize};
+  \draw[dataarrow] (barrier2) -- (syn2);
+\end{tikzpicture}
+\caption{Partial barrier (k-of-n): the orchestrator proceeds when k workers finish, here 3 of 4. The grayed worker (W4) may still be running but its result is not required (dashed arrow). This reduces sensitivity to slow workers.}
+\label{fig:barrier_partial}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] (orch3) {Orchestrator};
+
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-4.5cm]orch3.south) (w31) {W1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.5cm]orch3.south) (w32) {W2};
+  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=1.5cm]orch3.south)  (w33) {W3};
+  \node[workerbox, fill=bk30!30] at ([yshift=-1.2cm, xshift=4.5cm]orch3.south)  (w34) {W4};
+
+  \foreach \w in {w31,w32,w33,w34} {
+    \draw[dataarrow] (orch3.south -| \w) -- (\w);
+  }
+
+  \node[agentbox=garnet, minimum width=11cm, minimum height=0.6cm] at ([yshift=-1.2cm]$(w32.south)!0.5!(w33.south)$) (barrier3) {\footnotesize t = 30s};
+
+  \draw[dataarrow] (w31) -- (barrier3.north -| w31);
+  \draw[dataarrow] (w32) -- (barrier3.north -| w32);
+  \draw[dataarrow, dashed] (w33) -- (barrier3.north -| w33);
+  \draw[dataarrow, dashed] (w34) -- (barrier3.north -| w34);
+
+  \node[agentbox=congaree, below=0.8cm of barrier3] (syn3) {Synthesize};
+  \draw[dataarrow] (barrier3) -- (syn3);
+\end{tikzpicture}
+\caption{Timeout barrier: the orchestrator waits up to a fixed deadline (here 30 seconds), then proceeds with whatever results are available. Grayed workers with dashed arrows have not yet completed. This prioritizes responsiveness over completeness.}
+\label{fig:barrier_timeout}
+\end{figure*}
+
+Figures~\ref{fig:barrier_full}, \ref{fig:barrier_partial}, and~\ref{fig:barrier_timeout} illustrate the three barrier types. Grayed workers indicate those whose results are not required (or not yet available) for the orchestrator to proceed. The choice of barrier depends on the task's tolerance for incomplete results and its latency requirements.
 
 \section{Tree-Structured Agent Hierarchies}\label{sec:tree}
 
