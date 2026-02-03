@@ -29,7 +29,7 @@ Layering separates concerns. Strategic decisions occur at the top layer, where t
     \draw[dataarrow] (master.south -| \w) -- (\w);
   }
 \end{tikzpicture}
-\caption{Flat architecture: a single master coordinates directly with every slave. As the number of slaves grows, the master's context fills with operational details, leading to context overload.}
+\caption{Flat architecture: a single master coordinates directly with every slave. The master must hold both strategic and tactical context ($\sim$80K tokens), while each slave operates with a smaller, task-specific context ($\sim$30K tokens). As the number of slaves grows, the master's context fills with operational details, leading to context overload.}
 \label{fig:flat_architecture}
 \end{figure*}
 
@@ -67,7 +67,7 @@ Layering separates concerns. Strategic decisions occur at the top layer, where t
   \draw[dataarrow] (leadC.south -| sc1) -- (sc1);
   \draw[dataarrow] (leadC.south -| sc2) -- (sc2);
 \end{tikzpicture}
-\caption{Layered architecture: the master delegates to intermediate leads, who each manage a subset of slaves. Each lead acts as both a slave (to the master above) and a master (to its slaves below). No arrows cross, and each agent has a manageable scope.}
+\caption{Layered architecture: the master ($\sim$15K tokens) delegates to intermediate leads ($\sim$50K tokens each), who each manage a subset of slaves ($\sim$30K tokens each). Each lead acts as both a slave (to the master above) and a master (to its slaves below). No single agent must hold the entire system state.}
 \label{fig:layered_architecture}
 \end{figure*}
 
@@ -79,58 +79,7 @@ The simplest multi-agent structure consists of one master and multiple slaves. T
 
 The limitations become apparent at scale. The master is still a single point of failure and a potential bottleneck. It must simultaneously maintain strategic context—what are we trying to achieve?—and tactical details—which slave is doing what, what has completed, what failed? For small-to-medium tasks with three to five subtasks, this dual responsibility is manageable. Beyond that, the master's context window becomes strained. It begins to lose track of the big picture as it drowns in execution details.
 
-\begin{figure*}[t]
-\centering
-\begin{tikzpicture}[scale=0.85, every node/.style={scale=0.85}]
-    % LEFT: Two-Layer
-    \begin{scope}[xshift=0cm]
-        % Master tier
-        \node[tierbox=garnet, minimum width=6cm, minimum height=1cm] (orch) at (0,0) {Master};
-        \node[labelnode, anchor=west, font=\footnotesize] at (3.2,0) {$\sim$80K tokens};
-
-        % Slaves
-        \foreach \i in {0,...,3} {
-            \node[workerbox, minimum width=1.3cm] (w\i) at ({-2.5+1.7*\i},-2) {W\i};
-        }
-        \node[labelnode, anchor=north, font=\footnotesize] at (1.2,-3) {$\sim$30K each};
-
-        % Arrows
-        \foreach \i in {0,...,3} {
-            \draw[dataarrow] (orch) -- (w\i);
-        }
-
-        \node[labelnode, anchor=north, font=\large\bfseries] at (0,-3.8) {Two-Layer};
-    \end{scope}
-
-    % Vertical separator
-    \draw[dashed, bk50, thick] (6,-4) -- (6,1.5);
-
-    % RIGHT: Three-Layer
-    \begin{scope}[xshift=12cm]
-        % Strategy tier
-        \node[tierbox=garnet, minimum width=5cm, minimum height=0.8cm] (strat) at (0,0.5) {Strategy};
-        \node[labelnode, anchor=west, font=\footnotesize] at (2.7,0.5) {$\sim$15K};
-
-        % Planning tier
-        \node[tierbox=atlantic, minimum width=5cm, minimum height=0.8cm] (plan) at (0,-0.8) {Planning};
-        \node[labelnode, anchor=west, font=\footnotesize] at (2.7,-0.8) {$\sim$50K};
-
-        % Execution tier
-        \node[tierbox=congaree, minimum width=5cm, minimum height=0.8cm] (exec) at (0,-2.1) {Execution};
-        \node[labelnode, anchor=west, font=\footnotesize] at (2.7,-2.1) {$n \times 30$K};
-
-        % Arrows between tiers
-        \draw[dataarrow] (strat) -- (plan);
-        \draw[dataarrow] (plan) -- (exec);
-
-        \node[labelnode, anchor=north, font=\large\bfseries] at (0,-3.8) {Three-Layer};
-    \end{scope}
-\end{tikzpicture}
-\caption{Comparison of two-layer and three-layer agent architectures. The two-layer system places all strategic and tactical reasoning in a single master, consuming a large context budget. The three-layer system separates strategy from planning, allowing each layer to operate within a smaller, more focused context window. The execution layer scales horizontally by adding slaves as needed.}
-\label{fig:two_and_three_layer}
-\end{figure*}
-
-The left panel of Figure~\ref{fig:two_and_three_layer} illustrates the two-layer architecture. The master must allocate a substantial portion of its context window—approximately 80,000 tokens—to track both high-level goals and low-level slave state. Each slave operates with a smaller, task-specific context of roughly 30,000 tokens. This asymmetry is functional but places a heavy burden on the master.
+Figure~\ref{fig:flat_architecture} illustrates the two-layer architecture. The master must allocate a substantial portion of its context window—approximately 80,000 tokens—to track both high-level goals and low-level slave state. Each slave operates with a smaller, task-specific context of roughly 30,000 tokens. This asymmetry is functional but places a heavy burden on the master.
 
 \section{Three-Layer Architecture}\label{sec:three_layer}
 
@@ -146,7 +95,7 @@ A three-layer architecture introduces an intermediate planning layer between str
 
 The key insight enabling this architecture is \textbf{information filtering}. Each layer abstracts and summarizes before passing information up or down. The strategy layer sees task completion summaries, not raw logs. The execution layer sees task specifications, not strategic rationale. This filtering is not accidental or optional—it is the mechanism that allows multi-layered systems to transcend the context limitations of individual agents.
 
-The right panel of Figure~\ref{fig:two_and_three_layer} shows the token budget allocation across three layers. Notice that the total token budget may be similar to or even less than the two-layer case, but the distribution is fundamentally different. No single agent must hold the entire system state. Each agent operates within a cognitively manageable scope.
+Figure~\ref{fig:layered_architecture} shows the token budget allocation across three layers. Notice that the total token budget may be similar to or even less than the two-layer case, but the distribution is fundamentally different. No single agent must hold the entire system state. Each agent operates within a cognitively manageable scope.
 
 \section{When to Add Layers}\label{sec:when_layers}
 
@@ -161,47 +110,6 @@ How many layers should you use? The answer depends on task complexity, the numbe
 
 \item \textbf{4+ layers:} Diminishing returns. Each additional layer adds coordination overhead, increases latency, and multiplies token costs. The practical ceiling for most real-world systems is three to four layers. Beyond that, the complexity of inter-layer communication outweighs the benefits of additional decomposition.
 \end{itemize}
-
-\begin{figure*}[t]
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-    width=0.75\textwidth,
-    height=0.45\textwidth,
-    xlabel={Number of Layers},
-    ylabel={Relative Value},
-    xmin=0.5, xmax=6.5,
-    ymin=0, ymax=100,
-    xtick={1,2,3,4,5,6},
-    ytick={0,20,40,60,80,100},
-    grid=major,
-    grid style={line width=0.1pt, draw=bk10},
-    legend pos=north west,
-    legend style={fill=white, draw=bk30, font=\footnotesize},
-    every axis plot/.append style={thick, mark=*, mark size=2pt},
-]
-    % Capability curve (diminishing returns)
-    \addplot[color=garnet, mark=*] coordinates {
-        (1,20) (2,60) (3,85) (4,92) (5,95) (6,96)
-    };
-    \addlegendentry{Capability}
-
-    % Coordination cost curve (accelerating)
-    \addplot[color=atlantic, mark=square*] coordinates {
-        (1,5) (2,15) (3,30) (4,55) (5,80) (6,95)
-    };
-    \addlegendentry{Coordination Cost}
-
-    % Sweet spot marker at x=3
-    \draw[dashed, thick, bk70] (axis cs:3,0) -- (axis cs:3,100);
-    \node[labelnode, fill=white, draw=rose, text=rose, font=\footnotesize\bfseries] at (axis cs:3,50) {sweet spot};
-\end{axis}
-\end{tikzpicture}
-\caption{Cost-benefit analysis of adding layers to agent architectures. Capability increases rapidly from one to three layers, then plateaus. Coordination cost grows slowly at first but accelerates beyond three layers. The intersection represents the practical sweet spot for most systems.}
-\label{fig:layer_cost_benefit}
-\end{figure*}
-
-Figure~\ref{fig:layer_cost_benefit} quantifies this tradeoff. The capability curve shows that most of the benefit comes from the first two layers. The third layer provides meaningful but diminishing gains. Beyond three layers, capability improvements are marginal. Meanwhile, coordination cost—measured in latency, token consumption, and debugging complexity—accelerates rapidly. The dashed line at three layers marks the empirical sweet spot for most applications.
 
 \begin{table*}[t]
 \centering
@@ -230,54 +138,72 @@ The tradeoff is that the master must understand enough about each domain to dele
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[scale=0.85, every node/.style={scale=0.85}]
-    % LEFT: Deep architecture
-    \begin{scope}[xshift=0cm]
-        % Level 0: Root
-        \node[agentbox=garnet, minimum width=2cm] (root) at (0,0) {Root};
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Master bar
+  \node[agentbox=garnet, minimum width=\textwidth, minimum height=0.6cm] (master) {Master};
 
-        % Level 1: Single child
-        \node[agentbox=atlantic, minimum width=1.8cm] (l1) at (0,-1.8) {L1};
-        \draw[dataarrow] (root) -- (l1);
+  % 2 Leads
+  \node[agentbox=atlantic, minimum width=8.5cm] at ([yshift=-1.2cm, xshift=-4.75cm]master.south) (leadA) {Lead A};
+  \node[agentbox=atlantic, minimum width=8.5cm] at ([yshift=-1.2cm, xshift=4.75cm]master.south) (leadB) {Lead B};
+  \draw[dataarrow] (master.south -| leadA) -- (leadA);
+  \draw[dataarrow] (master.south -| leadB) -- (leadB);
 
-        % Level 2: Single child
-        \node[agentbox=atlantic, minimum width=1.8cm] (l2) at (0,-3.6) {L2};
-        \draw[dataarrow] (l1) -- (l2);
+  % 4 Sub-leads (2 under each Lead)
+  \node[agentbox=congaree, minimum width=3.2cm] at ([yshift=-1.2cm, xshift=-2.3cm]leadA.south) (subA1) {Sub A1};
+  \node[agentbox=congaree, minimum width=3.2cm] at ([yshift=-1.2cm, xshift=2.3cm]leadA.south) (subA2) {Sub A2};
+  \node[agentbox=congaree, minimum width=3.2cm] at ([yshift=-1.2cm, xshift=-2.3cm]leadB.south) (subB1) {Sub B1};
+  \node[agentbox=congaree, minimum width=3.2cm] at ([yshift=-1.2cm, xshift=2.3cm]leadB.south) (subB2) {Sub B2};
+  \draw[dataarrow] (leadA.south -| subA1) -- (subA1);
+  \draw[dataarrow] (leadA.south -| subA2) -- (subA2);
+  \draw[dataarrow] (leadB.south -| subB1) -- (subB1);
+  \draw[dataarrow] (leadB.south -| subB2) -- (subB2);
 
-        % Level 3: Two leaves
-        \node[workerbox, minimum width=1.4cm] (l3a) at (-1,-5.4) {L3a};
-        \node[workerbox, minimum width=1.4cm] (l3b) at (1,-5.4) {L3b};
-        \draw[dataarrow] (l2) -- (l3a);
-        \draw[dataarrow] (l2) -- (l3b);
+  % 8 Slaves (2 under each Sub-lead)
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]subA1.south) (s1) {S1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]subA1.south) (s2) {S2};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]subA2.south) (s3) {S3};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]subA2.south) (s4) {S4};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]subB1.south) (s5) {S5};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]subB1.south) (s6) {S6};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]subB2.south) (s7) {S7};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]subB2.south) (s8) {S8};
 
-        \node[labelnode, anchor=north, font=\footnotesize] at (0,-6.2) {\textbf{Deep: high latency, narrow scope}};
-    \end{scope}
-
-    % RIGHT: Wide architecture
-    \begin{scope}[xshift=10cm]
-        % Root
-        \node[agentbox=garnet, minimum width=2.5cm] (wroot) at (0,0) {Master};
-
-        % Six specialist children
-        \node[workerbox, minimum width=1.5cm] (code) at (-5,-2.5) {Code};
-        \node[workerbox, minimum width=1.5cm] (test) at (-3,-2.5) {Test};
-        \node[workerbox, minimum width=1.5cm] (docs) at (-1,-2.5) {Docs};
-        \node[workerbox, minimum width=1.5cm] (deploy) at (1,-2.5) {Deploy};
-        \node[workerbox, minimum width=1.5cm] (review) at (3,-2.5) {Review};
-        \node[workerbox, minimum width=1.5cm] (monitor) at (5,-2.5) {Monitor};
-
-        % Arrows from master to all specialists
-        \foreach \child in {code,test,docs,deploy,review,monitor} {
-            \draw[dataarrow] (wroot) -- (\child);
-        }
-
-        \node[labelnode, anchor=north, font=\footnotesize] at (0,-6.2) {\textbf{Wide: low latency, broad coverage}};
-    \end{scope}
+  \draw[dataarrow] (subA1.south -| s1) -- (s1);
+  \draw[dataarrow] (subA1.south -| s2) -- (s2);
+  \draw[dataarrow] (subA2.south -| s3) -- (s3);
+  \draw[dataarrow] (subA2.south -| s4) -- (s4);
+  \draw[dataarrow] (subB1.south -| s5) -- (s5);
+  \draw[dataarrow] (subB1.south -| s6) -- (s6);
+  \draw[dataarrow] (subB2.south -| s7) -- (s7);
+  \draw[dataarrow] (subB2.south -| s8) -- (s8);
 \end{tikzpicture}
-\caption{Deep versus wide agent architectures. Deep systems have many layers with narrow branching, resulting in high latency due to sequential handoffs. Wide systems have few layers with broad branching, allowing parallel execution across specialized domains. Each approach has its place: depth for complex decomposition, width for domain coverage.}
-\label{fig:wide_vs_deep}
+\caption{Deep architecture: four layers with hierarchical branching. Master delegates to 2 leads, each lead manages 2 sub-leads, and each sub-lead coordinates 2 slaves. Three sequential handoffs are required to reach execution. Best for complex decomposition requiring hierarchical refinement.}
+\label{fig:deep_architecture}
 \end{figure*}
 
-Figure~\ref{fig:wide_vs_deep} contrasts deep and wide architectures. The deep system on the left requires four sequential handoffs to reach the execution layer. Each handoff adds latency and potential for information loss. The wide system on the right allows six specialists to operate in parallel, coordinated by a single master above them. The visual contrast is stark: depth is tall and narrow, width is short and broad. The choice between them depends on whether your bottleneck is decomposition complexity (which benefits from depth) or domain coverage (which benefits from width).
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Master bar - text width
+  \node[agentbox=garnet, minimum width=\textwidth, minimum height=0.6cm] (master) {Master};
+
+  % 6 specialist slaves in one row
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-6.5cm]master.south) (code) {Code};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-3.9cm]master.south) (test) {Test};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.3cm]master.south) (docs) {Docs};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.3cm]master.south) (deploy) {Deploy};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=3.9cm]master.south) (review) {Review};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=6.5cm]master.south) (monitor) {Monitor};
+
+  % Arrows from master to each specialist
+  \foreach \s in {code,test,docs,deploy,review,monitor} {
+    \draw[dataarrow] (master.south -| \s) -- (\s);
+  }
+\end{tikzpicture}
+\caption{Wide architecture: few layers with broad branching. Six domain specialists operate in parallel, coordinated by a single master. Fewer handoffs mean lower latency. Best for domain coverage requiring specialized expertise.}
+\label{fig:wide_architecture}
+\end{figure*}
+
+Figures~\ref{fig:deep_architecture} and~\ref{fig:wide_architecture} contrast deep and wide architectures. The deep system on the left requires four sequential handoffs to reach the execution layer. Each handoff adds latency and potential for information loss. The wide system on the right allows six specialists to operate in parallel, coordinated by a single master above them. The visual contrast is stark: depth is tall and narrow, width is short and broad. The choice between them depends on whether your bottleneck is decomposition complexity (which benefits from depth) or domain coverage (which benefits from width).
 
 In practice, successful systems often combine both approaches. A three-layer architecture might have a strategic layer at the top, a planning layer that delegates to domain-specific masters in the middle, and domain specialists at the bottom. The strategic layer goes deep to separate concerns. The domain specialists go wide to cover diverse technical areas. This hybrid structure balances the competing demands of abstraction, specialization, and coordination.
