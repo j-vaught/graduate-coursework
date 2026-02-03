@@ -123,36 +123,58 @@ Information flows bidirectionally in a tree hierarchy. Tasks and context flow do
 
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[
-  level 1/.style={sibling distance=6cm, level distance=2cm},
-  level 2/.style={sibling distance=2.5cm, level distance=2cm},
-  edge from parent/.style={dataarrow=garnet},
-  edge from parent path={(\tikzparentnode.south) -- (\tikzchildnode.north)}
-]
-  \node[agentbox=garnet] {Root}
-    child {
-      node[agentbox=atlantic] {Lead A}
-      child { node[workerbox] {S1} }
-      child { node[workerbox] {S2} }
-    }
-    child {
-      node[agentbox=atlantic] {Lead B}
-      child { node[workerbox] {S3} }
-      child { node[workerbox] {S4} }
-    }
-    child {
-      node[agentbox=atlantic] {Lead C}
-      child { node[workerbox] {S5} }
-      child { node[workerbox] {S6} }
-    };
+\begin{tikzpicture}[node distance=0.8cm and 0.8cm]
+  % Root bar
+  \node[agentbox=garnet, minimum width=13cm, minimum height=0.6cm] (root) {Root};
 
-  % Add upward dashed arrows (results flow)
-  \draw[dataarrow=atlantic, dashed] (0,-4.5) -- ++(0,0.3) node[pos=0, below] {\footnotesize results $\uparrow$};
-  \draw[dataarrow=garnet] (0,-2) -- ++(0,-0.3) node[pos=1, below] {\footnotesize tasks $\downarrow$};
+  % Leads row - centered
+  \node[agentbox=atlantic, minimum width=3cm] at ([yshift=-1.2cm, xshift=-4.5cm]root.south) (la) {Lead A};
+  \node[agentbox=atlantic, minimum width=3cm] at ([yshift=-1.2cm]root.south) (lb) {Lead B};
+  \node[agentbox=atlantic, minimum width=3cm] at ([yshift=-1.2cm, xshift=4.5cm]root.south) (lc) {Lead C};
 
-  % Side labels removed (already shown on arrows above)
+  % Tasks down (solid)
+  \draw[dataarrow] (root.south -| la) -- (la);
+  \draw[dataarrow] (root.south -| lb) -- (lb);
+  \draw[dataarrow] (root.south -| lc) -- (lc);
+
+  % Results up (dashed)
+  \draw[dataarrow, dashed] ([xshift=0.4cm]la.north) -- ([xshift=0.4cm]root.south -| la);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]lb.north) -- ([xshift=0.4cm]root.south -| lb);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]lc.north) -- ([xshift=0.4cm]root.south -| lc);
+
+  % Specialists under Lead A
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]la.south) (s1) {S1};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]la.south)  (s2) {S2};
+
+  \draw[dataarrow] (la.south -| s1) -- (s1);
+  \draw[dataarrow] (la.south -| s2) -- (s2);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]s1.north) -- ([xshift=0.4cm]la.south -| s1);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]s2.north) -- ([xshift=0.4cm]la.south -| s2);
+
+  % Specialists under Lead B
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]lb.south) (s3) {S3};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]lb.south)  (s4) {S4};
+
+  \draw[dataarrow] (lb.south -| s3) -- (s3);
+  \draw[dataarrow] (lb.south -| s4) -- (s4);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]s3.north) -- ([xshift=0.4cm]lb.south -| s3);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]s4.north) -- ([xshift=0.4cm]lb.south -| s4);
+
+  % Specialists under Lead C
+  \node[workerbox] at ([yshift=-1.2cm, xshift=-1.0cm]lc.south) (s5) {S5};
+  \node[workerbox] at ([yshift=-1.2cm, xshift=1.0cm]lc.south)  (s6) {S6};
+
+  \draw[dataarrow] (lc.south -| s5) -- (s5);
+  \draw[dataarrow] (lc.south -| s6) -- (s6);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]s5.north) -- ([xshift=0.4cm]lc.south -| s5);
+  \draw[dataarrow, dashed] ([xshift=0.4cm]s6.north) -- ([xshift=0.4cm]lc.south -| s6);
+
+  % Legend
+  \node[font=\footnotesize, anchor=west] at ([yshift=-0.4cm]s1.south west) {%
+    \tikz\draw[dataarrow] (0,0) -- (0.6,0); tasks \quad
+    \tikz\draw[dataarrow, dashed] (0,0) -- (0.6,0); results};
 \end{tikzpicture}
-\caption{Tree-structured agent hierarchy with three levels. Tasks flow down (solid arrows), results flow up (dashed arrows).}
+\caption{Tree-structured agent hierarchy with three levels. Tasks flow down (solid arrows), results flow up (dashed arrows). Each lead manages two specialists; the root never communicates directly with specialists.}
 \label{fig:tree_hierarchy}
 \end{figure*}
 
