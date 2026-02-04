@@ -432,7 +432,7 @@ We compare four configurations of increasing sophistication. The baseline is van
 
 \subsection{Evaluation Metrics}
 
-We adopt the CLEAR MOT metrics~\cite{Bernardin2008} standard in multi-object tracking evaluation. Multiple Object Tracking Accuracy (MOTA) combines false negatives, false positives, and identity switches into a single score: $\text{MOTA} = 1 - (FN + FP + IDSW)/GT$, where $GT$ is total ground truth objects. Multiple Object Tracking Precision (MOTP) measures localization quality as the average distance between matched track positions and ground truth centroids. We also report recall (fraction of ground truth objects successfully matched) and precision (fraction of tracker outputs that match ground truth).
+We adopt the CLEAR MOT metrics~\cite{Bernardin2008} standard in multi-object tracking evaluation. Multiple Object Tracking Accuracy (MOTA) combines false negatives, false positives, and identity switches into a single score: $\text{MOTA} = 1 - (FN + FP + IDSW)/GT$, where $GT$ is total ground truth objects. Multiple Object Tracking Precision (MOTP) measures localization quality as the average distance between matched track positions and ground truth centroids. We also report recall (fraction of ground truth objects successfully matched) and precision (fraction of tracker outputs that match ground truth). Identity switches (IDSW) occur when a track changes which ground truth object it matches between consecutive frames, indicating tracker confusion during crossing trajectories or ambiguous detections.
 
 Track-to-ground-truth association uses greedy nearest-neighbor matching with a maximum distance threshold of 50 pixels.
 
@@ -450,13 +450,14 @@ Table~\ref{tab:mot_results} summarizes the MOTA/MOTP metrics for each method on 
 \centering
 \caption{Multi-Object Tracking Metrics on Synthetic Data}
 \label{tab:mot_results}
-\begin{tabular}{lcccccc}
+\begin{tabular}{lccccccc}
 \hline
-\textbf{Method} & \textbf{MOTA} & \textbf{MOTP} & \textbf{Recall} & \textbf{Prec.} & \textbf{FP} & \textbf{Tracks} \\
+\textbf{Method} & \textbf{MOTA} & \textbf{MOTP} & \textbf{Recall} & \textbf{Prec.} & \textbf{FP} & \textbf{IDSW} & \textbf{Tracks} \\
 \hline
-Vanilla DBSCAN ($\varepsilon_s=10$) & $-5.25$ & 1.51 & 0.974 & 0.137 & 1900 & 43 \\
-Adaptive ST-DBSCAN ($\varepsilon_s^*=1$) & $-0.41$ & 7.40 & 0.019 & 0.043 & 66 & 41 \\
-Adaptive + Gap Recovery & $-0.12$ & 7.40 & 0.019 & 0.120 & 22 & 21 \\
+Vanilla DBSCAN ($\varepsilon_s=10$) & $-6.97$ & 1.80 & 0.987 & 0.112 & 1208 & 18 & 48 \\
+Standard ST-DBSCAN ($\varepsilon_s=10$, $\varepsilon_t=2$) & $-0.10$ & --- & 0.000 & 0.000 & 16 & 0 & 10 \\
+Adaptive ST-DBSCAN ($\varepsilon_s^*=1$) & $-0.41$ & 7.40 & 0.019 & 0.043 & 66 & 0 & 41 \\
+Adaptive + Gap Recovery & $-0.12$ & 7.40 & 0.019 & 0.120 & 22 & 0 & 21 \\
 \hline
 \end{tabular}
 \end{table}
@@ -468,7 +469,7 @@ Adaptive + Gap Recovery & $-0.12$ & 7.40 & 0.019 & 0.120 & 22 & 21 \\
 \includegraphics[width=0.32\textwidth]{figures/stdbscan_frame.png}
 \hfill
 \includegraphics[width=0.32\textwidth]{figures/gap_frame.png}
-\caption{Clustering results comparison on synthetic radar data (frame 25 of 50). \textbf{Left}: Vanilla DBSCAN ($\varepsilon_s = 10$) produces many small spurious clusters from noise, yielding 1693 total clusters and 1900 false positives. \textbf{Center}: Adaptive ST-DBSCAN ($\varepsilon_s^* = 1$, $\varepsilon_t = 2$) reduces false clusters to 530 through conservative adaptive epsilon. \textbf{Right}: Gap recovery further consolidates fragments, merging 285 cluster pairs to yield 245 final clusters and 21 continuous tracks.}
+\caption{Clustering results comparison on synthetic radar data (frame 25 of 50). \textbf{Left}: Vanilla DBSCAN ($\varepsilon_s = 10$) produces many small spurious clusters from noise, yielding 1693 total clusters and 1208 false positives. \textbf{Center}: Adaptive ST-DBSCAN ($\varepsilon_s^* = 1$, $\varepsilon_t = 2$) reduces false clusters to 530 through conservative adaptive epsilon. \textbf{Right}: Gap recovery further consolidates fragments, merging 285 cluster pairs to yield 245 final clusters and 21 continuous tracks.}
 \label{fig:method_comparison}
 \end{figure*}
 
@@ -479,17 +480,39 @@ Adaptive + Gap Recovery & $-0.12$ & 7.40 & 0.019 & 0.120 & 22 & 21 \\
 \includegraphics[width=0.32\textwidth]{figures/stdbscan_track_frame.png}
 \hfill
 \includegraphics[width=0.32\textwidth]{figures/gap_track_frame.png}
-\caption{Tracking results comparison showing accumulated trajectories. \textbf{Left}: Vanilla DBSCAN assigns unique colors to each cluster, revealing extensive track fragmentation with 43 distinct tracks (many spurious). \textbf{Center}: ST-DBSCAN consolidates temporal detections, reducing visual clutter but still showing fragmentation. \textbf{Right}: Gap recovery unifies track fragments, producing 21 continuous trajectories that better correspond to physical targets.}
+\caption{Tracking results comparison showing accumulated trajectories. \textbf{Left}: Vanilla DBSCAN assigns unique colors to each cluster, revealing extensive track fragmentation with 48 distinct tracks (many spurious). \textbf{Center}: Adaptive ST-DBSCAN consolidates temporal detections, reducing visual clutter but still showing fragmentation with 41 tracks. \textbf{Right}: Gap recovery unifies track fragments, producing 21 continuous trajectories that better correspond to physical targets.}
 \label{fig:tracking_comparison}
 \end{figure*}
 
-The results reveal a critical trade-off between recall and false positive rate, illustrated qualitatively in Fig.~\ref{fig:method_comparison} and Fig.~\ref{fig:tracking_comparison}. Vanilla DBSCAN with a liberal spatial radius ($\varepsilon_s = 10$ pixels) achieves near-perfect recall (97.4\%) but generates 1900 false positive clusters from sea clutter and noise, yielding a negative MOTA. The exceptionally low MOTP (1.51 pixels) confirms that localization is precise when matches occur---the issue is spurious cluster generation, not tracking accuracy.
+The results reveal a critical trade-off between recall and false positive rate, illustrated qualitatively in Fig.~\ref{fig:method_comparison} and Fig.~\ref{fig:tracking_comparison}. Vanilla DBSCAN with a liberal spatial radius ($\varepsilon_s = 10$ pixels) achieves near-perfect recall (98.7\%) but generates 1208 false positive clusters from sea clutter and noise, yielding a strongly negative MOTA of $-6.97$. The exceptionally low MOTP (1.80 pixels) confirms that localization is precise when matches occur---the issue is spurious cluster generation, not tracking accuracy. Vanilla DBSCAN also exhibits 18 identity switches as spurious clusters temporarily capture ground truth associations.
 
-The adaptive epsilon mechanism, by estimating $\varepsilon_s^* = 1$ pixel from k-NN statistics, proves too conservative for this high-density synthetic data. The small epsilon under-clusters targets, fragmenting detections and achieving only 1.9\% recall. However, this conservative approach dramatically reduces false positives from 1900 to 66, improving MOTA from $-5.25$ to $-0.41$ despite the lower recall.
+Standard ST-DBSCAN with fixed parameters ($\varepsilon_s = 10$, $\varepsilon_t = 2$) produces a surprising result: zero recall despite only 16 false positives. The temporal linkage causes the algorithm to form large spatiotemporal clusters that span multiple frames, with centroids that drift away from ground truth positions. While this dramatically reduces false positives and yields the lowest track count (10), none of the resulting tracks pass within the 50-pixel association threshold, rendering the method ineffective for this evaluation.
+
+The adaptive epsilon mechanism, by estimating $\varepsilon_s^* = 1$ pixel from k-NN statistics, proves too conservative for this high-density synthetic data. The small epsilon under-clusters targets, fragmenting detections and achieving only 1.9\% recall. However, this conservative approach reduces false positives to 66, improving MOTA from $-6.97$ to $-0.41$ despite the lower recall.
 
 The gap recovery mechanism further improves precision by merging fragmented tracks, reducing the effective track count from 41 to 21 and false positives from 66 to 22. This yields the best MOTA score ($-0.12$) among the tested configurations, though all methods remain in the negative MOTA regime due to the challenging high-density scenario.
 
-These results suggest that the adaptive epsilon requires tuning of the percentile threshold for different point densities, or alternatively, a hybrid approach combining liberal detection with aggressive post-filtering may outperform pure clustering-based methods in high-clutter environments.
+These results suggest that the adaptive epsilon requires tuning of the percentile threshold for different point densities, and that fixed-parameter ST-DBSCAN may not be suitable when spatial neighborhood sizes are mismatched to target characteristics.
+
+\textbf{Per-Object Analysis.} Table~\ref{tab:per_object} disaggregates tracking performance by ground truth object, revealing that aggregate metrics obscure substantial variation. For vanilla DBSCAN, all three persistent objects achieve 100\% track lifetime with single-fragment coverage and sub-2-pixel localization error. The fourth object, visible only in 4 frames, achieves 50\% lifetime due to initialization latency. In contrast, adaptive ST-DBSCAN with gap recovery achieves only 0--4\% lifetime per object, indicating that while aggregate FP counts improve, the conservative epsilon fragments targets to the point of unusability. This analysis suggests that vanilla DBSCAN may be preferable when false positive filtering can be applied downstream, preserving the intact track structure for true targets.
+
+\begin{table}[h]
+\centering
+\caption{Per-Object Tracking Performance (Vanilla DBSCAN)}
+\label{tab:per_object}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Object} & \textbf{Visible} & \textbf{Tracked} & \textbf{Lifetime} & \textbf{Frags} & \textbf{MOTP (px)} \\
+\midrule
+Object 0 & 50 & 50 & 100\% & 1 & 1.01 \\
+Object 1 & 50 & 50 & 100\% & 1 & 1.41 \\
+Object 2 & 50 & 50 & 100\% & 1 & 1.16 \\
+Object 3 & 4 & 2 & 50\% & 1 & 47.2 \\
+\midrule
+\textbf{Mean} & --- & --- & 87.5\% & 1.0 & 12.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Computational Performance}
 
@@ -591,6 +614,8 @@ $\tau$ (frames) & $d$ (px) & Merges & Clusters & Tracks \\
 \textbf{Minimum Points Threshold.} Varying $\mathit{MinPts}$ affects cluster formation and noise rejection. At $\mathit{MinPts} = 3$, the algorithm generates 447 clusters (38 tracks), accepting smaller point groupings. The default $\mathit{MinPts} = 5$ yields 530 clusters (41 tracks). Stricter thresholds of $\mathit{MinPts} = 7$ and 10 reduce clusters to 244 (18 tracks) and 311 (21 tracks) respectively, rejecting sparse detections as noise. The non-monotonic relationship between $\mathit{MinPts}$ and cluster count reflects competing effects: higher thresholds eliminate small noise clusters but also fragment extended targets with sparse returns.
 
 \textbf{Adaptive Percentile.} The adaptive epsilon mechanism proved robust to percentile selection on this dataset. All percentile values tested (75th through 95th) converged to identical $\varepsilon_s^* = 1.0$ pixel, yielding identical clustering results (530 clusters, 41 tracks). This convergence indicates a sharp elbow in the k-distance distribution where cluster points transition to noise, making the exact percentile choice less critical when a clear density separation exists. However, datasets with gradual density transitions may exhibit greater percentile sensitivity.
+
+\textbf{Neighbor Count (k).} Similarly, varying the k-NN neighbor count from $k=3$ to $k=10$ produced identical $\varepsilon_s^* = 1.0$ pixel estimates and clustering results. The uniformly high point density in the synthetic data (approximately 121,000 points per frame) causes k-distance distributions to saturate at the minimum resolvable spacing, making the k parameter insensitive within the tested range. Sparse or heterogeneous point clouds with variable density would likely exhibit greater k-sensitivity.
 
 \section{Limitations and Failure Cases}
 
