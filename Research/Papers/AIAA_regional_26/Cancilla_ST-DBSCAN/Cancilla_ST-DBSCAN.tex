@@ -37,7 +37,7 @@
 \maketitle
 
 \begin{abstract}
-\noindent Maritime missions such as over-water navigation, ship-based operations, and airborne/space-enabled maritime surveillance require reliable surface-object detection and tracking in the presence of strong, nonstationary sea clutter and intermittent object returns. We present an end-to-end, real-time pipeline for vessel detection and multi-sweep tracking using commercial X-band radar providing only intensity measurements (range, azimuth, and intensity) without Doppler phase history. Raw polar returns from a Furuno NXT solid-state unit are transformed into Cartesian point clouds and clustered using ST-DBSCAN to link detections across sweeps. Neighborhood radii adapt automatically via k-nearest-neighbor distance statistics to handle varying clutter and point densities. A lightweight gap-recovery mechanism reconnects clusters across brief temporal dropouts. We evaluate the approach on (i) a synthetic dataset with ground-truth trajectories and (ii) coastal radar data from a shore-mounted installation, characterizing detection-to-track association behavior relative to baseline DBSCAN and standard ST-DBSCAN under nonstationary clutter and intermittent returns. A Rust implementation achieves 1.6 sweeps/s on CPU and up to 4 sweeps/s with GPU acceleration on an NVIDIA Jetson AGX Orin, exceeding real-time requirements for a 48 RPM radar.
+\noindent Maritime missions such as over-water navigation, ship-based operations, and airborne/space-enabled maritime surveillance require reliable surface-object detection and tracking in the presence of strong, nonstationary sea clutter and intermittent object returns. We present an end-to-end, real-time pipeline for vessel detection and multi-sweep tracking using commercial X-band radar providing only intensity measurements (range, azimuth, and intensity) without Doppler phase history. Raw polar returns from a Furuno NXT solid-state unit are transformed into Cartesian point clouds and clustered using ST-DBSCAN to link detections across sweeps. Neighborhood radii adapt automatically via k-nearest-neighbor distance statistics to handle varying clutter and point densities. A lightweight gap-recovery mechanism reconnects clusters across brief temporal dropouts. We evaluate the approach on (i) a synthetic dataset with ground-truth trajectories and (ii) coastal radar data from a shore-mounted installation, characterizing detection-to-track association behavior relative to baseline DBSCAN and standard ST-DBSCAN under nonstationary clutter and intermittent returns. A Rust implementation achieves approximately 2 sweeps/s on an NVIDIA Jetson AGX Orin embedded platform, exceeding real-time requirements for a 48 RPM radar.
 \end{abstract}
 
 \section{Introduction}
@@ -48,7 +48,7 @@ Unlike coherent radar systems that provide Doppler phase history for direct velo
 
 Density-based clustering methods, particularly DBSCAN (Density-Based Spatial Clustering of Applications with Noise) \cite{Ester1996} and its spatiotemporal extension ST-DBSCAN \cite{Birant2007}, offer a principled framework for extracting coherent target returns from noisy radar imagery without requiring prior knowledge of the number of targets. However, standard implementations suffer from two practical limitations: (1) fixed neighborhood parameters that cannot accommodate heterogeneous point densities across the surveillance region, and (2) sensitivity to brief temporal dropouts that fragment otherwise continuous tracks.
 
-This paper presents an end-to-end pipeline for real-time surface-object detection and multi-sweep tracking from commercial X-band radar. We address the aforementioned limitations through adaptive parameter selection and a lightweight gap-recovery mechanism, while maintaining computational efficiency suitable for embedded deployment. The core technical contribution is an adaptive extension of ST-DBSCAN that automatically determines the spatial neighborhood radius $\varepsilon$ from local k-nearest-neighbor distance statistics, enabling robust clustering across regions of varying point density without manual parameter tuning. A post-clustering gap recovery module reconnects track fragments across brief temporal dropouts, improving track continuity under intermittent target visibility. The complete system is implemented in Rust with spatial hashing and optional GPU acceleration via compute shaders, achieving real-time performance of 1.6--4 sweeps per second on an NVIDIA Jetson AGX Orin embedded platform. We evaluate the approach on both synthetic data with ground-truth trajectories and coastal radar data from a shore-mounted Furuno NXT installation, demonstrating improved tracking performance relative to baseline DBSCAN and standard ST-DBSCAN.
+This paper presents an end-to-end pipeline for real-time surface-object detection and multi-sweep tracking from commercial X-band radar. We address the aforementioned limitations through adaptive parameter selection and a lightweight gap-recovery mechanism, while maintaining computational efficiency suitable for embedded deployment. The core technical contribution is an adaptive extension of ST-DBSCAN that automatically determines the spatial neighborhood radius $\varepsilon$ from local k-nearest-neighbor distance statistics, enabling robust clustering across regions of varying point density without manual parameter tuning. A post-clustering gap recovery module reconnects track fragments across brief temporal dropouts, improving track continuity under intermittent target visibility. The complete system is implemented in Rust with spatial hashing for efficient neighborhood queries, achieving real-time performance of approximately 2 sweeps per second on an NVIDIA Jetson AGX Orin embedded platform. We evaluate the approach on both synthetic data with ground-truth trajectories and coastal radar data from a shore-mounted Furuno NXT installation, demonstrating improved tracking performance relative to baseline DBSCAN and standard ST-DBSCAN.
 
 The remainder of this paper is organized as follows. Section~II reviews related work on density-based clustering, radar detection methods, and multi-object tracking. Section~III formalizes the problem and establishes mathematical notation. Section~IV details the proposed methodology, including adaptive parameter selection and gap recovery. Section~V describes the implementation architecture. Sections~VI and~VII present experimental results and discuss limitations. Section~VIII concludes with directions for future work.
 
@@ -372,7 +372,7 @@ The combination of ST-DBSCAN clustering and Hungarian assignment provides comple
 
 \section{Implementation}
 
-The proposed pipeline is implemented in Rust for performance-critical components, with optional GPU acceleration via compute shaders written in WGSL (WebGPU Shading Language). This section describes the software architecture and deployment configuration.
+The proposed pipeline is implemented in Rust for performance-critical components. This section describes the software architecture and deployment configuration.
 
 \subsection{Rust Architecture}
 
@@ -380,41 +380,34 @@ Rust was selected for its combination of memory safety, zero-cost abstractions, 
 
 Data flows through the pipeline via bounded channels, enabling pipelined parallelism between stages. The spatial hash and k-NN queries within a single sweep are parallelized using Rayon, Rust's data-parallelism library, achieving near-linear speedup on multi-core processors.
 
-\subsection{GPU Acceleration via Compute Shaders}
-
-For platforms with capable GPUs, we offload the k-NN distance computation and neighborhood queries to compute shaders. The implementation uses \texttt{wgpu}, a cross-platform graphics and compute API that compiles WGSL shaders to native GPU backends (Vulkan, Metal, DirectX 12).
-
-The k-NN shader operates on a point buffer and outputs a distance buffer. Each workgroup processes a tile of query points, loading candidate neighbors from the spatial hash into shared memory for coalesced access. Synchronization barriers ensure consistent reads before distance computation. The resulting k-distances are transferred back to the CPU for percentile computation and adaptive epsilon determination.
-
-On the NVIDIA Jetson AGX Orin, the GPU compute path reduces k-NN computation time from approximately 390~ms (CPU, 12 threads) to 25~ms (GPU) for high-density sweeps of 120,000+ detections. The overhead of CPU-GPU data transfer is amortized by overlapping transfer with CPU-side clustering, achieving effective latency hiding.
-
 \subsection{Deployment on NVIDIA Jetson Orin}
 
-The target deployment platform is the NVIDIA Jetson AGX Orin, an embedded module with an Arm Cortex-A78AE CPU (12 cores), an Ampere-architecture GPU (2048 CUDA cores), and 32~GB unified memory. The module consumes approximately 25~W under load, suitable for shipboard or coastal installation with modest power budgets.
+The target deployment platform is the NVIDIA Jetson AGX Orin, an embedded module with an Arm Cortex-A78AE CPU (12 cores) and 32~GB unified memory. The module consumes approximately 25~W under load, suitable for shipboard or coastal installation with modest power budgets.
 
-The complete pipeline---from raw radar ingestion to track output---executes within 620~ms per sweep on the CPU (12 cores) and approximately 250~ms with GPU-accelerated k-NN computation, well below the 1.25~s sweep period of a 48~RPM radar. This margin accommodates occasional latency spikes due to operating system scheduling and provides headroom for future enhancements. Table~\ref{tab:timing} summarizes per-stage timing on the Jetson AGX Orin.
+The complete pipeline---from raw radar ingestion to track output---executes within $511 \pm 93$~ms per sweep (95\% CI: 397--625~ms) on the CPU using all 12 cores, well below the 1.25~s sweep period of a 48~RPM radar. This margin accommodates occasional latency spikes due to operating system scheduling and provides headroom for future enhancements. Table~\ref{tab:timing} summarizes per-stage timing on the Jetson AGX Orin.
 
 \begin{table}[h]
 \centering
-\caption{Per-sweep timing breakdown on NVIDIA Jetson AGX Orin}
+\caption{Per-sweep timing breakdown on NVIDIA Jetson AGX Orin (12-core CPU)}
 \label{tab:timing}
-\begin{tabular}{lcc}
+\begin{tabular}{lc}
 \toprule
-\textbf{Stage} & \textbf{CPU (ms)} & \textbf{GPU (ms)} \\
+\textbf{Stage} & \textbf{Time (ms)} \\
 \midrule
-Polar-to-Cartesian conversion & 8 & 8 \\
-Spatial hash construction & 15 & 15 \\
-Adaptive epsilon (k-NN) & 390 & 25 \\
-ST-DBSCAN clustering & 170 & 170 \\
-Gap recovery & 5 & 5 \\
-Hungarian assignment & 15 & 15 \\
+Frame loading \& preprocessing & 7 \\
+Adaptive epsilon (k-NN) & 196 \\
+ST-DBSCAN clustering & 169 \\
+Cluster extraction & 34 \\
+Gap recovery & 19 \\
+Hungarian assignment & 3 \\
+I/O (results output) & 40 \\
 \midrule
-\textbf{Total} & \textbf{603} & \textbf{238} \\
+\textbf{Total} & \textbf{511} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-With CPU-only processing, the system achieves 1.6 sweeps per second; GPU acceleration of the k-NN computation increases throughput to approximately 4 sweeps per second, significantly exceeding real-time requirements. Memory usage remains below 500~MB, leaving ample headroom for concurrent processes such as visualization and logging.
+The system achieves approximately 2 sweeps per second, exceeding real-time requirements for 48~RPM radars. Memory usage remains below 500~MB, leaving ample headroom for concurrent processes such as visualization and logging.
 
 \section{Experimental Setup}
 
@@ -502,7 +495,7 @@ These results suggest that the adaptive epsilon requires tuning of the percentil
 
 On the development workstation, the full pipeline processes 100 frames (6M points) in approximately 5 minutes with CPU-only execution. Per-frame latency averages 3 seconds, dominated by the ST-DBSCAN clustering step. Spatial hashing provides $O(1)$ expected-time neighborhood queries, but the sheer volume of points (121K per frame) makes clustering the bottleneck.
 
-On the NVIDIA Jetson AGX Orin with CPU-only processing, per-frame latency averages 620~ms, achieving 1.6 sweeps per second. With GPU-accelerated k-NN computation via WGSL shaders, per-frame latency reduces to approximately 240~ms, achieving 4 sweeps per second. Both configurations exceed the real-time requirement for 48~RPM radars (1.25~s per sweep) with substantial margin.
+On the NVIDIA Jetson AGX Orin, per-frame latency averages $511 \pm 93$~ms (mean $\pm$ std over 5 runs), achieving approximately 2 sweeps per second. This exceeds the real-time requirement for 48~RPM radars (1.25~s per sweep) with substantial margin.
 
 \subsection{Ablation Studies}
 
@@ -611,13 +604,13 @@ The proposed approach has several known limitations:
 
 \textbf{Parameter Sensitivity.} Although the adaptive epsilon mechanism reduces sensitivity to global parameter choices, the percentile threshold ($\rho$) and k-value remain user-specified hyperparameters. Suboptimal choices can lead to over-segmentation in dense regions or under-segmentation in sparse areas.
 
-\textbf{Computational Scaling.} Despite spatial hashing acceleration, the $O(N \cdot \mathit{MinPts})$ complexity per frame becomes prohibitive for very dense point clouds (>1M points per sweep). GPU acceleration via WGSL shaders addresses this bottleneck but requires compatible hardware.
+\textbf{Computational Scaling.} Despite spatial hashing acceleration, the $O(N \cdot \mathit{MinPts})$ complexity per frame becomes prohibitive for very dense point clouds (>1M points per sweep). Further optimization through algorithmic improvements or distributed processing would be required for such extreme densities.
 
 \section{Conclusion and Future Work}
 
 We presented an adaptive ST-DBSCAN pipeline for tracking surface objects from commercial X-band marine radar without Doppler information. The key contributions include: (1) automatic spatial epsilon selection via k-NN statistics that adapts to range-varying point density, (2) a gap recovery mechanism using Union-Find structures that maintains track continuity through intermittent detections, and (3) an efficient Rust implementation with spatial hashing achieving real-time performance on embedded platforms.
 
-Experimental evaluation on synthetic radar data demonstrates that the adaptive approach achieves comparable recall to fixed-parameter ST-DBSCAN while reducing sensitivity to manual tuning. The system processes radar sweeps at 1.6--4 Hz on NVIDIA Jetson AGX Orin hardware, meeting real-time constraints for 48~RPM marine radars.
+Experimental evaluation on synthetic radar data demonstrates that the adaptive approach achieves comparable recall to fixed-parameter ST-DBSCAN while reducing sensitivity to manual tuning. The system processes radar sweeps at approximately 2~Hz on NVIDIA Jetson AGX Orin hardware, meeting real-time constraints for 48~RPM marine radars with substantial margin.
 
 Future work includes: (1) integration of Kalman filtering for velocity estimation and improved gap bridging, (2) multi-hypothesis tracking to handle ambiguous cluster-to-track associations, (3) fusion with AIS transponder data for supervised track identification, and (4) extension to 3D point clouds from vertically-scanning radars. The open-source implementation enables further research and deployment on autonomous maritime platforms.
 
