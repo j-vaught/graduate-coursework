@@ -250,64 +250,9 @@ With the adaptive $\varepsilon_s$ determined, ST-DBSCAN proceeds as in the stand
 
 The computational bottleneck of DBSCAN-family algorithms is the neighborhood query, which requires finding all points within distance $\varepsilon$ of a query point. Naive implementation requires $O(N)$ time per query, yielding $O(N^2)$ total complexity. We employ spatial hashing to reduce query complexity to $O(1)$ expected time under reasonable assumptions on point distribution.
 
-The spatial hash partitions the surveillance region into a uniform grid of cells with side length $h$, as illustrated in Fig.~\ref{fig:spatial_hash}. Each cell maintains a list of points whose spatial coordinates fall within that cell. For a query at point $\mathbf{p}$, we examine only the $3 \times 3$ neighborhood of cells (9 cells total in 2D) and compute exact distances to points within those cells. Setting $h = 2\varepsilon_{s,\max}$ guarantees that all points within distance $\varepsilon_s \leq \varepsilon_{s,\max}$ lie within the examined cells.
+The spatial hash partitions the surveillance region into a uniform grid of cells with side length $h$. Each cell maintains a list of points whose spatial coordinates fall within that cell. For a query at point $\mathbf{p}$, we examine only the $3 \times 3$ neighborhood of cells (9 cells total in 2D) and compute exact distances to points within those cells. Setting $h = 2\varepsilon_{s,\max}$ guarantees that all points within distance $\varepsilon_s \leq \varepsilon_{s,\max}$ lie within the examined cells.
 
 For the temporal dimension, we maintain separate hash structures for each sweep, querying only sweeps within $\varepsilon_t$ of the current sweep. This temporal partitioning further reduces the number of candidate neighbors.
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[scale=0.75]
-% Grid
-\draw[step=1.2cm, black!30, thin] (0,0) grid (6,6);
-
-% Cell labels (faint)
-\foreach \i in {0,...,4} {
-    \foreach \j in {0,...,4} {
-        \node[font=\tiny, black!20] at (0.6+\i*1.2, 0.6+\j*1.2) {$c_{\i,\j}$};
-    }
-}
-
-% Scattered points (cluster points - garnet)
-\fill[garnet] (2.1, 2.3) circle (2.5pt);
-\fill[garnet] (2.4, 2.6) circle (2.5pt);
-\fill[garnet] (2.7, 2.2) circle (2.5pt);
-\fill[garnet] (2.5, 2.9) circle (2.5pt);
-\fill[garnet] (3.0, 2.5) circle (2.5pt);
-
-% More scattered points in other cells
-\fill[black!50] (0.3, 0.5) circle (2pt);
-\fill[black!50] (0.8, 1.0) circle (2pt);
-\fill[black!50] (4.5, 4.8) circle (2pt);
-\fill[black!50] (5.2, 5.3) circle (2pt);
-\fill[black!50] (1.5, 4.2) circle (2pt);
-\fill[black!50] (4.0, 1.8) circle (2pt);
-\fill[black!50] (5.5, 2.5) circle (2pt);
-\fill[black!50] (0.5, 3.8) circle (2pt);
-\fill[black!50] (3.5, 5.2) circle (2pt);
-
-% Query point (highlighted)
-\fill[slate] (2.5, 2.5) circle (4pt);
-\node[slate, font=\footnotesize\bfseries, anchor=south west] at (2.6, 2.6) {$\mathbf{p}$};
-
-% 3x3 neighborhood highlight
-\draw[slate, very thick, fill=slate!10, fill opacity=0.3]
-    (1.2, 1.2) rectangle (4.8, 4.8);
-
-% Epsilon radius
-\draw[olive, thick, dashed] (2.5, 2.5) circle (1.0cm);
-\node[olive, font=\tiny, anchor=west] at (3.6, 2.5) {$\varepsilon_s$};
-
-% Labels
-\draw[decorate, decoration={brace, amplitude=5pt}]
-    (6.2, 1.2) -- (6.2, 4.8) node[midway, right=5pt, font=\footnotesize, align=left] {$3 \times 3$\\query\\region};
-
-% Cell size annotation
-\draw[{Stealth}-{Stealth}, thick] (0, -0.3) -- (1.2, -0.3) node[midway, below, font=\tiny] {$h = 2\varepsilon_{s,\max}$};
-
-\end{tikzpicture}
-\caption{Spatial hash structure for efficient neighborhood queries. The surveillance region is partitioned into cells of size $h = 2\varepsilon_{s,\max}$. For a query at point $\mathbf{p}$ (blue), only the $3 \times 3$ neighborhood of cells (shaded) is examined. The dashed circle indicates the spatial neighborhood radius $\varepsilon_s$. Cluster points (dark red) within this radius are identified as neighbors.}
-\label{fig:spatial_hash}
-\end{figure}
 
 \subsection{Gap Recovery Mechanism}
 
