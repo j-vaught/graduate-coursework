@@ -57,7 +57,7 @@ DBSCAN \cite{Ester1996} defines clusters through a neighborhood radius $\varepsi
 
 Birant and Kut \cite{Birant2007} extended DBSCAN to spatiotemporal data (ST-DBSCAN) with separate spatial ($\varepsilon_1$) and temporal ($\varepsilon_2$) thresholds \cite{Kisilevich2010}. However, user-specified parameters remain a limitation when point density varies spatially or temporally.
 
-Several approaches address automatic parameter selection. Ertoz et al. \cite{Ertoz2003} proposed using k-nearest-neighbor distances to identify $\varepsilon$ from the inflection point in the k-distance plot. OPTICS \cite{Ankerst1999} and HDBSCAN \cite{Campello2013} eliminate fixed $\varepsilon$ requirements but incur additional computational cost that may be prohibitive for real-time processing.
+Several approaches address automatic parameter selection. Ertoz, Steinbach, and Kumar \cite{Ertoz2003} proposed using k-nearest-neighbor distances to identify $\varepsilon$ from the inflection point in the k-distance plot. OPTICS \cite{Ankerst1999} and HDBSCAN \cite{Campello2013} eliminate fixed $\varepsilon$ requirements but incur additional computational cost that may be prohibitive for real-time processing.
 
 \subsection{Radar Detection and CFAR Processing}
 
@@ -73,7 +73,7 @@ For non-Doppler radar, track-before-detect methods \cite{Davey2012} integrate en
 
 \subsection{Adaptive Parameter Methods}
 
-GDBSCAN \cite{Sander1998} allows arbitrary neighborhood predicates; Liu et al. \cite{Liu2007} compute adaptive $\varepsilon$ from k-distances; Hou et al. \cite{Hou2016} combine k-NN graphs with density peaks. Our approach builds on Liu et al.'s k-distance method, computing neighborhood radii via spatial hashing to accommodate the varying point density in radar data (denser near-range, sparser far-range due to $R^{-4}$ loss).
+GDBSCAN \cite{Sander1998} allows arbitrary neighborhood predicates; Liu, Zhou, and Wu \cite{Liu2007} compute adaptive $\varepsilon$ from k-distances; Hou, Gao, and Li \cite{Hou2016} combine k-NN graphs with density peaks. Our approach builds on the k-distance method of Liu, Zhou, and Wu, computing neighborhood radii via spatial hashing to accommodate the varying point density in radar data (denser near-range, sparser far-range due to $R^{-4}$ loss).
 
 \section{Problem Formulation}
 
@@ -173,63 +173,7 @@ This floor can be determined from sensor geometry: for a target of minimum physi
 \end{algorithmic}
 \end{algorithm}
 
-\begin{figure}[t]
-\centering
-\resizebox{0.8\columnwidth}{!}{%
-\begin{tikzpicture}
-% Axes
-\draw[-{Stealth}, thick] (0,0) -- (7.2,0) node[right, font=\footnotesize] {Point index (sorted)};
-\draw[-{Stealth}, thick] (0,0) -- (0,5.2) node[above, font=\footnotesize] {$d_5$ (pixels)};
-
-% Y-axis labels
-\foreach \y/\label in {0/0, 1/1, 2/2, 3/3, 4/4, 5/5} {
-    \draw (-0.1, \y) -- (0.1, \y);
-    \node[left, font=\tiny] at (-0.15, \y) {\label};
-}
-
-% X-axis labels (percentiles)
-\foreach \x/\label in {0/0, 1.4/0.2, 2.8/0.4, 4.2/0.6, 5.6/0.8, 7/1.0} {
-    \draw (\x, -0.1) -- (\x, 0.1);
-    \node[below, font=\tiny] at (\x, -0.15) {\label};
-}
-
-% K-distance curve from real data (119,462 points)
-% Data: flat at 1.0 until 60%, rises to 1.41 at 70-90%, then sharp elbow
-\draw[very thick, garnet]
-    (0, 0) -- (0.7, 1.0) -- (4.2, 1.0) -- (4.9, 1.41) -- (6.3, 1.41) --
-    (6.44, 2.0) -- (6.72, 2.0) -- (6.79, 2.24) -- (6.86, 2.24) --
-    (6.93, 3.0) -- (6.965, 3.61) -- (6.993, 5.0);
-
-% Percentile threshold line at eps* = 1.41
-\draw[dashed, thick, slate] (0, 1.41) -- (7, 1.41);
-\node[slate, font=\footnotesize, anchor=south west] at (0.1, 1.5) {90th percentile};
-
-% Vertical line at 90th percentile
-\draw[dotted, slate] (6.3, 0) -- (6.3, 1.41);
-
-% Epsilon value annotation
-\draw[thick, olive, -{Stealth}] (5.0, 2.8) -- (5.0, 1.51);
-\node[olive, font=\footnotesize, anchor=south] at (5.0, 2.85) {$\varepsilon_s^* = 1.41$};
-
-% Elbow annotation
-\draw[-{Stealth}, teal, thick] (5.8, 3.8) -- (6.35, 1.6);
-\node[teal, font=\footnotesize, anchor=south] at (5.8, 3.85) {Elbow};
-
-\end{tikzpicture}%
-}
-\caption{K-distance plot computed from synthetic radar data (119,462 sampled points across 25 frames). Points are sorted by distance $d_5$ to the 5th nearest neighbor. The flat region at $d_5 \approx 1$ pixel reflects high point density where most neighbors are adjacent pixels. The elbow at the 90th percentile separates cluster points from noise, yielding adaptive $\varepsilon_s^* = 1.41$ pixels---consistent with the ablation results in Table~\ref{tab:ablation_temporal}.}
-\label{fig:kdistance}
-\end{figure}
-
-With the adaptive $\varepsilon_s$ determined, ST-DBSCAN proceeds as in the standard formulation. Points are classified as core points if they have at least $\mathit{MinPts}$ neighbors within $\varepsilon_s$ spatially and $\varepsilon_t$ temporally. Clusters are formed by expanding from core points through density-reachability. The temporal radius $\varepsilon_t$ is typically set to 1 or 2 sweep indices, connecting detections across consecutive or near-consecutive sweeps.
-
-\subsection{Spatial Hashing for Efficient Neighborhood Queries}
-
-The computational bottleneck of DBSCAN-family algorithms is the neighborhood query, which requires finding all points within distance $\varepsilon$ of a query point. Naive implementation requires $O(N)$ time per query, yielding $O(N^2)$ total complexity. We employ spatial hashing to reduce query complexity to $O(1)$ expected time under reasonable assumptions on point distribution.
-
-The spatial hash partitions the surveillance region into a uniform grid of cells with side length $h$. Each cell maintains a list of points whose spatial coordinates fall within that cell. For a query at point $\mathbf{p}$, we examine only the $3 \times 3$ neighborhood of cells (9 cells total in 2D) and compute exact distances to points within those cells. Setting $h = 2\varepsilon_{s,\max}$ guarantees that all points within distance $\varepsilon_s \leq \varepsilon_{s,\max}$ lie within the examined cells.
-
-For the temporal dimension, we maintain separate hash structures for each sweep, querying only sweeps within $\varepsilon_t$ of the current sweep. This temporal partitioning further reduces the number of candidate neighbors.
+With the adaptive $\varepsilon_s$ determined, ST-DBSCAN proceeds as in the standard formulation. Points are classified as core points if they have at least $\mathit{MinPts}$ neighbors within $\varepsilon_s$ spatially and $\varepsilon_t$ temporally. Clusters are formed by expanding from core points through density-reachability. The temporal radius $\varepsilon_t$ is typically set to 1 or 2 sweep indices. To achieve $O(1)$ expected-time neighborhood queries, we employ spatial hashing with cell size $h = 2\varepsilon_{s,\max}$, examining only the $3 \times 3$ cell neighborhood around each query point. Separate hash structures for each sweep enable efficient temporal filtering.
 
 \subsection{Gap Recovery Mechanism}
 
@@ -444,19 +388,9 @@ Note that all MOTA scores are negative, indicating false positives and misses ex
 \label{fig:tracking_comparison}
 \end{figure*}
 
-The results reveal fundamental trade-offs between recall, false positive rate, and localization accuracy across all methods. We analyze each approach's strengths and limitations to guide method selection for different operational requirements.
+The results reveal fundamental trade-offs between recall, false positive rate, and localization accuracy. Vanilla DBSCAN achieves 98.7\% recall but generates 1208 false positives, yielding 48 tracks of which only 3 correspond to ground truth. Standard ST-DBSCAN produces zero recall because temporal connectivity chains all frames into mega-clusters whose centroids lie far from any instantaneous target position. The proposed adaptive ST-DBSCAN achieves the best MOTA ($-4.44$) and MOTP (1.19 pixels), reducing false positives by 32\% while maintaining 97.4\% recall; however, a minimum epsilon floor ($\varepsilon_{\min} = 20$ pixels) is required to prevent fragmentation in high-density regions. Adding gap recovery further reduces false positives to 695 and eliminates identity switches, though recall drops to 81.2\% due to occasional over-merging.
 
-\paragraph{Vanilla DBSCAN} ($\varepsilon_s = 10$) achieves the highest recall (98.7\%) with excellent localization precision (MOTP = 1.80 pixels), demonstrating that when clusters correctly capture targets, centroid estimation is highly accurate. However, this configuration generates 1208 false positives from sea clutter and land returns, yielding 48 total tracks of which only 3 correspond to ground truth objects. The 18 identity switches further indicate track instability as spurious clusters intermittently capture associations. \textit{Strength}: Maximum recall and simple parameterization. \textit{Weakness}: Excessive false alarms requiring downstream filtering.
-
-\paragraph{Standard ST-DBSCAN} ($\varepsilon_s = 10$, $\varepsilon_t = 2$) produces zero recall despite generating only 16 false positives---a failure mode requiring explanation. The temporal radius $\varepsilon_t = 2$ creates transitive connectivity: frame 0 connects to frame 2, which connects to frame 4, ultimately chaining all 50 frames into mega-clusters. In our data, 12 clusters span the entire sequence. Within each mega-cluster, the centroid averages points across all frames, producing a trajectory midpoint rather than any frame-specific position. For a target traversing 500+ pixels over 50 frames, this midpoint lies 250+ pixels from any instantaneous ground truth position---far exceeding the 50-pixel association threshold. Furthermore, our tracking pipeline registers each cluster only at its first frame, so a 50-frame mega-cluster produces one detection at frame 0 rather than 50 detections. This architectural mismatch---using temporal clustering for both detection and association simultaneously---fundamentally conflicts with per-frame evaluation metrics. \textit{Strength}: Aggressive false positive suppression. \textit{Weakness}: Centroid averaging and sparse frame registration render tracking ineffective.
-
-\paragraph{Adaptive ST-DBSCAN} (proposed) addresses these extremes by computing $\varepsilon_s$ from k-NN statistics. However, the raw estimation yields $\varepsilon_s^* \approx 1.4$ pixels---too conservative for this high-density data, causing target fragmentation. We introduce a minimum epsilon floor ($\varepsilon_{\min} = 20$ pixels) based on expected target extent. With this regularization, the method achieves the best MOTA ($-4.44$) and MOTP (1.19 pixels), reducing false positives by 32\% (816 vs 1208) while maintaining 97.4\% recall. \textit{Strength}: Best overall balance of recall, precision, and localization. \textit{Weakness}: The minimum floor is effectively a tuning parameter that must be set from domain knowledge; the adaptive estimation alone does not produce usable results on this data.
-
-\paragraph{Adaptive + Gap Recovery} ($\tau = 1$, $d = 0.5$ pixels) further reduces false positives to 695 (15\% improvement) and eliminates all identity switches by merging temporally adjacent clusters. However, this merging occasionally combines target clusters with nearby noise, reducing recall to 81.2\%. \textit{Strength}: Lowest false positive rate and zero identity switches. \textit{Weakness}: Recall degradation from over-merging; requires conservative parameters to avoid destroying target tracks entirely.
-
-\paragraph{Method Selection} For safety-critical applications requiring maximum target detection, vanilla DBSCAN or adaptive ST-DBSCAN (without gap recovery) should be used, accepting higher false alarm rates for downstream processing. For bandwidth-limited or autonomous systems where false tracks impose significant costs, adaptive ST-DBSCAN with gap recovery provides the best precision at acceptable recall loss.
-
-\paragraph{Per-Object Analysis} Table~\ref{tab:per_object} disaggregates tracking performance by ground truth object for vanilla DBSCAN, revealing that aggregate metrics obscure important details. All three persistent objects achieve 100\% track lifetime with single-fragment coverage and sub-2-pixel localization error---demonstrating that the core tracking capability is excellent when targets are detected. The fourth object, visible only in 4 frames, achieves 50\% lifetime due to tracker initialization latency. Notably, the 45 spurious tracks in vanilla DBSCAN arise primarily from persistent land returns and radar artifacts that appear consistently across frames, not from random noise spikes. The tuned adaptive ST-DBSCAN reduces these to 28 spurious tracks while maintaining equivalent per-object performance on the three main targets. This improvement, while meaningful, highlights that a substantial portion of false tracks arise from scene structure (land masses, fixed clutter) rather than algorithmic limitations---suggesting that incorporating geographic masking or clutter maps could provide complementary benefits.
+For safety-critical applications requiring maximum detection, vanilla DBSCAN or adaptive ST-DBSCAN should be used. For systems where false tracks impose significant costs, adaptive ST-DBSCAN with gap recovery provides better precision at acceptable recall loss. Table~\ref{tab:per_object} shows per-object performance: all three persistent objects achieve 100\% track lifetime with sub-2-pixel localization error, while spurious tracks arise primarily from persistent land returns rather than random noise.
 
 \begin{table}[h]
 \centering
@@ -476,128 +410,11 @@ Object 3 & 4 & 2 & 50\% & 1 & 47.2 \\
 \end{tabular*}
 \end{table}
 
-\subsection{Stress Test Evaluation}
-
-To evaluate robustness under challenging conditions, we tested on a stress dataset with 200 frames, 22 objects including crossing trajectories, and 50--70\% dropout rates. Table~\ref{tab:stress_results} compares performance against the primary evaluation set.
-
-\begin{table}[h]
-\centering
-\caption{Stress Test Results (Vanilla DBSCAN, $\varepsilon_s=10$)}
-\label{tab:stress_results}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccc@{}}
-\toprule
-\textbf{Dataset} & \textbf{MOTA} & \textbf{MOTP (px)} & \textbf{Recall} & \textbf{Prec.} & \textbf{IDSW} & \textbf{Tracks} \\
-\midrule
-Tracking Eval (50 fr, 10 obj) & $-6.97$ & 1.80 & 0.987 & 0.112 & 18 & 48 \\
-Stress Test (200 fr, 22 obj) & $-1.89$ & 2.45 & 0.551 & 0.191 & 150 & 47 \\
-\bottomrule
-\end{tabular*}
-\end{table}
-
-The stress test exhibits 8$\times$ more identity switches (150 vs 18) due to crossing trajectories, and recall drops from 98.7\% to 55.1\% under high dropout conditions. These results empirically validate the crossing trajectory and intermittent detection limitations discussed in Section~VIII.
-
 \subsection{Computational Performance}
 
 On the development workstation, the full pipeline processes 100 frames (6M points) in approximately 5 minutes with CPU-only execution. Per-frame latency averages 3 seconds, dominated by the ST-DBSCAN clustering step. Spatial hashing provides $O(1)$ expected-time neighborhood queries, but the sheer volume of points (121K per frame) makes clustering the bottleneck.
 
 On the NVIDIA Jetson AGX Orin, per-frame latency averages $511 \pm 93$~ms (mean $\pm$ std over 5 runs), achieving approximately 2 sweeps per second. This exceeds the real-time requirement for 48~RPM radars (1.25~s per sweep) with substantial margin.
-
-\subsection{Ablation Studies}
-
-We conducted systematic ablation experiments to characterize parameter sensitivity. All experiments used the Tracking Evaluation dataset (50 frames, 6M total points) with baseline configuration: adaptive $k=5$, 90th percentile, $\varepsilon_t = 2$, $\mathit{MinPts} = 5$.
-
-\paragraph{Temporal Window Effect} Table~\ref{tab:ablation_temporal} and Fig.~\ref{fig:ablation_temporal} show the impact of the temporal radius $\varepsilon_t$ on clustering behavior. With $\varepsilon_t = 0$ (frame-independent DBSCAN), the algorithm generates 5,895 clusters across 50 frames, averaging 118 clusters per frame with 252 resulting track fragments. Increasing $\varepsilon_t$ to 1 frame reduces clusters to 963 (81 per frame) with 86 tracks, demonstrating substantial temporal linkage. At $\varepsilon_t = 2$, cluster count stabilizes at 530 with 41 tracks, while $\varepsilon_t = 3$ yields diminishing returns (421 clusters, 42 tracks) with increased computational cost from the larger temporal neighborhood. These results confirm that temporal linkage across 2 sweeps provides an effective balance between track continuity and computational efficiency.
-
-\begin{table}[h]
-\centering
-\caption{Ablation study: temporal window effect}
-\label{tab:ablation_temporal}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccc@{}}
-\toprule
-$\varepsilon_t$ (frames) & $\varepsilon_s^*$ (px) & Clusters & Tracks \\
-\midrule
-0 (baseline DBSCAN) & 1.41 & 5,895 & 252 \\
-1 & 1.00 & 963 & 86 \\
-2 (default) & 1.00 & 530 & 41 \\
-3 & 1.00 & 421 & 42 \\
-\bottomrule
-\end{tabular*}
-\end{table}
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[scale=0.85]
-% Axes
-\draw[-{Stealth}, thick] (0,0) -- (7,0) node[right, font=\footnotesize] {$\varepsilon_t$ (frames)};
-\draw[-{Stealth}, thick] (0,0) -- (0,5.5) node[above, font=\footnotesize] {Count};
-
-% Y-axis labels (clusters - scaled by 1000)
-\foreach \y/\label in {0/0, 1/1000, 2/2000, 3/3000, 4/4000, 5/5000} {
-    \draw (-0.1, \y) -- (0.1, \y);
-    \node[left, font=\tiny] at (-0.15, \y) {\label};
-}
-
-% X-axis labels
-\foreach \x/\label in {1/0, 2.5/1, 4/2, 5.5/3} {
-    \node[below, font=\footnotesize] at (\x, -0.1) {\label};
-}
-
-% Bars - Clusters (garnet)
-\fill[garnet] (0.6, 0) rectangle (1.1, 5.895);  % 5895/1000 = 5.895
-\fill[garnet] (2.1, 0) rectangle (2.6, 0.963);  % 963/1000 = 0.963
-\fill[garnet] (3.6, 0) rectangle (4.1, 0.530);  % 530/1000 = 0.530
-\fill[garnet] (5.1, 0) rectangle (5.6, 0.421);  % 421/1000 = 0.421
-
-% Bars - Tracks (slate) - scaled differently for visibility
-% Using secondary scale: multiply by 20 for display
-\fill[slate] (1.2, 0) rectangle (1.7, 5.04);    % 252 * 0.02 = 5.04
-\fill[slate] (2.7, 0) rectangle (3.2, 1.72);    % 86 * 0.02 = 1.72
-\fill[slate] (4.2, 0) rectangle (4.7, 0.82);    % 41 * 0.02 = 0.82
-\fill[slate] (5.7, 0) rectangle (6.2, 0.84);    % 42 * 0.02 = 0.84
-
-% Secondary Y-axis for tracks
-\draw[-{Stealth}, thick] (7,0) -- (7,5.5);
-\foreach \y/\label in {0/0, 1.0/50, 2.0/100, 3.0/150, 4.0/200, 5.0/250} {
-    \draw (6.9, \y) -- (7.1, \y);
-    \node[right, font=\tiny, slate] at (7.15, \y) {\label};
-}
-\node[right, font=\footnotesize, slate, rotate=90, anchor=south] at (7.5, 2.5) {Tracks};
-
-% Legend
-\fill[garnet] (1.5, 5.8) rectangle (2.0, 6.1);
-\node[right, font=\tiny] at (2.1, 5.95) {Clusters};
-\fill[slate] (3.5, 5.8) rectangle (4.0, 6.1);
-\node[right, font=\tiny] at (4.1, 5.95) {Tracks};
-
-\end{tikzpicture}
-\caption{Temporal window ablation study. Cluster count (left axis, garnet) and track count (right axis, blue) decrease sharply as $\varepsilon_t$ increases from 0 to 2 frames, with diminishing returns at $\varepsilon_t = 3$. The default setting $\varepsilon_t = 2$ balances track consolidation against computational cost.}
-\label{fig:ablation_temporal}
-\end{figure}
-
-\paragraph{Gap Recovery Parameters} Table~\ref{tab:ablation_gap} examines the gap recovery thresholds $\tau$ (maximum temporal gap) and $d$ (maximum spatial gap). Starting from 530 base clusters, gap recovery with $\tau = 2$ frames and $d = 25$ pixels merges 67 cluster pairs, yielding 463 clusters and 37 tracks. Increasing the distance threshold to $d = 50$ merges 145 pairs (385 clusters, 36 tracks). With $\tau = 5$ frames, merging becomes more aggressive: 209 pairs at $d = 25$ (321 clusters, 31 tracks) and 285 pairs at $d = 50$ (245 clusters, 21 tracks). The progression from 41 tracks (no gap recovery) to 21 tracks ($\tau = 5$, $d = 50$) demonstrates substantial consolidation of track fragments, though aggressive thresholds risk false merges between distinct targets.
-
-\begin{table}[h]
-\centering
-\caption{Ablation study: gap recovery parameters}
-\label{tab:ablation_gap}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}ccccc@{}}
-\toprule
-$\tau$ (frames) & $d$ (px) & Merges & Clusters & Tracks \\
-\midrule
---- & --- & 0 & 530 & 41 \\
-2 & 25 & 67 & 463 & 37 \\
-2 & 50 & 145 & 385 & 36 \\
-5 & 25 & 209 & 321 & 31 \\
-5 & 50 & 285 & 245 & 21 \\
-\bottomrule
-\end{tabular*}
-\end{table}
-
-\paragraph{Minimum Points Threshold} Varying $\mathit{MinPts}$ affects cluster formation and noise rejection. At $\mathit{MinPts} = 3$, the algorithm generates 447 clusters (38 tracks), accepting smaller point groupings. The default $\mathit{MinPts} = 5$ yields 530 clusters (41 tracks). Stricter thresholds of $\mathit{MinPts} = 7$ and 10 reduce clusters to 244 (18 tracks) and 311 (21 tracks) respectively, rejecting sparse detections as noise. The non-monotonic relationship between $\mathit{MinPts}$ and cluster count reflects competing effects: higher thresholds eliminate small noise clusters but also fragment extended targets with sparse returns.
-
-\paragraph{Adaptive Percentile} The adaptive epsilon mechanism proved robust to percentile selection on this dataset. All percentile values tested (75th through 95th) converged to identical $\varepsilon_s^* = 1.0$ pixel, yielding identical clustering results (530 clusters, 41 tracks). This convergence indicates a sharp elbow in the k-distance distribution where cluster points transition to noise, making the exact percentile choice less critical when a clear density separation exists. However, datasets with gradual density transitions may exhibit greater percentile sensitivity.
-
-\paragraph{Neighbor Count (k)} Similarly, varying the k-NN neighbor count from $k=3$ to $k=10$ produced identical $\varepsilon_s^* = 1.0$ pixel estimates and clustering results. The uniformly high point density in the synthetic data (approximately 121,000 points per frame) causes k-distance distributions to saturate at the minimum resolvable spacing, making the k parameter insensitive within the tested range. Sparse or heterogeneous point clouds with variable density would likely exhibit greater k-sensitivity.
 
 \section{Limitations and Failure Cases}
 
