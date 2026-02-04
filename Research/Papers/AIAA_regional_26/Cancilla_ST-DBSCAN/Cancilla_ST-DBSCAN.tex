@@ -47,7 +47,7 @@ Density-based clustering methods, particularly DBSCAN (Density-Based Spatial Clu
 
 This paper presents an end-to-end pipeline for real-time surface-object detection and multi-sweep tracking from commercial X-band radar. We address the aforementioned limitations through adaptive parameter selection and a lightweight gap-recovery mechanism, while maintaining computational efficiency suitable for embedded deployment. The core technical contribution is an adaptive extension of ST-DBSCAN that automatically determines the spatial neighborhood radius $\varepsilon$ from local k-nearest-neighbor distance statistics, enabling robust clustering across regions of varying point density without manual parameter tuning. A post-clustering gap recovery module reconnects track fragments across brief temporal dropouts, improving track continuity under intermittent target visibility. The complete system is implemented in Rust with spatial hashing for efficient neighborhood queries, achieving real-time performance of approximately 2 sweeps per second on an NVIDIA Jetson AGX Orin embedded platform. We evaluate the approach on synthetic data with ground-truth trajectories, demonstrating improved tracking performance relative to baseline DBSCAN and standard ST-DBSCAN.
 
-The remainder of this paper is organized as follows. Section~II reviews related work on density-based clustering, radar detection methods, and multi-object tracking. Section~III formalizes the problem and establishes mathematical notation. Section~IV details the proposed methodology, including adaptive parameter selection and gap recovery. Section~V describes the implementation architecture. Sections~VI and~VII present experimental results and discuss limitations. Section~VIII concludes with directions for future work.
+The remainder of this paper is organized as follows. Section~II reviews related work on density-based clustering, radar detection methods, and multi-object tracking. Section~III formalizes the problem and establishes notation. Section~IV details the proposed methodology, including adaptive parameter selection and gap recovery. Section~V describes the implementation architecture. Sections~VI and~VII present experimental setup and results. Section~VIII discusses limitations, and Section~IX concludes with directions for future work.
 
 \section{Related Work}
 
@@ -77,20 +77,11 @@ GDBSCAN \cite{Sander1998} allows arbitrary neighborhood predicates; Liu et al. \
 
 \section{Problem Formulation}
 
-\subsection{Input Data Representation}
-
 Consider a marine radar that completes one full azimuthal sweep in time $T_s$, producing a polar intensity image at each sweep. Let the radar operate at sweep index $t \in \{1, 2, \ldots, T\}$ over a surveillance period of $T$ sweeps. At each sweep $t$, the radar outputs a set of detections in polar coordinates:
 \begin{equation}
     \mathcal{D}_t = \left\{ (r_i, \theta_i, I_i, t) : i = 1, \ldots, N_t \right\}
 \end{equation}
-where $r_i \in [0, R_{\max}]$ denotes the range, $\theta_i \in [0, 2\pi)$ denotes the azimuth angle, $I_i \in \mathbb{R}^+$ denotes the received intensity (after log-compression), and $N_t$ is the number of detections at sweep $t$. These detections may arise from CFAR processing or simple thresholding of the raw intensity image.
-
-The complete observation over the surveillance period is the union of detections across all sweeps:
-\begin{equation}
-    \mathcal{D} = \bigcup_{t=1}^{T} \mathcal{D}_t
-\end{equation}
-
-\subsection{Output: Labeled Tracks}
+where $r_i \in [0, R_{\max}]$ denotes the range, $\theta_i \in [0, 2\pi)$ denotes the azimuth angle, $I_i \in \mathbb{R}^+$ denotes the received intensity (after log-compression), and $N_t$ is the number of detections at sweep $t$. These detections may arise from CFAR processing or simple thresholding of the raw intensity image. The complete observation over the surveillance period is the union $\mathcal{D} = \bigcup_{t=1}^{T} \mathcal{D}_t$.
 
 The objective is to partition $\mathcal{D}$ into a set of tracks $\{\mathcal{T}_1, \mathcal{T}_2, \ldots, \mathcal{T}_K\}$ and a noise set $\mathcal{N}$, such that:
 \begin{equation}
@@ -98,17 +89,7 @@ The objective is to partition $\mathcal{D}$ into a set of tracks $\{\mathcal{T}_
 \end{equation}
 with $\mathcal{T}_j \cap \mathcal{T}_k = \emptyset$ for $j \neq k$. Each track $\mathcal{T}_j$ represents detections from a single physical object across multiple sweeps. The number of tracks $K$ is unknown a priori and must be inferred from the data.
 
-\subsection{Coordinate Transformation}
-
-For spatiotemporal clustering, polar detections are transformed to Cartesian coordinates. Given a detection $(r, \theta, I, t)$, the Cartesian position is:
-\begin{equation}
-    x = r \cos(\theta), \quad y = r \sin(\theta)
-\end{equation}
-We define the spatiotemporal position vector as $\mathbf{p} = (x, y, t) \in \mathbb{R}^3$, where spatial coordinates are in meters and the temporal coordinate is the sweep index (or equivalently, time in units of $T_s$).
-
-\subsection{Distance Metrics}
-
-Spatiotemporal proximity between two detections $\mathbf{p}_i = (x_i, y_i, t_i)$ and $\mathbf{p}_j = (x_j, y_j, t_j)$ is assessed via separate spatial and temporal distances:
+For spatiotemporal clustering, polar detections are transformed to Cartesian coordinates via $x = r \cos(\theta)$ and $y = r \sin(\theta)$, yielding a spatiotemporal position vector $\mathbf{p} = (x, y, t) \in \mathbb{R}^3$ where spatial coordinates are in meters and $t$ is the sweep index. Proximity between detections $\mathbf{p}_i = (x_i, y_i, t_i)$ and $\mathbf{p}_j = (x_j, y_j, t_j)$ is assessed via separate spatial and temporal distances:
 \begin{align}
     d_s(\mathbf{p}_i, \mathbf{p}_j) &= \sqrt{(x_i - x_j)^2 + (y_i - y_j)^2} \\
     d_t(\mathbf{p}_i, \mathbf{p}_j) &= |t_i - t_j|
@@ -117,7 +98,7 @@ Two points are considered neighbors if $d_s(\mathbf{p}_i, \mathbf{p}_j) \leq \va
 
 \section{Methodology}
 
-The proposed pipeline consists of four stages: (1) polar-to-Cartesian coordinate conversion, (2) adaptive ST-DBSCAN clustering with spatial hashing, (3) gap recovery for track continuity, and (4) Hungarian assignment for frame-to-frame track association. Each stage is described in detail below and illustrated in Fig.~\ref{fig:pipeline}.
+The proposed pipeline consists of four stages: (1) polar-to-Cartesian coordinate conversion (Section~III), (2) adaptive ST-DBSCAN clustering with spatial hashing, (3) gap recovery for track continuity, and (4) Hungarian assignment for frame-to-frame track association. Each stage is illustrated in Fig.~\ref{fig:pipeline}.
 
 \begin{figure}[t]
 \centering
@@ -145,21 +126,15 @@ The proposed pipeline consists of four stages: (1) polar-to-Cartesian coordinate
 \draw[arrow] (hungarian) -- (output);
 
 % Labels below
-\node[label, below=0.2cm of polar] {Sec.~IV.A};
-\node[label, below=0.2cm of stdbscan] {Sec.~IV.B--C};
-\node[label, below=0.2cm of gap] {Sec.~IV.D};
-\node[label, below=0.2cm of hungarian] {Sec.~IV.E};
+\node[label, below=0.2cm of polar] {Sec.~III};
+\node[label, below=0.2cm of stdbscan] {Sec.~IV.A--B};
+\node[label, below=0.2cm of gap] {Sec.~IV.C};
+\node[label, below=0.2cm of hungarian] {Sec.~IV.D};
 
 \end{tikzpicture}
 \caption{Processing pipeline for surface-object tracking. Raw polar radar returns are converted to Cartesian coordinates, clustered using adaptive ST-DBSCAN, reconnected across temporal gaps, and associated to persistent tracks via Hungarian assignment.}
 \label{fig:pipeline}
 \end{figure}
-
-\subsection{Polar-to-Cartesian Conversion}
-
-Raw polar detections are converted to Cartesian coordinates per Section~III.C. Cross-range resolution degrades with range (geometric spreading), motivating adaptive neighborhood radii for range-dependent point density.
-
-We insert all Cartesian points into a spatial hash with cell size $h = 2\varepsilon_{s,\max}$. This ensures potential neighbors lie within a $3 \times 3$ cell grid, limiting search complexity.
 
 \subsection{Adaptive ST-DBSCAN}
 
@@ -371,17 +346,9 @@ The combination of ST-DBSCAN clustering and Hungarian assignment provides comple
 
 \section{Implementation}
 
-We implement the pipeline in Rust for memory safety, zero-cost abstractions, and predictable real-time performance.
+We implement the pipeline in Rust for memory safety, zero-cost abstractions, and predictable real-time performance. The implementation uses spatial hashing with cell size $h = 2\varepsilon_{s,\max}$ for $O(1)$ expected-time neighborhood queries (ensuring potential neighbors lie within a $3 \times 3$ cell grid) and union-find for gap recovery merges. Data flows through bounded channels enabling pipelined parallelism, with Rayon providing data-parallel k-NN queries achieving near-linear multi-core speedup.
 
-\subsection{Rust Architecture}
-
-The implementation uses spatial hashing for $O(1)$ expected-time neighborhood queries and union-find for gap recovery merges. Data flows through bounded channels enabling pipelined parallelism, with Rayon providing data-parallel k-NN queries achieving near-linear multi-core speedup.
-
-\subsection{Deployment on NVIDIA Jetson Orin}
-
-The target deployment platform is the NVIDIA Jetson AGX Orin, an embedded module with an Arm Cortex-A78AE CPU (12 cores) and 32~GB unified memory. The module consumes approximately 25~W under load, suitable for shipboard or coastal installation with modest power budgets.
-
-The complete pipeline---from raw radar ingestion to track output---executes within $511 \pm 93$~ms per sweep (95\% CI: 397--625~ms) on the CPU using all 12 cores, well below the 1.25~s sweep period of a 48~RPM radar. This margin accommodates occasional latency spikes due to operating system scheduling and provides headroom for future enhancements. Table~\ref{tab:timing} summarizes per-stage timing on the Jetson AGX Orin.
+The target deployment platform is the NVIDIA Jetson AGX Orin, an embedded module with an Arm Cortex-A78AE CPU (12 cores) and 32~GB unified memory, consuming approximately 25~W under load. The complete pipeline---from raw radar ingestion to track output---executes within $511 \pm 93$~ms per sweep (95\% CI: 397--625~ms) using all 12 cores, well below the 1.25~s sweep period of a 48~RPM radar. This margin accommodates occasional latency spikes and provides headroom for future enhancements. Table~\ref{tab:timing} summarizes per-stage timing.
 
 \begin{table}[h]
 \centering
@@ -429,13 +396,7 @@ We compare four configurations of increasing sophistication. The baseline is van
 
 \subsection{Evaluation Metrics}
 
-We adopt the CLEAR MOT metrics~\cite{Bernardin2008} standard in multi-object tracking evaluation. Multiple Object Tracking Accuracy (MOTA) combines false negatives, false positives, and identity switches into a single score: $\text{MOTA} = 1 - (FN + FP + IDSW)/GT$, where $GT$ is total ground truth objects. Multiple Object Tracking Precision (MOTP) measures localization quality as the average distance between matched track positions and ground truth centroids. We also report recall (fraction of ground truth objects successfully matched) and precision (fraction of tracker outputs that match ground truth). Identity switches (IDSW) occur when a track changes which ground truth object it matches between consecutive frames, indicating tracker confusion during crossing trajectories or ambiguous detections.
-
-Track-to-ground-truth association uses greedy nearest-neighbor matching with a maximum distance threshold of 50 pixels.
-
-\subsection{Hardware Platform}
-
-Experiments were conducted on two platforms. Algorithm development and rapid iteration used an Apple M-series workstation. Performance benchmarks and deployment testing used an NVIDIA Jetson AGX Orin Developer Kit with a 12-core ARM Cortex-A78AE CPU, 2048 CUDA cores, and 32~GB unified memory, representing a realistic embedded maritime computing platform.
+We adopt the CLEAR MOT metrics~\cite{Bernardin2008} standard in multi-object tracking evaluation. Multiple Object Tracking Accuracy (MOTA) combines false negatives, false positives, and identity switches into a single score: $\text{MOTA} = 1 - (FN + FP + IDSW)/GT$, where $GT$ is total ground truth objects. Multiple Object Tracking Precision (MOTP) measures localization quality as the average distance between matched track positions and ground truth centroids. We also report recall (fraction of ground truth objects successfully matched) and precision (fraction of tracker outputs that match ground truth). Identity switches (IDSW) occur when a track changes which ground truth object it matches between consecutive frames, indicating tracker confusion during crossing trajectories or ambiguous detections. Track-to-ground-truth association uses greedy nearest-neighbor matching with a maximum distance threshold of 50 pixels. Algorithm development used an Apple M-series workstation; performance benchmarks used the NVIDIA Jetson AGX Orin described in Section~V.
 
 \section{Results}
 
