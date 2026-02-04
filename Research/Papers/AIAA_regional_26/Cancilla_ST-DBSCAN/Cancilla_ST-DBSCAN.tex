@@ -462,7 +462,8 @@ Table~\ref{tab:mot_results} summarizes the MOTA/MOTP metrics for each method on 
 \hline
 Vanilla DBSCAN ($\varepsilon_s=10$) & $-6.97$ & 1.80 & 0.987 & 0.112 & 1208 & 18 & 48 \\
 Standard ST-DBSCAN ($\varepsilon_s=10$, $\varepsilon_t=2$) & $-0.10$ & --- & 0.000 & 0.000 & 16 & 0 & 10 \\
-Adaptive ST-DBSCAN ($\varepsilon_{\min}=20$) & $\mathbf{-4.44}$ & $\mathbf{1.19}$ & 0.974 & $\mathbf{0.155}$ & $\mathbf{816}$ & 18 & $\mathbf{31}$ \\
+Adaptive ST-DBSCAN ($\varepsilon_{\min}=20$) & $\mathbf{-4.44}$ & $\mathbf{1.19}$ & $\mathbf{0.974}$ & 0.155 & 816 & 18 & 31 \\
+Adaptive + Gap Recovery ($\tau=1$, $d=0.5$) & $-3.82$ & $\mathbf{1.18}$ & 0.812 & $\mathbf{0.159}$ & $\mathbf{695}$ & $\mathbf{0}$ & $\mathbf{31}$ \\
 \hline
 \end{tabular}
 \end{table}
@@ -496,6 +497,8 @@ Standard ST-DBSCAN with fixed parameters ($\varepsilon_s = 10$, $\varepsilon_t =
 The raw adaptive epsilon estimation yields $\varepsilon_s^* \approx 1.4$ pixels from k-NN statistics, which proves too conservative for this high-density synthetic data. To address this, we introduce a minimum epsilon floor ($\varepsilon_{\min}$) that provides a lower bound based on domain knowledge of target spatial extent. With $\varepsilon_{\min} = 20$ pixels, the adaptive ST-DBSCAN achieves the best overall performance: MOTA improves from $-6.97$ to $-4.44$ (36\% improvement), MOTP improves from 1.80 to 1.19 pixels (34\% improvement), and false positives decrease from 1208 to 816 (32\% reduction). While recall slightly decreases from 98.7\% to 97.4\%, this tradeoff yields substantially better tracking quality overall.
 
 The minimum epsilon floor serves as a principled regularization that prevents the adaptive scheme from producing pathologically small neighborhoods in high-density regions. This parameter can be set based on the minimum expected target extent in pixels, which is readily determined from sensor geometry and minimum target size.
+
+The gap recovery mechanism provides an additional option for scenarios requiring aggressive false positive suppression. With conservative parameters ($\tau_{\text{gap}} = 1$, $d_{\text{gap}} = 0.5$ pixels), gap recovery further reduces false positives from 816 to 695 (15\% reduction) while eliminating all identity switches. This comes at the cost of reduced recall (81.2\% vs 97.4\%), as the merging process occasionally combines target clusters with nearby noise. The choice between adaptive-only and adaptive-with-gap-recovery depends on the application: high-recall scenarios (e.g., safety-critical surveillance) favor the former, while clutter-dominated environments benefit from the latter's improved precision.
 
 These results demonstrate that adaptive epsilon estimation combined with appropriate regularization outperforms both fixed-parameter approaches. The proposed method achieves better precision (15.5\% vs 11.2\%) and track consolidation (31 vs 48 tracks) while maintaining high recall, establishing it as the preferred configuration for maritime radar tracking applications.
 
