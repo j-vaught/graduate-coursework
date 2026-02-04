@@ -49,29 +49,11 @@ We present an adaptive ST-DBSCAN pipeline that addresses these limitations throu
 
 \section{Related Work}
 
-\subsection{Density-Based Clustering}
+The classical approach to radar target tracking combines CFAR detection with probabilistic data association. CFAR detectors \cite{Rohling1983,Richards2014} estimate local clutter power and set adaptive thresholds to maintain specified false alarm rates; ordered-statistic variants handle interfering targets, and adaptive formulations address nonhomogeneous coastal environments \cite{Gandhi1988}. Once detections are extracted, multi-object tracking associates them across time: the Hungarian algorithm \cite{Kuhn1955} provides optimal single-hypothesis assignment, while JPDAF \cite{Fortmann1983} and MHT \cite{Reid1979} maintain probabilistic association hypotheses at the cost of exponential complexity \cite{BarShalom2011}. These methods assume explicit statistical models of clutter and target dynamics, and their performance degrades when model assumptions are violated---a common occurrence in littoral environments with spatially varying sea states.
 
-DBSCAN \cite{Ester1996} defines clusters through a neighborhood radius $\varepsilon$ and minimum point count $\mathit{MinPts}$. Points with at least $\mathit{MinPts}$ neighbors within $\varepsilon$ are core points, and clusters form by transitively connecting overlapping core neighborhoods. This formulation handles arbitrary cluster shapes and identifies outliers, making it well-suited for radar where targets produce irregular returns against sparse false alarms.
+Density-based clustering emerged as a model-free alternative. DBSCAN \cite{Ester1996} groups points by local density, naturally handling arbitrary cluster shapes and rejecting sparse outliers without requiring prior knowledge of target count or clutter statistics. Subsequent work addressed DBSCAN's sensitivity to its neighborhood radius $\varepsilon$: GDBSCAN \cite{Sander1998} generalized the neighborhood predicate, OPTICS \cite{Ankerst1999} produced density-based orderings without fixed $\varepsilon$, and Ertoz, Steinbach, and Kumar \cite{Ertoz2003} proposed selecting $\varepsilon$ from the inflection point in k-nearest-neighbor distance plots. Birant and Kut \cite{Birant2007} extended DBSCAN to spatiotemporal data with ST-DBSCAN, adding a temporal threshold to link detections across successive frames \cite{Kisilevich2010}. Liu, Zhou, and Wu \cite{Liu2007} computed adaptive $\varepsilon$ from local k-distances, and HDBSCAN \cite{Campello2013} eliminated fixed parameters entirely through hierarchical density estimation. However, OPTICS and HDBSCAN incur computational costs that challenge real-time constraints, and none of these methods explicitly address the track fragmentation caused by intermittent target visibility.
 
-Birant and Kut \cite{Birant2007} extended DBSCAN to spatiotemporal data (ST-DBSCAN) with separate spatial ($\varepsilon_1$) and temporal ($\varepsilon_2$) thresholds \cite{Kisilevich2010}. However, user-specified parameters remain a limitation when point density varies spatially or temporally.
-
-Several approaches address automatic parameter selection. Ertoz, Steinbach, and Kumar \cite{Ertoz2003} proposed using k-nearest-neighbor distances to identify $\varepsilon$ from the inflection point in the k-distance plot. OPTICS \cite{Ankerst1999} and HDBSCAN \cite{Campello2013} eliminate fixed $\varepsilon$ requirements but incur additional computational cost that may be prohibitive for real-time processing.
-
-\subsection{Radar Detection and CFAR Processing}
-
-Constant False Alarm Rate (CFAR) detection estimates local clutter power and sets thresholds to maintain specified false alarm probability \cite{Rohling1983,Richards2014}. Cell-averaging CFAR assumes homogeneous clutter; ordered-statistic CFAR \cite{Rohling1983} handles interfering targets; adaptive variants address nonhomogeneous coastal environments \cite{Gandhi1988}.
-
-CFAR outputs must be grouped into extended target detections before tracking, typically via morphological operations or connected-component labeling \cite{Brookner1998}. Density-based clustering offers an alternative that handles gaps between detections and provides soft cluster boundaries.
-
-\subsection{Multi-Object Tracking}
-
-Multi-object tracking (MOT) combines data association and state estimation \cite{BarShalom2011}. Global nearest neighbor assigns detections to tracks via the Hungarian algorithm \cite{Kuhn1955}; probabilistic methods like JPDAF \cite{Fortmann1983} and MHT \cite{Reid1979} maintain association uncertainty at higher computational cost. Deep learning approaches \cite{Bewley2016,Wojke2017} require appearance features unavailable in radar data.
-
-For non-Doppler radar, track-before-detect methods \cite{Davey2012} integrate energy over multiple scans but increase latency. We instead detect per-sweep and associate across time using ST-DBSCAN with gap recovery.
-
-\subsection{Adaptive Parameter Methods}
-
-GDBSCAN \cite{Sander1998} allows arbitrary neighborhood predicates; Liu, Zhou, and Wu \cite{Liu2007} compute adaptive $\varepsilon$ from k-distances; Hou, Gao, and Li \cite{Hou2016} combine k-NN graphs with density peaks. Our approach builds on the k-distance method of Liu, Zhou, and Wu, computing neighborhood radii via spatial hashing to accommodate the varying point density in radar data (denser near-range, sparser far-range due to $R^{-4}$ loss).
+Recent tracking methods have pursued complementary directions. Track-before-detect approaches \cite{Davey2012} integrate energy over multiple scans to detect weak targets, but introduce latency incompatible with rapid surveillance updates. Deep learning trackers such as SORT \cite{Bewley2016} and DeepSORT \cite{Wojke2017} achieve strong performance on video data by exploiting appearance features, but these features are unavailable in radar imagery. The gap remains: no existing method combines adaptive density-based clustering, spatiotemporal track association, explicit dropout recovery, and real-time embedded performance. Our work addresses this gap by extending ST-DBSCAN with k-NN-based parameter adaptation and Union-Find gap recovery, implemented efficiently for embedded deployment.
 
 \section{Problem Formulation}
 
