@@ -257,51 +257,132 @@ Image subtraction is used often in industrial applications for detecting missing
 
 \vspace{0.5cm}
 
-\begin{stepbox}[Step 1: Consistent Illumination]
-The lighting conditions---direction, intensity, color temperature, and uniformity---must be \textbf{identical} when capturing the golden image and every subsequent test image. Any change in illumination causes intensity differences unrelated to actual defects, producing false positives. In practice, this requires fixed, controlled lighting enclosures.
+To demonstrate these factors concretely, I applied various perturbations to a ``golden'' reference image of an industrial product (a pharmaceutical tablet) and computed the resulting difference images. Figure~\ref{fig:golden_image} shows the golden reference image used for this analysis.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.35\textwidth]{example_golden.png}
+\caption{Golden reference image of a pharmaceutical tablet with ``FF'' marking, used as the baseline for defect detection analysis.}
+\label{fig:golden_image}
+\end{figure}
+
+\begin{stepbox}[Factor 1: Illumination Intensity]
+Changes in overall lighting intensity cause uniform brightness shifts between images. Even small changes ($\pm 40$ intensity levels) produce significant difference signals across the entire image, creating false positives that completely mask actual defects.
+
+\textbf{Practical requirement:} Fixed, calibrated light sources in enclosed inspection chambers.
 \end{stepbox}
 
-\begin{stepbox}[Step 2: Precise Spatial Registration]
-The camera position, orientation, and product placement must be \textbf{exactly the same} for every image. Even sub-pixel misalignment between the golden and test images produces nonzero differences at edges and high-contrast boundaries, masking true defects or creating false detections. Mechanical fixtures and calibrated camera mounts achieve this.
+\begin{stepbox}[Factor 2: Spatial Translation]
+If the product shifts position between captures---even by a few pixels---edges and high-contrast features produce large differences at boundaries. A 5-pixel shift creates false positives along all edges of the product.
+
+\textbf{Practical requirement:} Mechanical fixtures, conveyor registration, or sub-pixel image alignment algorithms.
 \end{stepbox}
 
-\begin{stepbox}[Step 3: Additional Factors]
-\begin{itemize}[leftmargin=*]
-\item \textbf{Sensor noise thresholding:} Random sensor noise produces small nonzero differences even with perfect alignment and lighting. A threshold on the difference image distinguishes genuine defects from noise artifacts.
-\item \textbf{Consistent camera settings:} Gain, exposure time, white balance, and focus must remain fixed between the golden capture and all subsequent captures.
-\end{itemize}
+\begin{stepbox}[Factor 3: Rotational Misalignment]
+Angular misalignment (even 2°) causes the entire image to differ at every edge location. The difference pattern forms an arc around the object perimeter, which could easily be confused with circular defects.
+
+\textbf{Practical requirement:} Rotational alignment fixtures or automated rotation correction.
 \end{stepbox}
 
-\begin{stepbox}[Visualization: Image Subtraction Flowchart]
-\begin{center}
-\begin{tikzpicture}[
-    node distance=1.5cm and 2.5cm,
-    box/.style={rectangle, draw=USC_Garnet, thick, fill=white, minimum width=2.8cm, minimum height=1cm, align=center, font=\small\bfseries, sharp corners},
-    opbox/.style={circle, draw=USC_Congaree, thick, fill=USC_Congaree!10, minimum size=1cm, align=center, font=\large\bfseries},
-    annot/.style={font=\scriptsize, text=USC_Black70, align=center},
-    arr/.style={-{Stealth[length=3mm]}, thick, USC_Black90},
-]
-    \node[box] (golden) {Golden\\Image};
-    \node[opbox, right=2cm of golden] (sub) {$-$};
-    \node[box, above=1cm of sub] (test) {Test\\Image};
-    \node[box, right=2cm of sub] (diff) {Difference\\Image};
-    \node[box, right=2cm of diff] (result) {Defect\\Decision};
+\begin{stepbox}[Factor 4: Scale/Zoom Variation]
+Changes in camera-to-object distance or zoom settings alter the apparent size of the product. A 3\% scale change creates significant differences throughout the image, especially near edges.
 
-    \draw[arr] (golden) -- (sub);
-    \draw[arr] (test) -- (sub);
-    \draw[arr] (sub) -- (diff);
-    \draw[arr] (diff) -- node[above, annot] {threshold} (result);
-
-    % Factor annotations
-    \node[annot, below=0.3cm of golden] {Fixed lighting\\Fixed position};
-    \node[annot, above=0.3cm of test] {Same lighting\\Same position};
-    \node[annot, below=0.3cm of diff] {Noise\\filtering};
-\end{tikzpicture}
-\end{center}
+\textbf{Practical requirement:} Fixed focal length, fixed working distance, or scale normalization preprocessing.
 \end{stepbox}
+
+\begin{stepbox}[Factor 5: Sensor Noise]
+Random sensor noise ($\sigma = 20$ Gaussian) creates speckle-like differences uniformly distributed across the image. While individual noise pixels may be below threshold, accumulated noise raises the detection floor.
+
+\textbf{Practical requirement:} Low-noise sensors, temporal averaging, or adaptive thresholding.
+\end{stepbox}
+
+\begin{stepbox}[Factor 6: Focus Blur]
+If the test image is slightly out of focus compared to the golden image, edge sharpness differs. Blurring reduces edge contrast, creating differences where edges become softer.
+
+\textbf{Practical requirement:} Auto-focus locks, fixed-focus telecentric lenses, or depth-of-field control.
+\end{stepbox}
+
+\begin{stepbox}[Factor 7: Non-uniform Illumination (Vignetting)]
+Optical vignetting or uneven light distribution causes the image corners/edges to be darker than the center. This creates a characteristic radial difference pattern.
+
+\textbf{Practical requirement:} Flat-field correction, uniform light sources, or calibrated vignetting correction.
+\end{stepbox}
+
+\begin{stepbox}[Factor 8: Contrast/Gain Variation]
+Changes in camera gain or lighting contrast affect the dynamic range of the captured image. A 30\% contrast change produces differences proportional to local intensity.
+
+\textbf{Practical requirement:} Fixed camera settings, calibrated exposure, auto-gain disabled.
+\end{stepbox}
+
+\begin{stepbox}[Factor 9: Color Temperature / White Balance]
+Shifts in lighting color temperature (e.g., warm vs. cool) or white balance settings cause color channel differences. In grayscale conversion, this manifests as intensity shifts.
+
+\textbf{Practical requirement:} Fixed white balance, controlled spectrum lighting (LED with fixed CCT).
+\end{stepbox}
+
+\begin{stepbox}[Factor 10: Perspective Distortion]
+Changes in viewing angle create trapezoidal distortions. Even a 5\% perspective shift causes significant geometric differences, especially near image edges.
+
+\textbf{Practical requirement:} Telecentric optics, fixed camera mount, perspective calibration.
+\end{stepbox}
+
+\begin{stepbox}[Factor 11: Exposure Variation]
+Changes in exposure time (measured in EV stops) shift the overall image brightness non-linearly. Overexposure saturates bright regions while underexposure loses shadow detail.
+
+\textbf{Practical requirement:} Fixed shutter speed, controlled ambient light, exposure calibration.
+\end{stepbox}
+
+\begin{stepbox}[Factor 12: Directional Shadows]
+Shadows cast by external objects or non-uniform lighting create localized intensity variations. These appear as gradient differences across the image.
+
+\textbf{Practical requirement:} Diffuse lighting, light tents, shadow-free illumination geometry.
+\end{stepbox}
+
+\vspace{0.5cm}
+
+Figure~\ref{fig:failure_summary} shows a summary of six key failure modes applied to the golden image. Each column shows: (1) the perturbed test image, (2) the resulting difference image (brighter = larger difference), and (3) the false positives detected at a fixed threshold. Notice how environmental variations that leave the product physically unchanged still trigger significant detection artifacts.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/failure_modes_summary.png}
+\caption{Summary of failure modes in image subtraction detection. Row 1: Test images with various perturbations. Row 2: Difference images (hotter = larger difference). Row 3: Detected regions at threshold $T=30$. All perturbations produce false positives despite no actual defects.}
+\label{fig:failure_summary}
+\end{figure}
+
+\vspace{0.5cm}
+
+Figure~\ref{fig:failure_comparison} quantitatively compares all twelve failure modes by mean absolute difference. The key insight is that \textbf{illumination-related factors dominate}: brightness changes and exposure variations cause the largest false positive signals. Geometric factors (translation, rotation, scale) cause smaller mean differences but concentrate at edges where defects are often located. Critically, a true defect (missing component) has a relatively \textbf{small} mean difference because it affects only a localized region---demonstrating how failure modes can mask real defects.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/failure_modes_comparison.png}
+\caption{Comparison of failure mode severity measured by mean absolute difference. Higher values indicate more false positives. Note that the true defect (missing component, green) has a \textit{lower} mean difference than most failure modes, illustrating how environmental variations can mask genuine defects.}
+\label{fig:failure_comparison}
+\end{figure}
 
 \begin{resultsbox}
-The two major factors are: (1) \textbf{consistent illumination} so that intensity differences reflect actual physical differences, not lighting variations; and (2) \textbf{precise spatial alignment/registration} so that geometric misalignment does not produce spurious nonzero differences.
+\textbf{Major factors affecting image subtraction defect detection:}
+
+\vspace{0.2cm}
+\textbf{Primary Factors (Must Control):}
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Illumination consistency:} Intensity, direction, uniformity, and color temperature must be identical.
+\item \textbf{Spatial registration:} Position, orientation, and scale must match exactly.
+\end{enumerate}
+
+\vspace{0.2cm}
+\textbf{Secondary Factors (Should Control):}
+\begin{enumerate}[leftmargin=*, start=3]
+\item Sensor noise (requires thresholding)
+\item Focus/sharpness consistency
+\item Camera gain and exposure settings
+\item White balance / color calibration
+\item Perspective and optical distortion
+\item Shadow elimination
+\end{enumerate}
+
+\vspace{0.2cm}
+\textbf{Key insight:} Without controlling these factors, the mean difference from environmental variations can \textit{exceed} the difference caused by actual defects, making reliable detection impossible.
 \end{resultsbox}
 
 
