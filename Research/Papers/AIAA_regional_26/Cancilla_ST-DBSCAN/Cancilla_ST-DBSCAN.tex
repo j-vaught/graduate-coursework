@@ -198,38 +198,49 @@ where $\mathcal{S}$ is the sampled subset. This global adaptive epsilon provides
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[scale=0.9]
+\resizebox{0.8\columnwidth}{!}{%
+\begin{tikzpicture}
 % Axes
-\draw[-{Stealth}, thick] (0,0) -- (6.5,0) node[right, font=\footnotesize] {Point index (sorted)};
-\draw[-{Stealth}, thick] (0,0) -- (0,4.5) node[above, font=\footnotesize] {$d_k$};
+\draw[-{Stealth}, thick] (0,0) -- (7.2,0) node[right, font=\footnotesize] {Point index (sorted)};
+\draw[-{Stealth}, thick] (0,0) -- (0,5.2) node[above, font=\footnotesize] {$d_5$ (pixels)};
 
-% K-distance curve (cluster points then noise points)
+% Y-axis labels
+\foreach \y/\label in {0/0, 1/1, 2/2, 3/3, 4/4, 5/5} {
+    \draw (-0.1, \y) -- (0.1, \y);
+    \node[left, font=\tiny] at (-0.15, \y) {\label};
+}
+
+% X-axis labels (percentiles)
+\foreach \x/\label in {0/0, 1.4/0.2, 2.8/0.4, 4.2/0.6, 5.6/0.8, 7/1.0} {
+    \draw (\x, -0.1) -- (\x, 0.1);
+    \node[below, font=\tiny] at (\x, -0.15) {\label};
+}
+
+% K-distance curve from real data (119,462 points)
+% Data: flat at 1.0 until 60%, rises to 1.41 at 70-90%, then sharp elbow
 \draw[very thick, garnet]
-    (0.2, 0.3) .. controls (1, 0.4) and (2, 0.5) ..
-    (3, 0.6) .. controls (3.8, 0.75) and (4.2, 1.0) ..
-    (4.5, 1.5) .. controls (4.8, 2.2) and (5.2, 3.0) ..
-    (5.8, 4.0);
+    (0, 0) -- (0.7, 1.0) -- (4.2, 1.0) -- (4.9, 1.41) -- (6.3, 1.41) --
+    (6.44, 2.0) -- (6.72, 2.0) -- (6.79, 2.24) -- (6.86, 2.24) --
+    (6.93, 3.0) -- (6.965, 3.61) -- (6.993, 5.0);
 
-% Percentile threshold line
-\draw[dashed, thick, slate] (0, 1.5) -- (6, 1.5);
-\node[slate, font=\footnotesize, anchor=west] at (6.1, 1.5) {$\rho$-th percentile};
+% Percentile threshold line at eps* = 1.41
+\draw[dashed, thick, slate] (0, 1.41) -- (7, 1.41);
+\node[slate, font=\footnotesize, anchor=south west] at (0.1, 1.5) {90th percentile};
 
-% Epsilon value
-\draw[thick, olive, {Stealth}-{Stealth}] (4.5, 0) -- (4.5, 1.5);
-\node[olive, font=\footnotesize, anchor=west] at (4.6, 0.75) {$\varepsilon_s^*$};
+% Vertical line at 90th percentile
+\draw[dotted, slate] (6.3, 0) -- (6.3, 1.41);
 
-% Labels for regions
-\draw[decorate, decoration={brace, amplitude=5pt, mirror}]
-    (0.2, -0.3) -- (4.3, -0.3) node[midway, below=5pt, font=\footnotesize] {Cluster points};
-\draw[decorate, decoration={brace, amplitude=5pt, mirror}]
-    (4.7, -0.3) -- (5.8, -0.3) node[midway, below=5pt, font=\footnotesize] {Noise};
+% Epsilon value annotation
+\draw[thick, olive, -{Stealth}] (5.0, 2.8) -- (5.0, 1.51);
+\node[olive, font=\footnotesize, anchor=south] at (5.0, 2.85) {$\varepsilon_s^* = 1.41$};
 
 % Elbow annotation
-\draw[-{Stealth}, teal, thick] (3.5, 2.5) -- (4.3, 1.3);
-\node[teal, font=\footnotesize, anchor=south] at (3.5, 2.5) {Elbow};
+\draw[-{Stealth}, teal, thick] (5.8, 3.8) -- (6.35, 1.6);
+\node[teal, font=\footnotesize, anchor=south] at (5.8, 3.85) {Elbow};
 
-\end{tikzpicture}
-\caption{K-distance plot for adaptive epsilon selection. Points are sorted by their distance to the $k$-th nearest neighbor. The ``elbow'' separates cluster points (low $d_k$) from noise (high $d_k$). The $\rho$-th percentile (typically 90\%) provides the adaptive $\varepsilon_s^*$.}
+\end{tikzpicture}%
+}
+\caption{K-distance plot computed from synthetic radar data (119,462 sampled points across 25 frames). Points are sorted by distance $d_5$ to the 5th nearest neighbor. The flat region at $d_5 \approx 1$ pixel reflects high point density where most neighbors are adjacent pixels. The elbow at the 90th percentile separates cluster points from noise, yielding adaptive $\varepsilon_s^* = 1.41$ pixels---consistent with the ablation results in Table~\ref{tab:ablation_temporal}.}
 \label{fig:kdistance}
 \end{figure}
 
