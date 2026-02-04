@@ -163,41 +163,61 @@ H[a_1 f_1(x,y) + a_2 f_2(x,y)] = a_1 H[f_1(x,y)] + a_2 H[f_2(x,y)]
 \vspace{0.5cm}
 
 \begin{stepbox}[Step 1: State the Linearity Condition]
-An operator $H$ is linear if and only if the \textbf{superposition property} holds for all images $f_1, f_2$ and all scalars $a_1, a_2$:
+An operator $H$ is said to be \textbf{linear} if and only if it satisfies the \textbf{superposition property} for all images $f_1, f_2$ and all scalar constants $a_1, a_2$:
 \[
 H[a_1 f_1 + a_2 f_2] = a_1 H[f_1] + a_2 H[f_2]
 \]
-To show $H$ is nonlinear, it suffices to find a single counterexample where this equality fails. We set $a_1 = a_2 = 1$ and test the additivity property over a $1 \times 3$ subimage region $S$.
+This property combines two fundamental requirements: \textit{additivity} (the response to a sum equals the sum of responses) and \textit{homogeneity} (scaling the input scales the output proportionally). For an operator to be linear, this equation must hold for \textit{every possible} combination of inputs and scalars. Conversely, to prove an operator is nonlinear, we only need to find a \textit{single} counterexample where this equality fails.
+
+For simplicity, we will test the additivity condition by setting $a_1 = a_2 = 1$ and examining a small $1 \times 3$ subimage region $S$. If additivity fails, the full superposition property cannot hold, and the operator must be nonlinear.
 \end{stepbox}
 
 \begin{stepbox}[Step 2: Define the Counterexample]
-Choose two images defined by their pixel values over $S$:
+We construct two simple images defined by their pixel values within the subimage region $S$. The key insight is to choose values where the median of each image individually differs significantly from the median of their sum:
 \[
 f_1 = \{2,\; 3,\; 10\}, \qquad f_2 = \{10,\; 1,\; 2\}
 \]
+Notice that $f_1$ has its values spread across a range with the middle value being 3, while $f_2$ has its values arranged so that the middle value when sorted is 2. These particular values are chosen because when we add them together pixel-wise, the resulting set will have a very different median than the sum of the individual medians.
 \end{stepbox}
 
 \begin{stepbox}[Step 3: Compute the Right-Hand Side]
+First, we compute the median of each image separately and then add the results. This corresponds to the right-hand side of the linearity equation, $H[f_1] + H[f_2]$.
+
+For $f_1 = \{2, 3, 10\}$: sorting gives $\{2, 3, 10\}$, and the middle value is $\mathbf{3}$.
+
+For $f_2 = \{10, 1, 2\}$: sorting gives $\{1, 2, 10\}$, and the middle value is $\mathbf{2}$.
+
+Therefore:
 \[
-H[f_1] + H[f_2] = \text{median}\{2,3,10\} + \text{median}\{10,1,2\} = 3 + 2 = 5
+H[f_1] + H[f_2] = \text{median}\{2,3,10\} + \text{median}\{10,1,2\} = 3 + 2 = \mathbf{5}
 \]
 \end{stepbox}
 
 \begin{stepbox}[Step 4: Compute the Left-Hand Side]
+Now we compute the left-hand side of the linearity equation, $H[f_1 + f_2]$, by first adding the images pixel-wise and then taking the median of the result.
+
+Adding corresponding pixel values:
 \[
 f_1 + f_2 = \{2+10,\; 3+1,\; 10+2\} = \{12,\; 4,\; 12\}
 \]
+
+Now we find the median of this combined image. Sorting gives $\{4, 12, 12\}$, and the middle value is:
 \[
-H[f_1 + f_2] = \text{median}\{12, 4, 12\} = 12
+H[f_1 + f_2] = \text{median}\{12, 4, 12\} = \mathbf{12}
 \]
+
+The crucial observation here is that the median operation selected different ``representative'' pixels in each case. When computed separately, the medians came from moderate values (3 and 2). But after addition, the pixel that was smallest in $f_1$ combined with the largest in $f_2$, shifting which pixel becomes the median of the sum.
 \end{stepbox}
 
 \begin{stepbox}[Step 5: Conclude]
-Since
+Comparing the two sides of the superposition equation:
 \[
-H[f_1 + f_2] = 12 \neq 5 = H[f_1] + H[f_2]
+H[f_1 + f_2] = 12 \qquad \text{versus} \qquad H[f_1] + H[f_2] = 5
 \]
-the superposition property is violated. Therefore, the median operator is \textbf{nonlinear}. $\blacksquare$
+
+Since $12 \neq 5$, the superposition property is violated. This single counterexample is sufficient to prove that the median operator does not satisfy the linearity condition for all inputs. Therefore, the median operator is \textbf{nonlinear}.
+
+Intuitively, this occurs because the median is a \textit{rank-based} statistic---it selects the middle value after sorting. When two images are added, the relative ranking of pixels can change dramatically, causing a completely different pixel to be selected as the median. This rank-shuffling behavior is fundamentally incompatible with linearity. $\blacksquare$
 \end{stepbox}
 
 \begin{stepbox}[Visualization: Counterexample Bar Chart]
