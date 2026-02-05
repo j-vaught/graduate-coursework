@@ -146,15 +146,6 @@ This floor can be determined from sensor geometry: for a target of minimum physi
 \end{algorithmic}
 \end{algorithm}
 
-The intuition behind this approach follows from the observation that sorted k-NN distances exhibit a characteristic ``elbow'' separating cluster points from noise~\cite{Ertoz2003}. Points within dense clusters have small k-distances, while noise points in sparse regions have large k-distances. Fig.~\ref{fig:kdistance} illustrates this behavior on a representative radar frame: the sorted k-distance curve rises gradually through cluster points, then inflects sharply as it reaches noise. The 90th percentile threshold captures points in the transition region, providing an epsilon that includes most cluster points while excluding sparse outliers.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.95\columnwidth]{figures/kdistance_plot.pdf}
-\caption{Sorted k-nearest-neighbor distances for a representative radar frame ($k=5$). The elbow in the curve indicates the transition between dense cluster regions (low k-distance) and sparse noise regions (high k-distance). The 90th percentile threshold (dashed line) provides an adaptive epsilon that separates cluster points from noise.}
-\label{fig:kdistance}
-\end{figure}
-
 With the adaptive $\varepsilon_s$ determined, ST-DBSCAN proceeds as in the standard formulation. Points are classified as core points if they have at least $\mathit{MinPts}$ neighbors within $\varepsilon_s$ spatially and $\varepsilon_t$ temporally. Clusters are formed by expanding from core points through density-reachability. The temporal radius $\varepsilon_t$ is typically set to 1 or 2 sweep indices. To achieve $O(1)$ expected-time neighborhood queries, we employ spatial hashing with cell size $h = 2\varepsilon_{s,\max}$, examining only the $3 \times 3$ cell neighborhood around each query point. Separate hash structures for each sweep enable efficient temporal filtering.
 
 \subsection{Gap Recovery Mechanism}
