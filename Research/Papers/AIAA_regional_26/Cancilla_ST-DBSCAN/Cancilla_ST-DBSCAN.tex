@@ -39,7 +39,7 @@
 
 \section{Introduction}
 
-Despite decades of research on CFAR detection and multi-target tracking, reliable surface-object tracking from non-coherent marine radar remains an open challenge. Commercial X-band radars -- widely deployed due to their order-of-magnitude cost advantage over military tracking systems -- provide only intensity measurements without Doppler phase history, precluding conventional moving-target indication (MTI) processing for clutter suppression \cite{Skolnik2008,Richards2010}. In coastal and littoral environments, this limitation is compounded by sea clutter that varies rapidly with sea state, wind direction, and bathymetry, exhibiting the heavy-tailed amplitude statistics and spatial heterogeneity that violate the homogeneity assumptions underlying standard CFAR detectors \cite{Ward2006}.
+Despite decades of research on CFAR detection and multi-target tracking, reliable surface-object tracking from non-coherent marine radar remains an open challenge. Commercial X-band radars -- widely deployed due to their order-of-magnitude cost advantage over military tracking systems -- provide only intensity measurements without Doppler phase history, precluding conventional moving-target indication (MTI) processing for clutter suppression \cite{Brennan1973}. In coastal and littoral environments, this limitation is compounded by sea clutter that varies rapidly with sea state, wind direction, and bathymetry, exhibiting the heavy-tailed amplitude statistics and spatial heterogeneity that violate the homogeneity assumptions underlying standard CFAR detectors \cite{Ward1981}.
 
 Density-based clustering methods offer a principled alternative that sidesteps explicit clutter modeling. DBSCAN \cite{Ester1996} and its spatiotemporal extension ST-DBSCAN \cite{Birant2007} extract coherent target returns by grouping points that exceed local density thresholds, naturally rejecting sparse false alarms without requiring prior knowledge of the number of targets. Yet these methods suffer from two persistent limitations in radar applications. First, fixed neighborhood parameters cannot accommodate the heterogeneous point densities inherent to radar imagery: near-range returns are dense while far-range returns are sparse due to $R^{-4}$ propagation loss, and a single $\varepsilon$ that captures distant targets will over-cluster proximate returns. Second, standard implementations fragment tracks when targets exhibit intermittent visibility -- a common occurrence in maritime environments where wave shadowing, unfavorable aspect angles, and multipath effects cause brief detection dropouts that sever otherwise continuous trajectories.
 
@@ -49,7 +49,7 @@ We present an adaptive ST-DBSCAN pipeline that addresses these limitations throu
 
 \section{Related Work}
 
-The foundations of modern radar tracking emerged during the Cold War with the introduction of Kalman's optimal filtering framework in 1960 \cite{BarShalom2011}, providing the mathematics needed for state estimation under uncertainty. Through the 1970s and 1980s, researchers built on this foundation to develop sophisticated multi-target trackers. In 1979, Reid introduced Multiple Hypothesis Tracking (MHT) \cite{Reid1979}, which maintained a tree of possible data associations. Four years later, Fortmann and Bar-Shalom developed the Joint Probabilistic Data Association Filter (JPDAF) \cite{Fortmann1983}, computing association probabilities without exhaustive enumeration. Around the same time, Rohling \cite{Rohling1983} refined CFAR detection, introducing adaptive thresholds for clutter rejection. These methods all relied on explicit statistical modeling, assuming clutter followed known distributions and targets obeyed parametric motion models. For air surveillance radars tracking aircraft against benign backgrounds, these assumptions held reasonably well. However, maritime environments proved more challenging. Sea clutter's heavy-tailed amplitude statistics and rapid spatial variation violate homogeneity assumptions \cite{Ward2006}, and by 1988 Gandhi and Kassam \cite{Gandhi1988} had demonstrated the substantial CFAR performance degradation this causes.
+The foundations of modern radar tracking emerged during the Cold War with the introduction of Kalman's optimal filtering framework in 1960 \cite{Kalman1960}, providing the mathematics needed for state estimation under uncertainty. Through the 1970s and 1980s, researchers built on this foundation to develop sophisticated multi-target trackers. In 1979, Reid introduced Multiple Hypothesis Tracking (MHT) \cite{Reid1979}, which maintained a tree of possible data associations. Four years later, Fortmann and Bar-Shalom developed the Joint Probabilistic Data Association Filter (JPDAF) \cite{Fortmann1983}, computing association probabilities without exhaustive enumeration. Around the same time, Rohling \cite{Rohling1983} refined CFAR detection, introducing adaptive thresholds for clutter rejection. These methods all relied on explicit statistical modeling, assuming clutter followed known distributions and targets obeyed parametric motion models. For air surveillance radars tracking aircraft against benign backgrounds, these assumptions held reasonably well. However, maritime environments proved more challenging. Sea clutter's heavy-tailed amplitude statistics and rapid spatial variation violate homogeneity assumptions \cite{Ward1981}, and by 1988 Gandhi and Kassam \cite{Gandhi1988} had demonstrated the substantial CFAR performance degradation this causes.
 
 A fundamentally different approach emerged from the data mining community in the 1990s. At the 1996 KDD conference in Portland, Ester, Kriegel, Sander, and Xu introduced DBSCAN \cite{Ester1996}, a density-based clustering algorithm that required no prior knowledge of cluster count or shape. Its elegance lay in its simplicity. Points in dense regions belonged to clusters, while sparse points were labeled as noise. For radar, this offered an appealing alternative to explicit clutter modeling. Rather than specifying what clutter looked like, the algorithm simply grouped coherent returns and discarded the rest. Despite this elegance, a practical limitation remained. Users had to choose the neighborhood radius $\varepsilon$ manually, and no single value worked well when point density varied. In 2003, Ertoz, Steinbach, and Kumar \cite{Ertoz2003} addressed this by observing that sorted k-nearest-neighbor distances reveal a natural elbow separating cluster points from noise. In 2007, Liu, Zhou, and Wu \cite{Liu2007} extended this insight into VDBSCAN, computing $\varepsilon$ locally for each point. Ankerst and colleagues had already developed OPTICS in 1999 \cite{Ankerst1999}, producing hierarchical density orderings that eliminated fixed parameters entirely. Campello's HDBSCAN \cite{Campello2013} later extracted flat clusters automatically from such orderings. In 2007, Birant and Kut \cite{Birant2007} recognized that radar returns possess temporal structure that purely spatial clustering ignores, and introduced ST-DBSCAN with a temporal neighborhood threshold to link detections across successive sweeps.
 
@@ -360,14 +360,11 @@ Future work includes: (i) integration of Kalman filtering for velocity estimatio
 \newpage
 \begin{thebibliography}{99}
 
-\bibitem{Skolnik2008}
-Skolnik, M.~I., \textit{Radar Handbook}, 3rd ed., McGraw-Hill, New York, 2008.
+\bibitem{Brennan1973}
+Brennan, L.~E., and Reed, I.~S., ``Theory of Adaptive Radar,'' \textit{IEEE Transactions on Aerospace and Electronic Systems}, Vol.~AES-9, No.~2, 1973, pp.~237--252.
 
-\bibitem{Richards2010}
-Richards, M.~A., Scheer, J.~A., and Holm, W.~A., \textit{Principles of Modern Radar: Basic Principles}, SciTech Publishing, 2010.
-
-\bibitem{Ward2006}
-Ward, K.~D., Tough, R.~J.~A., and Watts, S., \textit{Sea Clutter: Scattering, the K Distribution and Radar Performance}, 2nd ed., IET, 2006.
+\bibitem{Ward1981}
+Ward, K.~D., ``Compound Representation of High Resolution Sea Clutter,'' \textit{Electronics Letters}, Vol.~17, No.~16, 1981, pp.~561--563.
 
 \bibitem{Ester1996}
 Ester, M., Kriegel, H.-P., Sander, J., and Xu, X., ``A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise,'' \textit{Proceedings of the 2nd International Conference on Knowledge Discovery and Data Mining}, AAAI Press, 1996, pp.~226--231.
@@ -393,11 +390,8 @@ Rohling, H., ``Radar CFAR Thresholding in Clutter and Multiple Target Situations
 \bibitem{Gandhi1988}
 Gandhi, P.~P., and Kassam, S.~A., ``Analysis of CFAR Processors in Nonhomogeneous Background,'' \textit{IEEE Transactions on Aerospace and Electronic Systems}, Vol.~24, No.~4, 1988, pp.~427--445.
 
-\bibitem{Brookner1998}
-Brookner, E., \textit{Tracking and Kalman Filtering Made Easy}, Wiley-Interscience, 1998.
-
-\bibitem{BarShalom2011}
-Bar-Shalom, Y., Willett, P.~K., and Tian, X., \textit{Tracking and Data Fusion: A Handbook of Algorithms}, YBS Publishing, 2011.
+\bibitem{Kalman1960}
+Kalman, R.~E., ``A New Approach to Linear Filtering and Prediction Problems,'' \textit{ASME Journal of Basic Engineering}, Vol.~82, No.~1, 1960, pp.~35--45.
 
 \bibitem{Kuhn1955}
 Kuhn, H.~W., ``The Hungarian Method for the Assignment Problem,'' \textit{Naval Research Logistics Quarterly}, Vol.~2, No.~1--2, 1955, pp.~83--97.
