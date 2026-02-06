@@ -33,6 +33,7 @@ COLORS = {
     "horseshoe": (101, 120,  11),
     "rose":      (204,  46,  64),
     "congaree":  ( 31,  65,  77),
+    "honeycomb": (164, 145,  55),
     "black90":   ( 54,  54,  54),
     "black70":   ( 92,  92,  92),
     "black50":   (162, 162, 162),
@@ -316,12 +317,32 @@ def generate_frame_tex(frame_idx):
         if u_max < 0 or u_min > IMAGE_W or v_max < 0 or v_min > IMAGE_H:
             continue
         rng = np.sqrt(x**2 + y**2)
-        cam_objects.append((rng, obj, bbox))
+        # Project radar detection point (object center at waterline Z=0)
+        radar_pt = project_point(x, y, 0)
+        cam_objects.append((rng, obj, bbox, radar_pt))
 
     # Draw furthest first so closer objects overlap on top
     cam_objects.sort(key=lambda t: t[0], reverse=True)
 
-    for rng, obj, bbox in cam_objects:
+    # --- Radar prediction markers (drawn first, underneath objects) ---
+    for rng, obj, bbox, radar_pt in cam_objects:
+        if radar_pt is None:
+            continue
+        ru, rv = radar_pt
+        if ru < 0 or ru > IMAGE_W or rv < 0 or rv > IMAGE_H:
+            continue
+        mx, my = cam_coord(ru, rv)
+        # Circle radius scales inversely with range (closer = bigger)
+        marker_r = max(0.12, 0.55 * (400.0 / max(rng, 100)))
+        # Filled semi-transparent disc
+        lines.append(f"\\fill[honeycomb, opacity=0.25] ({mx:.3f},{my:.3f}) circle ({marker_r:.3f});")
+        # Solid ring outline
+        lines.append(f"\\draw[honeycomb, thick] ({mx:.3f},{my:.3f}) circle ({marker_r:.3f});")
+        # Center dot
+        lines.append(f"\\fill[honeycomb] ({mx:.3f},{my:.3f}) circle (0.03);")
+
+    # --- Actual object bounding boxes (drawn on top) ---
+    for rng, obj, bbox, radar_pt in cam_objects:
         u_min, v_min, u_max, v_max = bbox
         u_min_c = max(u_min, 0)
         v_min_c = max(v_min, 0)
