@@ -1,0 +1,86 @@
+\begin{figure}[t]
+	\centering
+	\begin{tikzpicture}[>=stealth, thick, node distance=1.5cm and 2cm]
+		% Define custom colors
+		\colorlet{garnet}{Garnet}
+		\colorlet{atlantic}{Atlantic}
+		\colorlet{congaree}{Congaree}
+		\definecolor{darkgray}{RGB}{92, 92, 92}
+		\definecolor{lightgray}{RGB}{235, 235, 235}
+
+		% Style definitions
+		\tikzset{
+			lf_box/.style={
+				rectangle,
+				draw=garnet,
+				fill=lightgray,
+				line width=1.5pt,
+				minimum width=2.2cm,
+				minimum height=0.8cm,
+				font=\small\sffamily,
+				text width=2cm,
+				align=center
+			},
+			label_model/.style={
+				rectangle,
+				draw=atlantic,
+				fill=lightgray,
+				line width=2pt,
+				minimum width=5.5cm,
+				minimum height=1.2cm,
+				font=\small\sffamily,
+				text width=5cm,
+				align=center
+			},
+			output_box/.style={
+				rectangle,
+				draw=congaree,
+				fill=lightgray,
+				line width=1.5pt,
+				minimum width=4cm,
+				minimum height=0.8cm,
+				font=\small\sffamily,
+				text width=3.8cm,
+				align=center
+			},
+			arrow_style/.style={
+				->,
+				line width=1.2pt,
+				draw=darkgray
+			}
+		}
+
+		% Layer 1: Labeling Functions
+		\node[lf_box] (lf1) at (0, 4.5) {LF1\\Radar\\Projection};
+		\node[lf_box] (lf2) at (2.5, 4.5) {LF2\\Temporal\\Consistency};
+		\node[lf_box] (lf3) at (5, 4.5) {LF3\\Size\\Plausibility};
+		\node[lf_box] (lf4) at (7.5, 4.5) {LF4\\Clutter\\Likelihood};
+		\node[lf_box] (lf5) at (10, 4.5) {LF5\\AIS\\Correlation};
+
+		% Layer 1 annotation
+		\node[font=\small\sffamily\bfseries] at (5, 5.3) {Labeling Functions};
+
+		% Layer 2: Label Model
+		\node[label_model] (label_model) at (5, 2.5) {Label Model\\(Generative Model)\\Estimates LF accuracies and correlations};
+
+		% Arrows from LFs to Label Model
+		\draw[arrow_style] (lf1.south) -- (label_model.north west);
+		\draw[arrow_style] (lf2.south) -- (label_model.north);
+		\draw[arrow_style] (lf3.south) -- (label_model.north);
+		\draw[arrow_style] (lf4.south) -- (label_model.north);
+		\draw[arrow_style] (lf5.south) -- (label_model.north east);
+
+		% Layer 3: Output
+		\node[output_box] (training_labels) at (2.5, 0.5) {Probabilistic\\Training Labels};
+		\node[output_box] (detector) at (7.5, 0.5) {Discriminative Model\\(Camera Detector)};
+
+		% Arrow from Label Model to Training Labels
+		\draw[arrow_style] (label_model.south west) -- (training_labels.north);
+
+		% Arrow from Training Labels to Detector
+		\draw[arrow_style] (training_labels.east) -- (detector.west);
+
+	\end{tikzpicture}
+	\caption{Data programming framework applied to radar-guided camera labeling. Multiple labeling functions---radar projection, temporal consistency, size plausibility, clutter likelihood, and AIS correlation---provide noisy votes that are combined by a generative label model to produce probabilistic training labels.}
+	\label{fig:data_programming}
+\end{figure}

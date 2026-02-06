@@ -4,6 +4,8 @@ The effectiveness of radar-guided camera labeling systems depends fundamentally 
 
 X-band marine radar systems, operating at frequencies near 9.4~GHz with wavelengths around 3~cm, provide the spatial resolution necessary for detecting small maritime targets at ranges from tens of meters to several nautical miles \cite{Skolnik2008}. The signal processing chain begins with pulse compression to enhance range resolution and signal-to-noise ratio (SNR), proceeds through CFAR detection to maintain acceptable false alarm rates across varying clutter conditions, and concludes with clustering and tracking algorithms that associate detections across scans \cite{Richards2022}. Understanding this processing chain is essential for researchers implementing radar-camera systems, as design choices at each stage directly impact the accuracy and completeness of automated camera labels.
 
+\input{figures/fig_signal_processing_chain}
+
 \subsection{Constant False Alarm Rate Detection}
 
 CFAR detection algorithms adaptively adjust detection thresholds based on local estimates of noise or clutter power, maintaining a constant probability of false alarm across spatially varying background conditions \cite{Finn1968}. The fundamental CFAR threshold equation takes the form:
@@ -30,6 +32,8 @@ T_{\text{SO}} = \min \left( \alpha_{\text{L}} \sum_{i \in L} Z_i, \, \alpha_{\te
 \end{equation}
 where $L$ and $T$ denote the leading and trailing reference cells. SO-CFAR prevents threshold inflation in the presence of clutter edges but suffers increased false alarms in homogeneous regions because the minimum statistic is biased downward. The complementary greatest-of CFAR (GO-CFAR) takes the maximum of the two estimates to reduce false alarms at the cost of increased detection losses at clutter edges \cite{Hansen1972}.
 
+\input{figures/fig_cfar_detection}
+
 The automatic censored cell-averaging CFAR (ACCA-CFAR) attempts to combine the benefits of CA-CFAR and OS-CFAR by iteratively removing reference cells that exceed a censoring threshold, then averaging the remaining cells \cite{Farina1987}. The algorithm begins with all reference cells, computes a preliminary mean, identifies cells exceeding a multiple of that mean, censors those cells, and recomputes the mean from the censored set. This process continues until convergence or a maximum iteration count. ACCA-CFAR performs well in both homogeneous and multi-target scenarios but requires more computation than simpler CFAR variants.
 
 Recent advances in deep learning have introduced neural network-based CFAR detectors that learn adaptive thresholding strategies directly from labeled radar data. Diskin and colleagues proposed CFARnet, a convolutional neural network trained to predict detection thresholds for each range-azimuth cell given a local neighborhood of radar returns \cite{Diskin2024}. CFARnet demonstrated improved detection performance on maritime targets compared to CA-CFAR and OS-CFAR, particularly in heterogeneous clutter conditions. However, the method requires extensive labeled training data and lacks the analytical performance guarantees of classical CFAR algorithms.
@@ -41,6 +45,8 @@ Zhang and colleagues introduced YOLO-SWFormer, adapting the YOLO object detectio
 Marine-Faster R-CNN, proposed by Chen et al., extends the Faster R-CNN framework to maritime radar by incorporating domain-specific modifications including a novel anchor design tailored to the aspect ratios of ship returns and a multi-scale feature pyramid to handle targets at varying ranges \cite{Chen2022}. The method demonstrated state-of-the-art detection accuracy on benchmark datasets but, like other learning-based approaches, depends critically on the availability of large annotated radar datasets, which are scarce in the maritime domain.
 
 Classical CFAR algorithms remain the dominant approach in operational marine radar systems due to their computational efficiency, analytical tractability, and well-understood performance characteristics. However, deep learning CFAR methods represent a promising research direction, particularly for scenarios involving complex clutter environments where traditional model-based approaches struggle. For radar-guided camera labeling applications, the choice of CFAR algorithm directly affects the quantity and quality of radar detections available for cross-sensor association.
+
+\input{figures/fig_clutter_distributions}
 
 \subsection{Sea Clutter Statistical Models}
 
@@ -124,6 +130,8 @@ Greco et al. developed a two-stage TBD architecture for maritime radar that comb
 
 For radar-camera cross-labeling applications, TBD methods present both opportunities and challenges. The improved low-SCR detection performance could enable labeling of distant or small targets that would be missed by single-scan CFAR. However, the multi-scan latency complicates time synchronization between radar detections and camera frames, potentially requiring retroactive association of TBD detections to camera imagery captured several scans earlier. Furthermore, TBD algorithms require accurate motion models, which may be difficult to specify for heterogeneous maritime targets exhibiting diverse maneuvering behaviors.
 
+\input{figures/fig_dbscan_clustering}
+
 \subsection{DBSCAN and ST-DBSCAN for Radar Clustering}
 
 After CFAR detection, radar returns typically consist of a collection of detections in range-azimuth space, including both true target returns and residual false alarms from clutter. Clustering algorithms group spatially proximate detections that likely originate from the same physical target, enabling target centroid estimation and facilitating downstream tracking and classification \cite{Chen2020}.
@@ -137,6 +145,8 @@ The Spatio-Temporal DBSCAN (ST-DBSCAN) algorithm extends DBSCAN to three-dimensi
 Zhou et al. applied ST-DBSCAN to maritime radar data for automatic identification of ship trajectories, demonstrating improved tracking continuity compared to single-scan DBSCAN followed by frame-to-frame association \cite{Zhou2024}. The spatio-temporal clustering naturally handles temporary detection dropouts caused by sea clutter or multipath fading, as detections from adjacent scans bridge the gaps. However, ST-DBSCAN assumes that cluster membership is transitive across time, which may fail for crossing targets or scenarios where two targets temporarily merge and then separate.
 
 For radar-guided camera labeling, clustering algorithms such as DBSCAN and ST-DBSCAN provide essential preprocessing to consolidate multiple detections from extended targets into single representative points that can be associated with camera bounding boxes. The choice of clustering parameters affects the granularity of radar detections: conservative settings (small $\varepsilon$, large MinPts) produce fewer, higher-confidence clusters but may split single targets into multiple fragments, while liberal settings (large $\varepsilon$, small MinPts) merge neighboring targets and admit more false alarms. Empirical tuning based on the specific radar characteristics and target types is necessary to achieve optimal performance.
+
+\input{figures/fig_ppi_challenges}
 
 \subsection{Maritime Detection Challenges}
 

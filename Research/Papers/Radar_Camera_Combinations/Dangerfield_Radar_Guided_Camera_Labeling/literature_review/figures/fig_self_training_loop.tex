@@ -1,0 +1,219 @@
+\begin{figure}[t]
+  \centering
+  \begin{tikzpicture}[
+    node distance=2.0cm,
+    font=\small,
+    >=stealth,
+    line width=1.0pt,
+  ]
+    % Define colors (RGB converted from hex)
+    \colorlet{garnet}{Garnet}
+    \colorlet{atlantic}{Atlantic}
+    \colorlet{rose}{Rose}
+    \definecolor{black70}{RGB}{54, 54, 54}
+
+    % Main circular flow positions
+    % Using polar coordinates for circular layout
+    \coordinate (center) at (0, 0);
+
+    % Node 1: Radar Detections (top)
+    \node[
+      draw=garnet,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=2.5cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (radar) at (0, 3.5) {Radar Detections};
+
+    % Node 2: Cross-Modal Projection (right-top)
+    \node[
+      draw=black70,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=2.8cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (projection) at (3.2, 2.2) {Cross-Modal Projection};
+
+    % Node 3: Noisy Bounding Boxes (right)
+    \node[
+      draw=garnet,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=2.8cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (noisyboxes) at (3.8, 0.5) {Noisy Bounding Boxes};
+
+    % Node 4: Train Camera Detector (right-bottom)
+    \node[
+      draw=atlantic,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=3.0cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (train) at (2.5, -2.0) {Train Camera Detector (Student)};
+
+    % Node 5: Generate Pseudo-Labels (bottom-left)
+    \node[
+      draw=atlantic,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=3.2cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (pseudo) at (-2.5, -2.0) {Generate Pseudo-Labels};
+
+    % Confidence threshold annotation for pseudo-labels
+    \node[
+      draw=rose,
+      fill=white,
+      rectangle,
+      line width=1.0pt,
+      minimum width=1.8cm,
+      minimum height=0.5cm,
+      font=\footnotesize,
+      anchor=south
+    ] (tau) at (-2.5, -2.8) {$\tau$ threshold};
+
+    % Node 6: Combine Labels (left)
+    \node[
+      draw=black70,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=2.8cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (combine) at (-3.5, 0.5) {Pseudo-Labels + Radar Labels};
+
+    % Teacher model (side branch)
+    \node[
+      draw=atlantic,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=2.5cm,
+      minimum height=0.8cm,
+      anchor=center
+    ] (teacher) at (0, -3.8) {Teacher Model};
+
+    % EMA Update label
+    \node[
+      draw=atlantic,
+      fill=white,
+      rectangle,
+      line width=1.0pt,
+      minimum width=2.0cm,
+      minimum height=0.5cm,
+      font=\footnotesize,
+      anchor=south
+    ] (ema) at (2.0, -2.9) {EMA Update};
+
+    % Main circular flow arrows
+    \draw[->,
+      line width=1.5pt,
+      garnet
+    ] (radar) -- (projection);
+
+    \draw[->,
+      line width=1.5pt,
+      garnet
+    ] (projection) -- (noisyboxes);
+
+    \draw[->,
+      line width=1.5pt,
+      atlantic
+    ] (noisyboxes) -- (train);
+
+    \draw[->,
+      line width=1.5pt,
+      atlantic
+    ] (train) -- (pseudo);
+
+    \draw[->,
+      line width=1.5pt,
+      black70
+    ] (pseudo) -- (combine);
+
+    \draw[->,
+      line width=1.5pt,
+      garnet
+    ] (combine) -- (radar);
+
+    % Teacher-Student connection
+    \draw[->,
+      line width=1.0pt,
+      atlantic,
+      dashed
+    ] (train) -- (teacher);
+
+    % Teacher to pseudo-labels
+    \draw[->,
+      line width=1.0pt,
+      atlantic,
+      dashed
+    ] (teacher) -- (pseudo);
+
+    % Iteration annotations
+    \node[
+      font=\footnotesize,
+      black70,
+      anchor=center
+    ] (iter1) at (-4.8, 2.5) {Iteration 1:};
+
+    \node[
+      font=\footnotesize,
+      black70,
+      anchor=center
+    ] (iter1text) at (-4.8, 2.0) {Radar labels only};
+
+    \node[
+      font=\footnotesize,
+      black70,
+      anchor=center
+    ] (iter2) at (-4.8, -1.0) {Iteration 2+:};
+
+    \node[
+      font=\footnotesize,
+      black70,
+      anchor=center
+    ] (iter2text) at (-4.8, -1.5) {Radar +};
+
+    \node[
+      font=\footnotesize,
+      black70,
+      anchor=center
+    ] (iter2text2) at (-4.8, -1.9) {pseudo-labels};
+
+    % Risk annotation box
+    \node[
+      draw=rose,
+      fill=white,
+      rectangle,
+      line width=1.5pt,
+      minimum width=3.0cm,
+      minimum height=1.2cm,
+      font=\footnotesize,
+      align=center,
+      anchor=center
+    ] (risk) at (5.8, -0.8) {Risk: Systematic Bias Amplification};
+
+    % Arrow pointing from noisyboxes to risk
+    \draw[->,
+      line width=1.0pt,
+      rose,
+      dashed
+    ] (noisyboxes) -- (risk);
+
+  \end{tikzpicture}
+  \caption{Iterative self-training loop for radar-guided camera labeling. The teacher model, updated via exponential moving average (EMA) of the student, generates pseudo-labels that supplement noisy radar-projected annotations. Systematic bias from calibration errors risks amplification across iterations.}
+  \label{fig:self_training_loop}
+\end{figure}

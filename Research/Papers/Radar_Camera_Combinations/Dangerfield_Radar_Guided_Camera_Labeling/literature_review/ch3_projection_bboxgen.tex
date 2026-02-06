@@ -4,6 +4,8 @@
 
 Once the extrinsic and intrinsic parameters linking a radar and a camera have been established through calibration (Section~\ref{sec:calibration}), the next challenge is to exploit those parameters operationally: given a radar detection expressed in polar coordinates, compute the corresponding pixel location in the camera image and generate a bounding box suitable for training an object detector. This projection pipeline constitutes the central algorithmic bridge between calibrated sensor geometry and usable training labels, and its fidelity determines whether the resulting annotations are accurate enough to replace or supplement manual labeling. The present section traces the complete mathematical chain from radar measurement space through world, camera, and pixel coordinate systems; examines the lens distortion models required for wide field-of-view (FOV) maritime cameras; surveys the bird's-eye-view (BEV) and frustum-based association strategies that the autonomous-driving community has developed; and analyzes the error sources that limit projection accuracy, with particular attention to the three-dimensional ambiguity inherent in two-dimensional radar data and the additional complications introduced by the maritime environment.
 
+\input{figures/fig_projection_pipeline}
+
 %% -----------------------------------------------------------------------
 \subsection{Coordinate Transformation Pipeline}\label{subsec:coord_transform}
 %% -----------------------------------------------------------------------
@@ -115,6 +117,8 @@ Scaramuzza et al.~\cite{scaramuzza2006toolbox} introduced a complementary approa
 \end{equation}
 where the polynomial coefficients are determined from a calibration grid observed at multiple orientations. This formulation is particularly useful for mirror-based omnidirectional systems and for lenses that exceed $180^\circ$ FOV, situations where the Kannala--Brandt model may require impractically many terms. The OCamCalib toolbox implementing this model has been widely used in mobile robotics~\cite{scaramuzza2006toolbox}.
 
+\input{figures/fig_distortion_models}
+
 \subsubsection{Maritime Relevance of Wide-FOV Distortion Modeling}
 
 Maritime surveillance installations typically require cameras with FOV of $90^\circ$ or greater to cover the full horizon from a fixed mounting point~\cite{xu2024maritime}. Xu et al.~\cite{xu2024maritime} observed that failure to account for lens distortion in maritime radar-camera fusion can produce projection errors exceeding 20 pixels at the image periphery for a $100^\circ$ FOV lens, corresponding to displacement of several meters at ranges of a few hundred meters. The choice of distortion model therefore has direct consequences for the quality of radar-projected bounding boxes: an inadequate model will systematically shift projected centroids away from true target locations, producing biased training labels that degrade detector performance. As a practical guideline, the Brown--Conrady model suffices for rectilinear lenses below $100^\circ$ FOV, the Kannala--Brandt model should be employed for $100^\circ$--$180^\circ$ fisheye lenses, and the Scaramuzza model is indicated for omnidirectional or catadioptric systems~\cite{kannala2006generic, scaramuzza2006toolbox}.
@@ -132,6 +136,8 @@ The simplest BEV construction is inverse perspective mapping (IPM), which assume
   \mathbf{H} = \mathbf{K}\,[\mathbf{r}_1 \;\; \mathbf{r}_2 \;\; \mathbf{t}],
 \end{equation}
 where $\mathbf{r}_1$ and $\mathbf{r}_2$ are the first two columns of the rotation matrix and $\mathbf{t}$ is the translation to the ground plane~\cite{zhang2000flexible}. IPM is computationally inexpensive but fails wherever the flat-ground assumption is violated---a critical limitation in maritime settings where the sea surface is neither rigid nor planar.
+
+\input{figures/fig_bev_vs_frustum}
 
 \subsubsection{Learned BEV Representations: BEVFusion}
 
@@ -181,6 +187,8 @@ When multiple radar returns are available from a single target---as is common fo
 
 The radar cross section provides a complementary cue for estimating target size. While the relationship between RCS and physical dimensions is complicated by aspect-angle dependence, multipath, and constructive or destructive interference, broad correlations exist: a container ship at X-band may present an RCS of $10{,}000$--$100{,}000$~m$^2$, while a small pleasure craft returns $1$--$100$~m$^2$~\cite{Skolnik2008}. Several authors have proposed using RCS as a soft prior for bounding box dimensions. Wang et al.~\cite{wang2021rodnet} showed that incorporating RCS alongside range into a regression model improves range-dependent object size estimation compared to range-only baselines. The logarithmic nature of RCS variation motivates the use of $\log(\sigma_{\text{RCS}})$ as a feature, which compresses the dynamic range and provides a roughly linear relationship with the logarithm of target length for broadside aspects~\cite{Skolnik2008}.
 
+\input{figures/fig_bbox_sizing}
+
 \subsubsection{Height Extension for Missing Elevation}
 
 When the radar provides only range and azimuth (no elevation), the projected bounding box has a well-defined horizontal center and width but an indeterminate vertical position and height. A common heuristic is to assume that the target rests on a known reference surface (the sea surface in maritime applications) and extends upward by an amount determined by a class-specific height prior~\cite{nabati2019rrpn}. Denoting the assumed height of the reference surface below the camera as $h_0$ and the expected target height as $H$, the vertical extent of the bounding box in pixels can be approximated as
@@ -217,9 +225,13 @@ The standard metric for evaluating projection accuracy is the Mean Absolute Repr
 \end{equation}
 where $\mathbf{u}_i^{\text{proj}}$ is the projected pixel location of the $i$-th radar detection and $\mathbf{u}_i^{\text{gt}}$ is the corresponding ground-truth pixel location determined from manual annotation or a higher-fidelity sensor~\cite{Nabati2021CenterFusion}. For bounding box quality, the Intersection-over-Union (IoU) between the projected box and the ground-truth box is used; IoU thresholds of $0.5$ and $0.7$ are conventional in the object detection community~\cite{Lin2014COCO}.
 
+\input{figures/fig_range_error}
+
 \subsubsection{Range-Dependent Error Characteristics}
 
 Projection error is not uniform across range. At close range, angular errors in calibration and radar measurement translate to large pixel displacements because the target subtends many pixels. At long range, the target occupies few pixels and small absolute errors can still produce poor IoU. Sengupta et al.~\cite{sengupta2024comprehensive} conducted a comprehensive analysis of radar-to-camera projection accuracy on the nuScenes dataset and reported a mean reprojection error of approximately $1.5$~m at $200$~m range, corresponding to roughly 8 pixels at a typical automotive focal length. The error was decomposed into a range-invariant calibration component and a range-dependent component dominated by radar angular uncertainty, with the latter scaling linearly with range~\cite{sengupta2024comprehensive}. In the maritime domain, where operational ranges extend to several nautical miles, the angular component dominates, and the coarser azimuth resolution of X-band marine radar (typically $1$--$2^\circ$ versus $1$--$2^\circ$ for automotive radar but at much greater range) exacerbates the problem~\cite{Ward2006}.
+
+\input{figures/fig_3d_ambiguity}
 
 %% -----------------------------------------------------------------------
 \subsection{The Three-Dimensional Ambiguity Problem}\label{subsec:3d_ambiguity}
@@ -254,6 +266,8 @@ The sea surface is neither rigid nor planar. Wave action causes targets to heave
 \subsubsection{Extended Operational Ranges}
 
 Maritime radar-camera systems operate at ranges of hundreds of meters to several nautical miles, far exceeding the $50$--$200$~m typical of automotive scenarios~\cite{xu2024maritime}. At these ranges, targets occupy very few pixels, bounding boxes are small, and the tolerance for projection error is correspondingly tighter in relative terms. An absolute reprojection error of $2$~m may be acceptable at $50$~m (corresponding to a few percent of the bounding box width for a passenger car) but is catastrophic at $2000$~m, where a $10$~m vessel subtends only a handful of pixels. This range asymmetry motivates range-dependent evaluation and possibly range-stratified training strategies~\cite{sengupta2024comprehensive}.
+
+\input{figures/fig_ais_integration}
 
 \subsubsection{AIS Integration for Vessel Identification}
 

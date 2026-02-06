@@ -5,6 +5,8 @@ The preceding chapter established that maritime object detection datasets remain
 
 This chapter surveys the methods by which radar and camera sensors are brought into geometric correspondence. The discussion begins with the mathematical framework that underlies all extrinsic calibration formulations, proceeds through the three dominant families of calibration techniques---target-based, targetless, and motion-based---and then addresses the complementary problems of intrinsic camera calibration and temporal synchronization. Throughout, attention is drawn to the gap between the well-studied 77\,GHz automotive radar domain and the largely unaddressed X-band marine radar setting that motivates the present work.
 
+\input{figures/fig_calibration_taxonomy}
+
 %% =========================================================================
 \subsection{Mathematical Framework for Extrinsic Calibration}\label{sec:math_framework}
 %% =========================================================================
@@ -24,6 +26,8 @@ where
 \mathbf{R}_{z}(\psi)=\begin{bmatrix}\cos\psi&-\sin\psi&0\\\sin\psi&\cos\psi&0\\0&0&1\end{bmatrix}.
 \end{equation}
 Alternative rotation parameterizations---axis-angle, unit quaternions, and rotation vectors---are often preferred in optimization to avoid gimbal lock and to simplify constraint enforcement \cite{peretroukhin2020motion}. In particular, the unit quaternion representation $\mathbf{q} = (q_w, q_x, q_y, q_z)$ with $\|\mathbf{q}\| = 1$ is widely used in hand-eye calibration formulations \cite{daniilidis1999handeye}.
+
+\input{figures/fig_extrinsic_calibration}
 
 \subsubsection{Homogeneous Transformation}
 
@@ -156,6 +160,8 @@ Even a geometrically perfect extrinsic calibration degrades rapidly if the two s
 
 Radar and camera systems rarely share a common clock. Automotive 77\,GHz radars typically output detections at 10--20\,Hz, while cameras operate at 15--30\,fps. In the nuScenes system \cite{Caesar2020nuScenes}, hardware triggering and a central timing bus achieve sub-millisecond synchronization across all sensors. Such infrastructure is unavailable in typical maritime installations, where the radar interface provides PPI sweeps at the antenna rotation rate (20--48\,rpm for X-band marine radars) and the camera free-runs at its own frame rate \cite{Skolnik2008}.
 
+\input{figures/fig_rotating_antenna_sync}
+
 \subsubsection{The Rotating Antenna Problem}
 
 A challenge unique to mechanically scanned marine radar is that the antenna sweeps through $360^{\circ}$ over a rotation period of 1.25--3\,s. Unlike a phased-array automotive radar that illuminates its entire field of view quasi-simultaneously, a rotating marine radar observes different azimuth sectors at different instants within each sweep. A camera frame captured at time $t$ corresponds to a single azimuth sector of the radar sweep, not to the full PPI image. Naive association of a complete PPI scan with a single camera frame introduces bearing-dependent timing errors that worsen for targets at azimuths far from the instantaneous antenna pointing direction at time $t$.
@@ -167,6 +173,8 @@ Li and Pollefeys \cite{li2011temporal} studied temporal calibration for asynchro
 %% =========================================================================
 
 The vast majority of radar-camera calibration research targets the automotive domain, where 77\,GHz millimeter-wave radar is the standard sensor. Transferring these methods to the maritime setting introduces several challenges arising from fundamental differences in sensor characteristics, platform dynamics, and operational environment.
+
+\input{figures/fig_radar_comparison_visual}
 
 \subsubsection{X-Band Marine Radar Versus 77\,GHz Automotive Radar}
 
@@ -196,6 +204,8 @@ Table~\ref{tab:radar_camera_comparison} summarizes the key differences between X
 \end{table}
 
 Several of these differences have direct consequences for calibration. The absence of elevation data in X-band PPI radar means that the full 3D-to-2D projection model (Equation~\eqref{eq:projection}) is underdetermined without an elevation prior. The coarse range resolution (meters to tens of meters) and azimuth resolution ($>1^{\circ}$) limit the precision of radar-side point localization, placing an intrinsic floor on achievable reprojection accuracy that is typically far above the sub-pixel precision attainable with camera corner detection \cite{Skolnik2008, Richards2022}. The PPI output format requires centroid extraction from extended radar returns, introducing additional localization uncertainty compared to the point-detection output of automotive FMCW radar \cite{patole20174d}.
+
+\input{figures/fig_platform_dynamics}
 
 \subsubsection{Platform Dynamics and Mounting Geometry}
 

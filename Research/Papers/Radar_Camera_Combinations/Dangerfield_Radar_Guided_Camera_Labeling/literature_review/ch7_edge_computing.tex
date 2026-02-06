@@ -44,6 +44,8 @@ Memory architecture critically impacts edge deployment. The Jetson Orin NX emplo
 
 Thermal management defines sustained power budgets. The Jetson Orin NX's 25 W peak rating assumes active cooling; mounted in sealed maritime enclosures with limited airflow, sustained power must be throttled to 15--20 W to maintain temperatures below 80°C and prevent thermal shutdown. Active cooling (small axial fans or liquid loops) is necessary for 25+ W sustained operation; passive dissipation alone is insufficient in maritime environments with seawater spray and salt-air convection impairment.
 
+\input{figures/fig_jetson_comparison}
+
 \subsection{TensorRT Optimization Pipeline}
 
 \subsubsection{ONNX-to-Engine Workflow}
@@ -63,6 +65,8 @@ Graph-level optimizations include:
 Kernel-level auto-tuning executes timing microbenchmarks on target hardware (typically a few seconds during first-run compilation) to profile available implementations for each operation. TensorRT selects implementations that minimize end-to-end latency given measured bandwidth and utilization characteristics.
 
 The combined effect of these optimizations yields 2--3× speedup on native FP32 inference and up to 15× speedup when combined with INT8 quantization. \cite{NVIDIA2024TensorRTModelOptimizer} For YOLOv8 models running on Jetson platforms, typical multipliers are 2.5--3× from TensorRT graph optimization and an additional 4--5× from INT8 quantization, yielding 10--15× overall improvements.
+
+\input{figures/fig_tensorrt_pipeline_wrapped.tex}
 
 \subsubsection{Performance Multipliers and Benchmarking}
 
@@ -122,6 +126,8 @@ The three-tier quantization strategy for maritime deployment:
   \item \textbf{Validation}: Run inference on held-out validation set to confirm accuracy matches QAT predictions, then deploy aboard vessels.
 \end{enumerate}
 
+\input{figures/fig_quantization_tradeoff}
+
 \subsection{Real-Time Detection Benchmarks on Jetson Hardware}
 
 \subsubsection{YOLOv8 Family Throughput on AGX Orin and Orin NX}
@@ -153,6 +159,8 @@ The Jetson Orin NX achieves 95 FPS on YOLOv8-small and 50 FPS on medium---suffic
 RT-DETR (Real-Time DETR) \cite{Zhang2024RT-DETRYOLOv8Comparison} offers an alternative architecture based on the DETR transformer backbone, claiming competitive accuracy with reduced NMS post-processing overhead. RT-DETR-small provides comparable mAP to YOLOv8-small while delivering slightly lower latency (45 ms vs. 60 ms per inference on AGX Orin). However, RT-DETR exhibits higher memory consumption due to transformer self-attention and requires careful quantization to avoid significant accuracy loss. For maritime platforms with tight memory budgets (8 GB Orin NX), YOLOv8 remains preferred due to its lower memory footprint and mature quantization support.
 
 A critical observation: both YOLOv8 and RT-DETR are \emph{real-time capable} in the sense that a single inference completes within 10--100 ms on modern edge hardware. However, real-time constraint is \emph{not} applicable to maritime dataset labeling. The labeling pipeline need not process frames at video rate or respond to detections within milliseconds. Instead, the system should maximize \emph{throughput}---total frames labeled per hour---subject to power and thermal constraints.
+
+\input{figures/fig_edge_power_throughput}
 
 \subsection{Offline Batch Processing: The Key Insight for Labeling}
 
@@ -187,7 +195,7 @@ At this sustained rate, a single Jetson Orin NX labels:
 
 For a maritime object detection dataset, this corresponds to 8--12 hours of annotated video at 1080p@30Hz, a substantial contribution to dataset scale starting from a single platform.
 
-\input{figures/fig_edge_power_throughput}
+\input{figures/fig_maritime_deployment}
 
 \subsection{Maritime Deployment Considerations}
 
@@ -223,7 +231,7 @@ Most research and commercial maritime platforms operate on unregulated 24 V DC b
 The Jetson Orin reference design (baseboard PCB, Aluminum heatspreader, standard connectors) is \emph{not} rated for salt spray environments and will corrode within weeks of exposure to marine salt fog. Deployment requires:
 
 \begin{enumerate}
-  \item \textbf{Conformal coating}: PCB-level polyurethane or parylene coating (5--25 μm thickness) protects traces, solder joints, and exposed copper from electrolytic corrosion.
+  \item \textbf{Conformal coating}: PCB-level polyurethane or parylene coating (5--25\,$\mu$m thickness) protects traces, solder joints, and exposed copper from electrolytic corrosion.
   \item \textbf{Connector protection}: Use stainless steel M12 or circular connectors (IP67+ rated, corrosion-resistant materials) instead of standard USB, HDMI, or 40-pin GPIO.
   \item \textbf{Enclosure materials}: Aluminum, titanium, or composite materials (aramid, carbon fiber) with hard-anodized finishes. Avoid bare steel and unprotected copper.
   \item \textbf{Periodic maintenance}: Sealed systems should be opened and inspected annually; desiccant packs replaced to prevent moisture accumulation.

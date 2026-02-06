@@ -1,0 +1,139 @@
+\begin{figure}[t]
+  \centering
+  \begin{tikzpicture}[
+    node distance=1.8cm and 2.2cm,
+    every node/.style={
+      rectangle,
+      draw=black,
+      line width=1.2pt,
+      text width=1.8cm,
+      text centered,
+      font=\small,
+      minimum height=1.4cm
+    },
+    arrow/.style={
+      ->,
+      line width=1.2pt,
+      >= stealth
+    }
+  ]
+
+    % Define colors (RGB to normalize for TikZ)
+    \colorlet{garnet}{Garnet}
+    \colorlet{atlantic}{Atlantic}
+    \colorlet{congaree}{Congaree}
+    \colorlet{lightbg}{black!10}
+
+    % ===== INPUT STAGE =====
+    % Radar sensor
+    \node[
+      fill=garnet,
+      text=white,
+      line width=1.5pt,
+      draw=black
+    ] (radar) at (0, 2) {X-band\\Marine Radar};
+
+    % Camera sensor
+    \node[
+      fill=garnet,
+      text=white,
+      line width=1.5pt,
+      draw=black
+    ] (camera) at (0, 0) {Camera\\(RGB)};
+
+    % ===== DATA GENERATION =====
+    % PPI image output
+    \node[
+      fill=lightbg,
+      draw=black,
+      line width=1.2pt
+    ] (ppi) at (2.2, 2) {PPI\\Image};
+
+    % RGB image output
+    \node[
+      fill=lightbg,
+      draw=black,
+      line width=1.2pt
+    ] (rgb) at (2.2, 0) {RGB\\Image};
+
+    % ===== CALIBRATION STAGE =====
+    \node[
+      fill=atlantic,
+      text=white,
+      line width=1.5pt,
+      draw=black
+    ] (calibration) at (4.4, 1) {Calibration\\(\textit{intrinsic},\\extrinsic)};
+
+    % ===== PROJECTION STAGE =====
+    \node[
+      fill=congaree,
+      text=white,
+      line width=1.5pt,
+      draw=black,
+      text width=2.0cm
+    ] (projection) at (6.6, 1) {Radar-to-Camera\\Projection};
+
+    % ===== LABEL GENERATION =====
+    \node[
+      fill=atlantic,
+      text=white,
+      line width=1.5pt,
+      draw=black
+    ] (bboxgen) at (8.8, 1) {Bounding Box\\Generation};
+
+    % ===== NOISY LABEL TRAINING =====
+    \node[
+      fill=congaree,
+      text=white,
+      line width=1.5pt,
+      draw=black,
+      text width=2.0cm
+    ] (noisytraining) at (11.0, 1) {Noisy Label\\Training\\Pipeline};
+
+    % ===== OUTPUT STAGE =====
+    \node[
+      fill=garnet,
+      text=white,
+      line width=1.5pt,
+      draw=black,
+      text width=1.8cm
+    ] (detector) at (13.2, 1) {Trained\\Camera\\Detector};
+
+    % ===== ARROWS =====
+    % Radar to PPI
+    \draw[arrow, black] (radar) -- (ppi);
+
+    % Camera to RGB
+    \draw[arrow, black] (camera) -- (rgb);
+
+    % PPI and RGB to Calibration
+    \draw[arrow, black] (ppi) -- (calibration);
+    \draw[arrow, black] (rgb) -- (calibration);
+
+    % Calibration to Projection
+    \draw[arrow, black] (calibration) -- (projection);
+
+    % Projection to BBox
+    \draw[arrow, black] (projection) -- (bboxgen);
+
+    % BBox to Noisy Training
+    \draw[arrow, black] (bboxgen) -- (noisytraining);
+
+    % Noisy Training to Detector
+    \draw[arrow, black] (noisytraining) -- (detector);
+
+    % ===== FEEDBACK LOOP (optional, visual indicator) =====
+    % Arc showing feedback from detector output to noisy training
+    \draw[
+      arrow,
+      black,
+      dashed,
+      line width=1pt
+    ] (detector.south) -- ++(0, -0.8) -- ++(0, 0)
+      node[below=0.3cm, text=black, font=\tiny] {}
+      -- ++(-2.2, 0) -- ++(0, 0.8) -- (noisytraining.south);
+
+  \end{tikzpicture}
+  \caption{High-level pipeline overview for radar-guided camera labeling. The pipeline integrates X-band marine radar and RGB camera data through calibration and projection steps to generate noisy training labels for a camera-based object detector.}
+  \label{fig:pipeline_overview}
+\end{figure}

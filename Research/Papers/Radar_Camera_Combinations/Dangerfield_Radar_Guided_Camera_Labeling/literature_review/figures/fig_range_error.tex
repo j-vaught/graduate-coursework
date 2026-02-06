@@ -1,0 +1,107 @@
+% Define custom colors based on brand palette
+\colorlet{garnet}{Garnet}
+\colorlet{atlantic}{Atlantic}
+\colorlet{congaree}{Congaree}
+\colorlet{warmgrey}{WarmGrey}
+\colorlet{plotbg}{black!10}
+
+\begin{tikzpicture}
+
+% Left subplot: Bounding Box Size vs Range
+\begin{axis}[
+    name=left,
+    at={(0,0)},
+    width=6.5cm,
+    height=5.5cm,
+    xlabel={Range (m)},
+    ylabel={Target angular extent (pixels)},
+    xmin=100, xmax=5000,
+    ymin=1, ymax=300,
+    ymode=log,
+    log basis y=10,
+    grid=major,
+    grid style={line width=0.3pt, draw opacity=0.3, color=warmgrey},
+    axis background/.style={fill=white},
+    axis line style={line width=0.7pt, color=black},
+    tick label style={font=\small},
+    label style={font=\small},
+    legend style={font=\footnotesize, at={(0.98,0.03)}, anchor=south east,
+                  cells={anchor=west}, draw=none, fill opacity=0},
+    every axis plot post/.append style={line width=1.5pt},
+    xtick={100, 500, 1000, 2000, 5000},
+    xticklabels={100, 500, 1000, 2000, 5000},
+]
+
+% Target angular extent curve: bbox_width = f * vessel_length / range
+% f = 1000 pixels/focal length, vessel_length = 20m
+% At range r: width_pixels = 20000 / r
+\addplot[
+    domain=100:5000,
+    samples=200,
+    color=garnet,
+    no markers,
+] {20000 / x};
+\addlegendentry{20\,m vessel};
+
+\node[anchor=north west, font=\small, text=black] at (axis cs:150,150) {(a)};
+
+\end{axis}
+
+% Right subplot: IoU vs Range
+\begin{axis}[
+    name=right,
+    at={(8.5cm,0)},
+    width=6.5cm,
+    height=5.5cm,
+    xlabel={Range (m)},
+    ylabel={Intersection over Union (IoU)},
+    xmin=100, xmax=5000,
+    ymin=0, ymax=1,
+    grid=major,
+    grid style={line width=0.3pt, draw opacity=0.3, color=warmgrey},
+    axis background/.style={fill=white},
+    axis line style={line width=0.7pt, color=black},
+    tick label style={font=\small},
+    label style={font=\small},
+    legend style={font=\footnotesize, at={(0.98,0.05)}, anchor=south east,
+                  cells={anchor=west}, draw=none, fill opacity=0},
+    every axis plot post/.append style={line width=1.5pt},
+    xtick={100, 500, 1000, 2000, 5000},
+    xticklabels={100, 500, 1000, 2000, 5000},
+    ytick={0, 0.2, 0.4, 0.6, 0.8, 1.0},
+    yticklabels={0, 0.2, 0.4, 0.6, 0.8, 1.0},
+]
+
+% IoU calculation
+% bbox_width = 20000 / r pixels
+% pixel_disp = f * tan(1°) ≈ 1000 * tan(π/180) ≈ 17.5 pixels
+% IoU ≈ max(0, (bbox_width - pixel_disp)) / (bbox_width + pixel_disp)
+% At range r:
+% IoU(r) = max(0, (20000/r - 17.5) / (20000/r + 17.5))
+
+\addplot[
+    domain=100:5000,
+    samples=200,
+    color=garnet,
+    no markers,
+] {max(0, (20000/x - 17.5) / (20000/x + 17.5))};
+\addlegendentry{1° azimuth error};
+
+% Reference line at IoU = 0.5
+\addplot[
+    domain=100:5000,
+    dashed,
+    line width=0.8pt,
+    color=warmgrey,
+    no markers,
+] {0.5};
+\addlegendentry{Typical detection threshold};
+
+% Annotation for threshold
+\node[anchor=south west, font=\footnotesize, text=warmgrey] at (axis cs:150,0.51) {IoU = 0.5};
+
+\node[anchor=north west, font=\small, text=black] at (axis cs:150,0.95) {(b)};
+
+\end{axis}
+
+\end{tikzpicture}

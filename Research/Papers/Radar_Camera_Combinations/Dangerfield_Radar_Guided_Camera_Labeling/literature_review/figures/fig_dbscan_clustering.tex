@@ -1,0 +1,149 @@
+\begin{figure}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[scale=0.3]
+  % Define colors using brand palette
+  \colorlet{garnet}{Garnet}
+  \colorlet{atlantic}{Atlantic}
+  \colorlet{congaree}{Congaree}
+  \definecolor{LightGray}{RGB}{235, 235, 235}
+  \colorlet{darkgray}{black!50}
+
+  % Background: concentric range rings at 500m, 1000m, 1500m, 2000m
+  \foreach \r in {5, 10, 15, 20} {
+    \draw[LightGray, line width=0.5pt] (0, 0) circle (\r);
+  }
+
+  % Range labels
+  \node[darkgray, font=\tiny, anchor=west] at (5, -0.4) {500m};
+  \node[darkgray, font=\tiny, anchor=west] at (10, -0.4) {1000m};
+  \node[darkgray, font=\tiny, anchor=west] at (15, -0.4) {1500m};
+  \node[darkgray, font=\tiny, anchor=west] at (20, -0.4) {2000m};
+
+  % Radar icon at center (simple crosshair)
+  \draw[darkgray, line width=1.5pt] (-0.3, 0) -- (0.3, 0);
+  \draw[darkgray, line width=1.5pt] (0, -0.3) -- (0, 0.3);
+  \draw[darkgray, line width=0.8pt] (0, 0) circle (0.5);
+
+  % ========== CLUSTER 1: Large Vessel (Garnet, ~15 points) ==========
+  % Dense cluster in near-mid range
+  \coordinate (c1_center) at (6, 3);
+
+  % Large vessel cluster points (15 points, fairly dense)
+  \foreach \i in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
+    \pgfmathsetmacro{\angle}{360 * \i / 15}
+    \pgfmathsetmacro{\r}{0.3 + 0.15 * rnd}
+    \coordinate (p1_\i) at ($(c1_center) + (\angle:\r)$);
+    \draw[Garnet, fill=Garnet] (p1_\i) rectangle ++(0.15, 0.15);
+  }
+
+  % Centroid marker for cluster 1
+  \draw[Garnet, line width=2pt] ($(c1_center) + (-0.35, -0.35)$) -- ($(c1_center) + (0.35, 0.35)$);
+  \draw[Garnet, line width=2pt] ($(c1_center) + (-0.35, 0.35)$) -- ($(c1_center) + (0.35, -0.35)$);
+
+  % ========== CLUSTER 2: Small Boat (Atlantic, ~5 points) ==========
+  % Sparse cluster in different region
+  \coordinate (c2_center) at (14, 8);
+
+  % Small boat cluster points (5 points) - use circles instead of triangles
+  \foreach \i in {1, 2, 3, 4, 5} {
+    \pgfmathsetmacro{\angle}{360 * \i / 5}
+    \pgfmathsetmacro{\r}{0.25 + 0.1 * rnd}
+    \coordinate (p2_\i) at ($(c2_center) + (\angle:\r)$);
+    \fill[Atlantic] (p2_\i) circle (0.12);
+  }
+
+  % Centroid marker for cluster 2
+  \draw[Atlantic, line width=2pt] ($(c2_center) + (-0.35, -0.35)$) -- ($(c2_center) + (0.35, 0.35)$);
+  \draw[Atlantic, line width=2pt] ($(c2_center) + (-0.35, 0.35)$) -- ($(c2_center) + (0.35, -0.35)$);
+
+  % ========== CLUSTER 3: Buoy (Congaree, ~3 points) ==========
+  \coordinate (c3_center) at (-8, 12);
+
+  % Buoy cluster points (3 points)
+  \foreach \i in {1, 2, 3} {
+    \pgfmathsetmacro{\angle}{360 * \i / 3}
+    \pgfmathsetmacro{\r}{0.2 + 0.08 * rnd}
+    \coordinate (p3_\i) at ($(c3_center) + (\angle:\r)$);
+    \draw[Congaree, fill=Congaree] (p3_\i) rectangle ++(0.12, 0.12);
+  }
+
+  % Centroid marker for cluster 3
+  \draw[Congaree, line width=2pt] ($(c3_center) + (-0.35, -0.35)$) -- ($(c3_center) + (0.35, 0.35)$);
+  \draw[Congaree, line width=2pt] ($(c3_center) + (-0.35, 0.35)$) -- ($(c3_center) + (0.35, -0.35)$);
+
+  % ========== NOISE POINTS: Sea Clutter (Light Gray, ~10 scattered points) ==========
+  \pgfmathsetseed{99}
+  \foreach \i in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} {
+    \pgfmathsetmacro{\nx}{-18 + 36 * rnd}
+    \pgfmathsetmacro{\ny}{-13 + 26 * rnd}
+    \draw[darkgray, fill=LightGray] (\nx, \ny) rectangle ++(0.12, 0.12);
+  }
+
+  % ========== EPSILON NEIGHBORHOOD ILLUSTRATION ==========
+  % Core point in cluster 1
+  \coordinate (core_point) at ($(c1_center) + (0.5, 0.3)$);
+  \draw[Garnet, fill=Garnet] (core_point) rectangle ++(0.18, 0.18);
+
+  % Draw epsilon neighborhood circle around core point
+  \pgfmathsetmacro{\epsradius}{1.0}
+  \draw[Garnet, line width=1.5pt, dashed] (core_point) circle (\epsradius);
+
+  % Label core point
+  \node[Garnet, font=\small, anchor=south] at ($(core_point) + (0, -\epsradius - 0.4)$) {Core point};
+
+  % ========== BORDER POINT ILLUSTRATION ==========
+  % Border point: on edge of cluster 1
+  \coordinate (border_point) at ($(c1_center) + (0.9, -0.2)$);
+  \draw[Garnet, fill=white, line width=1.5pt] (border_point) rectangle ++(0.15, 0.15);
+
+  % Label border point
+  \node[Garnet, font=\small, anchor=north] at ($(border_point) + (0, 0.3)$) {Border point};
+
+  % ========== NOISE POINT ILLUSTRATION ==========
+  \coordinate (noise_label) at (-18, 12);
+  \node[darkgray, font=\small, anchor=south] at ($(noise_label) + (0, 0.3)$) {Noise point};
+
+  % ========== MinPts ANNOTATION ==========
+  \node[Garnet, font=\small, anchor=west] at (-21, -12) {\textbf{MinPts} = 5};
+
+  % ========== RANGE-ADAPTIVE EPSILON FORMULA ==========
+  \node[darkgray, font=\small] at (-5, -14) {Range-adaptive: $\varepsilon(r) = \varepsilon_0 + \alpha r$};
+
+  % Visual representation of epsilon growth
+  % Epsilon at near range
+  \coordinate (near_ring_center) at (3, -8);
+  \draw[darkgray, line width=0.8pt, densely dashed] (near_ring_center) circle (0.5);
+  \node[darkgray, font=\tiny, anchor=north] at ($(near_ring_center) + (0, -0.6)$) {Near};
+
+  % Epsilon at far range
+  \coordinate (far_ring_center) at (10, -8);
+  \draw[darkgray, line width=0.8pt, densely dashed] (far_ring_center) circle (1.2);
+  \node[darkgray, font=\tiny, anchor=north] at ($(far_ring_center) + (0, -1.3)$) {Far};
+
+  % ========== LEGEND ==========
+  % Cluster 1 legend
+  \draw[Garnet, fill=Garnet] (-21, 19) rectangle ++(-0.2, -0.2);
+  \node[Garnet, font=\tiny, anchor=west] at (-20.8, 18.9) {Cluster 1 (Large vessel)};
+
+  % Cluster 2 legend
+  \fill[Atlantic] (-21, 18.3) circle (0.12);
+  \node[Atlantic, font=\tiny, anchor=west] at (-20.8, 18.3) {Cluster 2 (Small boat)};
+
+  % Cluster 3 legend
+  \draw[Congaree, fill=Congaree] (-21, 17.6) rectangle ++(-0.2, -0.2);
+  \node[Congaree, font=\tiny, anchor=west] at (-20.8, 17.5) {Cluster 3 (Buoy)};
+
+  % Noise legend
+  \draw[darkgray, fill=LightGray] (-21, 16.9) rectangle ++(-0.2, -0.2);
+  \node[darkgray, font=\tiny, anchor=west] at (-20.8, 16.8) {Noise (Sea clutter)};
+
+  % Axis labels
+  \node[darkgray, font=\small, anchor=north] at (0, -21) {East (m)};
+  \node[darkgray, font=\small, anchor=east] at (-21.5, 0) {North (m)};
+
+\end{tikzpicture}%
+}
+\caption{DBSCAN clustering of marine radar detections. Dense regions of radar returns are grouped into target-level clusters, while isolated points are classified as noise (sea clutter). Range-adaptive parameters $\varepsilon(r) = \varepsilon_0 + \alpha r$ account for beam spreading at increased range.}
+\label{fig:dbscan_clustering}
+\end{figure}

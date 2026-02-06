@@ -1,0 +1,204 @@
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[scale=1.0]
+
+% ============================================================================
+% PANEL A: Symmetric/Asymmetric Noise (Standard)
+% ============================================================================
+\node[anchor=north west] at (0, 0) {
+  \begin{tikzpicture}[scale=0.8]
+    % Panel label
+    \node[font=\bfseries, anchor=south] at (1.5, 4.8) {(a) Symmetric/Asymmetric Noise};
+    \node[font=\small, anchor=north] at (1.5, -0.8) {i.i.d.\ label flips};
+
+    % Draw grid of mini images (3x2)
+    \foreach \row in {0, 1, 2} {
+      \foreach \col in {0, 1} {
+        % Image frame
+        \draw[line width=0.5pt, color=black!30]
+          ({2*\col}, {3-\row}) rectangle ({2*\col+1.8}, {4-\row});
+
+        % Background (light)
+        \fill[color=black!5]
+          ({2*\col}, {3-\row}) rectangle ({2*\col+1.8}, {4-\row});
+
+        % Random noise markers (X marks)
+        \pgfmathsetseed{int(\row*10+\col*3)}
+        \foreach \i in {1,...,8} {
+          \pgfmathsetmacro{\rx}{rnd*1.6+0.1+2*\col}
+          \pgfmathsetmacro{\ry}{rnd*0.8+3-\row}
+
+          % Noise indicator (X mark) in Garnet
+          \draw[line width=1pt, color=Garnet]
+            (\rx - 0.08, \ry - 0.08) -- (\rx + 0.08, \ry + 0.08);
+          \draw[line width=1pt, color=Garnet]
+            (\rx - 0.08, \ry + 0.08) -- (\rx + 0.08, \ry - 0.08);
+        }
+
+        % Some correct labels (boxes) in Atlantic
+        \pgfmathsetmacro{\ox}{0.3+2*\col}
+        \pgfmathsetmacro{\oy}{3.3-\row}
+        \draw[line width=1.2pt, color=Atlantic]
+          (\ox, \oy) rectangle (\ox + 0.6, \oy + 0.5);
+
+        \pgfmathsetmacro{\ox}{1.2+2*\col}
+        \pgfmathsetmacro{\oy}{3.1-\row}
+        \draw[line width=1.2pt, color=Atlantic]
+          (\ox, \oy) rectangle (\ox + 0.5, \oy + 0.4);
+      }
+    }
+  \end{tikzpicture}
+};
+
+% ============================================================================
+% PANEL B: Instance-Dependent Noise
+% ============================================================================
+\node[anchor=north west] at (3.8, 0) {
+  \begin{tikzpicture}[scale=0.8]
+    % Panel label
+    \node[font=\bfseries, anchor=south] at (1.5, 4.8) {(b) Instance-Dependent Noise};
+    \node[font=\small, anchor=north] at (1.5, -0.8) {varies with difficulty};
+
+    % Draw grid of mini images (3x2) with increasing noise toward harder objects
+    \foreach \row in {0, 1, 2} {
+      \foreach \col in {0, 1} {
+        % Image frame
+        \draw[line width=0.5pt, color=black!30]
+          ({2*\col}, {3-\row}) rectangle ({2*\col+1.8}, {4-\row});
+
+        % Background (light)
+        \fill[color=black!5]
+          ({2*\col}, {3-\row}) rectangle ({2*\col+1.8}, {4-\row});
+
+        % Noise density increases based on position (harder objects at small sizes)
+        % Difficulty increases from left-top to right-bottom
+        \pgfmathsetmacro{\difficulty}{(\col + \row*0.5)}
+        \pgfmathtruncatemacro{\noisecount}{3 + \difficulty*4}
+
+        \pgfmathsetseed{int(\row*10+\col*5+100)}
+        \foreach \i in {1,...,\noisecount} {
+          \pgfmathsetmacro{\rx}{rnd*1.6+0.1+2*\col}
+          \pgfmathsetmacro{\ry}{rnd*0.8+3-\row}
+
+          % Noise indicator (X mark) in Garnet
+          \draw[line width=1pt, color=Garnet]
+            (\rx - 0.08, \ry - 0.08) -- (\rx + 0.08, \ry + 0.08);
+          \draw[line width=1pt, color=Garnet]
+            (\rx - 0.08, \ry + 0.08) -- (\rx + 0.08, \ry - 0.08);
+        }
+
+        % Objects: smaller and harder ones have more noise
+        \pgfmathsetmacro{\objsize}{0.7 - \difficulty*0.15}
+
+        % First object
+        \pgfmathsetmacro{\ox}{0.25+2*\col}
+        \pgfmathsetmacro{\oy}{3.35-\row}
+        \draw[line width=1.2pt, color=Atlantic]
+          (\ox, \oy) rectangle (\ox + \objsize, \oy + \objsize*0.6);
+
+        % Second object (smaller if harder)
+        \pgfmathsetmacro{\objsizetwo}{0.4 - \difficulty*0.08}
+        \pgfmathsetmacro{\ox}{1.15+2*\col}
+        \pgfmathsetmacro{\oy}{3.05-\row}
+        \draw[line width=1.2pt, color=Atlantic]
+          (\ox, \oy) rectangle (\ox + \objsizetwo, \oy + \objsizetwo*0.5);
+      }
+    }
+  \end{tikzpicture}
+};
+
+% ============================================================================
+% PANEL C: Radar Projection Noise (Ours)
+% ============================================================================
+\node[anchor=north west] at (7.6, 0) {
+  \begin{tikzpicture}[scale=0.8]
+    % Panel label
+    \node[font=\bfseries, anchor=south] at (1.5, 4.8) {(c) Radar Projection Noise};
+    \node[font=\small, anchor=north] at (1.5, -0.8) {geometry-dependent, spatially correlated};
+
+    % Large image area
+    \draw[line width=0.8pt, color=black] (0, 0) rectangle (3, 4);
+    \fill[color=black!5] (0, 0) rectangle (3, 4);
+
+    % Horizon line
+    \draw[line width=0.5pt, color=black!20, dashed] (0, 2.5) -- (3, 2.5);
+    \node[font=\tiny, color=black!40, anchor=south east] at (2.95, 2.5) {horizon};
+
+    % Range zones
+    \draw[line width=0.3pt, color=black!10] (0, 0) -- (3, 0);
+    \draw[line width=0.3pt, color=black!10] (0, 1.2) -- (3, 1.2);
+    \draw[line width=0.3pt, color=black!10] (0, 2.4) -- (3, 2.4);
+
+    % Range labels
+    \node[font=\tiny, color=black!50, anchor=east] at (-0.1, 0.6) {far};
+    \node[font=\tiny, color=black!50, anchor=east] at (-0.1, 1.8) {mid};
+    \node[font=\tiny, color=black!50, anchor=east] at (-0.1, 3.2) {near};
+
+    % ========== NEAR RANGE (top): Sea clutter false positives ==========
+    % Clustered false positives in Garnet
+    \pgfmathsetseed{42}
+    \foreach \i in {1,...,12} {
+      \pgfmathsetmacro{\rx}{rnd*2.7+0.15}
+      \pgfmathsetmacro{\ry}{rnd*0.7+3}
+      \draw[line width=0.8pt, color=Garnet]
+        (\rx - 0.06, \ry - 0.06) -- (\rx + 0.06, \ry + 0.06);
+      \draw[line width=0.8pt, color=Garnet]
+        (\rx - 0.06, \ry + 0.06) -- (\rx + 0.06, \ry - 0.06);
+    }
+    \node[font=\tiny, color=black!60, anchor=south] at (1.5, 3.8) {sea clutter};
+
+    % ========== MID RANGE: Some objects with directional offset ==========
+    % Objects are correctly labeled (Atlantic) but systematically shifted right (bias)
+    \foreach \i in {1, 2, 3} {
+      \pgfmathsetmacro{\basex}{0.3 + \i*0.8}
+      \pgfmathsetmacro{\basey}{1.7 + rnd*0.4}
+
+      % True position (faint reference)
+      \draw[line width=0.8pt, color=black!15, dashed]
+        (\basex - 0.05, \basey) rectangle (\basex + 0.35, \basey + 0.3);
+
+      % Shifted labeled position (with bias to the right)
+      \pgfmathsetmacro{\shiftx}{0.15}
+      \draw[line width=1.2pt, color=Atlantic]
+        (\basex + \shiftx, \basey) rectangle (\basex + \shiftx + 0.4, \basey + 0.3);
+
+      % Offset arrow
+      \draw[line width=0.6pt, color=Rose, ->, >=stealth']
+        (\basex + 0.1, \basey + 0.12) -- (\basex + \shiftx - 0.05, \basey + 0.12);
+    }
+    \node[font=\tiny, color=black!60, anchor=south] at (1.5, 2.15) {calibration bias};
+
+    % ========== FAR RANGE: Large offset variation with range ==========
+    % Objects with increasing offset from near to far
+    \foreach \i in {1, 2, 3} {
+      \pgfmathsetmacro{\basex}{0.4 + \i*0.75}
+      \pgfmathsetmacro{\basey}{0.45 + (\i-1)*0.35}
+      \pgfmathsetmacro{\shiftx}{0.05 + (\i)*0.15}
+
+      % Boxes get progressively smaller as we go to far range
+      \pgfmathsetmacro{\bwidth}{0.35 - (\i-1)*0.08}
+      \pgfmathsetmacro{\bheight}{0.25 - (\i-1)*0.06}
+
+      % True position (faint reference)
+      \draw[line width=0.7pt, color=black!15, dashed]
+        (\basex - 0.04, \basey) rectangle (\basex + \bwidth - 0.04, \basey + \bheight);
+
+      % Shifted labeled position
+      \draw[line width=1.1pt, color=Atlantic]
+        (\basex + \shiftx, \basey) rectangle (\basex + \shiftx + \bwidth, \basey + \bheight);
+
+      % Offset arrow (getting longer for far objects)
+      \draw[line width=0.5pt, color=Rose, ->, >=stealth']
+        (\basex + \bwidth*0.3, \basey + \bheight*0.5) --
+        (\basex + \shiftx - 0.05, \basey + \bheight*0.5);
+    }
+
+    \node[font=\tiny, color=black!60, anchor=south] at (1.5, 0.2) {range-dependent offset};
+  \end{tikzpicture}
+};
+
+\end{tikzpicture}
+
+\caption{Comparison of label noise models. (a) Standard symmetric/asymmetric noise assumes i.i.d.\ label corruption. (b) Instance-dependent noise varies with sample difficulty. (c) Radar projection noise is geometry-dependent and spatially correlated: calibration offsets bias all labels directionally, and localization error scales with range.}
+\label{fig:noise_comparison}
+\end{figure*}

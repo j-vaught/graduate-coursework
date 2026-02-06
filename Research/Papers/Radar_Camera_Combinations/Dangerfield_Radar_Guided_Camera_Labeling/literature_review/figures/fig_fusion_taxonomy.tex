@@ -1,0 +1,104 @@
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    align=center,
+    font=\small,
+    line width=1.5pt,
+    >={Stealth},
+    radarbox/.style={rectangle, draw=Garnet, fill=Garnet!10, text width=1.8cm, minimum height=0.6cm, line width=1.5pt, align=center},
+    camerabox/.style={rectangle, draw=Atlantic, fill=Atlantic!10, text width=1.8cm, minimum height=0.6cm, line width=1.5pt, align=center},
+    fusionbox/.style={rectangle, draw=Congaree, fill=Congaree!10, text width=1.8cm, minimum height=0.6cm, line width=1.5pt, align=center},
+    processbox/.style={rectangle, draw=black!90, fill=black!10, text width=1.6cm, minimum height=0.6cm, line width=1.5pt, align=center},
+    detectionbox/.style={rectangle, draw=black!90, fill=black!10, text width=1.8cm, minimum height=0.6cm, line width=1.5pt, align=center},
+    arrowar/.style={draw=black, line width=1.5pt, -Stealth},
+    radarar/.style={draw=Garnet, line width=1.5pt, -Stealth},
+    cameraar/.style={draw=Atlantic, line width=1.5pt, -Stealth},
+    fusionar/.style={draw=Congaree, line width=1.5pt, -Stealth},
+]
+
+% ===== EARLY FUSION (TOP) =====
+\node[font=\bfseries\normalsize, anchor=south] at (4, 10) {Early Fusion};
+
+% Early Fusion - Radar path
+\node[radarbox] (ef_radar) at (0.5, 9) {Radar Data};
+\node[processbox] (ef_concat) at (3, 9) {Concat/Stack};
+\draw[radarar] (ef_radar) -- (ef_concat);
+
+% Early Fusion - Camera path
+\node[camerabox] (ef_camera) at (0.5, 8) {Camera Data};
+\draw[cameraar] (ef_camera) -- (ef_concat);
+
+% Early Fusion - Processing pipeline
+\node[fusionbox] (ef_encoder) at (5.2, 8.5) {Shared Encoder};
+\draw[arrowar] (ef_concat) -- (ef_encoder);
+
+\node[processbox] (ef_detection) at (7.4, 8.5) {Detection Head};
+\draw[arrowar] (ef_encoder) -- (ef_detection);
+
+\node[detectionbox] (ef_output) at (9.6, 8.5) {Detections};
+\draw[arrowar] (ef_detection) -- (ef_output);
+
+% Early Fusion - Citation
+\node[font=\small\itshape] at (5.2, 7.4) {CRF-Net (2019)};
+
+% ===== MID-LEVEL FUSION (MIDDLE) =====
+\node[font=\bfseries\normalsize, anchor=south] at (4, 6.3) {Mid-Level Fusion (Dominant Paradigm)};
+
+% Mid-Level Fusion - Radar path
+\node[radarbox] (ml_radar) at (0.5, 5.3) {Radar Data};
+\node[processbox] (ml_radar_enc) at (2.3, 5.3) {Radar Encoder};
+\draw[radarar] (ml_radar) -- (ml_radar_enc);
+
+% Mid-Level Fusion - Camera path
+\node[camerabox] (ml_camera) at (0.5, 4.3) {Camera Data};
+\node[processbox] (ml_camera_enc) at (2.3, 4.3) {Camera Encoder};
+\draw[cameraar] (ml_camera) -- (ml_camera_enc);
+
+% Mid-Level Fusion - Fusion module
+\node[fusionbox] (ml_fusion) at (5.2, 4.8) {Fusion Module};
+\draw[arrowar] (ml_radar_enc) -- (ml_fusion);
+\draw[arrowar] (ml_camera_enc) -- (ml_fusion);
+
+% Mid-Level Fusion - Detection
+\node[processbox] (ml_detection) at (7.4, 4.8) {Detection Head};
+\draw[arrowar] (ml_fusion) -- (ml_detection);
+
+\node[detectionbox] (ml_output) at (9.6, 4.8) {Detections};
+\draw[arrowar] (ml_detection) -- (ml_output);
+
+% Mid-Level Fusion - Subtypes
+\node[font=\small, anchor=north west] at (5.2, 3.9) {BEV: BEVFusion};
+\node[font=\small, anchor=north west] at (5.2, 3.5) {Frustum: CenterFusion};
+\node[font=\small, anchor=north west] at (5.2, 3.1) {Attention: CRAFT};
+\node[font=\small, anchor=north west] at (5.2, 2.7) {Query: FUTR3D};
+
+% ===== LATE FUSION (BOTTOM) =====
+\node[font=\bfseries\normalsize, anchor=south] at (4, 1.8) {Late Fusion};
+
+% Late Fusion - Radar path
+\node[radarbox] (lf_radar) at (0.5, 0.8) {Radar Data};
+\node[processbox] (lf_radar_det) at (2.5, 0.8) {Radar Detector};
+\node[detectionbox] (lf_radar_output) at (4.5, 0.8) {Radar Detections};
+\draw[radarar] (lf_radar) -- (lf_radar_det);
+\draw[arrowar] (lf_radar_det) -- (lf_radar_output);
+
+% Late Fusion - Camera path
+\node[camerabox] (lf_camera) at (0.5, -0.2) {Camera Data};
+\node[processbox] (lf_camera_det) at (2.5, -0.2) {Camera Detector};
+\node[detectionbox] (lf_camera_output) at (4.5, -0.2) {Camera Detections};
+\draw[cameraar] (lf_camera) -- (lf_camera_det);
+\draw[arrowar] (lf_camera_det) -- (lf_camera_output);
+
+% Late Fusion - Final fusion
+\node[fusionbox] (lf_nms) at (7.3, 0.3) {NMS/Kalman};
+\draw[arrowar] (lf_radar_output) -- (lf_nms);
+\draw[arrowar] (lf_camera_output) -- (lf_nms);
+
+\node[detectionbox] (lf_final) at (9.6, 0.3) {Final Detections};
+\draw[arrowar] (lf_nms) -- (lf_final);
+
+\end{tikzpicture}
+\caption{Taxonomy of radar-camera fusion architectures. Early fusion concatenates raw sensor data before a shared encoder; mid-level fusion independently encodes each modality before feature-level fusion; late fusion merges independent detection outputs. Mid-level fusion dominates current research due to its flexibility in handling heterogeneous data formats.}
+\label{fig:fusion_taxonomy}
+\end{figure}

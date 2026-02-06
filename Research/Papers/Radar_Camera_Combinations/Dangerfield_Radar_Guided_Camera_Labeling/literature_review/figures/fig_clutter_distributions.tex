@@ -1,0 +1,83 @@
+% Sea Clutter Statistical Distribution Comparison
+% Rayleigh, K-distribution, and Weibull models
+% X-band radar signal processing
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{semilogyaxis}[
+    width=0.95\textwidth,
+    height=7cm,
+    xlabel={Normalized Amplitude $a$ (dimensionless)},
+    ylabel={Probability Density Function (log scale)},
+    xmin=0, xmax=5,
+    ymin=1e-4, ymax=1e1,
+    grid style={gray!30, thin},
+    legend pos=north east,
+    legend style={draw=black, fill=white, fill opacity=0.9, font=\small},
+    tick label style={font=\small},
+    label style={font=\small},
+    width=0.95\textwidth,
+    height=7cm,
+]
+
+% Rayleigh distribution: p(a) = a/σ² * exp(-a²/(2σ²)), σ²=1
+% p(a) = a * exp(-a²/2)
+\addplot[
+    color=Garnet,
+    line width=2pt,
+    domain=0:5,
+    samples=300
+] {x*exp(-x^2/2)};
+\addlegendentry{Rayleigh ($\sigma^2=1$)};
+
+% Weibull c=1.5, λ=1: p(a) = (c/λ)(a/λ)^(c-1) exp(-(a/λ)^c)
+% p(a) = 1.5 * a^0.5 * exp(-a^1.5)
+\addplot[
+    color=Congaree,
+    line width=2pt,
+    domain=0:5,
+    samples=300
+] {1.5*x^0.5*exp(-x^1.5)};
+\addlegendentry{Weibull ($c=1.5$, $\lambda=1$)};
+
+% K-distribution approximation using heavy-tail Weibull with c=0.6, λ=1.2
+% Approximates K-distribution behavior with ν=0.5, μ=1
+% p(a) = 0.6/1.2 * (a/1.2)^(-0.4) * exp(-(a/1.2)^0.6)
+\addplot[
+    color=Atlantic,
+    line width=2pt,
+    domain=0.05:5,
+    samples=300
+] {0.5*pow(x/1.2, -0.4)*exp(-pow(x/1.2, 0.6))};
+\addlegendentry{K-distribution ($\nu=0.5$, $\mu=1$)};
+
+% Heavy-tail Weibull c=0.8, λ=1: p(a) = 0.8 * a^(-0.2) * exp(-a^0.8)
+\addplot[
+    color=Rose,
+    line width=2pt,
+    domain=0.05:5,
+    samples=300
+] {0.8*pow(x, -0.2)*exp(-pow(x, 0.8))};
+\addlegendentry{Weibull ($c=0.8$, $\lambda=1$)};
+
+% Annotation for sea spike region
+\draw[
+    line width=1pt,
+    dashed,
+    color=black!50
+] (axis cs:3.0,1e-4) -- (axis cs:3.0,1e1);
+
+\node[
+    anchor=south east,
+    font=\footnotesize,
+    color=black!70,
+    text width=2.5cm,
+    align=right
+] at (axis cs:4.8,8e-1) {Sea spike region};
+
+\end{semilogyaxis}
+\end{tikzpicture}
+\caption{Comparison of sea clutter amplitude probability density functions. Heavy-tailed distributions (K-distribution, low-shape Weibull) assign substantially higher probability to large-amplitude returns (sea spikes) compared to the Rayleigh model, necessitating non-Gaussian CFAR detectors for reliable maritime target detection.}
+\label{fig:clutter_distributions}
+\end{figure}

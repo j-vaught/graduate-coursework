@@ -1,0 +1,84 @@
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=3cm,
+  box/.style={
+    rectangle,
+    draw=#1,
+    line width=2pt,
+    fill=white,
+    text width=2.2cm,
+    text centered,
+    minimum height=1.2cm,
+    font=\small\bfseries
+  },
+  label_below/.style={
+    font=\tiny,
+    text width=2.2cm,
+    text centered,
+    below,
+    inner sep=2pt
+  },
+  clutter/.style={
+    rectangle,
+    draw=#1,
+    line width=2pt,
+    fill=white,
+    text width=1.8cm,
+    text centered,
+    minimum height=0.9cm,
+    font=\small\bfseries
+  },
+  arrow/.style={
+    ->,
+    line width=2pt,
+    color=#1
+  }
+]
+
+% Define colors (RGB to TikZ)
+\colorlet{garnet}{Garnet}
+\colorlet{rose}{Rose}
+\definecolor{Black}{RGB}{0,0,0}
+
+% Main processing chain boxes (left to right)
+\node[box=Garnet] (raw) {Raw RF\\Returns};
+
+\node[box=Garnet, right of=raw] (pulse) {Pulse\\Compression};
+\node[label_below=Garnet, anchor=north, below of=pulse, yshift=0.1cm] {LFM chirp\\sidelobe suppression};
+
+\node[box=Garnet, right of=pulse] (cfar) {CFAR\\Detection};
+\node[label_below=Garnet, anchor=north, below of=cfar, yshift=0.1cm] {CA-CFAR / OS-CFAR\\adaptive threshold};
+
+\node[box=Garnet, right of=cfar] (cluster) {Clustering\\(DBSCAN/ST-DBSCAN)};
+\node[label_below=Garnet, anchor=north, below of=cluster, yshift=0.1cm] {Range-adaptive $\varepsilon$\\MinPts};
+
+\node[box=Garnet, right of=cluster] (track) {Track\\Formation};
+\node[label_below=Garnet, anchor=north, below of=track, yshift=0.1cm] {$\alpha$-$\beta$ filter / Kalman\\MARPA};
+
+\node[box=Garnet, right of=track] (detect) {Detection List\\$(r, \theta, \text{RCS})$};
+
+% Main processing chain arrows
+\draw[arrow=Garnet] (raw) -- (pulse);
+\draw[arrow=Garnet] (pulse) -- (cfar);
+\draw[arrow=Garnet] (cfar) -- (cluster);
+\draw[arrow=Garnet] (cluster) -- (track);
+\draw[arrow=Garnet] (track) -- (detect);
+
+% Environmental clutter inputs (above the main chain)
+% Position clutter sources above CFAR
+\node[clutter=Rose, above of=cfar, yshift=2.5cm] (seaclutter) {Sea Clutter\\(K-dist)};
+\node[clutter=Rose, left of=seaclutter, xshift=-1.5cm] (rain) {Rain\\Clutter};
+\node[clutter=Rose, right of=seaclutter, xshift=1.5cm] (multipath) {Multipath};
+\node[clutter=Rose, right of=multipath, xshift=1.5cm] (interference) {EMI\\Interference};
+
+% Arrows from clutter sources to CFAR
+\draw[arrow=Rose] (seaclutter) -- (cfar.north);
+\draw[arrow=Rose] (rain) -- ($(cfar.north) + (-0.3cm, 0)$);
+\draw[arrow=Rose] (multipath) -- ($(cfar.north) + (0.3cm, 0)$);
+\draw[arrow=Rose] (interference) -- ($(cfar.north) + (0.6cm, 0)$);
+
+\end{tikzpicture}
+\caption{X-band marine radar signal processing chain. Raw RF returns are compressed, thresholded by CFAR detection, clustered into target-level reports, and formed into tracks. Environmental interference sources---sea clutter, rain, multipath, and electromagnetic interference---degrade detection performance at each stage.}
+\label{fig:signal_processing_chain}
+\end{figure*}

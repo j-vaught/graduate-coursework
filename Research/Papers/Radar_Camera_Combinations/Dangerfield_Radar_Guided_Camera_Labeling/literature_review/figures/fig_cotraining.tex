@@ -1,0 +1,84 @@
+% Co-training framework for radar-camera maritime detection
+\begin{figure}[t]
+	\centering
+	\begin{tikzpicture}[
+		scale=1.0,
+		node distance=2cm,
+		>=latex,
+		box/.style={rectangle, minimum width=3.2cm, minimum height=0.8cm, draw, fill=white, line width=1.5pt},
+		radar_box/.style={rectangle, minimum width=3.2cm, minimum height=0.8cm, draw=Garnet, fill=white, line width=1.5pt},
+		camera_box/.style={rectangle, minimum width=3.2cm, minimum height=0.8cm, draw=Atlantic, fill=white, line width=1.5pt},
+		arrow_radar/.style={->, line width=2pt, color=Garnet},
+		arrow_camera/.style={->, line width=2pt, color=Atlantic},
+		arrow_transfer/.style={<->, line width=2pt, color=Rose, dashed},
+		text_small/.style={font=\small, align=center},
+		text_tiny/.style={font=\tiny, align=center},
+	]
+
+	% === RADAR PATH (TOP) ===
+	\node[radar_box] (radar_input) at (0, 4.5) {Radar Data};
+	\node[font=\tiny, below=0.05cm of radar_input, text=Garnet] {range, bearing, RCS, Doppler};
+	\node[radar_box] (radar_detector) at (3.5, 4.5) {Radar Detector};
+	\node[radar_box] (radar_predictions) at (7, 4.5) {Confident Radar Predictions};
+
+	% Radar path arrows
+	\draw[arrow_radar] (radar_input) -- (radar_detector);
+	\draw[arrow_radar] (radar_detector) -- (radar_predictions);
+
+	% === CAMERA PATH (BOTTOM) ===
+	\node[camera_box] (camera_input) at (0, 2) {Camera Data};
+	\node[font=\tiny, below=0.05cm of camera_input, text=Atlantic] {RGB imagery};
+	\node[camera_box] (camera_detector) at (3.5, 2) {Camera Detector};
+	\node[camera_box] (camera_predictions) at (7, 2) {Confident Camera Predictions};
+
+	% Camera path arrows
+	\draw[arrow_camera] (camera_input) -- (camera_detector);
+	\draw[arrow_camera] (camera_detector) -- (camera_predictions);
+
+	% === BIDIRECTIONAL LABEL TRANSFER ===
+	\draw[arrow_transfer] (radar_predictions.south west) -- (camera_detector.north east)
+		node[midway, xshift=-0.7cm, yshift=0.3cm, text_small, color=Rose] {labels};
+	\draw[arrow_transfer] (camera_predictions.north east) -- (radar_detector.south west)
+		node[midway, xshift=0.7cm, yshift=-0.3cm, text_small, color=Rose] {labels};
+
+	% === ITERATION LOOP ===
+	\node[text_tiny, color=Garnet] (iter_label) at (8.8, 3.25) {Iteration};
+	\draw[->, line width=1.5pt, color=Garnet, rounded corners=5pt]
+		(7.3, 1.7) -- (8.2, 1.7) -- (8.2, 4.8) -- (7.3, 4.8);
+	\node[text_tiny, color=Garnet] (iter_nums) at (8.8, 3.8) {1, 2, 3 \ldots};
+	\node[text_tiny, color=Garnet, text width=1.5cm] (iter_result) at (8.8, 2.7) {improving accuracy};
+
+	% === CONDITIONAL INDEPENDENCE ANNOTATION (LEFT) ===
+	\node[rectangle, draw=none, fill=none, minimum width=3cm, text_tiny, align=left,
+		text=Garnet] (radar_features) at (-0.5, 0.8) {
+		\textbf{Radar features:}\\
+		material\\
+		geometry\\
+		reflectivity
+	};
+
+	\node[rectangle, draw=none, fill=none, minimum width=3cm, text_tiny, align=left,
+		text=Atlantic] (camera_features) at (8.8, 0.8) {
+		\textbf{Camera features:}\\
+		texture\\
+		color\\
+		shape, context
+	};
+
+	% === CONDITIONAL INDEPENDENCE ASSUMPTION ===
+	\node[rectangle, draw=none, fill=none, minimum width=5cm, text_tiny, align=center,
+		text=black!70] (assumption) at (3.5, -0.8) {
+		\textit{Approximately conditionally independent given target class}
+	};
+
+	% === VIOLATION NOTE ===
+	\definecolor{sandstorm}{RGB}{255,242,227}
+	\node[rectangle, draw=Rose, fill=sandstorm, line width=1.5pt,
+		minimum width=5cm, text_tiny, align=center, text=Rose] (violation) at (3.5, -2.2) {
+		\textbf{Violation:} Heavy rain degrades both sensors simultaneously
+	};
+
+	\end{tikzpicture}
+	\caption{Co-training framework for radar-camera maritime detection. Each modality's confident predictions serve as training labels for the other, exploiting the approximate conditional independence of radar and camera features. The framework assumes complementary failure modes but is weakened when environmental conditions degrade both sensors simultaneously.}
+	\label{fig:cotraining}
+\end{figure}
