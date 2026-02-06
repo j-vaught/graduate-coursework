@@ -1,9 +1,13 @@
 """
-Animated World-to-Camera Projection
+Animated Radar PPI + Camera Projection
 Generates per-frame LaTeX/TikZ files → PDF → PNG → GIF
 
-Left panel:  top-down world view with moving objects
-Right panel: projected camera view with sky/water and solid colored rounded rectangles
+Left panel:  Radar PPI display (dark circular scope, range rings,
+             bearing lines, sweep beam, bright blips)
+Right panel: Projected camera view with sky/water and solid colored
+             rounded rectangles
+
+Camera is co-located with the radar at the origin.
 """
 
 import os
@@ -140,30 +144,34 @@ def project_bbox(x, y, obj):
 
 
 # ---------------------------------------------------------------------------
-# TikZ coordinate helpers
+# PPI display parameters
 # ---------------------------------------------------------------------------
-# Top-down view:  world X,Y mapped to TikZ cm
-# View window: X in [-300, 300], Y in [-50, 950]  → 8cm wide, 8cm tall
-TD_W, TD_H = 8.0, 8.0
-TD_XMIN, TD_XMAX = -300, 300
-TD_YMIN, TD_YMAX = -50, 950
+PPI_RADIUS_CM = 4.0              # TikZ radius of the PPI circle
+PPI_CX, PPI_CY = 4.0, 4.0       # TikZ center of the PPI circle
+PPI_MAX_RANGE = 1000.0           # max range displayed (m)
+SWEEP_RPM = 24                   # radar sweep speed (revolutions per minute)
+SWEEP_DEG_PER_FRAME = (SWEEP_RPM * 360.0) / (FPS * 60)  # degrees per frame
 
-def td_coord(x, y):
-    """World (x,y) → TikZ (cm) in top-down panel."""
-    tx = TD_W * (x - TD_XMIN) / (TD_XMAX - TD_XMIN)
-    ty = TD_H * (y - TD_YMIN) / (TD_YMAX - TD_YMIN)
+def ppi_coord(x_world, y_world):
+    """World (x=right, y=forward) → TikZ (cm) on the PPI scope.
+    PPI convention: up = forward = 0° bearing, right = +90°.
+    """
+    rng = np.sqrt(x_world**2 + y_world**2)
+    r_cm = PPI_RADIUS_CM * min(rng / PPI_MAX_RANGE, 1.0)
+    bearing = np.arctan2(x_world, y_world)  # angle from forward
+    tx = PPI_CX + r_cm * np.sin(bearing)
+    ty = PPI_CY + r_cm * np.cos(bearing)
     return tx, ty
 
 # Camera view: pixel (u,v) mapped to TikZ cm
-# 12cm wide, proportional height
 CAM_W = 12.0
 CAM_H = CAM_W * IMAGE_H / IMAGE_W  # ~6.75 cm
-CAM_X_OFF = TD_W + 1.5  # horizontal offset from top-down
+CAM_X_OFF = PPI_CX + PPI_RADIUS_CM + 1.5  # offset right of PPI
 
 def cam_coord(u, v):
     """Pixel (u,v) → TikZ (cm) in camera panel."""
     cx_ = CAM_X_OFF + CAM_W * u / IMAGE_W
-    cy_ = CAM_H * (1.0 - v / IMAGE_H)  # flip v (image v=0 is top)
+    cy_ = CAM_H * (1.0 - v / IMAGE_H)
     return cx_, cy_
 
 
@@ -188,86 +196,120 @@ def generate_frame_tex(frame_idx):
     lines.append(r"\definecolor{watertop}{RGB}{82,128,140}")
     lines.append(r"\definecolor{waterbot}{RGB}{20,56,71}")
 
-    # ===================================================================
-    # TOP-DOWN VIEW
-    # ===================================================================
-    # Background
-    lines.append(f"\\fill[black10] (0,0) rectangle ({TD_W},{TD_H});")
+    # PPI scope colors
+    lines.append(r"\definecolor{ppibg}{RGB}{8,18,8}")
+    lines.append(r"\definecolor{ppigrid}{RGB}{30,70,30}")
+    lines.append(r"\definecolor{ppisweep}{RGB}{60,180,60}")
+    lines.append(r"\definecolor{ppiglow}{RGB}{80,220,80}")
+    lines.append(r"\definecolor{ppifov}{RGB}{70,106,159}")
 
-    # Grid
-    for gx in range(-200, 300, 100):
-        tx, _ = td_coord(gx, TD_YMIN)
-        _, ty0 = td_coord(0, TD_YMIN)
-        _, ty1 = td_coord(0, TD_YMAX)
-        lines.append(f"\\draw[black30, very thin] ({tx:.3f},{ty0:.3f}) -- ({tx:.3f},{ty1:.3f});")
-    for gy in range(0, 1000, 200):
-        tx0, ty = td_coord(TD_XMIN, gy)
-        tx1, _  = td_coord(TD_XMAX, gy)
-        lines.append(f"\\draw[black30, very thin] ({tx0:.3f},{ty:.3f}) -- ({tx1:.3f},{ty:.3f});")
+    # ===================================================================
+    # RADAR PPI DISPLAY
+    # ===================================================================
+    R_cm = PPI_RADIUS_CM
+    ocx, ocy = PPI_CX, PPI_CY
 
-    # FOV wedge
+    # Clip everything to the PPI circle
+    lines.append(f"\\begin{{scope}}")
+    lines.append(f"\\clip ({ocx:.3f},{ocy:.3f}) circle ({R_cm:.3f});")
+
+    # Dark background
+    lines.append(f"\\fill[ppibg] ({ocx-R_cm:.3f},{ocy-R_cm:.3f}) "
+                 f"rectangle ({ocx+R_cm:.3f},{ocy+R_cm:.3f});")
+
+    # Range rings (full circles, clipped)
+    for rng in [200, 400, 600, 800, 1000]:
+        r_cm = R_cm * rng / PPI_MAX_RANGE
+        lines.append(f"\\draw[ppigrid, very thin] ({ocx:.3f},{ocy:.3f}) circle ({r_cm:.3f});")
+
+    # Bearing lines every 30 degrees
+    for bearing_deg in range(0, 360, 30):
+        b_rad = np.deg2rad(bearing_deg)
+        ex = ocx + R_cm * np.sin(b_rad)
+        ey = ocy + R_cm * np.cos(b_rad)
+        lines.append(f"\\draw[ppigrid, very thin] ({ocx:.3f},{ocy:.3f}) -- ({ex:.3f},{ey:.3f});")
+
+    # Camera FOV wedge overlay
     half_fov = HFOV_RAD / 2
-    cam_x, cam_y = td_coord(0, 0)
-    fov_range = 900
     n_arc = 60
+    fov_r_cm = R_cm  # extend to edge
     arc_angles = np.linspace(-half_fov, half_fov, n_arc)
-
-    # Fill wedge
-    wedge_pts = [(cam_x, cam_y)]
+    wedge_pts = [(ocx, ocy)]
     for a in arc_angles:
-        wx = fov_range * np.sin(a)
-        wy = fov_range * np.cos(a)
-        px, py = td_coord(wx, wy)
-        wedge_pts.append((px, py))
-    wedge_pts.append((cam_x, cam_y))
+        wx = ocx + fov_r_cm * np.sin(a)
+        wy = ocy + fov_r_cm * np.cos(a)
+        wedge_pts.append((wx, wy))
+    wedge_pts.append((ocx, ocy))
     pts_str = " -- ".join(f"({p[0]:.3f},{p[1]:.3f})" for p in wedge_pts)
-    lines.append(f"\\fill[atlantic, opacity=0.08] {pts_str} -- cycle;")
-    lines.append(f"\\draw[atlantic, dashed, thin] {pts_str};")
+    lines.append(f"\\fill[ppifov, opacity=0.12] {pts_str} -- cycle;")
+    lines.append(f"\\draw[ppifov, opacity=0.4, thin] "
+                 f"({ocx:.3f},{ocy:.3f}) -- ({wedge_pts[1][0]:.3f},{wedge_pts[1][1]:.3f});")
+    lines.append(f"\\draw[ppifov, opacity=0.4, thin] "
+                 f"({ocx:.3f},{ocy:.3f}) -- ({wedge_pts[-2][0]:.3f},{wedge_pts[-2][1]:.3f});")
 
-    # Range rings
-    for rng in [200, 400, 600, 800]:
-        arc_pts = []
-        for a in np.linspace(-np.pi/2, np.pi/2, 80):
-            rx = rng * np.cos(a)
-            ry = rng * np.sin(a)
-            px, py = td_coord(rx, ry)
-            arc_pts.append((px, py))
-        arc_str = " -- ".join(f"({p[0]:.3f},{p[1]:.3f})" for p in arc_pts)
-        lines.append(f"\\draw[black30, dotted, very thin] {arc_str};")
-        lx, ly = td_coord(10, rng)
-        lines.append(f"\\node[black50, font=\\tiny] at ({lx:.3f},{ly:.3f}) {{{rng}m}};")
+    # Radar sweep beam (rotating line with glow)
+    sweep_angle_deg = (frame_idx * SWEEP_DEG_PER_FRAME) % 360
+    sweep_rad = np.deg2rad(sweep_angle_deg)
+    sx = ocx + R_cm * np.sin(sweep_rad)
+    sy = ocy + R_cm * np.cos(sweep_rad)
+    # Trailing glow wedge (~15 degrees behind the beam)
+    for trail_offset in range(15):
+        trail_a = np.deg2rad(sweep_angle_deg - trail_offset)
+        trail_x = ocx + R_cm * np.sin(trail_a)
+        trail_y = ocy + R_cm * np.cos(trail_a)
+        opacity = 0.15 * (1.0 - trail_offset / 15.0)
+        lines.append(f"\\draw[ppisweep, opacity={opacity:.3f}, line width=0.8pt] "
+                     f"({ocx:.3f},{ocy:.3f}) -- ({trail_x:.3f},{trail_y:.3f});")
+    # Main beam line
+    lines.append(f"\\draw[ppiglow, opacity=0.9, line width=1pt] "
+                 f"({ocx:.3f},{ocy:.3f}) -- ({sx:.3f},{sy:.3f});")
 
-    # Camera marker
-    lines.append(f"\\node[black90, font=\\tiny\\bfseries, below right] at ({cam_x:.3f},{cam_y:.3f}) {{Camera}};")
-    lines.append(f"\\fill[black] ({cam_x:.3f},{cam_y:.3f}) -- "
-                 f"({cam_x-0.15:.3f},{cam_y-0.25:.3f}) -- ({cam_x+0.15:.3f},{cam_y-0.25:.3f}) -- cycle;")
-
-    # Objects in top-down
+    # Object blips
     for obj in OBJECTS:
         x, y = get_position(obj, frame_idx)
+        rng = np.sqrt(x**2 + y**2)
+        if rng > PPI_MAX_RANGE:
+            continue
+        bx, by = ppi_coord(x, y)
         col = obj["color"]
-        hw = obj["w"] / 2
-        hl = obj["l"] / 2
-        x0t, y0t = td_coord(x - hw, y - hl)
-        x1t, y1t = td_coord(x + hw, y + hl)
-        w_cm = x1t - x0t
-        h_cm = y1t - y0t
-        lines.append(f"\\fill[{col}, opacity=0.7] ({x0t:.3f},{y0t:.3f}) rectangle ({x1t:.3f},{y1t:.3f});")
-        lines.append(f"\\draw[{col}, thick] ({x0t:.3f},{y0t:.3f}) rectangle ({x1t:.3f},{y1t:.3f});")
-        # Label
-        lx, ly = td_coord(x + hw + 5, y)
-        lines.append(f"\\node[{col}, font=\\tiny\\bfseries, right] at ({lx:.3f},{ly:.3f}) {{{obj['label']}}};")
+        # Blip size scales with object width, min 0.06cm
+        blip_r = max(0.06, R_cm * obj["w"] / PPI_MAX_RANGE * 0.6)
+        # Bright glow ring
+        lines.append(f"\\fill[{col}, opacity=0.3] ({bx:.3f},{by:.3f}) circle ({blip_r*2.0:.3f});")
+        # Core blip
+        lines.append(f"\\fill[{col}] ({bx:.3f},{by:.3f}) circle ({blip_r:.3f});")
+        # Bright center dot
+        lines.append(f"\\fill[white, opacity=0.7] ({bx:.3f},{by:.3f}) circle ({blip_r*0.35:.3f});")
 
-    # Top-down title
-    tx, ty = td_coord(0, TD_YMAX)
-    lines.append(f"\\node[black90, font=\\small\\bfseries, above] at ({TD_W/2:.3f},{TD_H + 0.3:.3f}) {{Top-Down World View}};")
+    lines.append(f"\\end{{scope}}")
 
-    # Axis labels
-    lines.append(f"\\node[black70, font=\\tiny, below] at ({TD_W/2:.3f},-0.3) {{X (m, cross-range)}};")
-    lines.append(f"\\node[black70, font=\\tiny, rotate=90, left] at (-0.3,{TD_H/2:.3f}) {{Y (m, range)}};")
+    # PPI circle border
+    lines.append(f"\\draw[black70, thick] ({ocx:.3f},{ocy:.3f}) circle ({R_cm:.3f});")
 
-    # Border
-    lines.append(f"\\draw[black90, thick] (0,0) rectangle ({TD_W},{TD_H});")
+    # Range labels outside circle
+    for rng in [200, 400, 600, 800]:
+        r_cm = R_cm * rng / PPI_MAX_RANGE
+        lx = ocx + 0.12
+        ly = ocy + r_cm
+        lines.append(f"\\node[ppiglow, font=\\fontsize{{4}}{{4}}\\selectfont, "
+                     f"right] at ({lx:.3f},{ly:.3f}) {{{rng}m}};")
+
+    # Bearing labels
+    for bdeg, blabel in [(0, "0°"), (90, "90°"), (180, "180°"), (270, "270°")]:
+        b_rad = np.deg2rad(bdeg)
+        lx = ocx + (R_cm + 0.3) * np.sin(b_rad)
+        ly = ocy + (R_cm + 0.3) * np.cos(b_rad)
+        lines.append(f"\\node[black50, font=\\fontsize{{4}}{{4}}\\selectfont] "
+                     f"at ({lx:.3f},{ly:.3f}) {{{blabel}}};")
+
+    # Title
+    lines.append(f"\\node[black90, font=\\small\\bfseries, above] at "
+                 f"({ocx:.3f},{ocy + R_cm + 0.6:.3f}) {{Radar PPI}};")
+
+    # Center marker (radar/camera location)
+    lines.append(f"\\fill[ppiglow] ({ocx:.3f},{ocy:.3f}) circle (0.04);")
+    lines.append(f"\\draw[ppiglow, very thin] ({ocx-0.1:.3f},{ocy:.3f}) -- ({ocx+0.1:.3f},{ocy:.3f});")
+    lines.append(f"\\draw[ppiglow, very thin] ({ocx:.3f},{ocy-0.1:.3f}) -- ({ocx:.3f},{ocy+0.1:.3f});")
 
     # ===================================================================
     # CAMERA VIEW
