@@ -333,7 +333,7 @@ def generate_frame_tex(frame_idx):
         cx1, cy1 = cam_coord(u_max_c, v_min_c)
 
         # Solid colored rounded rectangle with white outline
-        lines.append(f"\\fill[{col}, opacity=0.85, rounded corners=1.5pt] "
+        lines.append(f"\\fill[{col}, rounded corners=1.5pt] "
                      f"({cx0:.3f},{cy0:.3f}) rectangle ({cx1:.3f},{cy1:.3f});")
         lines.append(f"\\draw[white, thick, rounded corners=1.5pt] "
                      f"({cx0:.3f},{cy0:.3f}) rectangle ({cx1:.3f},{cy1:.3f});")
