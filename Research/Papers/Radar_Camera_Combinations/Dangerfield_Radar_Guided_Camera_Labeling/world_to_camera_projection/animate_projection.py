@@ -33,7 +33,7 @@ COLORS = {
     "horseshoe": (101, 120,  11),
     "rose":      (204,  46,  64),
     "congaree":  ( 31,  65,  77),
-    "honeycomb": (164, 145,  55),
+    "honeycomb": (255, 210,   0),
     "black90":   ( 54,  54,  54),
     "black70":   ( 92,  92,  92),
     "black50":   (162, 162, 162),
@@ -365,8 +365,8 @@ def generate_frame_tex(frame_idx):
             continue
 
         pts_str = " -- ".join(f"({p[0]:.3f},{p[1]:.3f})" for p in proj_pts)
-        lines.append(f"\\fill[honeycomb, opacity=0.20] {pts_str} -- cycle;")
-        lines.append(f"\\draw[honeycomb, thick] {pts_str} -- cycle;")
+        lines.append(f"\\fill[honeycomb] {pts_str} -- cycle;")
+        lines.append(f"\\draw[honeycomb!70!black, thick] {pts_str} -- cycle;")
         if radar_pt is not None:
             ru, rv = radar_pt
             if 0 <= ru <= IMAGE_W and 0 <= rv <= IMAGE_H:
