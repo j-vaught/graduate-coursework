@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Generate a radar PPI animation showing sequential camera target acquisition.
+"""Generate a radar PPI animation with greedy closest-object target acquisition.
 
-The camera arc starts wide, visits each moving object (labeling it with a
-bounding box once identified), then labels stationary objects. Objects move
-slowly across the PPI throughout.
+The camera arc initialises wide, then repeatedly locks onto the closest
+unlabeled object (by range from radar centre), dwells until a bounding box
+is generated, and moves on to the next closest — until every object is
+labelled.
 
 Produces TikZ frames compiled to PDF/PNG, then stitched into MP4 and GIF.
 """
@@ -55,72 +56,34 @@ def _arc_traj(cx, cy, r, a0_deg, a1_deg):
         return (cx + r * math.cos(a), cy + r * math.sin(a))
     return traj
 
-# Stationary objects: key -> (x, y)
 STATIONARY = {
     "B1": (2.0, 3.0),
     "V1": (-3.0, -1.5),
 }
 
-# Moving objects: key -> trajectory_func(t) -> (x, y), t in [0,1]
 MOVING = {
     "S1": _linear(-4.0, 4.0, 3.0, -3.0),
     "S2": _linear(2.0, -4.5, -1.0, 4.5),
     "S3": _arc_traj(0.0, 0.0, 3.5, 210, 30),
 }
 
-# ---------------------------------------------------------------------------
-# Animation timeline (segments)
-# ---------------------------------------------------------------------------
-# Segment types:
-#   "init"  – scene visible, no bboxes, arc sits at start position
-#   "move"  – arc transitions from current angle/width to target
-#   "dwell" – arc tracks target; bbox appears after bbox_delay frames
-#   "hold"  – everything stays, final view
-
-ARC_INIT_ANGLE = 210.0   # starting direction (SW-ish)
-ARC_INIT_WIDTH = 50.0    # starting FOV degrees
-MOVING_ARC_WIDTH = 18.0  # wider shot for moving objects
-STATIC_ARC_WIDTH = 10.0  # tighter for stationary objects
-
-SEGMENTS = [
-    {"type": "init",  "duration": 12},
-    # --- Moving objects first ---
-    {"type": "move",  "duration": 25, "target": "S1", "width": MOVING_ARC_WIDTH},
-    {"type": "dwell", "duration": 14, "target": "S1", "bbox_delay": 8},
-    {"type": "move",  "duration": 22, "target": "S2", "width": MOVING_ARC_WIDTH},
-    {"type": "dwell", "duration": 14, "target": "S2", "bbox_delay": 8},
-    {"type": "move",  "duration": 22, "target": "S3", "width": MOVING_ARC_WIDTH},
-    {"type": "dwell", "duration": 14, "target": "S3", "bbox_delay": 8},
-    # --- Stationary objects ---
-    {"type": "move",  "duration": 20, "target": "B1", "width": STATIC_ARC_WIDTH},
-    {"type": "dwell", "duration": 14, "target": "B1", "bbox_delay": 8},
-    {"type": "move",  "duration": 20, "target": "V1", "width": STATIC_ARC_WIDTH},
-    {"type": "dwell", "duration": 14, "target": "V1", "bbox_delay": 8},
-    # --- Final hold ---
-    {"type": "hold",  "duration": 15},
-]
-
-# Compute total frames and segment start indices
-_seg_starts = []
-_total = 0
-for seg in SEGMENTS:
-    _seg_starts.append(_total)
-    _total += seg["duration"]
-NUM_FRAMES = _total
-
-# Pre-compute the absolute frame at which each object's bbox appears
-BBOX_APPEAR_FRAME = {}
-for i, seg in enumerate(SEGMENTS):
-    if seg["type"] == "dwell":
-        BBOX_APPEAR_FRAME[seg["target"]] = _seg_starts[i] + seg["bbox_delay"]
-
+ALL_KEYS = list(MOVING.keys()) + list(STATIONARY.keys())
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+ARC_INIT_ANGLE = 210.0
+ARC_INIT_WIDTH = 50.0
+MOVING_ARC_WIDTH = 18.0
+STATIC_ARC_WIDTH = 10.0
+DWELL_DURATION = 14
+BBOX_DELAY = 8
+INIT_DURATION = 12
+HOLD_DURATION = 15
+
+
 def _ease_in_out(t):
-    """Smooth ease-in-out (cubic)."""
     t = max(0.0, min(1.0, t))
     if t < 0.5:
         return 4 * t * t * t
@@ -137,16 +100,99 @@ def _angle_diff(a, b):
 
 
 def _obj_pos(key, t_global):
-    """Get object position at global time t (0..1)."""
     if key in STATIONARY:
         return STATIONARY[key]
     return MOVING[key](t_global)
 
 
+def _obj_range(key, t_global):
+    """Distance from radar centre to object."""
+    x, y = _obj_pos(key, t_global)
+    return math.hypot(x, y)
+
+
 def _angle_to(key, t_global):
-    """Angle from radar center to object (degrees)."""
     x, y = _obj_pos(key, t_global)
     return math.degrees(math.atan2(y, x))
+
+
+# ---------------------------------------------------------------------------
+# Dynamic timeline builder — greedy closest-first
+# ---------------------------------------------------------------------------
+
+def _build_segments():
+    """Build the segment list by always picking the closest unlabeled object."""
+    # Rough total estimate for t_global calculation (refine would be circular,
+    # but positions don't shift enough over ±10% to change the ordering).
+    est_total = INIT_DURATION + len(ALL_KEYS) * 38 + HOLD_DURATION
+
+    segments = [{"type": "init", "duration": INIT_DURATION}]
+    labeled = set()
+    cursor = INIT_DURATION  # current frame
+    prev_angle = ARC_INIT_ANGLE
+
+    while len(labeled) < len(ALL_KEYS):
+        t_now = cursor / est_total
+
+        # Find closest unlabeled object by range from radar centre
+        best_key = None
+        best_range = float("inf")
+        for key in ALL_KEYS:
+            if key in labeled:
+                continue
+            r = _obj_range(key, t_now)
+            if r < best_range:
+                best_range = r
+                best_key = key
+
+        # Move duration proportional to angular distance (15-30 frames)
+        target_angle = _angle_to(best_key, t_now)
+        ang = abs(_angle_diff(prev_angle, target_angle))
+        move_dur = max(15, min(30, int(ang / 7)))
+
+        is_moving = best_key in MOVING
+        width = MOVING_ARC_WIDTH if is_moving else STATIC_ARC_WIDTH
+
+        segments.append({
+            "type": "move", "duration": move_dur,
+            "target": best_key, "width": width,
+        })
+        segments.append({
+            "type": "dwell", "duration": DWELL_DURATION,
+            "target": best_key, "bbox_delay": BBOX_DELAY,
+        })
+
+        labeled.add(best_key)
+        cursor += move_dur + DWELL_DURATION
+        # Update prev_angle to roughly where we'll end up
+        prev_angle = target_angle
+
+    segments.append({"type": "hold", "duration": HOLD_DURATION})
+    return segments
+
+
+SEGMENTS = _build_segments()
+
+# Compute segment start frames
+_seg_starts = []
+_total = 0
+for seg in SEGMENTS:
+    _seg_starts.append(_total)
+    _total += seg["duration"]
+NUM_FRAMES = _total
+
+# Pre-compute absolute frame each bbox appears
+BBOX_APPEAR_FRAME = {}
+for i, seg in enumerate(SEGMENTS):
+    if seg["type"] == "dwell":
+        BBOX_APPEAR_FRAME[seg["target"]] = _seg_starts[i] + seg["bbox_delay"]
+
+# Print the computed acquisition order
+_order = [seg["target"] for seg in SEGMENTS if seg["type"] == "dwell"]
+print(f"Acquisition order (closest-first): {' -> '.join(_order)}")
+print(f"Total frames: {NUM_FRAMES} ({NUM_FRAMES / FPS:.1f}s)")
+for key in _order:
+    print(f"  {key}: bbox at frame {BBOX_APPEAR_FRAME[key]}")
 
 
 # ---------------------------------------------------------------------------
@@ -155,11 +201,11 @@ def _angle_to(key, t_global):
 
 def _get_arc_state(frame_idx):
     """Return (center_angle, width) of the camera arc for a given frame."""
-    t_global = frame_idx / (NUM_FRAMES - 1)
+    t_global = frame_idx / max(1, NUM_FRAMES - 1)
 
     # Find which segment this frame belongs to
     seg_idx = 0
-    for i, start in enumerate(_seg_starts):
+    for i in range(len(_seg_starts)):
         if i + 1 < len(_seg_starts) and frame_idx >= _seg_starts[i + 1]:
             continue
         seg_idx = i
@@ -174,32 +220,27 @@ def _get_arc_state(frame_idx):
         return ARC_INIT_ANGLE, ARC_INIT_WIDTH
 
     elif seg["type"] == "move":
-        target = seg["target"]
-        target_width = seg["width"]
-
-        # Figure out where the arc was at the end of the previous segment
-        prev_angle, prev_width = _get_arc_state(seg_start - 1) if seg_start > 0 else (ARC_INIT_ANGLE, ARC_INIT_WIDTH)
-
-        # Target angle is where the object is NOW (tracks moving objects)
-        target_angle = _angle_to(target, t_global)
-
+        prev_angle, prev_width = (
+            _get_arc_state(seg_start - 1) if seg_start > 0
+            else (ARC_INIT_ANGLE, ARC_INIT_WIDTH)
+        )
+        target_angle = _angle_to(seg["target"], t_global)
         e = _ease_in_out(local_t)
         angle = prev_angle + _angle_diff(prev_angle, target_angle) * e
-        width = prev_width + (target_width - prev_width) * e
+        width = prev_width + (seg["width"] - prev_width) * e
         return angle, width
 
     elif seg["type"] == "dwell":
-        target = seg["target"]
-        # Track the target continuously
-        angle = _angle_to(target, t_global)
-        # Width stays at whatever the preceding move segment targeted
+        angle = _angle_to(seg["target"], t_global)
         prev_seg = SEGMENTS[seg_idx - 1]
         width = prev_seg.get("width", MOVING_ARC_WIDTH)
         return angle, width
 
     elif seg["type"] == "hold":
-        # Stay where we were at end of previous segment
-        return _get_arc_state(seg_start - 1) if seg_start > 0 else (ARC_INIT_ANGLE, ARC_INIT_WIDTH)
+        return (
+            _get_arc_state(seg_start - 1) if seg_start > 0
+            else (ARC_INIT_ANGLE, ARC_INIT_WIDTH)
+        )
 
     return ARC_INIT_ANGLE, ARC_INIT_WIDTH
 
@@ -214,9 +255,7 @@ def _rgb_tex(name, rgb):
 
 
 def make_tex(frame_idx):
-    """Return complete LaTeX source for one frame."""
-    t_global = frame_idx / (NUM_FRAMES - 1)
-
+    t_global = frame_idx / max(1, NUM_FRAMES - 1)
     colordefs = "\n".join(_rgb_tex(n, c) for n, c in COLORS.items())
 
     body = []
@@ -254,7 +293,6 @@ def make_tex(frame_idx):
     # --- Stationary objects ---
     for key, (sx, sy) in STATIONARY.items():
         body.append(f"\\fill[Congaree] ({sx},{sy}) circle (0.10cm);")
-
         if key in BBOX_APPEAR_FRAME and frame_idx >= BBOX_APPEAR_FRAME[key]:
             x0, y0 = sx - BBOX_HALF, sy - BBOX_HALF
             x1, y1 = sx + BBOX_HALF, sy + BBOX_HALF
@@ -270,7 +308,7 @@ def make_tex(frame_idx):
 
         # Trail dots
         for k in range(TRAIL_LENGTH, 0, -1):
-            t_trail = t_global - k * (1.0 / (NUM_FRAMES - 1))
+            t_trail = t_global - k * (1.0 / max(1, NUM_FRAMES - 1))
             if t_trail < 0:
                 continue
             tx, ty = traj(t_trail)
@@ -280,10 +318,8 @@ def make_tex(frame_idx):
                 f"({tx:.4f},{ty:.4f}) circle (0.06cm);"
             )
 
-        # Detection dot
         body.append(f"\\fill[Congaree] ({cx:.4f},{cy:.4f}) circle (0.10cm);")
 
-        # Bounding box only after camera has identified this object
         if key in BBOX_APPEAR_FRAME and frame_idx >= BBOX_APPEAR_FRAME[key]:
             x0, y0 = cx - BBOX_HALF, cy - BBOX_HALF
             x1, y1 = cx + BBOX_HALF, cy + BBOX_HALF
@@ -315,14 +351,13 @@ def make_tex(frame_idx):
 
 
 # ---------------------------------------------------------------------------
-# Pipeline (unchanged)
+# Pipeline
 # ---------------------------------------------------------------------------
 
 def compile_frame(frame_idx):
     tex_name = f"frame_{frame_idx:03d}.tex"
     pdf_name = f"frame_{frame_idx:03d}.pdf"
     png_name = f"frame_{frame_idx:03d}.png"
-
     tex_path = os.path.join(TEMP_DIR, tex_name)
     pdf_path = os.path.join(TEMP_DIR, pdf_name)
     png_path = os.path.join(TEMP_DIR, png_name)
@@ -333,9 +368,7 @@ def compile_frame(frame_idx):
     for _ in range(2):
         result = subprocess.run(
             ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", tex_name],
-            cwd=TEMP_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            cwd=TEMP_DIR, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         if result.returncode != 0:
             print(f"  [ERROR] pdflatex failed on frame {frame_idx}")
@@ -347,11 +380,9 @@ def compile_frame(frame_idx):
         ["pdftoppm", "-r", str(DPI), "-png", pdf_path, ppm_prefix],
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
-
     ppm_output = ppm_prefix + "-1.png"
     if os.path.exists(ppm_output):
         os.rename(ppm_output, png_path)
-
     if not os.path.exists(png_path):
         print(f"  [ERROR] PNG not generated for frame {frame_idx}")
         return None
@@ -360,7 +391,6 @@ def compile_frame(frame_idx):
 
 def stitch_video():
     png_pattern = os.path.join(TEMP_DIR, "frame_%03d.png")
-
     subprocess.run([
         "ffmpeg", "-y", "-framerate", str(FPS), "-i", png_pattern,
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
@@ -388,7 +418,7 @@ def cleanup():
 
 def main():
     os.makedirs(TEMP_DIR, exist_ok=True)
-    print(f"Generating {NUM_FRAMES} PPI frames ({NUM_FRAMES / FPS:.1f}s at {FPS}fps)...")
+    print(f"\nGenerating {NUM_FRAMES} PPI frames ({NUM_FRAMES / FPS:.1f}s at {FPS}fps)...")
     for i in range(NUM_FRAMES):
         print(f"  Frame {i + 1}/{NUM_FRAMES}", end="")
         png = compile_frame(i)
