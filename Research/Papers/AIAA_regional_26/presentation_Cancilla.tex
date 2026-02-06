@@ -97,10 +97,15 @@
 
 %=============================================================================
 \begin{frame}{Motivation}
+\small
+\vspace{-0.4cm}
 \begin{columns}[T]
 \column{0.5\textwidth}
 \textbf{Commercial X-Band Radar Challenges:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
+  \setlength{\topsep}{0pt}
+  \setlength{\parskip}{0pt}
   \item \textcolor{Rose}{No Doppler phase} (intensity only)
   \item Non-stationary sea clutter
   \item Heavy-tailed amplitude statistics
@@ -108,18 +113,21 @@
   \item Intermittent target visibility
 \end{itemize}
 
-\vspace{0.5cm}
 \textbf{DBSCAN Limitations:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
+  \setlength{\topsep}{0pt}
+  \setlength{\parskip}{0pt}
   \item Fixed $\varepsilon$ fails with heterogeneous density
   \item Track fragmentation from dropouts
   \item No temporal linkage
 \end{itemize}
 
 \column{0.5\textwidth}
+\vspace{-0.4cm}
 \begin{figure}
-  \includegraphics[width=\textwidth]{figures/sample_radar_frame.png}
-  \caption{\small Synthetic radar frame showing vessels against sea clutter}
+  \includegraphics[width=0.9\textwidth]{figures/sample_radar_frame.png}
+  \caption{\tiny Synthetic radar frame}
 \end{figure}
 \end{columns}
 \end{frame}
@@ -169,40 +177,46 @@
 
 %=============================================================================
 \begin{frame}{Problem Formulation}
+\scriptsize
+\vspace{-0.5cm}
 \begin{columns}[T]
 \column{0.48\textwidth}
 \textbf{Detection Set at Sweep $t$:}
+\vspace{-0.15cm}
 \begin{equation*}
   \mathcal{D}_t = \{ (r_i, \theta_i, I_i, t) : i = 1, \ldots, N_t \}
 \end{equation*}
+\vspace{-0.3cm}
 
-\vspace{0.3cm}
-\textbf{Objective:} Partition $\mathcal{D} = \bigcup_{t=1}^{T} \mathcal{D}_t$ into tracks:
+\textbf{Objective:} Partition into tracks:
+\vspace{-0.15cm}
 \begin{equation*}
   \mathcal{D} = \mathcal{T}_1 \cup \mathcal{T}_2 \cup \cdots \cup \mathcal{T}_K \cup \mathcal{N}
 \end{equation*}
+\vspace{-0.3cm}
 
-\vspace{0.3cm}
 \textbf{Distance Metrics:}
+\vspace{-0.15cm}
 \begin{align*}
   d_s(\mathbf{p}_i, \mathbf{p}_j) &= \sqrt{(x_i - x_j)^2 + (y_i - y_j)^2} \\
   d_t(\mathbf{p}_i, \mathbf{p}_j) &= |t_i - t_j|
 \end{align*}
 
 \column{0.48\textwidth}
+\vspace{-0.2cm}
 \textbf{Processing Pipeline:}
 \begin{center}
-\begin{tikzpicture}[
-    node distance=0.8cm,
-    block/.style={rectangle, draw, text=black, minimum height=0.8cm, minimum width=2.0cm, align=center, font=\scriptsize},
-    arrow/.style={-{Stealth[length=2mm]}, thick}
+\begin{tikzpicture}[scale=0.85,
+    node distance=0.5cm,
+    block/.style={rectangle, draw, text=black, minimum height=0.6cm, minimum width=1.6cm, align=center, font=\tiny},
+    arrow/.style={-{Stealth[length=1.2mm]}, thick}
 ]
-\node[block, fill=Black10] (input) {Polar\\Returns};
-\node[block, below=of input, fill=Atlantic!20, draw=Atlantic] (cart) {Cartesian\\Transform};
-\node[block, below=of cart, fill=Garnet!20, draw=Garnet] (stdb) {Adaptive\\ST-DBSCAN};
-\node[block, below=of stdb, fill=Horseshoe!20, draw=Horseshoe] (gap) {Gap\\Recovery};
-\node[block, below=of gap, fill=Rose!20, draw=Rose] (hung) {Hungarian\\Assignment};
-\node[block, below=of hung, fill=Black10] (output) {Labeled\\Tracks};
+\node[block, fill=Black10] (input) {Polar Returns};
+\node[block, below=of input, fill=Atlantic!20, draw=Atlantic] (cart) {Cartesian Transform};
+\node[block, below=of cart, fill=Garnet!20, draw=Garnet] (stdb) {Adaptive ST-DBSCAN};
+\node[block, below=of stdb, fill=Horseshoe!20, draw=Horseshoe] (gap) {Gap Recovery};
+\node[block, below=of gap, fill=Rose!20, draw=Rose] (hung) {Hungarian Assign};
+\node[block, below=of hung, fill=Black10] (output) {Labeled Tracks};
 
 \draw[arrow] (input) -- (cart);
 \draw[arrow] (cart) -- (stdb);
@@ -216,24 +230,29 @@
 
 %=============================================================================
 \begin{frame}{Adaptive ST-DBSCAN Method}
+\tiny
+\vspace{-0.8cm}
 \begin{columns}[T]
 \column{0.48\textwidth}
-\textbf{Challenge:} Fixed $\varepsilon$ fails with heterogeneous density
+\textbf{Challenge:} Fixed $\varepsilon$ fails with density variation
+\vspace{-0.1cm}
 
-\vspace{0.3cm}
 \textbf{Solution:} k-NN adaptive epsilon
+\vspace{-0.2cm}
 \begin{equation*}
   \varepsilon_s(\mathbf{p}) = \min\left( d_k(\mathbf{p}) \cdot \alpha, \varepsilon_{s,\max} \right)
 \end{equation*}
+\vspace{-0.3cm}
 
-\vspace{0.3cm}
 \textbf{Global estimation:}
+\vspace{-0.2cm}
 \begin{equation*}
   \varepsilon_s^{\text{global}} = \text{Percentile}_{90}\left( \{ d_k(\mathbf{p}) : \mathbf{p} \in \mathcal{S} \} \right)
 \end{equation*}
+\vspace{-0.3cm}
 
-\vspace{0.3cm}
 \textbf{Epsilon floor:}
+\vspace{-0.2cm}
 \begin{equation*}
   \varepsilon_s^{\text{final}} = \max\left( \varepsilon_s^{\text{global}}, \varepsilon_{\min} \right)
 \end{equation*}
@@ -241,7 +260,7 @@
 \column{0.48\textwidth}
 \begin{algorithm}[H]
 \caption*{\textbf{Algorithm 1:} Adaptive Epsilon}
-\scriptsize
+\tiny
 \begin{algorithmic}[1]
 \Require $\mathcal{P}$, $k$, $\beta$, $\rho$, $\varepsilon_{\min}$, $\varepsilon_{\max}$
 \Ensure $\varepsilon_s$
@@ -253,29 +272,23 @@
 \State \Return{$\max(\varepsilon_{\min}, \min(\varepsilon_s, \varepsilon_{\max}))$}
 \end{algorithmic}
 \end{algorithm}
+\vspace{-0.2cm}
 
-\vspace{0.2cm}
-\textbf{Parameters:}
-\begin{itemize}
-  \scriptsize
-  \item $k = \mathit{MinPts} = 5$
-  \item $\alpha = 1.5$ (scaling factor)
-  \item $\rho = 90$ (percentile)
-  \item $\varepsilon_{\min} = 20$ pixels
-\end{itemize}
+\textbf{Parameters:} $k = 5$, $\alpha = 1.5$, $\rho = 90$, $\varepsilon_{\min} = 20$ px
 \end{columns}
 \end{frame}
 
 %=============================================================================
 \begin{frame}{Gap Recovery Mechanism}
+\scriptsize
 \begin{columns}[T]
 \column{0.48\textwidth}
 \textbf{Problem:} Intermittent visibility fragments tracks
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Solution:} Union-Find merging across temporal gaps
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Temporal gap:}
 \begin{equation*}
   \Delta t = t_j^{\text{start}} - t_i^{\text{end}}
@@ -323,28 +336,30 @@
 
 %=============================================================================
 \begin{frame}{Hungarian Assignment}
+\scriptsize
 \begin{columns}[T]
 \column{0.48\textwidth}
 \textbf{Purpose:} Frame-to-frame track association
 
-\vspace{0.3cm}
+\vspace{0.2cm}
 \textbf{Cost matrix between track centroids:}
 \begin{equation*}
   C_{ij} = \| \mathbf{c}_i^{t-1} - \mathbf{d}_j^t \|_2
 \end{equation*}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Optimal assignment:}
 \begin{equation*}
   \pi^* = \arg\min_{\pi} \sum_i C_{i,\pi(i)}
 \end{equation*}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Gating:} Reject assignments with $C_{ij} > \gamma$
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Benefits:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item Low latency for real-time output
   \item Explicit track identity maintenance
   \item Complements ST-DBSCAN clustering
@@ -352,22 +367,22 @@
 
 \column{0.48\textwidth}
 \begin{center}
-\begin{tikzpicture}
+\begin{tikzpicture}[scale=0.85]
 \scriptsize
 
 % Previous frame tracks
-\node[circle, draw=Congaree, fill=Congaree!20, minimum size=0.5cm] (t1) at (0,3) {$\mathbf{c}_1$};
-\node[circle, draw=Congaree, fill=Congaree!20, minimum size=0.5cm] (t2) at (0,1.5) {$\mathbf{c}_2$};
-\node[circle, draw=Congaree, fill=Congaree!20, minimum size=0.5cm] (t3) at (0,0) {$\mathbf{c}_3$};
+\node[circle, draw=Congaree, fill=Congaree!20, minimum size=0.45cm] (t1) at (0,3) {$\mathbf{c}_1$};
+\node[circle, draw=Congaree, fill=Congaree!20, minimum size=0.45cm] (t2) at (0,1.5) {$\mathbf{c}_2$};
+\node[circle, draw=Congaree, fill=Congaree!20, minimum size=0.45cm] (t3) at (0,0) {$\mathbf{c}_3$};
 
 % Current frame detections
-\node[circle, draw=Rose, fill=Rose!20, minimum size=0.5cm] (d1) at (4,3.2) {$\mathbf{d}_1$};
-\node[circle, draw=Rose, fill=Rose!20, minimum size=0.5cm] (d2) at (4,1.3) {$\mathbf{d}_2$};
-\node[circle, draw=Rose, fill=Rose!20, minimum size=0.5cm] (d3) at (4,-0.2) {$\mathbf{d}_3$};
+\node[circle, draw=Rose, fill=Rose!20, minimum size=0.45cm] (d1) at (4,3.2) {$\mathbf{d}_1$};
+\node[circle, draw=Rose, fill=Rose!20, minimum size=0.45cm] (d2) at (4,1.3) {$\mathbf{d}_2$};
+\node[circle, draw=Rose, fill=Rose!20, minimum size=0.45cm] (d3) at (4,-0.2) {$\mathbf{d}_3$};
 
 % Labels
-\node[above=0.1cm of t1] {\textcolor{Congaree}{\textbf{Frame $t-1$}}};
-\node[above=0.1cm of d1] {\textcolor{Rose}{\textbf{Frame $t$}}};
+\node[above=0.05cm of t1] {\textcolor{Congaree}{\textbf{Frame $t-1$}}};
+\node[above=0.05cm of d1] {\textcolor{Rose}{\textbf{Frame $t$}}};
 
 % Cost matrix visualization
 \draw[dashed, Black70, thick] (t1) -- node[above, sloped, Black90] {$C_{11}$} (d1);
@@ -380,7 +395,7 @@
 \draw[dashed, Black70] (t3) -- (d2);
 \draw[dashed, Black70, thick] (t3) -- node[above, sloped, Black90] {$C_{33}$} (d3);
 
-\node[below=0.5cm of t2, text width=4cm, align=center] {Optimal assignment minimizes total cost};
+\node[below=0.3cm of t2, text width=4cm, align=center] {Optimal assignment minimizes total cost};
 \end{tikzpicture}
 \end{center}
 \end{columns}
@@ -388,18 +403,21 @@
 
 %=============================================================================
 \begin{frame}{Implementation}
+\scriptsize
 \begin{columns}[T]
 \column{0.48\textwidth}
 \textbf{Platform:} NVIDIA Jetson AGX Orin
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item Arm Cortex-A78AE (12 cores)
   \item 32 GB unified memory
   \item \textasciitilde 25 W power consumption
 \end{itemize}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Implementation:} Rust
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item Memory safety
   \item Zero-cost abstractions
   \item Predictable performance
@@ -408,9 +426,10 @@
   \item \textcolor{Congaree}{Union-Find} (gap recovery)
 \end{itemize}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Performance:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item \textcolor{Rose}{\textbf{511 $\pm$ 93 ms per sweep}}
   \item \textasciitilde 2 sweeps/s
   \item Exceeds real-time for 48 RPM radar
@@ -439,10 +458,10 @@ I/O (output) & 40 \\
 \end{tabular}
 \end{table}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Bottlenecks:}
 \begin{itemize}
-  \scriptsize
+  \setlength{\itemsep}{0pt}
   \item k-NN computation (38\%)
   \item ST-DBSCAN clustering (33\%)
   \item Both parallelized with Rayon
@@ -454,12 +473,12 @@ I/O (output) & 40 \\
 \begin{frame}{Clustering Comparison}
 \begin{figure}
 \centering
-\includegraphics[width=0.32\textwidth]{figures/dbscan_frame.png}
+\includegraphics[width=0.31\textwidth]{figures/dbscan_frame.png}
 \hfill
-\includegraphics[width=0.32\textwidth]{figures/stdbscan_frame.png}
+\includegraphics[width=0.31\textwidth]{figures/stdbscan_frame.png}
 \hfill
-\includegraphics[width=0.32\textwidth]{figures/gap_frame.png}
-\caption*{\small\textbf{Left:} Vanilla DBSCAN ($\varepsilon_s = 10$): 1693 clusters, many spurious detections. \textbf{Center:} Adaptive ST-DBSCAN ($\varepsilon_{\min} = 20$): 1177 clusters, larger spatial neighborhoods. \textbf{Right:} Adaptive + Gap Recovery: merged temporally adjacent clusters.}
+\includegraphics[width=0.31\textwidth]{figures/gap_frame.png}
+\caption*{\scriptsize\textbf{Left:} Vanilla DBSCAN ($\varepsilon_s = 10$): 1693 clusters, many spurious detections. \textbf{Center:} Adaptive ST-DBSCAN ($\varepsilon_{\min} = 20$): 1177 clusters, larger spatial neighborhoods. \textbf{Right:} Adaptive + Gap Recovery: merged temporally adjacent clusters.}
 \end{figure}
 \end{frame}
 
@@ -467,22 +486,23 @@ I/O (output) & 40 \\
 \begin{frame}{Tracking Comparison}
 \begin{figure}
 \centering
-\includegraphics[width=0.32\textwidth]{figures/dbscan_track_frame.png}
+\includegraphics[width=0.31\textwidth]{figures/dbscan_track_frame.png}
 \hfill
-\includegraphics[width=0.32\textwidth]{figures/stdbscan_track_frame.png}
+\includegraphics[width=0.31\textwidth]{figures/stdbscan_track_frame.png}
 \hfill
-\includegraphics[width=0.32\textwidth]{figures/gap_track_frame.png}
-\caption*{\small\textbf{Left:} Vanilla DBSCAN: 48 tracks, extensive false detections from land/clutter. \textbf{Center:} Adaptive ST-DBSCAN: 31 tracks, maintained target coverage. \textbf{Right:} Adaptive + Gap Recovery: 31 tracks, consolidated associations, zero ID switches.}
+\includegraphics[width=0.31\textwidth]{figures/gap_track_frame.png}
+\caption*{\scriptsize\textbf{Left:} Vanilla DBSCAN: 48 tracks, extensive false detections from land/clutter. \textbf{Center:} Adaptive ST-DBSCAN: 31 tracks, maintained target coverage. \textbf{Right:} Adaptive + Gap Recovery: 31 tracks, consolidated associations, zero ID switches.}
 \end{figure}
 \end{frame}
 
 %=============================================================================
 \begin{frame}{Results: MOT Metrics}
+\scriptsize
 \begin{columns}[T]
 \column{0.58\textwidth}
 \begin{table}
 \centering
-\scriptsize
+\tiny
 \caption{Multi-Object Tracking Metrics on Synthetic Data}
 \begin{tabular}{@{}lcccccc@{}}
 \toprule
@@ -490,11 +510,11 @@ I/O (output) & 40 \\
 & & \textbf{(px)} & & & & \\
 \midrule
 Vanilla DBSCAN & $-6.97$ & 1.80 & 0.987 & 0.112 & 1208 & 18 \\
-$\varepsilon_s=10$ & & & & & & \\[0.1cm]
+$\varepsilon_s=10$ & & & & & & \\[0.05cm]
 Standard ST-DBSCAN & $-0.10$ & -- & 0.000 & 0.000 & 16 & 0 \\
-$\varepsilon_s=10$, $\varepsilon_t=2$ & & & & & & \\[0.1cm]
+$\varepsilon_s=10$, $\varepsilon_t=2$ & & & & & & \\[0.05cm]
 Adaptive ST-DBSCAN & \textbf{$-4.44$} & \textbf{1.19} & \textbf{0.974} & 0.155 & 816 & 18 \\
-$\varepsilon_{\min}=20$ & & & & & & \\[0.1cm]
+$\varepsilon_{\min}=20$ & & & & & & \\[0.05cm]
 \textcolor{Congaree}{\textbf{Adaptive + Gap}} & \textcolor{Congaree}{$-3.82$} & \textcolor{Congaree}{\textbf{1.18}} & \textcolor{Congaree}{0.812} & \textcolor{Congaree}{\textbf{0.159}} & \textcolor{Congaree}{\textbf{695}} & \textcolor{Congaree}{\textbf{0}} \\
 \textcolor{Congaree}{$\tau=1$, $d=0.5$} & & & & & & \\
 \bottomrule
@@ -504,7 +524,7 @@ $\varepsilon_{\min}=20$ & & & & & & \\[0.1cm]
 \column{0.38\textwidth}
 \textbf{Dataset:}
 \begin{itemize}
-  \scriptsize
+  \setlength{\itemsep}{0pt}
   \item 50 frames
   \item 4 objects
   \item 15-40\% dropout rate
@@ -512,10 +532,10 @@ $\varepsilon_{\min}=20$ & & & & & & \\[0.1cm]
   \item 1847 signatures
 \end{itemize}
 
-\vspace{0.3cm}
+\vspace{0.2cm}
 \textbf{Key Findings:}
 \begin{itemize}
-  \scriptsize
+  \setlength{\itemsep}{0pt}
   \item \textcolor{Rose}{Negative MOTA:} High-clutter environment
   \item \textcolor{Congaree}{Gap recovery eliminates ID switches}
   \item \textcolor{Congaree}{32\% FP reduction over vanilla DBSCAN}
@@ -589,10 +609,12 @@ Memory usage & $<$ 500 MB \\
 
 %=============================================================================
 \begin{frame}{Limitations and Future Work}
+\scriptsize
 \begin{columns}[T]
 \column{0.48\textwidth}
 \textbf{Known Limitations:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item \textcolor{Rose}{Epsilon floor required} for dense data (less adaptive)
   \item \textcolor{Rose}{Synthetic evaluation only} (real radar pending)
   \item \textcolor{Rose}{Target crossing/merging} causes ID confusion
@@ -601,9 +623,10 @@ Memory usage & $<$ 500 MB \\
   \item \textcolor{Rose}{Dense point clouds} ($>$1M points) remain challenging
 \end{itemize}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Failure Cases:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item Multiple targets within $\varepsilon_s$ merge
   \item Extended path crossings cause persistent ID confusion
   \item Greedy Hungarian cannot disambiguate complex scenarios
@@ -612,6 +635,7 @@ Memory usage & $<$ 500 MB \\
 \column{0.48\textwidth}
 \textbf{Future Work:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item \textcolor{Congaree}{Kalman filtering} for velocity estimation
   \item \textcolor{Congaree}{Multi-hypothesis tracking} (MHT) for ambiguous associations
   \item \textcolor{Congaree}{AIS fusion} for supervised track identification
@@ -621,9 +645,10 @@ Memory usage & $<$ 500 MB \\
   \item \textcolor{Congaree}{Adaptive temporal threshold} $\varepsilon_t$
 \end{itemize}
 
-\vspace{0.3cm}
+\vspace{0.15cm}
 \textbf{Application Domains:}
 \begin{itemize}
+  \setlength{\itemsep}{0pt}
   \item Autonomous maritime navigation
   \item Collision avoidance systems
   \item Harbor surveillance
