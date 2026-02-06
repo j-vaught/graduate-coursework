@@ -2,7 +2,7 @@
 
 \section{Radar-to-Camera Projection and Bounding Box Generation}\label{sec:projection}
 
-Once the extrinsic and intrinsic parameters linking a radar and a camera have been established through calibration (Section~\ref{sec:radar_camera_calibration}), the next challenge is to exploit those parameters operationally: given a radar detection expressed in polar coordinates, compute the corresponding pixel location in the camera image and generate a bounding box suitable for training an object detector. This projection pipeline constitutes the central algorithmic bridge between calibrated sensor geometry and usable training labels, and its fidelity determines whether the resulting annotations are accurate enough to replace or supplement manual labeling. The present section traces the complete mathematical chain from radar measurement space through world, camera, and pixel coordinate systems; examines the lens distortion models required for wide field-of-view (FOV) maritime cameras; surveys the bird's-eye-view (BEV) and frustum-based association strategies that the autonomous-driving community has developed; and analyzes the error sources that limit projection accuracy, with particular attention to the three-dimensional ambiguity inherent in two-dimensional radar data and the additional complications introduced by the maritime environment.
+Once the extrinsic and intrinsic parameters linking a radar and a camera have been established through calibration (Section~\ref{sec:calibration}), the next challenge is to exploit those parameters operationally: given a radar detection expressed in polar coordinates, compute the corresponding pixel location in the camera image and generate a bounding box suitable for training an object detector. This projection pipeline constitutes the central algorithmic bridge between calibrated sensor geometry and usable training labels, and its fidelity determines whether the resulting annotations are accurate enough to replace or supplement manual labeling. The present section traces the complete mathematical chain from radar measurement space through world, camera, and pixel coordinate systems; examines the lens distortion models required for wide field-of-view (FOV) maritime cameras; surveys the bird's-eye-view (BEV) and frustum-based association strategies that the autonomous-driving community has developed; and analyzes the error sources that limit projection accuracy, with particular attention to the three-dimensional ambiguity inherent in two-dimensional radar data and the additional complications introduced by the maritime environment.
 
 %% -----------------------------------------------------------------------
 \subsection{Coordinate Transformation Pipeline}\label{subsec:coord_transform}
@@ -26,7 +26,7 @@ The Cartesian radar coordinates $\mathbf{P}_r = [x_r,\, y_r,\, z_r]^\top$ must b
 \begin{equation}\label{eq:radar2world}
   \mathbf{P}_w = \mathbf{R}_r\,\mathbf{P}_r + \mathbf{t}_r.
 \end{equation}
-In practice, the platform frame is often chosen to coincide with one of the sensors so that one set of extrinsic parameters reduces to identity. The nuScenes dataset, for example, defines its ego-vehicle frame at the rear axle and provides per-sensor extrinsic matrices that encode the rigid-body transformation from each sensor to that frame~\cite{caesar2020nuscenes}.
+In practice, the platform frame is often chosen to coincide with one of the sensors so that one set of extrinsic parameters reduces to identity. The nuScenes dataset, for example, defines its ego-vehicle frame at the rear axle and provides per-sensor extrinsic matrices that encode the rigid-body transformation from each sensor to that frame~\cite{Caesar2020nuScenes}.
 
 \subsubsection{World-Frame to Camera-Frame Transformation}
 
@@ -65,7 +65,7 @@ Combining the extrinsic and intrinsic transformations, the full projection of a 
 \begin{equation}\label{eq:full_projection}
   \mathbf{P} = \mathbf{K}\,[\mathbf{R} \mid \mathbf{t}],
 \end{equation}
-so that $s\,\tilde{\mathbf{u}} = \mathbf{P}\,\tilde{\mathbf{P}}_w$, where tildes denote homogeneous coordinate vectors. This factorization is the standard camera model that underpins virtually all radar-to-camera projection methods in the literature~\cite{nabati2021centerfusion, kim2020grif, caesar2020nuscenes}.
+so that $s\,\tilde{\mathbf{u}} = \mathbf{P}\,\tilde{\mathbf{P}}_w$, where tildes denote homogeneous coordinate vectors. This factorization is the standard camera model that underpins virtually all radar-to-camera projection methods in the literature~\cite{Nabati2021CenterFusion, Kim2020GRIFNet, Caesar2020nuScenes}.
 
 %% -----------------------------------------------------------------------
 \subsection{Lens Distortion Models}\label{subsec:distortion}
@@ -92,7 +92,7 @@ where $k_1, k_2, k_3$ are radial distortion coefficients and $p_1, p_2$ are tang
   u_d &= f_x\,x_d + c_x, \label{eq:distorted_u}\\
   v_d &= f_y\,y_d + c_y. \label{eq:distorted_v}
 \end{align}
-This model is the default in the OpenCV calibration toolbox, which implements Zhang's flexible calibration procedure~\cite{zhang2000flexible}, and is used by the nuScenes calibration pipeline~\cite{caesar2020nuscenes}. It is generally adequate for lenses with FOV below approximately $100^\circ$, beyond which the polynomial expansion becomes poorly conditioned and higher-order terms are required~\cite{kannala2006generic}.
+This model is the default in the OpenCV calibration toolbox, which implements Zhang's flexible calibration procedure~\cite{zhang2000flexible}, and is used by the nuScenes calibration pipeline~\cite{Caesar2020nuScenes}. It is generally adequate for lenses with FOV below approximately $100^\circ$, beyond which the polynomial expansion becomes poorly conditioned and higher-order terms are required~\cite{kannala2006generic}.
 
 \subsubsection{Kannala--Brandt Wide-FOV Model}
 
@@ -139,7 +139,7 @@ Liu et al.~\cite{liu2023bevfusion} introduced BEVFusion, a framework that projec
 
 \subsubsection{RCS-Aware BEV Encoding: RCBEVDet}
 
-Lin et al.~\cite{lin2024rcbevdet} extended the BEV fusion paradigm with RCBEVDet, which incorporates the radar cross section (RCS) as an additional feature channel in the BEV encoder. The authors argue that RCS carries implicit information about target size and reflectivity that complements the spatial information from range and azimuth. RCBEVDet introduces a RadarBEVNet module that processes the raw radar point cloud---including range, azimuth, radial velocity, and RCS---into a dense BEV feature map via pillar-based encoding. On nuScenes, RCBEVDet achieved $55.1\%$ NDS with camera-plus-radar inputs alone (no LiDAR), establishing a new state of the art for radar-camera BEV fusion~\cite{lin2024rcbevdet}. The explicit use of RCS is particularly relevant for maritime applications where vessel RCS varies over several orders of magnitude depending on vessel size, aspect angle, and superstructure geometry~\cite{Skolnik2008}.
+Lin et al.~\cite{Lin2024RCBEVDet} extended the BEV fusion paradigm with RCBEVDet, which incorporates the radar cross section (RCS) as an additional feature channel in the BEV encoder. The authors argue that RCS carries implicit information about target size and reflectivity that complements the spatial information from range and azimuth. RCBEVDet introduces a RadarBEVNet module that processes the raw radar point cloud---including range, azimuth, radial velocity, and RCS---into a dense BEV feature map via pillar-based encoding. On nuScenes, RCBEVDet achieved $55.1\%$ NDS with camera-plus-radar inputs alone (no LiDAR), establishing a new state of the art for radar-camera BEV fusion~\cite{Lin2024RCBEVDet}. The explicit use of RCS is particularly relevant for maritime applications where vessel RCS varies over several orders of magnitude depending on vessel size, aspect angle, and superstructure geometry~\cite{Skolnik2008}.
 
 %% -----------------------------------------------------------------------
 \subsection{Frustum-Based Radar--Camera Association}\label{subsec:frustum}
@@ -149,11 +149,11 @@ Rather than constructing a shared BEV grid, an alternative strategy projects eac
 
 \subsubsection{CenterFusion}
 
-Nabati and Qi~\cite{nabati2021centerfusion} proposed CenterFusion, which takes the output of a center-based image detector (CenterNet~\cite{zhou2019objects}) and enriches each detected object with radar features. Radar points are projected onto the image plane and associated with detected centers by a pillar-expansion and frustum-association mechanism: a radar detection at range $r$ is expanded into a vertical frustum of width determined by the radar azimuth resolution, and all image detections whose centers fall within the frustum are associated with that radar point. The associated radar features---range, radial velocity, and RCS---are concatenated to the image feature map and passed to secondary regression heads that predict refined depth, velocity, and three-dimensional bounding box attributes. On nuScenes, CenterFusion improved the NDS of the camera-only CenterNet baseline by $12.8$ percentage points (from $33.8\%$ to $46.6\%$), with particularly large gains in velocity estimation accuracy~\cite{nabati2021centerfusion}. The frustum-association idea is directly applicable to radar-guided label generation: instead of associating radar points with existing image detections, one can project radar points to seed candidate bounding boxes in regions of the image where no prior detection exists.
+Nabati and Qi~\cite{Nabati2021CenterFusion} proposed CenterFusion, which takes the output of a center-based image detector (CenterNet~\cite{zhou2019objects}) and enriches each detected object with radar features. Radar points are projected onto the image plane and associated with detected centers by a pillar-expansion and frustum-association mechanism: a radar detection at range $r$ is expanded into a vertical frustum of width determined by the radar azimuth resolution, and all image detections whose centers fall within the frustum are associated with that radar point. The associated radar features---range, radial velocity, and RCS---are concatenated to the image feature map and passed to secondary regression heads that predict refined depth, velocity, and three-dimensional bounding box attributes. On nuScenes, CenterFusion improved the NDS of the camera-only CenterNet baseline by $12.8$ percentage points (from $33.8\%$ to $46.6\%$), with particularly large gains in velocity estimation accuracy~\cite{Nabati2021CenterFusion}. The frustum-association idea is directly applicable to radar-guided label generation: instead of associating radar points with existing image detections, one can project radar points to seed candidate bounding boxes in regions of the image where no prior detection exists.
 
 \subsubsection{GRIF Net}
 
-Kim et al.~\cite{kim2020grif} introduced the Gated Region of Interest Fusion (GRIF) network, which performs feature-level fusion within regions of interest (RoIs) rather than at the full-image level. Given a radar detection projected into the image, GRIF Net extracts a local image feature patch and a corresponding radar feature vector, then combines them through a gating mechanism that learns to weight the contribution of each modality. The gating is important because radar and camera provide complementary but sometimes conflicting information: the radar may localize a target in range while the camera resolves its lateral extent, and the gate learns to trust each modality where it is most reliable. GRIF Net demonstrated improved 3D detection performance over camera-only and naive concatenation baselines, particularly under adverse weather conditions where camera features degrade but radar remains robust~\cite{kim2020grif}.
+Kim et al.~\cite{Kim2020GRIFNet} introduced the Gated Region of Interest Fusion (GRIF) network, which performs feature-level fusion within regions of interest (RoIs) rather than at the full-image level. Given a radar detection projected into the image, GRIF Net extracts a local image feature patch and a corresponding radar feature vector, then combines them through a gating mechanism that learns to weight the contribution of each modality. The gating is important because radar and camera provide complementary but sometimes conflicting information: the radar may localize a target in range while the camera resolves its lateral extent, and the gate learns to trust each modality where it is most reliable. GRIF Net demonstrated improved 3D detection performance over camera-only and naive concatenation baselines, particularly under adverse weather conditions where camera features degrade but radar remains robust~\cite{Kim2020GRIFNet}.
 
 \subsubsection{Radar Region Proposal Network (RRPN)}
 
@@ -161,7 +161,7 @@ An earlier contribution by Nabati and Qi~\cite{nabati2019rrpn} showed that radar
 
 \subsubsection{CRAFT: Polar Coordinate Association}
 
-Kim et al.~\cite{kim2023craft} proposed CRAFT (Camera-Radar Association Framework for multi-modal 3D object deTection), which performs radar--camera association in polar coordinates rather than in Cartesian or image space. By representing both radar detections and image features in a range--azimuth grid, CRAFT avoids the information loss incurred by projecting three-dimensional radar measurements onto the two-dimensional image plane. The polar-coordinate association allows the network to exploit the natural structure of radar data---targets at similar range and bearing are grouped together regardless of their pixel separation---and to handle the non-uniform angular sampling of automotive radar. On nuScenes, CRAFT achieved $41.1\%$ mAP, a significant improvement over prior radar-camera methods that rely on Cartesian or image-space association~\cite{kim2023craft}.
+Kim et al.~\cite{Kim2022CRAFT} proposed CRAFT (Camera-Radar Association Framework for multi-modal 3D object deTection), which performs radar--camera association in polar coordinates rather than in Cartesian or image space. By representing both radar detections and image features in a range--azimuth grid, CRAFT avoids the information loss incurred by projecting three-dimensional radar measurements onto the two-dimensional image plane. The polar-coordinate association allows the network to exploit the natural structure of radar data---targets at similar range and bearing are grouped together regardless of their pixel separation---and to handle the non-uniform angular sampling of automotive radar. On nuScenes, CRAFT achieved $41.1\%$ mAP, a significant improvement over prior radar-camera methods that rely on Cartesian or image-space association~\cite{Kim2022CRAFT}.
 
 %% -----------------------------------------------------------------------
 \subsection{Range-Dependent Bounding Box Sizing}\label{subsec:bbox_sizing}
@@ -171,7 +171,7 @@ Projecting a radar detection yields a point, not a bounding box. Generating a us
 
 \subsubsection{Challenges of Extent Estimation from Radar}
 
-The core difficulty is that radar angular resolution is typically much coarser than the angular subtent of the target. An X-band marine radar with $1.8^\circ$ azimuth beamwidth cannot resolve the lateral extent of a vessel at most operational ranges~\cite{Skolnik2008}. Even if multiple resolution cells span the target, the mapping from radar extent to image extent is nonlinear and depends on the target's orientation, range, and the camera projection geometry. Furthermore, the radar measurement corresponds to a three-dimensional scattering center---not necessarily the geometric centroid of the object---so the projected point may not coincide with the center of the image bounding box~\cite{nabati2021centerfusion}.
+The core difficulty is that radar angular resolution is typically much coarser than the angular subtent of the target. An X-band marine radar with $1.8^\circ$ azimuth beamwidth cannot resolve the lateral extent of a vessel at most operational ranges~\cite{Skolnik2008}. Even if multiple resolution cells span the target, the mapping from radar extent to image extent is nonlinear and depends on the target's orientation, range, and the camera projection geometry. Furthermore, the radar measurement corresponds to a three-dimensional scattering center---not necessarily the geometric centroid of the object---so the projected point may not coincide with the center of the image bounding box~\cite{Nabati2021CenterFusion}.
 
 \subsubsection{DBSCAN Clustering with Range-Adaptive Parameters}
 
@@ -204,7 +204,7 @@ Four primary error sources affect the accuracy of radar-to-camera projection:
 
   \item \textbf{Distortion model mismatch.} If the lens distortion model does not match the true distortion, the undistortion step introduces spatially varying errors that are largest at the image periphery~\cite{kannala2006generic}. As noted in Section~\ref{subsec:distortion}, using a Brown--Conrady model for a fisheye lens can produce errors exceeding 20 pixels~\cite{xu2024maritime}.
 
-  \item \textbf{Temporal misalignment.} Radar and camera typically operate at different frame rates and are not hardware-synchronized, so a radar detection may correspond to a camera frame acquired at a slightly different time. For a target moving at velocity $v$ with a temporal offset $\Delta t$, the positional error is $v\,\Delta t$. At $10$~m/s and $\Delta t = 50$~ms, the displacement is $0.5$~m, which at $100$~m range and $f_x = 1000$~pixels produces a 5-pixel error~\cite{nabati2021centerfusion}. Hardware triggering or interpolation-based alignment is therefore essential for moving targets.
+  \item \textbf{Temporal misalignment.} Radar and camera typically operate at different frame rates and are not hardware-synchronized, so a radar detection may correspond to a camera frame acquired at a slightly different time. For a target moving at velocity $v$ with a temporal offset $\Delta t$, the positional error is $v\,\Delta t$. At $10$~m/s and $\Delta t = 50$~ms, the displacement is $0.5$~m, which at $100$~m range and $f_x = 1000$~pixels produces a 5-pixel error~\cite{Nabati2021CenterFusion}. Hardware triggering or interpolation-based alignment is therefore essential for moving targets.
 
   \item \textbf{Three-dimensional ambiguity.} When the radar does not measure elevation, the projection must assume a vertical position. Errors in this assumption translate directly into vertical pixel errors, as described in Section~\ref{subsec:3d_ambiguity}.
 \end{enumerate}
@@ -215,7 +215,7 @@ The standard metric for evaluating projection accuracy is the Mean Absolute Repr
 \begin{equation}\label{eq:mare}
   \text{MARE} = \frac{1}{N}\sum_{i=1}^{N} \bigl\|\mathbf{u}_i^{\text{proj}} - \mathbf{u}_i^{\text{gt}}\bigr\|_2,
 \end{equation}
-where $\mathbf{u}_i^{\text{proj}}$ is the projected pixel location of the $i$-th radar detection and $\mathbf{u}_i^{\text{gt}}$ is the corresponding ground-truth pixel location determined from manual annotation or a higher-fidelity sensor~\cite{nabati2021centerfusion}. For bounding box quality, the Intersection-over-Union (IoU) between the projected box and the ground-truth box is used; IoU thresholds of $0.5$ and $0.7$ are conventional in the object detection community~\cite{lin2014coco}.
+where $\mathbf{u}_i^{\text{proj}}$ is the projected pixel location of the $i$-th radar detection and $\mathbf{u}_i^{\text{gt}}$ is the corresponding ground-truth pixel location determined from manual annotation or a higher-fidelity sensor~\cite{Nabati2021CenterFusion}. For bounding box quality, the Intersection-over-Union (IoU) between the projected box and the ground-truth box is used; IoU thresholds of $0.5$ and $0.7$ are conventional in the object detection community~\cite{Lin2014COCO}.
 
 \subsubsection{Range-Dependent Error Characteristics}
 
@@ -239,7 +239,7 @@ Four-dimensional imaging radar, which resolves targets simultaneously in range, 
 
 \subsubsection{Cross-Attention Approaches: CramNet}
 
-When elevation data is unavailable, learning-based methods can partially recover three-dimensional information by exploiting image context. Qian et al.~\cite{qian2021mvdnet} proposed a multi-view approach in which radar and camera features are associated along the epipolar line corresponding to the radar detection's bearing, effectively marginalizing over the unknown elevation. The cross-attention mechanism learns to weight image features at different heights based on their semantic content, assigning high weight to the image region that most likely corresponds to the radar target. This approach can be interpreted as a soft version of the frustum association used in CenterFusion~\cite{nabati2021centerfusion}, where instead of a hard frustum boundary, a learned attention distribution determines the association.
+When elevation data is unavailable, learning-based methods can partially recover three-dimensional information by exploiting image context. Qian et al.~\cite{qian2021mvdnet} proposed a multi-view approach in which radar and camera features are associated along the epipolar line corresponding to the radar detection's bearing, effectively marginalizing over the unknown elevation. The cross-attention mechanism learns to weight image features at different heights based on their semantic content, assigning high weight to the image region that most likely corresponds to the radar target. This approach can be interpreted as a soft version of the frustum association used in CenterFusion~\cite{Nabati2021CenterFusion}, where instead of a hard frustum boundary, a learned attention distribution determines the association.
 
 %% -----------------------------------------------------------------------
 \subsection{Maritime-Specific Considerations}\label{subsec:maritime}
@@ -273,10 +273,10 @@ Table~\ref{tab:projection_methods} summarizes the major projection and associati
     RRPN~\cite{nabati2019rrpn}
       & 2019 & Image plane
       & Radar-seeded region proposals; ${\sim}100\times$ faster than Selective Search \\
-    GRIF Net~\cite{kim2020grif}
+    GRIF Net~\cite{Kim2020GRIFNet}
       & 2020 & RoI features
       & Gated modality weighting within projected RoIs \\
-    CenterFusion~\cite{nabati2021centerfusion}
+    CenterFusion~\cite{Nabati2021CenterFusion}
       & 2021 & Image plane (frustum)
       & Frustum-based association with CenterNet; $+12.8$ NDS on nuScenes \\
     RODNet~\cite{wang2021rodnet}
@@ -288,10 +288,10 @@ Table~\ref{tab:projection_methods} summarizes the major projection and associati
     BEVFusion~\cite{liu2023bevfusion}
       & 2023 & BEV grid
       & Unified BEV pooling with $40\times$ latency reduction; $72.9\%$ NDS \\
-    CRAFT~\cite{kim2023craft}
+    CRAFT~\cite{Kim2022CRAFT}
       & 2023 & Polar coordinates
       & Polar-space association; $41.1\%$ mAP on nuScenes \\
-    RCBEVDet~\cite{lin2024rcbevdet}
+    RCBEVDet~\cite{Lin2024RCBEVDet}
       & 2024 & BEV grid (RCS-aware)
       & RCS as BEV feature channel; $55.1\%$ NDS (camera + radar) \\
     \bottomrule
@@ -304,13 +304,13 @@ Table~\ref{tab:projection_methods} summarizes the major projection and associati
 
 This section has traced the complete mathematical pipeline from a radar detection in polar coordinates through world, camera, and pixel coordinate systems, establishing the projection equations that form the core of any radar-guided labeling system. The key findings and open gaps can be summarized as follows.
 
-\textbf{Mature projection mathematics, immature maritime application.} The coordinate transformation chain---polar to Cartesian, rigid-body extrinsic transformation, pinhole projection with distortion correction---is well understood and standardized in the computer vision and autonomous-driving communities~\cite{zhang2000flexible, caesar2020nuscenes}. However, its application to maritime X-band radar-camera systems has received limited attention, and the error characteristics at maritime ranges ($500$~m to several nautical miles) are not well quantified.
+\textbf{Mature projection mathematics, immature maritime application.} The coordinate transformation chain---polar to Cartesian, rigid-body extrinsic transformation, pinhole projection with distortion correction---is well understood and standardized in the computer vision and autonomous-driving communities~\cite{zhang2000flexible, Caesar2020nuScenes}. However, its application to maritime X-band radar-camera systems has received limited attention, and the error characteristics at maritime ranges ($500$~m to several nautical miles) are not well quantified.
 
 \textbf{Wide-FOV distortion modeling is essential but under-studied for maritime radar-camera systems.} The Kannala--Brandt~\cite{kannala2006generic} and Scaramuzza~\cite{scaramuzza2006toolbox} models provide adequate tools for wide-FOV cameras, but their integration into maritime radar projection pipelines has not been systematically evaluated. In particular, the interaction between distortion modeling errors and range-dependent bounding box sizing is an unexplored source of systematic label noise.
 
-\textbf{BEV fusion is powerful but assumes a flat ground plane.} Methods such as BEVFusion~\cite{liu2023bevfusion} and RCBEVDet~\cite{lin2024rcbevdet} achieve state-of-the-art performance on automotive benchmarks by projecting features into a BEV grid, but the flat-ground assumption underlying BEV construction is violated in maritime environments with wave action. Adapting BEV methods to a non-planar, time-varying reference surface is an open problem.
+\textbf{BEV fusion is powerful but assumes a flat ground plane.} Methods such as BEVFusion~\cite{liu2023bevfusion} and RCBEVDet~\cite{Lin2024RCBEVDet} achieve state-of-the-art performance on automotive benchmarks by projecting features into a BEV grid, but the flat-ground assumption underlying BEV construction is violated in maritime environments with wave action. Adapting BEV methods to a non-planar, time-varying reference surface is an open problem.
 
-\textbf{Frustum association methods are directly applicable to radar-guided labeling.} CenterFusion~\cite{nabati2021centerfusion}, GRIF Net~\cite{kim2020grif}, RRPN~\cite{nabati2019rrpn}, and CRAFT~\cite{kim2023craft} demonstrate that radar detections can be projected into the image to generate or refine bounding box proposals. These methods have been validated exclusively on the nuScenes automotive benchmark, and their extension to maritime targets---which differ in size, aspect ratio, and range distribution---remains untested.
+\textbf{Frustum association methods are directly applicable to radar-guided labeling.} CenterFusion~\cite{Nabati2021CenterFusion}, GRIF Net~\cite{Kim2020GRIFNet}, RRPN~\cite{nabati2019rrpn}, and CRAFT~\cite{Kim2022CRAFT} demonstrate that radar detections can be projected into the image to generate or refine bounding box proposals. These methods have been validated exclusively on the nuScenes automotive benchmark, and their extension to maritime targets---which differ in size, aspect ratio, and range distribution---remains untested.
 
 \textbf{The 3D ambiguity is the dominant error source for 2D radar.} Without elevation information, the vertical position and extent of the projected bounding box must be assumed, producing systematic errors that degrade both localization and classification. Four-dimensional imaging radar resolves this ambiguity but is not available in the X-band marine form factor~\cite{meyer2019automotive}. For two-dimensional marine radar, the combination of a sea-surface height assumption, AIS-reported vessel dimensions, and learned height regression represents the most promising mitigation strategy, though it has not been demonstrated end-to-end.
 
