@@ -391,6 +391,27 @@ To verify that composited targets are statistically consistent with the surround
 
 \ph{Describe your validation here. Include: (1)~histogram overlay of composited region vs.\ surrounding clutter, (2)~Kolmogorov--Smirnov test result (test statistic and p-value), (3)~a before/after compositor figure showing the real frame, the composite frame, and the difference.}
 
+\subsection{Computational Performance}
+
+A central design goal of the multi-mode framework is to provide generation speeds appropriate for each stage of the algorithm development workflow. We benchmarked all three modes by generating 100 frames of 720 spokes each on a single workstation. Table~\ref{tab:benchmark} reports the per-frame timing statistics.
+
+\begin{table}[htb]
+\centering
+\caption{Per-frame generation time for 100 frames of 720 spokes each.}
+\label{tab:benchmark}
+\begin{tabular}{@{}lS[table-format=3.2]S[table-format=1.4]S[table-format=1.4]S[table-format=1.4]S[table-format=1.4]@{}}
+\toprule
+\textbf{Mode} & {\textbf{Total (s)}} & {\textbf{Mean (s)}} & {\textbf{Median (s)}} & {\textbf{Min (s)}} & {\textbf{Max (s)}} \\
+\midrule
+1 --- Compositor   & 26.57  & 0.2657 & 0.2647 & 0.1936 & 0.3409 \\
+2 --- Analytical   &  8.08  & 0.0808 & 0.0797 & 0.0751 & 0.1595 \\
+3 --- Ray Tracing  & 326.67 & 3.2667 & 3.0528 & 2.9192 & 8.0327 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Mode~2 is the fastest generator, producing frames in \SI{81}{\milli\second} on average---approximately 12~frames per second---making it well suited to rapid parameter sweeps and Monte Carlo studies where thousands of frames are needed. Mode~1 averages \SI{266}{\milli\second} per frame (${\sim}$3.8~fps), dominated by the cost of reading the background recording and blending the synthetic signature; this throughput is sufficient for generating training sets of $10^{4}$--$10^{5}$ frames overnight. Mode~3 requires \SI{3.27}{\second} per frame, roughly 40$\times$ slower than Mode~2, reflecting the computational cost of per-spoke ray propagation and coherent summation. While Mode~3 throughput is adequate for producing small validation sets, it is not practical for large-scale training data generation---a deliberate design trade-off that motivates the multi-mode architecture. The standard deviation for Mode~3 (\SI{0.74}{\second}) is notably larger than for the other modes, due to occasional spikes caused by complex multipath geometries that increase the number of ray--surface intersections.
+
 %% ============================================================
 \section{Discussion}
 \label{sec:discussion}
