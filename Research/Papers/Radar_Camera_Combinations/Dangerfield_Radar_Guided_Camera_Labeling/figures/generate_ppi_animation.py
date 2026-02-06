@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
-"""Generate a radar PPI animation with greedy closest-object target acquisition.
+"""Generate a radar PPI animation with urgency + slew-efficiency camera scheduling.
 
-The camera arc initialises wide, then repeatedly locks onto the closest
-unlabeled object (by range from radar centre), dwells until a bounding box
-is generated, and moves on to the next closest — until every object is
-labelled.
+Score_i = w_U * U_i + w_S * S_i
 
-Produces TikZ frames compiled to PDF/PNG, then stitched into MP4 and GIF.
+  Urgency:        U_i = 1 - t_rem / t_max   (how soon target exits radar range)
+  Slew efficiency: S_i = 1 - |dtheta| / 180  (how close target is to current heading)
+
+  Weights: w_U = 0.7, w_S = 0.3
+
+The camera repeatedly picks the highest-scoring unlabeled target, slews to
+it, dwells until a bounding box is generated, then re-scores.
+
+Objects are designed to showcase the algorithm:
+  A — Fast outbound (NE)      → high urgency, labeled early
+  B — Moderate outbound (SSW) → moderate urgency + near camera start
+  C — Slow inbound (NW)       → low urgency, deferred
+  D — Stationary, close       → zero urgency, labeled on slew convenience
+  E — Stationary, far (SW)    → zero urgency, near camera start direction
 """
 
 import math
@@ -24,7 +34,6 @@ TEMP_DIR = os.path.join(SCRIPT_DIR, "_ppi_tmp")
 OUTPUT_MP4 = os.path.join(SCRIPT_DIR, "radar_ppi_animation.mp4")
 OUTPUT_GIF = os.path.join(SCRIPT_DIR, "radar_ppi_animation.gif")
 
-# Brand colours (RGB 0-255)
 COLORS = {
     "Garnet":    (115, 0, 10),
     "Black":     (0, 0, 0),
@@ -48,6 +57,7 @@ def _linear(x0, y0, x1, y1):
         return (x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
     return traj
 
+
 def _arc_traj(cx, cy, r, a0_deg, a1_deg):
     a0 = math.radians(a0_deg)
     a1 = math.radians(a1_deg)
@@ -56,32 +66,39 @@ def _arc_traj(cx, cy, r, a0_deg, a1_deg):
         return (cx + r * math.cos(a), cy + r * math.sin(a))
     return traj
 
+
 STATIONARY = {
-    "B1": (2.0, 3.0),
-    "V1": (-3.0, -1.5),
+    "D": (0.9, 0.5),       # Close, bearing ~29deg, range ~1.0 km
+    "E": (-2.5, -4.2),     # Far SW, bearing ~239deg, range ~4.9 km
 }
 
 MOVING = {
-    "S1": _linear(-4.0, 4.0, 3.0, -3.0),
-    "S2": _linear(2.0, -4.5, -1.0, 4.5),
-    "S3": _arc_traj(0.0, 0.0, 3.5, 210, 30),
+    "A": _linear(2.5, 2.5, 6.5, 6.0),      # Fast outbound NE, exits range
+    "B": _linear(-1.5, -3.5, -3.5, -5.5),   # Moderate outbound SSW, exits range
+    "C": _linear(-3.8, 2.5, -1.0, 1.0),     # Slow inbound from NW
 }
 
 ALL_KEYS = list(MOVING.keys()) + list(STATIONARY.keys())
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Scoring parameters
 # ---------------------------------------------------------------------------
-
 ARC_INIT_ANGLE = 210.0
 ARC_INIT_WIDTH = 50.0
 MOVING_ARC_WIDTH = 18.0
 STATIC_ARC_WIDTH = 10.0
 DWELL_DURATION = 14
 BBOX_DELAY = 8
-INIT_DURATION = 12
-HOLD_DURATION = 15
+INIT_DURATION = 14
+HOLD_DURATION = 18
 
+W_U = 0.7   # urgency weight
+W_S = 0.3   # slew-efficiency weight
+T_MAX = 1.0 # normalising horizon (full animation in t-units)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _ease_in_out(t):
     t = max(0.0, min(1.0, t))
@@ -106,7 +123,6 @@ def _obj_pos(key, t_global):
 
 
 def _obj_range(key, t_global):
-    """Distance from radar centre to object."""
     x, y = _obj_pos(key, t_global)
     return math.hypot(x, y)
 
@@ -116,38 +132,92 @@ def _angle_to(key, t_global):
     return math.degrees(math.atan2(y, x))
 
 
+def _radial_velocity(key, t_global, dt=0.001):
+    """Radial velocity (positive = outbound, negative = inbound)."""
+    if key in STATIONARY:
+        return 0.0
+    r1 = _obj_range(key, t_global)
+    r2 = _obj_range(key, min(1.0, t_global + dt))
+    return (r2 - r1) / dt
+
+
+def _compute_score(key, t_global, cam_angle):
+    """Return (score, U, S) for a target at the given time and camera heading."""
+    # --- Urgency ---
+    v_r = _radial_velocity(key, t_global)
+    if v_r > 0.05:  # outbound
+        r = _obj_range(key, t_global)
+        remaining = PPI_RADIUS - r
+        if remaining <= 0:
+            U = 1.0
+        else:
+            t_rem = remaining / v_r
+            U = max(0.0, min(1.0, 1.0 - t_rem / T_MAX))
+    else:
+        U = 0.0  # inbound or stationary
+
+    # --- Slew efficiency ---
+    target_angle = _angle_to(key, t_global)
+    delta_theta = abs(_angle_diff(cam_angle, target_angle))
+    S = 1.0 - delta_theta / 180.0
+
+    score = W_U * U + W_S * S
+    return score, U, S
+
+
 # ---------------------------------------------------------------------------
-# Dynamic timeline builder — greedy closest-first
+# Dynamic timeline builder — urgency + slew scoring
 # ---------------------------------------------------------------------------
 
 def _build_segments():
-    """Build the segment list by always picking the closest unlabeled object."""
-    # Rough total estimate for t_global calculation (refine would be circular,
-    # but positions don't shift enough over ±10% to change the ordering).
+    """Build segments by repeatedly picking the highest-scoring unlabeled target."""
     est_total = INIT_DURATION + len(ALL_KEYS) * 38 + HOLD_DURATION
 
     segments = [{"type": "init", "duration": INIT_DURATION}]
     labeled = set()
-    cursor = INIT_DURATION  # current frame
-    prev_angle = ARC_INIT_ANGLE
+    cursor = INIT_DURATION
+    cam_angle = ARC_INIT_ANGLE
 
+    print("=" * 78)
+    print("CAMERA SCHEDULING  —  Score = 0.7·U + 0.3·S")
+    print("=" * 78)
+
+    step = 0
     while len(labeled) < len(ALL_KEYS):
-        t_now = cursor / est_total
+        step += 1
+        t_now = min(cursor / est_total, 0.99)
 
-        # Find closest unlabeled object by range from radar centre
-        best_key = None
-        best_range = float("inf")
+        # Score all unlabeled targets
+        scores = {}
         for key in ALL_KEYS:
             if key in labeled:
                 continue
-            r = _obj_range(key, t_now)
-            if r < best_range:
-                best_range = r
-                best_key = key
+            scores[key] = _compute_score(key, t_now, cam_angle)
 
-        # Move duration proportional to angular distance (15-30 frames)
+        # Print score table
+        ranked = sorted(scores.items(), key=lambda kv: kv[1][0], reverse=True)
+        print(f"\nStep {step}  (frame ~{cursor}, t={t_now:.2f}, "
+              f"camera at {cam_angle:.0f}deg)")
+        print(f"{'Object':>8} {'U':>6} {'S':>6} {'Score':>7}  Note")
+        print(f"{'------':>8} {'-----':>6} {'-----':>6} {'------':>7}  ----")
+        for key, (sc, U, S) in ranked:
+            v_r = _radial_velocity(key, t_now)
+            if key in STATIONARY:
+                note = "stationary"
+            elif v_r > 0.05:
+                note = f"outbound (v_r={v_r:.1f})"
+            elif v_r < -0.05:
+                note = f"inbound  (v_r={v_r:.1f})"
+            else:
+                note = "crossing"
+            marker = " <-- PICK" if key == ranked[0][0] else ""
+            print(f"{key:>8} {U:>6.2f} {S:>6.2f} {sc:>7.3f}  {note}{marker}")
+
+        best_key = ranked[0][0]
+
+        # Move duration proportional to angular distance
         target_angle = _angle_to(best_key, t_now)
-        ang = abs(_angle_diff(prev_angle, target_angle))
+        ang = abs(_angle_diff(cam_angle, target_angle))
         move_dur = max(15, min(30, int(ang / 7)))
 
         is_moving = best_key in MOVING
@@ -164,10 +234,15 @@ def _build_segments():
 
         labeled.add(best_key)
         cursor += move_dur + DWELL_DURATION
-        # Update prev_angle to roughly where we'll end up
-        prev_angle = target_angle
+        cam_angle = target_angle
 
     segments.append({"type": "hold", "duration": HOLD_DURATION})
+
+    print("\n" + "=" * 78)
+    order = [s["target"] for s in segments if s["type"] == "dwell"]
+    print(f"Final acquisition order: {' -> '.join(order)}")
+    print("=" * 78)
+
     return segments
 
 
@@ -187,11 +262,8 @@ for i, seg in enumerate(SEGMENTS):
     if seg["type"] == "dwell":
         BBOX_APPEAR_FRAME[seg["target"]] = _seg_starts[i] + seg["bbox_delay"]
 
-# Print the computed acquisition order
-_order = [seg["target"] for seg in SEGMENTS if seg["type"] == "dwell"]
-print(f"Acquisition order (closest-first): {' -> '.join(_order)}")
-print(f"Total frames: {NUM_FRAMES} ({NUM_FRAMES / FPS:.1f}s)")
-for key in _order:
+print(f"\nTotal frames: {NUM_FRAMES} ({NUM_FRAMES / FPS:.1f}s)")
+for key in [s["target"] for s in SEGMENTS if s["type"] == "dwell"]:
     print(f"  {key}: bbox at frame {BBOX_APPEAR_FRAME[key]}")
 
 
@@ -200,10 +272,8 @@ for key in _order:
 # ---------------------------------------------------------------------------
 
 def _get_arc_state(frame_idx):
-    """Return (center_angle, width) of the camera arc for a given frame."""
     t_global = frame_idx / max(1, NUM_FRAMES - 1)
 
-    # Find which segment this frame belongs to
     seg_idx = 0
     for i in range(len(_seg_starts)):
         if i + 1 < len(_seg_starts) and frame_idx >= _seg_starts[i + 1]:
@@ -260,24 +330,20 @@ def make_tex(frame_idx):
 
     body = []
 
-    # Background + border
     body.append(r"\fill[White] (-5.8,-5.8) rectangle (5.8,5.8);")
     body.append(r"\draw[Black, thick] (-5.8,-5.8) rectangle (5.8,5.8);")
 
-    # Range rings
     for r in range(1, 6):
         body.append(f"\\draw[30Black, thin] (0,0) circle ({r}cm);")
         body.append(f"\\node[30Black, font=\\tiny] at ({r - 0.3}, 0.25) {{{r} km}};")
 
-    # Cardinal labels
     off = PPI_RADIUS + 0.45
     for lbl, x, y in [("N", 0, off), ("S", 0, -off), ("E", off, 0), ("W", -off, 0)]:
         body.append(f"\\node[Black, font=\\small\\bfseries] at ({x},{y}) {{{lbl}}};")
 
-    # Radar centre
     body.append(r"\fill[Black] (0,0) circle (0.06cm);")
 
-    # --- Camera arc ---
+    # Camera arc
     arc_center, arc_width = _get_arc_state(frame_idx)
     a1 = arc_center - arc_width / 2
     a2 = arc_center + arc_width / 2
@@ -290,7 +356,7 @@ def make_tex(frame_idx):
         f"arc ({a1:.2f}:{a2:.2f}:{PPI_RADIUS}) -- cycle;"
     )
 
-    # --- Stationary objects ---
+    # Stationary objects
     for key, (sx, sy) in STATIONARY.items():
         body.append(f"\\fill[Congaree] ({sx},{sy}) circle (0.10cm);")
         if key in BBOX_APPEAR_FRAME and frame_idx >= BBOX_APPEAR_FRAME[key]:
@@ -302,16 +368,21 @@ def make_tex(frame_idx):
                 f"at ({x1 + 0.05},{y1 + 0.05}) {{{key}}};"
             )
 
-    # --- Moving objects ---
+    # Moving objects
     for key, traj in MOVING.items():
         cx, cy = traj(t_global)
 
-        # Trail dots
+        # Skip if outside radar range
+        if math.hypot(cx, cy) > PPI_RADIUS + 0.5:
+            continue
+
         for k in range(TRAIL_LENGTH, 0, -1):
             t_trail = t_global - k * (1.0 / max(1, NUM_FRAMES - 1))
             if t_trail < 0:
                 continue
             tx, ty = traj(t_trail)
+            if math.hypot(tx, ty) > PPI_RADIUS + 0.5:
+                continue
             opacity = 1.0 - k / (TRAIL_LENGTH + 1)
             body.append(
                 f"\\fill[Congaree, opacity={opacity:.2f}] "
@@ -332,7 +403,6 @@ def make_tex(frame_idx):
                 f"at ({x1 + 0.05:.4f},{y1 + 0.05:.4f}) {{{key}}};"
             )
 
-    # Frame counter
     body.append(
         f"\\node[Black, font=\\tiny, anchor=north east] "
         f"at (5.65,5.65) {{Frame {frame_idx + 1}/{NUM_FRAMES}}};"
