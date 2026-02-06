@@ -29,7 +29,18 @@ COLORS = {
     "30Black":   (199, 199, 199),
     "Atlantic":  (70, 106, 159),
     "Congaree":  (31, 65, 77),
+    "Rose":      (204, 46, 64),
 }
+
+# ---------------------------------------------------------------------------
+# Beam arc (camera FOV wedge)
+# ---------------------------------------------------------------------------
+# Target: B1 at (2.0, 3.0) -> angle ≈ 56.3°
+BEAM_TARGET = STATIONARY[0] if 'STATIONARY' in dir() else ("B1", 2.0, 3.0)
+BEAM_TARGET_ANGLE = math.degrees(math.atan2(3.0, 2.0))  # ~56.3°
+BEAM_START_ANGLE = 210.0   # start pointing roughly SW
+BEAM_START_WIDTH = 50.0    # degrees
+BEAM_END_WIDTH = 5.0       # degrees
 
 # PPI radius in TikZ cm (maps to 5 km)
 PPI_RADIUS = 5.0
@@ -70,6 +81,14 @@ MOVING = [
 
 TRAIL_LENGTH = 5  # number of trailing dots
 BBOX_HALF = 0.35  # half-size of bounding box
+
+
+def _ease_in_out(t):
+    """Smooth ease-in-out (cubic)."""
+    if t < 0.5:
+        return 4 * t * t * t
+    else:
+        return 1 - (-2 * t + 2) ** 3 / 2
 
 # ---------------------------------------------------------------------------
 # TikZ template
@@ -117,6 +136,21 @@ def make_tex(frame_idx):
 
     # Radar centre dot
     body_lines.append(r"\fill[Black] (0,0) circle (0.06cm);")
+
+    # --- Beam arc (camera FOV wedge) ---
+    e = _ease_in_out(t)
+    beam_center = BEAM_START_ANGLE + (BEAM_TARGET_ANGLE - BEAM_START_ANGLE) * e
+    beam_width = BEAM_START_WIDTH + (BEAM_END_WIDTH - BEAM_START_WIDTH) * e
+    beam_a1 = beam_center - beam_width / 2
+    beam_a2 = beam_center + beam_width / 2
+    body_lines.append(
+        f"\\fill[Rose, opacity=0.18] (0,0) -- ({beam_a1:.2f}:{PPI_RADIUS}) "
+        f"arc ({beam_a1:.2f}:{beam_a2:.2f}:{PPI_RADIUS}) -- cycle;"
+    )
+    body_lines.append(
+        f"\\draw[Rose, thick] (0,0) -- ({beam_a1:.2f}:{PPI_RADIUS}) "
+        f"arc ({beam_a1:.2f}:{beam_a2:.2f}:{PPI_RADIUS}) -- cycle;"
+    )
 
     # --- Stationary objects ---
     for label, sx, sy in STATIONARY:
