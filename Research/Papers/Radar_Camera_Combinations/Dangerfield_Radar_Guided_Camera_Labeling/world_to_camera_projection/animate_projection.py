@@ -197,10 +197,7 @@ def generate_frame_tex(frame_idx):
     lines.append(r"\definecolor{waterbot}{RGB}{20,56,71}")
 
     # PPI scope colors
-    lines.append(r"\definecolor{ppibg}{RGB}{8,18,8}")
-    lines.append(r"\definecolor{ppigrid}{RGB}{30,70,30}")
-    lines.append(r"\definecolor{ppisweep}{RGB}{60,180,60}")
-    lines.append(r"\definecolor{ppiglow}{RGB}{80,220,80}")
+    lines.append(r"\definecolor{ppigrid}{RGB}{199,199,199}")
     lines.append(r"\definecolor{ppifov}{RGB}{70,106,159}")
 
     # ===================================================================
@@ -213,8 +210,8 @@ def generate_frame_tex(frame_idx):
     lines.append(f"\\begin{{scope}}")
     lines.append(f"\\clip ({ocx:.3f},{ocy:.3f}) circle ({R_cm:.3f});")
 
-    # Dark background
-    lines.append(f"\\fill[ppibg] ({ocx-R_cm:.3f},{ocy-R_cm:.3f}) "
+    # White background
+    lines.append(f"\\fill[white] ({ocx-R_cm:.3f},{ocy-R_cm:.3f}) "
                  f"rectangle ({ocx+R_cm:.3f},{ocy+R_cm:.3f});")
 
     # Range rings (full circles, clipped)
@@ -232,7 +229,7 @@ def generate_frame_tex(frame_idx):
     # Camera FOV wedge overlay
     half_fov = HFOV_RAD / 2
     n_arc = 60
-    fov_r_cm = R_cm  # extend to edge
+    fov_r_cm = R_cm
     arc_angles = np.linspace(-half_fov, half_fov, n_arc)
     wedge_pts = [(ocx, ocy)]
     for a in arc_angles:
@@ -241,30 +238,13 @@ def generate_frame_tex(frame_idx):
         wedge_pts.append((wx, wy))
     wedge_pts.append((ocx, ocy))
     pts_str = " -- ".join(f"({p[0]:.3f},{p[1]:.3f})" for p in wedge_pts)
-    lines.append(f"\\fill[ppifov, opacity=0.12] {pts_str} -- cycle;")
-    lines.append(f"\\draw[ppifov, opacity=0.4, thin] "
+    lines.append(f"\\fill[ppifov, opacity=0.08] {pts_str} -- cycle;")
+    lines.append(f"\\draw[ppifov, opacity=0.35, thin] "
                  f"({ocx:.3f},{ocy:.3f}) -- ({wedge_pts[1][0]:.3f},{wedge_pts[1][1]:.3f});")
-    lines.append(f"\\draw[ppifov, opacity=0.4, thin] "
+    lines.append(f"\\draw[ppifov, opacity=0.35, thin] "
                  f"({ocx:.3f},{ocy:.3f}) -- ({wedge_pts[-2][0]:.3f},{wedge_pts[-2][1]:.3f});")
 
-    # Radar sweep beam (rotating line with glow)
-    sweep_angle_deg = (frame_idx * SWEEP_DEG_PER_FRAME) % 360
-    sweep_rad = np.deg2rad(sweep_angle_deg)
-    sx = ocx + R_cm * np.sin(sweep_rad)
-    sy = ocy + R_cm * np.cos(sweep_rad)
-    # Trailing glow wedge (~15 degrees behind the beam)
-    for trail_offset in range(15):
-        trail_a = np.deg2rad(sweep_angle_deg - trail_offset)
-        trail_x = ocx + R_cm * np.sin(trail_a)
-        trail_y = ocy + R_cm * np.cos(trail_a)
-        opacity = 0.15 * (1.0 - trail_offset / 15.0)
-        lines.append(f"\\draw[ppisweep, opacity={opacity:.3f}, line width=0.8pt] "
-                     f"({ocx:.3f},{ocy:.3f}) -- ({trail_x:.3f},{trail_y:.3f});")
-    # Main beam line
-    lines.append(f"\\draw[ppiglow, opacity=0.9, line width=1pt] "
-                 f"({ocx:.3f},{ocy:.3f}) -- ({sx:.3f},{sy:.3f});")
-
-    # Object blips
+    # Object blips — solid colored circles
     for obj in OBJECTS:
         x, y = get_position(obj, frame_idx)
         rng = np.sqrt(x**2 + y**2)
@@ -272,26 +252,20 @@ def generate_frame_tex(frame_idx):
             continue
         bx, by = ppi_coord(x, y)
         col = obj["color"]
-        # Blip size scales with object width, min 0.06cm
-        blip_r = max(0.06, R_cm * obj["w"] / PPI_MAX_RANGE * 0.6)
-        # Bright glow ring
-        lines.append(f"\\fill[{col}, opacity=0.3] ({bx:.3f},{by:.3f}) circle ({blip_r*2.0:.3f});")
-        # Core blip
+        blip_r = max(0.07, R_cm * obj["w"] / PPI_MAX_RANGE * 0.6)
         lines.append(f"\\fill[{col}] ({bx:.3f},{by:.3f}) circle ({blip_r:.3f});")
-        # Bright center dot
-        lines.append(f"\\fill[white, opacity=0.7] ({bx:.3f},{by:.3f}) circle ({blip_r*0.35:.3f});")
 
     lines.append(f"\\end{{scope}}")
 
     # PPI circle border
-    lines.append(f"\\draw[black70, thick] ({ocx:.3f},{ocy:.3f}) circle ({R_cm:.3f});")
+    lines.append(f"\\draw[black90, thick] ({ocx:.3f},{ocy:.3f}) circle ({R_cm:.3f});")
 
     # Range labels outside circle
     for rng in [200, 400, 600, 800]:
         r_cm = R_cm * rng / PPI_MAX_RANGE
         lx = ocx + 0.12
         ly = ocy + r_cm
-        lines.append(f"\\node[ppiglow, font=\\fontsize{{4}}{{4}}\\selectfont, "
+        lines.append(f"\\node[black50, font=\\fontsize{{4}}{{4}}\\selectfont, "
                      f"right] at ({lx:.3f},{ly:.3f}) {{{rng}m}};")
 
     # Bearing labels
@@ -306,11 +280,10 @@ def generate_frame_tex(frame_idx):
     lines.append(f"\\node[black90, font=\\small\\bfseries, above] at "
                  f"({ocx:.3f},{ocy + R_cm + 0.6:.3f}) {{Radar PPI}};")
 
-    # Center marker (radar/camera location)
-    lines.append(f"\\fill[ppiglow] ({ocx:.3f},{ocy:.3f}) circle (0.04);")
-    lines.append(f"\\draw[ppiglow, very thin] ({ocx-0.1:.3f},{ocy:.3f}) -- ({ocx+0.1:.3f},{ocy:.3f});")
-    lines.append(f"\\draw[ppiglow, very thin] ({ocx:.3f},{ocy-0.1:.3f}) -- ({ocx:.3f},{ocy+0.1:.3f});")
-
+    # Center crosshair (radar/camera location)
+    lines.append(f"\\fill[black90] ({ocx:.3f},{ocy:.3f}) circle (0.04);")
+    lines.append(f"\\draw[black70, very thin] ({ocx-0.12:.3f},{ocy:.3f}) -- ({ocx+0.12:.3f},{ocy:.3f});")
+    lines.append(f"\\draw[black70, very thin] ({ocx:.3f},{ocy-0.12:.3f}) -- ({ocx:.3f},{ocy+0.12:.3f});")
     # ===================================================================
     # CAMERA VIEW
     # ===================================================================
