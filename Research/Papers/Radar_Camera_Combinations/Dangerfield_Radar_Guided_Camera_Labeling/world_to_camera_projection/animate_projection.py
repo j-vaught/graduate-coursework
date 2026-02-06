@@ -324,47 +324,7 @@ def generate_frame_tex(frame_idx):
     # Draw furthest first so closer objects overlap on top
     cam_objects.sort(key=lambda t: t[0], reverse=True)
 
-    # --- Radar prediction markers: circles ON the water surface (Z=0) ---
-    # Radar gives range + bearing but no height, so the prediction is a
-    # disc lying flat on the water plane.  We sample points around a world-
-    # space circle at Z=0, project each through the camera, and draw the
-    # resulting perspective-distorted polygon.
-    N_CIRCLE_PTS = 48
-    circle_angles = np.linspace(0, 2 * np.pi, N_CIRCLE_PTS, endpoint=False)
-
-    for rng, obj, bbox, radar_pt in cam_objects:
-        x, y = get_position(obj, frame_idx)
-        # Radar uncertainty radius on the water surface (meters)
-        # Scales with range — further objects have larger search region
-        water_radius = max(15.0, rng * 0.06)
-
-        # Sample circle on Z=0 plane in world coords
-        proj_pts = []
-        for a in circle_angles:
-            wx = x + water_radius * np.cos(a)
-            wy = y + water_radius * np.sin(a)
-            pt = project_point(wx, wy, 0)
-            if pt is not None:
-                pu, pv = pt
-                # Only keep points in frame
-                if 0 <= pu <= IMAGE_W and 0 <= pv <= IMAGE_H:
-                    proj_pts.append(cam_coord(pu, pv))
-
-        if len(proj_pts) < 3:
-            continue
-
-        # Draw filled polygon + outline
-        pts_str = " -- ".join(f"({p[0]:.3f},{p[1]:.3f})" for p in proj_pts)
-        lines.append(f"\\fill[honeycomb, opacity=0.20] {pts_str} -- cycle;")
-        lines.append(f"\\draw[honeycomb, thick] {pts_str} -- cycle;")
-        # Center dot at radar detection point
-        if radar_pt is not None:
-            ru, rv = radar_pt
-            if 0 <= ru <= IMAGE_W and 0 <= rv <= IMAGE_H:
-                cdx, cdy = cam_coord(ru, rv)
-                lines.append(f"\\fill[honeycomb] ({cdx:.3f},{cdy:.3f}) circle (0.03);")
-
-    # --- Actual object bounding boxes (drawn on top) ---
+    # --- Actual object bounding boxes (drawn first = camera layer) ---
     for rng, obj, bbox, radar_pt in cam_objects:
         u_min, v_min, u_max, v_max = bbox
         u_min_c = max(u_min, 0)
@@ -381,6 +341,37 @@ def generate_frame_tex(frame_idx):
                      f"({cx0:.3f},{cy0:.3f}) rectangle ({cx1:.3f},{cy1:.3f});")
         lines.append(f"\\draw[white, thick, rounded corners=1.5pt] "
                      f"({cx0:.3f},{cy0:.3f}) rectangle ({cx1:.3f},{cy1:.3f});")
+
+    # --- Radar prediction overlay (drawn ON TOP of camera image) ---
+    # Circles on the Z=0 water surface, perspective-projected.
+    N_CIRCLE_PTS = 48
+    circle_angles = np.linspace(0, 2 * np.pi, N_CIRCLE_PTS, endpoint=False)
+
+    for rng, obj, bbox, radar_pt in cam_objects:
+        x, y = get_position(obj, frame_idx)
+        water_radius = max(15.0, rng * 0.06)
+
+        proj_pts = []
+        for a in circle_angles:
+            wx = x + water_radius * np.cos(a)
+            wy = y + water_radius * np.sin(a)
+            pt = project_point(wx, wy, 0)
+            if pt is not None:
+                pu, pv = pt
+                if 0 <= pu <= IMAGE_W and 0 <= pv <= IMAGE_H:
+                    proj_pts.append(cam_coord(pu, pv))
+
+        if len(proj_pts) < 3:
+            continue
+
+        pts_str = " -- ".join(f"({p[0]:.3f},{p[1]:.3f})" for p in proj_pts)
+        lines.append(f"\\fill[honeycomb, opacity=0.20] {pts_str} -- cycle;")
+        lines.append(f"\\draw[honeycomb, thick] {pts_str} -- cycle;")
+        if radar_pt is not None:
+            ru, rv = radar_pt
+            if 0 <= ru <= IMAGE_W and 0 <= rv <= IMAGE_H:
+                cdx, cdy = cam_coord(ru, rv)
+                lines.append(f"\\fill[honeycomb] ({cdx:.3f},{cdy:.3f}) circle (0.03);")
 
     # Camera view title
     lines.append(f"\\node[black90, font=\\small\\bfseries, above] at "
