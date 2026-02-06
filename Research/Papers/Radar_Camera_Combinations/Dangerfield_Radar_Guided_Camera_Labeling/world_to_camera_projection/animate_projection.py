@@ -288,7 +288,8 @@ def generate_frame_tex(frame_idx):
     lines.append(f"\\draw[white, opacity=0.6, thin] ({CAM_X_OFF:.3f},{h_y:.3f}) -- ({CAM_X_OFF + CAM_W:.3f},{h_y:.3f});")
     lines.append(f"\\node[white, opacity=0.7, font=\\tiny, above left] at ({CAM_X_OFF + CAM_W - 0.1:.3f},{h_y:.3f}) {{horizon}};")
 
-    # Project objects into camera view
+    # Project objects into camera view — sort back-to-front (furthest first)
+    cam_objects = []
     for obj in OBJECTS:
         x, y = get_position(obj, frame_idx)
         if y <= 0:
@@ -297,26 +298,29 @@ def generate_frame_tex(frame_idx):
         if bbox is None:
             continue
         u_min, v_min, u_max, v_max = bbox
-        # Check at least partially in frame
         if u_max < 0 or u_min > IMAGE_W or v_max < 0 or v_min > IMAGE_H:
             continue
+        rng = np.sqrt(x**2 + y**2)
+        cam_objects.append((rng, obj, bbox))
 
-        # Clamp to image bounds
+    # Draw furthest first so closer objects overlap on top
+    cam_objects.sort(key=lambda t: t[0], reverse=True)
+
+    for rng, obj, bbox in cam_objects:
+        u_min, v_min, u_max, v_max = bbox
         u_min_c = max(u_min, 0)
         v_min_c = max(v_min, 0)
         u_max_c = min(u_max, IMAGE_W)
         v_max_c = min(v_max, IMAGE_H)
 
         col = obj["color"]
-        cx0, cy0 = cam_coord(u_min_c, v_max_c)  # bottom-left in TikZ
-        cx1, cy1 = cam_coord(u_max_c, v_min_c)  # top-right in TikZ
-        w_cm = cx1 - cx0
-        h_cm = cy1 - cy0
+        cx0, cy0 = cam_coord(u_min_c, v_max_c)
+        cx1, cy1 = cam_coord(u_max_c, v_min_c)
 
-        # Solid colored rounded rectangle, no text
+        # Solid colored rounded rectangle with white outline
         lines.append(f"\\fill[{col}, opacity=0.85, rounded corners=1.5pt] "
                      f"({cx0:.3f},{cy0:.3f}) rectangle ({cx1:.3f},{cy1:.3f});")
-        lines.append(f"\\draw[{col}, thick, rounded corners=1.5pt] "
+        lines.append(f"\\draw[white, thick, rounded corners=1.5pt] "
                      f"({cx0:.3f},{cy0:.3f}) rectangle ({cx1:.3f},{cy1:.3f});")
 
     # Camera view title
@@ -329,15 +333,6 @@ def generate_frame_tex(frame_idx):
 
     # Frame counter
     lines.append(f"\\node[black50, font=\\tiny] at ({CAM_X_OFF + CAM_W - 0.5:.3f},0.3) {{f{frame_idx:03d}}};")
-
-    # Legend (bottom, between panels)
-    leg_x = CAM_X_OFF + 0.3
-    leg_y = -0.6
-    for i, obj in enumerate(OBJECTS):
-        col = obj["color"]
-        lx = leg_x + i * 2.5
-        lines.append(f"\\fill[{col}, rounded corners=1pt] ({lx:.3f},{leg_y:.3f}) rectangle ({lx+0.3:.3f},{leg_y+0.2:.3f});")
-        lines.append(f"\\node[black90, font=\\tiny, right] at ({lx+0.35:.3f},{leg_y+0.1:.3f}) {{{obj['label']}}};")
 
     lines.append(r"\end{tikzpicture}")
     lines.append(r"\end{document}")
