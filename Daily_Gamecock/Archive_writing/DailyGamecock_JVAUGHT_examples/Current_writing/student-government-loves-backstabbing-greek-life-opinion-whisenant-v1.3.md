@@ -32,7 +32,7 @@ The Greek candidate tried to report fraud through official channels, but, by [th
 
 The Tkacs-Richardson campaign wasn't just playing defense — it went on offense with [formal accusations](https://drive.google.com/file/d/1QvBi3uIyWpjjMnFzWrUbnWQSNkU8YeKE/view?usp=share_link) that the Greek candidate's team had improperly courted sororities, such as Delta Zeta and Phi Mu, before the official campaign period. The Constitutional Council reviewed the evidence and dismissed the complaints entirely.
 
-Think about that. The campaign the council found sufficient evidence of fraud against tried to accuse its opponent of violations the council found no merit to.
+Think about that. The side found guilty of fraud accused the other side of cheating. The council dismissed every claim.
 
 The [Constitutional Council's ruling](https://www.dailygamecock.com/article/2025/02/constitutional-council-rules-sufficient-evidence-of-fraud-dismisses-other-cases-news-flowe) confirmed the damage. It found sufficient evidence of election fraud. It acknowledged that the TikTok had created a "climate of uncertainty and tainted the voting process," causing lasting harm throughout the voting period. By its own assessment, the process was compromised.
 
