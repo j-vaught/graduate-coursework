@@ -1,19 +1,18 @@
-We cast simulator tuning as a bi-level optimization problem. Let $\mathcal{M}$ be the downstream perception model (e.g., MRISNet for ship segmentation \cite{ma2024_mrisnet}) and $\mathcal{S}(\theta, e)$ be a physically-grounded radar simulator parameterized by $\theta$ and conditioned on environment type $e \in \{lake, river, coast\}$. The objective is:
+We cast simulator tuning as a bi-level optimization problem. Let $\mathcal{M}$ be the downstream perception model (e.g., MRISNet for ship segmentation \cite{ma2024mrisnet}) and $\mathcal{S}(\theta, e)$ be a physically grounded radar simulator parameterized by $\theta$ and conditioned on environment type $e \in \{\text{lake}, \text{river}, \text{coast}\}$. The objective is
 \begin{equation}
     \theta^* = \arg\max_{\theta} \mathcal{R}\left(\mathcal{M}^*(\theta), \mathcal{D}_{real}\right)
 \end{equation}
-subject to the inner-loop training:
+subject to inner-loop training
 \begin{equation}
-    \mathcal{M}^*(\theta) = \arg\min_{\omega} \mathcal{L}_{task}\left(\mathcal{M}_{\omega}, \mathcal{S}(\theta, e)\right)
+    \mathcal{M}^*(\theta) = \arg\min_{\omega} \mathcal{L}_{task}\left(\mathcal{M}_{\omega}, \mathcal{S}(\theta, e)\right).
 \end{equation}
-where $\mathcal{L}_{task}$ is the segmentation loss on synthetic data and $\mathcal{R}$ is the validation reward on real data $\mathcal{D}_{real}$.
 
-The outer-loop RL policy, $\pi(\theta_{t+1} | s_t)$, proposes sequential updates to $\theta$. The state $s_t$ includes the current parameter vector, the environment label $e$, and a history of validation performance. The reward function $r_t$ is formulated as:
+The outer-loop policy $\pi(\theta_{t+1} \mid s_t)$ proposes sequential updates to simulator parameters. State $s_t$ includes current $\theta$, environment label $e$, recent validation metrics, and trajectory history. Reward is
 \begin{equation}
-    r_t = \Delta \text{mIoU}_{real} - \lambda_{1} \|\theta_t - \theta_{init}\|_2 - \lambda_{2} \mathbb{1}(\theta \notin \Omega_{phys})
+    r_t = \Delta \mathrm{mIoU}_{real} - \lambda_1\|\theta_t-\theta_{init}\|_2 - \lambda_2\,\mathbb{1}(\theta \notin \Omega_{phys}),
 \end{equation}
-where $\Delta \text{mIoU}_{real}$ is the improvement in Mean Intersection over Union on the real validation set, and $\Omega_{phys}$ represents the physically plausible bounds of the simulator.
+where $\Omega_{phys}$ denotes physically plausible bounds.
 
-The simulator $\mathcal{S}$ employs ray-tracing to model multi-path interference and calculates the Radar Cross-Section (RCS) of maritime targets. To accurately represent dynamic sea clutter, we implement the Elfouhaily spectrum for sea surface modeling, accounting for non-Gaussian spiky clutter at low grazing angles. The policy controls physically meaningful factors including speckle strength, which governs the statistical distribution of coherent noise; the attenuation coefficient, for adjusting atmospheric and environmental signal loss; the clutter floor, which tunes baseline noise levels based on environment-specific wave heights; and multipath gain, for controlling the intensity of ghost reflections from shorelines.
+The simulator models multipath and clutter using physically meaningful factors: speckle scale, attenuation, clutter floor, and multipath gain. To avoid unrealistic exploitation, each action is clipped to calibrated parameter ranges and penalized when violating physical plausibility. We use Soft Actor-Critic (SAC) for the outer loop because it supports stable learning in continuous action spaces with stochastic exploration.
 
-We use Soft Actor-Critic (SAC) to optimize the policy, leveraging its maximum entropy framework for robust exploration of the high-dimensional parameter space. This environment-conditioned approach allows the policy to specialize tuning for different maritime contexts, significantly reducing the sim-to-real gap compared to uniform domain randomization.
+The key design difference from prior adaptive randomization is that this policy is (i) sequential, (ii) environment-conditioned, and (iii) optimized on downstream real-task reward rather than simulator similarity alone.

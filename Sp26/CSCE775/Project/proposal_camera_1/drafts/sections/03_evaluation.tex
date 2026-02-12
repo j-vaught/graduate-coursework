@@ -1,11 +1,18 @@
 \subsection{Experimental Setup}
-We utilize the M3FD and FLIR marine datasets, splitting data by distinct weather and lighting conditions (e.g., train on Day/Clear, test on Night/Fog) to enforce domain generalization.
+We evaluate on maritime and multimodal IR/RGB benchmarks with explicit domain-shift slices (e.g., day-to-night, clear-to-fog) and misalignment stress conditions. Splits are organized by condition and sequence to avoid leakage.
 
 \subsection{Baselines}
-We compare against five distinct strategies: (1) 	extbf{Classical Registration:} Fixed SIFT/ORB + RANSAC; (2) 	extbf{Fixed Augmentation:} Standard supervised learning with static random flip/crop; (3) 	extbf{RandAugment:} Randomized search without context; (4) 	extbf{AutoAugment:} Offline search for a fixed best policy; and (5) 	extbf{Context-Free RL:} An ablation of our method ignoring state inputs.
+We compare against five classes of methods:
+\begin{enumerate}
+    \item \textbf{Classical fixed registration}: feature-based matching + RANSAC.
+    \item \textbf{Fixed augmentation}: static hand-designed augmentation schedule.
+    \item \textbf{RandAugment}: global randomized augmentation policy \cite{cubuk2020randaugment}.
+    \item \textbf{AutoAugment/PBA}: offline searched static policy \cite{cubuk2019autoaugment,ho2019population}.
+    \item \textbf{Context-free RL}: same control pipeline without context features.
+\end{enumerate}
 
 \subsection{Metrics}
-Primary metrics include Mean Average Precision (mAP@50) for detection and Mean Reprojection Error (MRE) for alignment quality. Secondary metrics assess robustness to induced misalignment and sensor degradation (simulated thermal crossover).
+Primary metrics are mAP@50 (detection) and mean reprojection error (alignment quality). Secondary metrics include performance drop under induced misalignment, robustness under adverse weather/lighting shifts, and preprocessing latency overhead.
 
 \subsection{Hypothesis Validation}
-Success is defined as the RL policy achieving higher mAP than AutoAugment on the hardest test split. We specifically analyze the "Action Distribution" to verify if the policy correctly switches strategies—for example, choosing robust rigid registration during high-noise night scenes where homography estimation might collapse (Fig.~ef{fig:published-evidence}).
+Success is defined as outperforming static augmentation and fixed-registration baselines on the hardest shift splits while maintaining acceptable compute overhead. We also analyze action-selection behavior to verify policy adaptivity (e.g., choosing conservative transforms when feature support is weak). Published evidence motivating this setup is summarized in Fig.~\ref{fig:published-evidence} \cite{vadidar2022unified,li2023adcnet,li2024fd2net}.

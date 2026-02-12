@@ -1,22 +1,23 @@
-We formulate the preprocessing control as a Markov Decision Process (MDP) where a Reinforcement Learning (RL) agent dynamically optimizes image registration and data augmentation parameters. As illustrated in Figure~\ref{fig:method-overview}, the proposed framework establishes a closed-loop system: \textit{Input $\rightarrow$ RL Agent $\rightarrow$ Action $\rightarrow$ Downstream Task $\rightarrow$ Reward}.
+We formulate preprocessing control as a Markov Decision Process (MDP) in which an RL agent selects both registration and augmentation actions. As shown in Fig.~\ref{fig:method-overview}, each step follows a closed loop:
+\[
+\text{Input frame pair} \rightarrow \text{policy action} \rightarrow \text{processed pair} \rightarrow \text{detector feedback} \rightarrow \text{reward}.
+\]
 
 \subsection{State and Action Space}
-The state $s_t$ includes frame quality metrics (Laplacian variance for blur, histogram entropy), a proxy for initial misalignment (e.g., mutual information score), and an environmental context vector (encoding `day/night` or `clear/rain`).
+State $s_t$ contains frame-quality statistics (e.g., blur, entropy), an initial cross-modal mismatch proxy (e.g., edge or mutual-information consistency), and optional context tags (day/night, fog/clear, rain/clear).
 
-The action $a_t$ consists of two coupled decisions:
+Action $a_t$ has two coupled components:
 \begin{enumerate}
-    \item \textbf{Registration Strategy:} Selection of a transform model $T \in \{\text{Rigid}, \text{Affine}, \text{Homography}\}$. The agent learns to select simpler models when keypoints are sparse and complex models when significant perspective shifts are detected.
-    \item \textbf{Augmentation Parameters:} Selection of operator parameters $\lambda_{aug}$ (magnitude, probability) for primitives such as MixUp, CutMix, Gaussian blur, and modality-specific operations like thermal noise injection.
+    \item \textbf{Registration family selection} $T \in \{\text{Rigid},\text{Affine},\text{Homography}\}$.
+    \item \textbf{Augmentation parameters} $\lambda_{aug}$ controlling magnitude/probability of operations such as blur, thermal noise injection, intensity transforms, and modality-consistent perturbations.
 \end{enumerate}
 
-\subsection{Feedback Loop and Reward Definition}
-Unlike traditional open-loop pipelines, our system explicitly evaluates the utility of its preprocessing actions through a feedback mechanism. Once the agent executes action $a_t$, the processed frames are fed into the downstream object detector. The system then calculates a composite reward $r_t$ reflecting the immediate benefit of that action:
-
+\subsection{Reward and Learning Objective}
+After action execution, the downstream detector runs on processed pairs and emits task feedback. Reward is
 \begin{equation}
-    r_t = \alpha \cdot \mathcal{M}_{task} + \beta \cdot \mathcal{M}_{cons} - \gamma \cdot \mathcal{C}_{comp}
+    r_t = \alpha\,\Delta\mathcal{M}_{task} + \beta\,\Delta\mathcal{M}_{cons} - \gamma\,\mathcal{C}_{comp},
 \end{equation}
-
-Here, $\mathcal{M}_{task}$ is the downstream detection performance (e.g., improvement in mAP or confidence scores). $\mathcal{M}_{cons}$ quantifies the geometric and semantic alignment between modalities (e.g., via edge correlation), and $\mathcal{C}_{comp}$ penalizes computational latency.
+where $\mathcal{M}_{task}$ is detection quality (e.g., mAP), $\mathcal{M}_{cons}$ measures cross-modal consistency, and $\mathcal{C}_{comp}$ penalizes latency.
 
 \subsection{Policy Optimization}
-The RL policy $\pi_\theta$ is updated using Proximal Policy Optimization (PPO) based on this reward signal. This feedback loop is critical: it enables the agent to learn from trial and error. By receiving positive reinforcement when detection accuracy ($\mathcal{M}_{task}$) and consistency ($\mathcal{M}_{cons}$) increase, the policy optimizes future actions to favor preprocessing configurations that maximize task utility. To address the sparse reward problem of training full detectors, we utilize a lightweight proxy model (frozen backbone) for rapid feedback during the initial training phase, ensuring the agent learns efficiently to adapt to diverse environmental states.
+We use PPO for stable policy updates in mixed discrete/continuous action spaces. To mitigate sparse reward from expensive detector retraining, we use a lightweight proxy evaluator during early policy learning and periodically refresh with full-detector validation. This setup directly targets the gap left by static augmentation and single-transform pipelines \cite{cubuk2019autoaugment,cubuk2020randaugment,zhang2020content,miao2016cnn}.

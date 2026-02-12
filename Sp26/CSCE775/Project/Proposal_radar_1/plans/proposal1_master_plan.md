@@ -1,106 +1,119 @@
 # Detailed Work Plan: Proposal 1 (RL-Tuned Synthetic Marine Radar)
 
-## 1) Project Objective
-Design a deep RL outer-loop controller that tunes synthetic marine radar generation parameters so downstream models trained on synthetic data perform better on real radar logs.
+## 1) Goal and Decision Criterion
+Build an environment-conditioned RL outer loop that tunes radar simulator parameters so a downstream maritime perception model achieves better real-data performance than fixed/random/non-RL tuning baselines.
 
-## 2) Core Hypothesis
-Environment-conditioned simulator tuning (`lake`, `river`, `coast`) will reduce sim-to-real gap more than fixed randomization or non-RL optimization baselines.
+Success decision:
+- Primary: statistically significant gain on real-data task metric versus all non-RL baselines.
+- Secondary: lower real-evaluation budget to reach a target score.
 
-## 3) Formal Problem Setup
+## 2) Reproducible Environment Stack
+- OS: Ubuntu 22.04 (or equivalent Linux workstation).
+- Python: 3.10.
+- Core libs: PyTorch 2.x, NumPy, pandas, matplotlib, Stable-Baselines3.
+- Training orchestration: `hydra` or YAML-config launcher.
+- Experiment tracking: CSV + JSON artifact logging, fixed random seeds.
 
-### 3.1 Bi-Level Optimization
-- Inner loop: train downstream model (MRISNet/FasterYOLO) on synthetic data from parameterized simulator state `theta`.
-- Outer loop: SAC RL policy updates `theta` based on real-data validation rewards (mIoU).
+Environment profile to freeze in repo:
+- `env_name`: `radar_sim2real_rl`
+- `cuda`: required for inner-loop training, optional for policy-only ablations.
+- `determinism`: fixed seeds (minimum 5), fixed split files.
 
-### 3.2 Technical Depth: Radar Physics
-- **Simulator Implementation:** Ray-tracing for multi-path; Elfouhaily spectrum for sea surface; RCS calculation for ships.
-- **Environment Conditioning:** Separate policy heads or conditioning vectors for `lake`, `river`, `coast`.
-- **Action Space:** Physically bounded updates to speckle, attenuation, clutter, and multipath gain.
+## 3) Data Assets and Splits
+- Real validation/test: PoLaRIS + LaRS-style maritime splits, with optional auxiliary stress subsets from RADIATE/CARRADA for robustness.
+- Synthetic generation: parameterized radar simulator with environment tag (`lake`, `river`, `coast`).
 
-### 3.3 RL State, Action, Reward
-- State `s_t`: current `theta`, environment label, recent mIoU/F1 metrics, parameter history.
-- Action `a_t`: bounded update to `theta`.
-- Reward `r_t`: $\Delta \text{mIoU}_{real} - \text{penalties}$.
+Split protocol:
+- Train: synthetic only (policy-controlled generator).
+- Val: held-out real routes (used by outer loop reward).
+- Test: unseen real routes and leave-one-environment-out split.
 
-## 4) Data Protocol
-- **Primary Real Data:** MOANA (2025) and PoLaRIS (2024) datasets for multi-radar and multi-modal validation.
-- Use sequence-level environment labels for conditioning.
-- Train/val/test split by location/route to ensure no data leakage.
-- Explicitly test on held-out environments (e.g., train on lake/river, test on coast).
+## 4) Simulator Parameterization and Constraints
+Controlled parameters (example vector $\theta$):
+- Speckle scale
+- Attenuation coefficient
+- Clutter floor
+- Multipath gain
+- Noise burst probability
 
-## 5) Baselines and Ablations
-1. Fixed synthetic generator defaults.
+Constraint policy:
+- Hard bounds for physical plausibility.
+- Out-of-range action clipping + penalty term in reward.
+- Boundary-hit rate logged as realism diagnostic.
+
+## 5) Model Stack
+Inner-loop model candidates:
+- Primary: MRISNet-like segmentation head.
+- Secondary: radar detection baseline (RODNet-style).
+
+Outer-loop controller:
+- Algorithm: SAC (continuous action updates to $\theta$).
+- State: current $\theta$, environment embedding, recent reward history, validation trend features.
+- Action: bounded delta update to each simulator parameter.
+
+## 6) Training and Evaluation Procedure
+### 6.1 Inner/Outer Loop Schedule
+- Outer step $t$: policy proposes $\Delta\theta_t$.
+- Generate synthetic batch with $\theta_t$.
+- Train/update inner model for fixed micro-epochs.
+- Evaluate on real validation split and compute reward.
+- Update SAC policy.
+
+### 6.2 Reward Definition
+\[
+r_t = \Delta \mathrm{mIoU}_{real} - \lambda_1\lVert\theta_t-\theta_0\rVert_2 - \lambda_2\mathbb{1}(\theta_t\notin\Omega_{phys}).
+\]
+
+### 6.3 Baselines
+1. Fixed simulator defaults.
 2. Uniform random domain randomization.
-3. Bayesian optimization over generator parameters.
+3. Bayesian optimization tuner (same evaluation budget).
 4. RL without environment conditioning.
-5. RL with environment conditioning (primary model).
-6. Optional fallback: contextual bandit outer-loop tuner.
+5. RL with environment conditioning (proposed).
 
-## 6) Evaluation Plan
+## 7) Metrics and Statistical Reporting
+Primary metrics:
+- Real-set mIoU or task-specific balanced accuracy.
+- Sim-to-real gap reduction.
 
-### 6.1 Primary Metrics
-- Real-data downstream task score (main task).
-- Relative sim-to-real gap reduction.
+Secondary metrics:
+- Calls-to-threshold (sample efficiency).
+- Seed variance and 95% CI.
+- Robustness under low-SNR/high-clutter slices.
+- Boundary-hit realism diagnostics.
 
-### 6.2 Secondary Metrics
-- Cross-domain holdout performance.
-- Unseen-location robustness.
-- Seed variance / policy stability.
-- Evaluation-call efficiency (real validation budget).
+Statistical rules:
+- Minimum 5 seeds per configuration.
+- Paired significance test versus strongest non-RL baseline.
 
-### 6.3 Stress Tests
-- Low-SNR/high-clutter cases.
-- Potential weather-shift slices if available.
+## 8) Compute Budget and Runtime Plan
+- Outer-loop episodes: 100-300 (staged).
+- Real validation calls cap: fixed per method for fair comparison.
+- GPU budget: 1-2 GPUs for inner model updates; policy updates on same worker.
 
-## 7) Risk Register and Mitigation
-1. Noisy reward: average repeated evaluations, EMA smoothing.
-2. Sample inefficiency: low-dimensional warm-start then expand.
-3. Overfitting to one environment: leave-one-environment-out validation.
-4. Unrealistic simulator exploitation: bounded actions and plausibility penalties.
+Runtime reduction plan:
+- Phase A: low-dimensional $\theta$ subset.
+- Phase B: full parameter vector.
+- Phase C: stress-test and ablation only on top methods.
 
-## 8) Literature Integration Plan
-Use `papers/paper_manifest.csv` to track evidence categories:
-- Sim-to-real foundations.
-- Adaptive/randomized simulation optimization.
-- Radar-specific transfer methods.
-- Maritime datasets and benchmarks.
+## 9) Week-by-Week Execution
+1. Week 1: lock split protocol, metric definitions, and parameter bounds.
+2. Week 2: fixed/random/BO baseline runs and logging sanity checks.
+3. Week 3: SAC outer-loop prototype on reduced parameter subset.
+4. Week 4: full action space + environment-conditioned variant.
+5. Week 5: holdout environment experiments and robustness slices.
+6. Week 6: ablations (conditioning off, realism penalty off, reduced state).
+7. Week 7: error analysis, failure taxonomy, figure finalization.
+8. Week 8: final write-up and reproducibility package.
 
-For each paper, capture:
-- Method summary.
-- Relevance to Proposal 1.
-- Strengths/limitations.
-- How it affects baseline or design choices.
+## 10) Risks and Fallbacks
+- Sparse/noisy reward: moving-average reward and repeated validation mini-batches.
+- Policy instability: action normalization, entropy tuning, smaller update horizon.
+- Inner-loop overfit to val routes: strict route-level test lockbox.
+- Compute overrun: two-stage schedule and early stopping by confidence interval overlap.
 
-Use `plans/proposal1_related_work_matrix.md` as the canonical mapping from prior work to:
-- explicit limitation in this project context,
-- concrete method delta to claim,
-- and exact ablation needed to validate that delta.
-
-## 9) 8-Week Execution Roadmap
-1. Week 1: lock metric, split protocol, and parameter list.
-2. Week 2: fixed/random/Bayesian baseline curves.
-3. Week 3: SAC outer-loop implementation on reduced parameter subset.
-4. Week 4: full parameter set + environment-conditioned variant.
-5. Week 5: holdout environment and unseen-route tests.
-6. Week 6: failure and realism analysis.
-7. Week 7: optional extension (secondary task or camera linkage).
-8. Week 8: final report, figures, and reproducibility package.
-
-## 10) Proposal Writing Deliverables
-- IEEE primary draft (`drafts/proposal1_ieee.tex`).
-- ASME alternate draft (`drafts/proposal1_asme.tex`).
-- Final PDFs in `final/`.
-
-## 11) Acceptance Criteria
-- At least one RL variant beats all non-RL baselines on real-data metric.
-- Improvement is reproducible across multiple seeds.
-- Method and evaluation are fully documented with references and split protocol.
-
-## 12) Required Novelty Narrative for Proposal Text
-Your proposal must state improvements over existing work as testable claims:
-1. Prior methods use fixed/random or non-sequential adaptation; we add a sequential RL outer loop.
-2. Prior methods are not explicitly conditioned on maritime environment type; we include `lake/river/coast` conditioning.
-3. Prior tuning is often similarity/calibration-driven; we optimize real downstream task reward directly.
-4. Prior methods may allow unrealistic randomization; we enforce physically bounded radar-parameter control.
-
-Each claim must be paired with one ablation or comparator in the Evaluation section.
+## 11) Deliverables
+- Updated IEEE draft with source-backed evidence figure.
+- Reproducible config files and split manifests.
+- Baseline vs proposed comparison tables with CIs.
+- Final artifact bundle with scripts and exact run commands.
