@@ -1,0 +1,1421 @@
+S OFT S EGMENTED R ANDOMIZATION : E NHANCING D OMAIN
+G ENERALIZATION IN SAR-ATR FOR S YNTHETIC - TO -M EASURED
+
+arXiv:2409.14060v1 [cs.CV] 21 Sep 2024
+
+Minjun Kim1 , Ohtae Jang2 , Haekang Song1 , Heesub Shin3 , Jaewoo Ok3 ,
+Minyoung Back3 , Jaehyuk Youn3 , and Sungho Kim1
+1
+
+Department of Electronic Engineering, Yeungnam University, South Korea
+2
+Department of Electrical Engineering, POSTECH, South Korea
+3
+LIG Nex1 Co., Ltd., South Korea
+sunghokim@yu.ac.kr
+
+A BSTRACT
+Synthetic aperture radar technology is crucial for high-resolution imaging under various conditions;
+however, the acquisition of real-world synthetic aperture radar data for deep learning-based automatic
+target recognition remains challenging due to high costs and data availability issues. To overcome
+these challenges, synthetic data generated through simulations have been employed, although discrepancies between synthetic and real data—stemming from factors such as background clutter and
+target signature differences—can degrade model performance. In this study, we introduce a novel
+framework, soft segmented randomization, designed to reduce domain discrepancy and improve
+the generalize ability of synthetic aperture radar automatic target recognition models. The soft
+segmented randomization framework applies a Gaussian mixture model to segment target and clutter
+regions softly, introducing randomized variations that align the synthetic data’s statistical properties
+more closely with those of real-world data. Experimental results demonstrate that the proposed
+soft segmented randomization framework significantly enhances model performance on measured
+synthetic aperture radar data, making it a promising approach for robust automatic target recognition
+in scenarios with limited or no access to measured data.
+Keywords Gaussian mixture model, data augmentation, deep learning, domain randomization, domain generalization,
+SAR-ATR, synthetic-to-real
+
+1
+
+Introduction
+
+Synthetic aperture radar (SAR) is remote sensing technology that, unlike electro-optical imaging, uses long wavelength
+bands to obtain high-resolution images regardless of time of day or weather conditions. This makes SAR widely used
+in various applications such as military and civilian surveillance, geological surveys, and more. However, the process of
+acquiring SAR data is very complex and costly, making it difficult to obtain experimental data. Specifically, it is nearly
+impossible to directly acquire SAR data of specific military targets, such as foreign tanks or aircraft.
+To address these issues, a data acquisition method using CAD models and electromagnetic wave simulations has been
+proposed [1–4]. The simulation begins by creating realistic CAD models of the targets and estimating the reflective
+properties of each surface of the model and background. A ray-tracing based technique is typically used to approximate
+and predict the radar reflection signals at regular positions around a dome-shaped pattern surrounding the target [3–6].
+The predicted reflection signals can be used to construct simulated phase records similar to those collected by sensors
+under normal operating conditions. This approach can significantly reduce the cost of data acquisition. Additionally, for
+certain military targets from foreign countries, where it is impossible to acquire measured data and no 3D drawings are
+available, it is possible to generate 3D drawings using indirect information (e.g., 2D drawings, multi-view photos, video
+clips) and obtain SAR data through electromagnetic simulation [7].
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Domain Adaptation
+Source
+
+Domain Generalization
+Source 1
+
+Target
+
+Source 2
+
+Source 3
+
+Domain Randomization
+Source
+
+: Domain Shift
+
+Figure 1: Domain adaptation, generalization and randomization
+
+However, differences between the synthetic and measured data arise due to inaccuracies in CAD models, errors in RCS
+calculations due to approximations, and differences from the real background clutter. These differences can degrade
+the performance of deep learning-based Automatic Target Recognition (ATR) networks trained solely on synthetic
+data [4]. This is because deep learning relies heavily on statistical methods based on the data, and tends to overlook
+out-of-distribution (OOD) scenarios commonly encountered in the real world, making it highly dependent on the
+assumption of identical distribution. As a result, deep learning models are robust only to the distribution of the training
+data and are vulnerable to domain discrepancy [8]. Nevertheless, deep learning, with its robust feature extraction and
+combination capabilities in convolutional neural networks (CNNs) based algorithms [9–12], is superior to traditional
+ATR algorithms in terms of performance and generalizability [13]. If a deep learning network trained on synthetic data
+could be made robust against OOD scenarios, it could recognize targets in the real world without the need for measured
+SAR data, thereby reducing domain discrepancies between synthetic and measured data for critical tasks.
+For optical deep learning, two main approaches for reducing domain discrepancies are domain adaptation (DA) and
+domain generalization (DG). The source domain refers to a domain in which data acquisition is easy, and large amounts
+of labeled data are available, whereas the target domain refers to a domain in which data acquisition is difficult, and
+only a small amount of labeled or unlabeled data is available [8, 14–17]. In this context, synthetic data generated
+through simulations can be considered the source domain, whereas real-world measured data can be considered the
+target domain [18]. Recently, SAR-ATR researchers have leveraged methods developed in the optical domain to reduce
+domain discrepancy. DA is an approach that involves training with both the source domain data and a small amount of
+the target domain data, using methods that align the two domains at the feature level [18–22] or using generative models
+to transform the domains at the image level [23–25]. Although previous studies have achieved high classification
+accuracy in the target domain, they still rely on using target domain knowledge during training, which is a significant
+limitation. This remains a challenge for targets where data acquisition is costly or impossible.
+In this study, we focus on DG. DG involves training on only one or multiple source domains without using a target
+domain, i.e., using 100% synthetic data for training. This is a highly challenging task but offers the significant
+advantage of not requiring measured data for training. Although general DG approaches in optics involve using multiple
+source domains [8], obtaining multiple source domains in SAR-ATR is highly challenging. Therefore, we use domain
+randomization (DR), a method within DG that operates with a single source domain. DR involves randomizing as many
+variables as possible, except for domain-agnostic features, to enhance the network’s robustness to OOD scenarios not
+encountered during training. This augmentation technique allows the trained network to adapt well not only to synthetic
+data but also to various conditions and variability, such as clutter in real-world scenarios. Further, DR-generated data
+can be effectively used in cases where it is difficult to collect a large amount of data in real-world environments. Fig. 1
+shows the difference between DA and general DG and DR. DR intentionally generates domain shift and aligns the
+shifted domains.
+Given the above background, we aim to achieve high performance for a deep learning-based SAR-ATR network trained
+solely on synthetic data using DR against measured data. We believe that clutter, noise, and target signature elements
+2
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Figure 2: Histograms of image-level clutter means and standard deviations
+at the image level of SAR data are the primary causes of domain discrepancies. Differences in clutter and noise are
+statistically reflected as differences in the mean and variance of image clutter, and target signature differences are
+visually prominent.
+Clutter Mean and Variance Differences: In SAR-ATR, the sizes and shapes of targets, including shadows, are
+irregular and vary, making it difficult to isolate targets in images. Thus, clutter information is heavily included in
+images, and unrealistic synthetic data clutter leads to domain discrepancies. Statistically, as shown in Fig. 2, domain
+discrepancy is reflected in differences in mean and variance [26], which can reduce performance in deep learning that
+relies on pattern recognition [27]. Therefore, the network should be resilient to the statistical properties of the images,
+such as mean and variance. Differences in mean and variance can be interpreted as clutter reflectivity, and speckle noise
+intensity discrepancies, respectively.
+Target Signature Differences: Target signatures contain critical target information central to SAR-ATR. However,
+slight differences in the target signatures between domains, particularly scattering topological points, can lead to domain
+discrepancies. Therefore, using target signatures directly from synthetic data when training a network can cause domain
+discrepancies. However, if the CAD models used do not significantly differ from the real targets’ characteristics,
+domain-agnostic features, such as certain scattering topological points with high intensity or large forms and specific
+aspects of target shapes, are common in both domains [18]. As shown in Fig. 3, the network’s decision points are
+primarily located around positions with high intensity or large forms among the green points that indicate similar
+locations of scattering topological points as well as in certain target shapes. It is crucial to maintain these features while
+modifying other target signatures.
+To address the above issue, we propose a soft segmented randomization (SSR) framework. SSR applies a Gaussian
+mixture model (GMM) to a histogram to softly segment clutter and target regions based on their intensity distribution
+characteristics, applying different variations to each region. We mainly adjust mean and variance values to alter
+reflectivity and noise in the clutter region, while aiming to preserve as many domain-agnostic features as possible in the
+target region. By augmenting only synthetic data using SSR, we train a network and demonstrate through experiments
+that the proposed framework significantly reduces domain discrepancy and achieves high performance on measured
+data.
+The major contributions of this study are summarized as follows.
+1. Identification of Image-Level Domain Discrepancies: We thoroughly analyze the primary causes of domain
+discrepancies in SAR-ATR at the image level, particularly focusing on differences in clutter mean and variance
+as well as target signature variations between synthetic and measured SAR data. These insights are critical for
+understanding how these discrepancies impact the performance of deep learning models.
+2. Development of SSR: To address the identified discrepancy, we propose SSR, which uses GMM for softly
+segmenting SAR images into the clutter and target regions. The SSR framework introduces targeted randomization to mitigate clutter reflectivity and speckle noise discrepancies while preserving essential domain-agnostic
+features in the target regions.
+3. Enhanced DG for SAR-ATR: The SSR framework significantly enhances the generalizability of deep learning
+models trained solely on synthetic data, enabling them to perform robustly on real-world SAR images without
+relying on measured data during training.
+4. Practical Application to SAR-ATR Using Synthetic Data: This study offers a practical solution for
+SAR-ATR systems that depend on synthetic data, especially in scenarios where acquiring real-world data is
+challenging or impossible. The SSR framework effectively bridges the gap between synthetic and measured
+data, enhancing the reliability and applicability of SAR-ATR in diverse operational environments.
+3
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+(a)
+
+(b)
+
+(c)
+
+Figure 3: Green points are similar location scattering topological points in the two domains, and red points are different
+location scattering topological points: (a) synthetic image, (b) measured image, (c) using the proposed method, the
+decision points for (b) are visualized using SHAP [28] for a network trained with randomized images.
+The remainder of this article is organized as follows. Section II describes related work, datasets used in experiments, and
+the preprocessing steps. Section III details the proposed SSR framework for DR. Section IV presents the experimental
+results, demonstrating the reduction in domain discrepancy, along with an analysis. Section V validates the effectiveness
+of the proposed method through ablation studies. Finally, Section VI concludes the paper.
+
+2
+
+Background
+
+2.1
+
+Related Work Using Only Synthetic Data
+
+Most of the latest SAR-ATR algorithms require massive labeled data to achieve high accuracy. However, in several
+application scenarios, collecting and labeling massive of data for new tasks is unrealistic, particularly in SAR-ATR.
+This challenge can be greatly simplified if only synthetic data generated through simulations are used.
+In SAR-ATR, various approaches have been proposed using only synthetic data to address the DG problem. For
+example, [29] proposed a two-stage recognition algorithm that reclassifies data with significant domain differences
+based on reliability. This method involves multi-similarity fusion based on template matching, which is computationally
+expensive. In [30], only ensemble learning was employed, whereas [26] combined ensemble learning with techniques
+such as Gaussian noise addition, dropout, and label smoothing, which have been employed in the optical domain
+to enhance model generalizability. Although they achieved high performance, the use of multiple networks during
+inference increases computational costs.
+In another approach, [31] performed DR by varying clutter reflectivity through contrast adjustment, whereas [32]
+further diversified data by altering the number of ray bounces in simulations, adding noise, and introducing phase errors.
+Contrast adjustment may be effective in preserving high-intensity scattering topological points; however, because
+it is applied uniformly across an entire image, it fails to preserve relatively low-intensity but large-form scattering
+topological points. Moreover, some simulation-based methods show decreased performance, and even those with
+improvements exhibit only marginal gains, indicating that randomization through simulations does not adequately
+reflect variables encountered in real-world scenarios.
+2.2
+2.2.1
+
+Dataset
+Synthetic and Measured Paried-Labeled Experiment (SAMPLE) Dataset
+
+To evaluate whether domain discrepancy has been reduced, we use the SAMPLE dataset released by the Air Force
+Research Laboratory (AFRL) in 2019 [33]. SAMPLE was proposed to address the limitations of acquiring real-world
+data and has been widely used to study differences between synthetic and measured data [18–21, 23, 25, 31].
+SAMPLE comprises approximately 1,300 synthetic and measured data pairs across 10 classes. It includes target classes
+overlapping with the moving and stationary target acquisition and recognition (MSTAR) dataset, and some measured
+data in SAMPLE are sourced from the MSTAR dataset. Each synthetic data instance in SAMPLE is generated using
+the same parameters as those used to simulate MSTAR targets with a range resolution of 0.3 m, image size of 128×128
+pixels, azimuth angle range of 10◦ to 80◦ , and elevation angle range of 14◦ to 17◦ . However, as shown in Fig. 4,
+the background of SAMPLE synthetic data is modeled as a homogeneous stochastic rough surface, which leads to
+noticeable differences in speckle noise intensity and clutter reflectivity compared with the measured data.
+2.2.2
+
+MSTAR Dataset
+
+The MSTAR dataset was collected and released by AFRL and the Defense Advanced Research Projects Agency in the
+late 1990s [34]. MSTAR remains one of the most widely used datasets in SAR-ATR research, containing more than
+4
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+BMP2
+
+BTR70
+
+M1
+
+M2
+
+M35
+
+M60
+
+M548
+
+T72
+
+ZSU23
+
+Measured Synthetic
+
+2S1
+
+Figure 4: Synthetic and measured image pairs in SAMPLE dataset
+8,000 target images and 100 clutter images. Similar to SAMPLE, the target data are provided across 10 classes (with
+partial overlap in classes), with a range resolution of 0.3 m and an image size of 128×128 pixels. However, MSTAR
+offers a wider azimuth angle range and provides data at multiple elevation angles, including 15◦ , 17◦ , 30◦ , and 45◦ ,
+making it more varied and extensive.
+The target data from MSTAR are used to evaluate the effectiveness of the proposed method as a data augmentation
+technique. In addition, the clutter data, which also have a range resolution of 0.3 m but are provided at a larger image
+size of 1,700×1,400 pixels and an elevation angle of 15◦ −16◦ , are used in conjunction with SAMPLE and MSTAR
+target data to assess how well the proposed method mitigates the impact of clutter on network performance.
+2.3
+
+Dynamic Range Reduction
+
+The single-look SAR data used here includes both amplitude and phase information, providing the reflectivity information of each resolution cell. Reflectivity is strongly influenced by the backscatter RCS of scenes, which is affected by
+the point of view and nature of the backscatterer. Such RCS can have significant variations depending on the measured
+data, resulting in a very large dynamic range. Even if the measured and synthetic data are acquired under the same
+target and operational conditions, differences in dynamic range may arise. These differences can significantly impact
+the performance of deep learning-based SAR-ATR, which relies on statistical data. Therefore, preprocessing techniques
+that include dynamic range handling must be aligned.
+In this study, to eliminate the dynamic range differences between measured and synthetic data, we use logarithm
+mapping, the most commonly used technique for this purpose [35, 36]. This technique converts speckle noise, which
+has multiplicative characteristics, into additive noise as follows:
+I=
+
+log10 (1 + cA)
+,
+log10 (1 + c)
+
+(1)
+
+where A represents the min-max normalized amplitude value, c is a parameter that controls brightness, and I denotes
+the intensity image with values in the range [0, 1]. In this study, we set c to 1,000.
+
+3
+
+Proposed Method
+
+Before explaining the proposed method, we first describe the formulation of DR. Denote X and Y as the input (feature)
+and label spaces, respectively. A domain defined on X ×Y can be represented by a joint probability distribution P(X, Y ).
+The set X comprises individual data instances, denoted as X = {I 1 , I 2 , . . . , I N }, whereas Y = {y 1 , y 2 , . . . , y N }
+represents the corresponding labels.
+In the context of DR, we assume access to only a sufficiently large labeled single source domain DS = {X S , Y S }, with
+each domain having a joint distribution PS (X, Y ). The goal of DR is to ensure that a prediction model f : X → Y ,
+trained solely on DS , produces low prediction errors on an unseen target domain DT = {X T }. Here, PS (X, Y ) ̸=
+PT (X, Y ).
+We assume that X comprises domain-agnostic features Zda , which contain common information across multiple
+domains, and domain-specific features Zds , which are unique to a particular domain. Thus, PS (X, Y ) can be redefined
+as PS (Zda , Zds , Y ). The key to DR is to remove Zds , thereby preventing the model from learning domain-specific
+dependencies, and ensuring that it generalizes across diverse domains. This can be simplified by randomizing and
+marginalizing Zds as follows:
+5
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Input Image
+
+Gaussian Mixture Model
+
+Clutter Kernel Parameters
+Target Kernel Parameters
+
+Add Gaussian Noise
+
+Randomize Parameters
+
+Sampling
+Reference Histogram
+Histogram Matching
+: Intensity Distribution
+Train Network with Randomized Image
+
+: Intensity Image
+
+Figure 5: Flow diagram of the SSR framework
+
+PS (Zda , Y ) =
+
+Z
+
+PS (Zda , Zds , Y )dZds
+
+(2)
+
+By eliminating Zds , which causes domain discrepancies, the network relies solely on Zda , enabling consistent
+performance across various domains. We believe that Zds is closely related to the statistical differences in the
+clutter and target signatures, as previously argued. Therefore, to explicitly randomize Zds at the image level, we propose
+SSR.
+As shonw in Fig. 5, SSR is a DR augmentation framework comprising three main steps designed to address DG issues.
+First, the intensity distribution of each synthetic SAR image is modeled using a GMM to obtain the kernel parameters.
+Next, noise is added to introduce variations in speckle noise and target signatures. Finally, variations in intensity are
+introduced by adjusting the mean and variance of the kernel parameters. This section elaborates on the proposed method
+in detail.
+3.1
+
+Gaussian Mixture Modeling
+
+In X-band SAR images, the intensity in target regions typically has higher values than that in clutter regions because of
+the higher RCS of targets [37]. Using this characteristic, we apply a GMM to the image histogram using three Gaussian
+kernels to softly segment the target and clutter regions effectively.
+GMM is a machine learning algorithm that models complex probability distributions using multiple Gaussian kernels,
+each defined by parameters such as mean, variance, and mixing coefficient [38]. The mixing coefficient represents
+the proportion of data modeled by each Gaussian distribution and determines the contribution of each Gaussian to the
+overall model.
+Gaussian mixture modeling offers an effective approach to modeling the intensity distribution of targets and clutter in
+complex SAR images. SAR simulators typically use simple clutter models, such as homogeneous stochastic rough
+surfaces or grass, because simulating complex surfaces is challenging [3, 4, 36]. In addition, the speckle noise is
+simplified using a multiplicative mechanism, which makes the scattering distribution follow a Gaussian distribution [36].
+Because of these factors, the intensity distribution in the clutter region tends to follow a Rayleigh distribution. We
+transform the Rayleigh distribution into a log-Rayleigh distribution using logarithm mapping [35], which can be easily
+6
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+𝜃𝐶2
+𝜃𝐶1
+
+𝜃𝑇
+
+(b)
+
+(a)
+
+(c)
+
+Figure 6: (a) SAMPLE synthetic image, (b) result of segmenting (a) using a GMM based on the intersections of the
+Gaussian kernels in (c). (c) Gaussian kernels obtained by histogram and GMM for (a). The blue and red Gaussian
+kernels θC1,C2 in (c) represent the clutter and shadow regions. The green Gaussian kernel θT in (c) represents the target
+regions and the strong scatter points commonly appearing on both sides in SAMPLE synthetic images.
+modeled using two Gaussian kernels [39]. The remaining Gaussian kernel is used to model the intensity distribution of
+the target regions. As a result, the target and clutter regions are softly segmented and modeled using three Gaussian
+kernels (see Fig. 6 and 7).
+To obtain the distribution modeled by these the Gaussian functions, the expectation-maximization (EM) algorithm is
+employed. Suppose the intensity histogram of a SAR image is divided into M bins, where the center value of each bin
+is denoted as B = {b1 , b2 , . . . , bm , . . . , bM }. The mean, standard deviation, and mixing coefficient of the kth Gaussian
+kernel are represented as µk , σk , and πk , respectively.
+N (bm |µk , σk2 ) = p
+
+p(bm ) =
+
+
+
+(bm − µk )2
+1
+exp
+−
+2σk2
+2πσk2
+
+3
+X
+
+πk · N (bm |µk , σk2 )
+
+(3)
+
+(4)
+
+k=1
+
+The EM algorithm optimizes these parameters and can be summarized as follows:
+1. Initialize θ = {π1 , π2 , π3 , µ1 , µ2 , µ3 , σ1 , σ2 , σ3 }.
+2. Evaluate posterior probability γ using the current parameter values:
+πk N (bm |µk , σk2 )
+γk (bm ) = P3
+2
+k=1 πk N (bm |µk , σk )
+3. Re-estimate the parameters θ using the current responsibilities:
+PM
+new
+m=1 γk (bm )bm
+µk = P
+M
+m=1 γk (bm )
+PM
+2
+γk (bm )(bm − µnew
+k )
+(σknew )2 = m=1PM
+m=1 γk (bm )
+
+(5)
+
+(6)
+
+M
+
+πknew =
+
+1 X
+γk (bm )
+M m=1
+
+4. Calculate the negative log-likelihood and determine whether either the negative log-likelihood or parameter
+values have converged. If the convergence criterion is not met, return to step 2.
+!
+M
+3
+X
+X
+L(B; θ) = −
+log
+πk N (bm |µk , σk2 )
+(7)
+m=1
+
+k=1
+
+As a result of the optimization, three Gaussian kernels are obtained with the parameters θ = {θC1 , θC2 , θT }, sorted in
+ascending order of mean values, where θC1 = {µC1 , σC1 , πC1 }, θC2 = {µC2 , σC2 , πC2 }, and θT = {µT , σT , πT }.
+7
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Figure 7: Negative log likelihood after convergence according to Gaussian kernel count. The kernel count exceeding
+three does not lead to further convergence.
+
+3.2
+
+Noise
+
+Speckle noise is a complex type of noise that arises from phase interference between sub-resolution objects due to
+the coherent nature of radar systems. Although it is difficult to analyze, simulators simplify speckle noise using a
+multiplicative mechanism; because we use logarithm mapping, speckle noise can be represented as an additive noise
+model as follows [36]:
+I = R + ns ,
+(8)
+where R represents the RCS of a scene, and ns is the speckle noise following a log-Rayleigh distribution. The intensity
+of speckle noise in the clutter region of the synthetic data is lower than that of the measured data, which manifests
+as a difference in variance. If Gaussian noise is not added, the network might overfit by also learning the clutter. To
+introduce variations in the distribution of clutter speckle noise, Inkawhich et al. [26] added Gaussian noise, which
+helped their network to focus more on target signatures, thereby improving the accuracy of measured data.
+Because Gaussian noise is applied across an entire image, it also affects target signatures. Among target signatures,
+domain-agnostic features such as some scattering topological points with high intensity or large forms are less distorted
+than other regions with domain-specific features of lower intensity and smaller forms. This helps the network focus on
+less distorted regions and learn domain-agnostic features. By adding Gaussian noise, we enhance the network’s focus
+on target signatures while introducing appropriate variations in target signatures to improve generalizability:
+Inoise = R + ns + n′s ,
+
+(9)
+
+where Inoise denotes the SAR intensity image with added noise, and n′s denotes the Gaussian noise.
+3.3
+
+GMM-based Adjustment
+
+The data with added Gaussian noise undergoes changes in both speckle noise and target signatures. However, the
+statistical properties still differ from those of the measured data, which can affect the performance of deep learning
+networks that rely on pattern recognition. This indicates that the network cannot be considered fully generalized. We
+address this issue using a GMM-based approach.
+Among the three Gaussian kernels derived, θC1 and θC2 primarily contain clutter intensity information, whereas θT
+mostly includes target intensity information. As previously identified, differences in the mean and variance of the clutter
+region, as well as differences in target signatures, are key contributors to domain discrepancies. Therefore, we adjust
+the mean and standard deviation parameters of θC1 and θC2 , which contain significant clutter intensity information, to
+change the histogram distribution of clutter intensity and reduce the statistical differences. Although this adjustment
+also affects shadow regions, it does not distort the shape of these regions. Because segmentation is applied softly, parts
+of the target signatures with lower or similar intensities than the clutter are also adjusted during this process. This helps
+the network focus more precisely on essential and refined target signatures.
+The Gaussian kernel θT , which contains target intensity information, is not changed. This kernel primarily holds crucial
+information about scattering topological points, and its careful handling is necessary. The experimental results indicated
+that minor changes to this kernel did not yield significant differences, whereas substantial changes led to the loss of
+scattering topological point information, ultimately reducing performance. Thus, we chose not to modify θT .
+8
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Synthetic
+
+Measured
+
+∆𝜇: 0.6, ∆𝜎: 0.4
+
+Randomized
+
+∆𝜇: 0.6, ∆𝜎: -0.4
+
+∆𝜇: -0.6, ∆𝜎: -0.4
+
+∆𝜇: -0.6, ∆𝜎: 0.4
+
+Figure 8: The upper left and upper right are the synthetic and measured data and their histograms, respectively. Below
+are the randomized(augmented) data using SSR and their histograms.
+
+µ′C1,C2 = µC1,C2 × (1 + ∆µ),
+
+∆µ ∼ U(−α, α)
+
+′
+σC1,C2
+= σC1,C2 × (1 + ∆σ),
+
+∆σ ∼ U(−β, β)
+
+padj (bm ) =
+
+2
+X
+
+(10)
+
+πk · N (bm | µ′k , σk′2 ) + π3 · N (bm | µ3 , σ32 )
+
+k=1
+
+where α, and β denote the change rates of the mean and standard deviation of the Gaussian kernels. After these
+adjustments, we sample new data based on the adjusted distribution, maintaining the same size as the synthetic image.
+The final image is then obtained through histogram matching with the noise-added image, followed by clipping the
+values to the range [0, 1].
+Isampled ∼ padj (bm )
+−1
+Irand = Hnoise
+(Hsampled (Isampled ))
+
+(11)
+
+where Isampled denotes an image sampled from the adjusted distribution, Irand denotes the randomized final image,
+Hnoise denotes the cumulative distribution function (CDF) of Inoise , and Hsampled denotes the CDF of Isampled . The
+randomized final image adjusts speckle noise, clutter reflectivity, and target signatures. By repeatedly randomizing α
+and β to augment new data, we can prevent the network from learning the causes of domain discrepancy identified
+at the image level. In each iteration, new images are augmented based on randomly adjusted histogram distributions
+(Fig. 8), ensuring that the network avoids overfitting to specific clutter patterns or target signatures. This randomization
+process suppresses domain-specific features and facilitates the network to focus on domain-agnostic features, thereby
+improving its generalizability.
+The intensity distribution of a randomized image is not guaranteed to follow a log-Rayleigh distribution. In the real
+world, clutter and speckle noise mechanisms are complex, leading the scattering distribution to deviate from a Gaussian
+distribution; this means that the intensity distribution does not precisely follow a log-Rayleigh distribution [36, 40].
+Therefore, we do not impose strict constraints on the intensity distribution and instead randomly adjust the mean and
+variance to generate a distribution similar to that of log-Rayleigh. Consequently, this process ensures that the network
+9
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+does not learn fixed patterns but instead reflects the variability that may occur across different domains, leading to a
+robust model capable of handling diverse changes that can arise in real-world operational environments.
+Algorithm 1 Main algorithm of the proposed soft segmented randomization (SSR)
+Inputs:
+training samples X = {I 1 , I 2 , . . . , I N }
+corresponding label Y = {y 1 , y 2 , . . . , y N }
+noise standard deviation (std) σs
+rate of change in the mean of kernel α
+rate of change in the std of kernel β
+deep learning ATR network f
+Outputs:
+wi0 ← 0, i = 1, . . . , n
+S0 ← S
+Step One: Gaussian Mixture Modeling
+1: for I n ∈ X do
+2:
+Initialize θn = {µnk , σkn , πkn } for k = 1, 2, 3
+3:
+Compute histogram B n = {bn1 , bn2 , . . . , bnM } from I n
+4:
+while not converged do
+5:
+θn ← Update parameters using EM algorithm
+6:
+end while
+7: end for
+8: return Θ = {θ 1 , θ 2 , . . . , θ N }
+Step Two: Randomization
+9: for I n ∈ X, y n ∈ Y, θ n ∈ Θ do
+n
+10:
+Inoise
+← I n + n′s where n′s is gauss noise with std of σs
+11:
+∆µ ← randomly selected from U(−α, α)
+12:
+∆σ ← randomly selected from U(−β, β)
+13:
+µnC1,C2 ← µnC1,C2 × (1 + ∆µ)
+n
+n
+14:
+σC1,C2
+← σC1,C2
+× (1 + ∆σ) where C1, C2 are two low mean kernels
+n
+15:
+Isampled ← Samples from the three kernel distribution
+n
+16:
+Irand
+← Map the intensity values of Inoise to Isampled
+n
+17:
+Train the ATR network f using (Irand
+, yn )
+18: end for
+19: return trained network f
+
+4
+
+Experiments and Results
+
+4.1
+
+Experimental Setup
+
+To evaluate the effectiveness of the proposed method in reducing domain discrepancy and enhancing model generalizability of networks, we consider eight CNN architectures: two CNNs specifically designed for SAR-ATR [10, 11] and
+well-known CNNs originally developed for optical imagery, i.e., VGG-11, VGG-16 [41], ResNet18, ResNet50 [42],
+MobileNet v2 [43], ShuffleNet v2 [44], AConvNet [10], and AM-CNN [11]. These networks vary in size, with the
+number of parameters ranging from 0.3 million in AConvNet to 11.2 million in ResNet18 and 134 million in VGG-16.
+AConvNet and AM-CNN are designed with input sizes of 88×88 and 100×100, respectively; thus, we crop images
+carefully to ensure that the targets and their shadows are not truncated. The other networks use an input size of
+128×128. We believe that preserving the shadow regions is crucial because they provide additional information about
+the targets [9].
+Given that the proposed method significantly adjusts the intensity distribution in the clutter region, one might question
+whether reducing the clutter region would diminish its effectiveness. However, experiments using AConvNet and
+AM-CNN demonstrate that the proposed method remains effective even when the clutter is reduced.
+All networks are trained using the Adam optimizer for 100 epochs with 10 training and testing runs to calculate the
+mean accuracy and standard deviation. Depending on the network size, a batch size of 16 or 32 is used, and the learning
+rate is adjusted for each network. During training, the proposed randomized augmentation technique is applied with a
+10
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Table 1: Training and testing datasets under domain discrepancy reduction experimental scenarios
+Class
+
+Serial No.
+
+2S1
+BMP2
+BTR70
+M1
+M2
+M35
+M548
+M60
+T72
+ZSU23-4
+
+B01
+9563
+C71
+0AP00N
+MV02GX
+T839
+C245HAB
+3336
+812
+D08
+
+First Scenario
+Train (14◦ −16◦ ) Test (17◦ )
+116
+58
+55
+52
+43
+49
+78
+51
+75
+53
+76
+53
+116
+60
+75
+53
+56
+52
+116
+58
+
+Second Scenario
+Train (14◦ −17◦ ) Test (14◦ −17◦ ) + Clutter
+174
+174
+107
+107
+92
+92
+129
+129
+128
+128
+129
+129
+176
+176
+128
+128
+108
+108
+174
+174
+
+50% probability. We set α to 0.6 and β to 0.4 and applied Gaussian noise with a standard deviation of 0.3, which was
+selected after testing values of [0.1, 0.2, 0.3, 0.4, 0.5] to identify the optimal value.
+
+Figure 9: SAMPLE measured data merged with MSTAR clutter
+
+4.2
+
+Domain Discrepancy Reduction
+
+To evaluate the performance of the proposed randomized augmentation method, we conducted various comparative
+experiments. First, following [26], we applied strong Gaussian noise with a standard deviation of 0.4 and conducted
+comparative experiments to assess whether the proposed method outperforms simply adding strong noise. Moreover,
+[31, 32] reported performance improvements through contrast adjustment techniques, but the specific methods used
+were not detailed. Therefore, we combined the representative contrast adjustment method, gamma transformation, with
+Gaussian noise for comparison (after adding Gaussian noise, we applied gamma transformation). We also analyzed the
+effect of each component using only a GMM without Gaussian noise in the proposed method. This analysis serves as
+crucial evidence to verify whether the proposed method offers performance improvements beyond simple noise addition
+or contrast adjustment.
+4.2.1
+
+First Scenario
+
+In this scenario, only SAMPLE synthetic data with depression angles of 14◦ , 15◦ , and 16◦ were used for training.
+SAMPLE measured data with a 17◦ depression angle were used for testing (Table 1) to evaluate how effectively domain
+discrepancy can be overcome under standard operation conditions. Although simulations are much more cost-effective
+than acquiring measured data, all operational conditions cannot be considered perfectly. This scenario aims to verify
+whether a model trained on synthetic data can robustly operate under slight depression angle differences that may occur
+in real-world conditions.
+The ATR results for each network are summarized in Table 2; the highest performance is highlighted in bold. w/o
+Aug, which is the case where only synthetic data are used, showed the lowest performance, indicating that models
+trained solely on synthetic data do not generalize well to measured data. Only Noise, which adds strong Gaussian noise,
+showed improved performance for all networks. Gamma, which combines contrast adjustment with noise, achieved
+higher and more stable performance than Only Noise, indicating that contrast adjustment can have a positive impact on
+DG. SSR w/o Noise which uses the proposed method without noise outperformed Only Noise. This demonstrates that
+adjusting the mean and standard deviation of the clutter region using GMM—i.e., adjusting the clutter reflectivity and
+speckle noise intensity—is more effective than merely adding noise. Finally, the SSR results show that the proposed
+method combined with noise achieved the highest and most stable performance. This confirms that the proposed
+framework effectively reduces domain discrepancy and significantly improves the model generalizability.
+11
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Table 2: The results of the first scenario experiments ATR accuracy [%]
+VGG-11
+VGG-16
+ResNet18
+ResNet50
+MobileNet v2
+ShuffleNet v2
+AConvNet
+AM-CNN
+
+w/o Aug
+39.67 ± 2.29
+39.78 ± 2.84
+52.45 ± 6.21
+36.23 ± 7.73
+43.27 ± 7.05
+36.68 ± 4.87
+55.70 ± 12.41
+79.13 ± 5.42
+
+Only Noise [26]
+63.81 ± 3.74
+66.47 ± 5.73
+61.84 ± 4.15
+55.88 ± 8.40
+68.57 ± 9.73
+65.05 ± 3.06
+85.75 ± 5.33
+79.92 ± 6.34
+
+Gamma [31, 32]
+84.42 ± 1.91
+83.62 ± 2.22
+90.33 ± 4.50
+85.34 ± 4.63
+87.77 ± 2.40
+88.72 ± 2.31
+88.01 ± 2.86
+91.99 ± 2.40
+
+SSR w/o Noise
+79.37 ± 3.26
+72.82 ± 5.12
+90.22 ± 2.19
+83.36 ± 3.41
+83.71 ± 3.87
+80.35 ± 3.87
+79.63 ± 7.23
+90.06 ± 2.49
+
+SSR (Proposed)
+87.51 ± 0.89
+87.64 ± 1.52
+94.69 ± 1.19
+92.95 ± 2.22
+91.97 ± 1.98
+91.95 ± 1.30
+91.15 ± 2.59
+94.38 ± 1.20
+
+Table 3: The results of the second scenario experiments ATR accuracy [%]
+VGG-11
+VGG-16
+ResNet18
+ResNet50
+MobileNet v2
+ShuffleNet v2
+AConvNet
+AM-CNN
+
+4.2.2
+
+w/o Aug
+58.95 ± 3.58
+53.52 ± 6.84
+79.68 ± 4.08
+49.82 ± 7.29
+62.47 ± 5.37
+55.02 ± 9.64
+78.68 ± 3.79
+82.73 ± 3.72
+
+Only Noise [26]
+74.49 ± 1.50
+75.52 ± 3.52
+75.99 ± 5.98
+68.01 ± 6.82
+77.46 ± 3.77
+73.92 ± 3.01
+81.14 ± 3.34
+78.74 ± 6.46
+
+Gamma [31, 32]
+84.98 ± 0.38
+85.55 ± 1.42
+91.67 ± 2.03
+89.14 ± 2.10
+88.68 ± 0.99
+88.24 ± 1.89
+86.92 ± 1.30
+90.62 ± 2.00
+
+SSR w/o Noise
+75.11 ± 1.80
+71.07 ± 4.13
+86.11 ± 1.63
+81.14 ± 2.14
+82.51 ± 2.77
+82.97 ± 1.87
+80.16 ± 2.88
+87.72 ± 1.79
+
+SSR (Proposed)
+87.60 ± 1.20
+88.05 ± 1.60
+93.48 ± 1.11
+92.76 ± 0.86
+91.79 ± 0.86
+91.31 ± 1.59
+87.72 ± 2.29
+93.60 ± 0.73
+
+Second Scenario
+
+In this scenario, the entire SAMPLE synthetic dataset was used for training and the entire SAMPLE measured dataset
+merged with MSTAR clutter was used for testing (see fig. 9 and Table 1). Because the depression angles of the synthetic
+and measured datasets match, this scenario evaluates whether the data considered during the simulation phase can still
+perform effectively in real operational environments with diverse clutter. This allows us to assess network performance
+across various environments, beyond domain discrepancy issues.
+To merge the SAMPLE measured data with MSTAR clutter, we used a segmentation algorithm proposed in [9]. First,
+the algorithm is applied to the measured data Imeas to generate region masks for the target, shadow, and clutter, denoted
+as Mtarget , Mshadow , and Mclutter , respectively. The difference between the mean of selected clutter image C and that of
+Imeas in Mclutter is then added to the target region of Imeas in Mtarget , ensuring that the targets maintain a higher intensity
+than the clutter. After this process, the target and shadow regions of Imeas are merged into the clutter data to generate
+the merged measured data Imerged . In this case, C is randomly selected, except in the shadow region where the target is
+unlikely to exist. The equations are as follows:
+Mtarget , Mshadow , Mclutter = G(Imeas )
+P
+h,w C(h, w) · Mclutter (h, w)
+P
+C̄ =
+h,w Mclutter (h, w)
+P
+h,w Imeas (h, w) · Mclutter (h, w)
+P
+I¯meas =
+h,w Mclutter (h, w)
+
+(12)
+(13)
+(14)
+
+d = C̄ − I¯meas
+
+(15)
+
+Imerged = (Imeas + d) · Mtarget + Imeas · Mshadow + C · Mclutter .
+
+(16)
+
+As shown in Fig. 6, the GMM can segment the target and clutter regions. However, the reason for incorporating the
+segmentation algorithm proposed in [9] is as follows: although segmentation is crucial in our proposed method, it
+serves as a foundational element rather than the core of this study. By using a well-established segmentation algorithm
+specifically designed for SAR data, we reduce the risk of segmentation errors and ensure accuracy and consistency.
+Further, GMMs struggle to effectively segment shadow regions, whereas the algorithm in [9] can accurately segment
+shadow regions.
+The ATR results for each network are summarized in Table 3. Analysis shows that, as in the first scenario, SSR achieved
+the highest performance across all networks. This demonstrates that the proposed SSR framework enables performance
+12
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Input
+
+w/o Aug
+
+Only Noise
+
+SSR w/o Noise
+
+SSR (Proposed)
+
+Figure 10: 2S1, BTR70, M35, in order from above. Using SHAP, the decision point visualization of ResNet18 trained
+by each method in first scenario. SHAP value is displayed as colorbar on the right side of each result, and is the absolute
+value used to visualize the area that affects the decision.
+
+improvements that cannot be achieved by simply adding noise as well as highlights its superiority over basic contrast
+adjustment methods. Comparing Only Noise and SSR w/o Noise, although the first scenario showed that SSR w/o
+Noise achieved higher performance across all networks, the second scenario showed that VGG-16 and AConvNet
+achieved higher performance with Only Noise. This suggests that simply adding noise can be effective in real-world
+environments in which diverse clutter occurs.
+The second scenario provides relevant insights into how models trained on synthetic data perform on real data across
+various clutter environments. It supports the effectiveness of the proposed SSR method in overcoming the challenges
+that arise in real operational environments.
+4.3
+4.3.1
+
+Analysis
+Decision Points Visualization
+
+To analyze the effectiveness of the proposed method, we examine which parts of the input data each model relies on
+for predictions. For this, we employ SHAP (SHapley Additive exPlanations) [28] to evaluate the importance of input
+variables for each model’s prediction. By visualizing the decision points through SHAP analysis, we can gain a concrete
+understanding of how the proposed augmentation method contributes to target signature recognition. In addition, by
+comparing the effects of models trained with Only Noise, SSR w/o Noise, and SSR, we can quantitatively explain why
+SSR is effective.
+Fig. 10 shows the SHAP results for the measured data, using ResNet18 trained with each augmentation technique under
+the first scenario. w/o Aug shows that the models fail to focus adequately on the target region and are heavily influenced
+by clutter, suggesting that the models do not effectively distinguish between the target and clutter, leading to a higher
+likelihood of misclassification. By contrast, Only Noise shows that the decision points are more concentrated in the
+target region, but the SHAP values remain low (refer to the color bar), indicating that the models may be considering
+irrelevant features and do not focus on the most important domain-agnostic information. SSR w/o Noise exhibits
+very high SHAP values concentrated on specific scattering topological points, implying that the models identified key
+domain-agnostic features of the target. However, this also suggests a potential over reliance on these features, which
+could decrease generalizability. Meanwhile, SSR achieves a balance by having higher SHAP values than Only Noise in
+specific regions while also being distributed across a wider target region that SSR w/o Noise. This means that SSR
+combines the ability to consider various features such as shadow and target shapes, which are the advantages of Only
+Noise, with the ability to focus on certain important domain-agnostic features, which are the advantages of SSR w/o
+Noise.
+13
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+(a)
+
+(b)
+
+Figure 11: Visualization of the feature space using t-SNE from the last convolutional layer of a ResNet18 network
+trained using SSR. Synthetic data is denoted by × and measured data is denoted by •. The same class is denoted by the
+same color. (a) Network trained only with synthetic data, (b) Network trained with augmented data using SSR.
+
+As a result, the models can account for various environmental factors while reinforcing in on important features, which
+can be highly advantageous in SAR-ATR. By reinforcing essential target identification information and minimizing the
+influence of unnecessary clutter, the proposed method enhances a model’s ability to generalize across different domains.
+4.3.2
+
+Feature Space Visualization
+
+We visualize the last convolutional layer feature space of ResNet18 trained with SSR in the first scenario using the
+t-distributed stochastic neighbor embedding (t-SNE) algorithm [45]. This visualization helps further demonstrate the
+effectiveness of SSR by showing how a model trained on only synthetic data, also distinguishes between classes in the
+measured data.
+t-SNE is an excellent tool for reducing the complex structure of high-dimensional data to lower dimensions for
+visualization, clearly showing the separation between classes. Specifically, it visually represents the relationship
+between synthetic and measured data, highlighting the effectiveness of SSR in resolving domain discrepancy issues.
+As shown in Fig. 11, the t-SNE-transformed feature space shows that, except for a few misclassified data points, the
+measured data are clearly separated by class, indicating that SSR enables high performance on measured data without
+prior knowledge of the target domain. This improvement in feature distribution supports the consistency of the proposed
+method across various classes.
+
+5
+
+Ablation Study
+
+5.1
+
+Comparison of Soft and Hard Segmentation in Target and Clutter Regions
+
+In the ablation study, we compare the effectiveness of the proposed SSR framework with an alternative approach
+that uses a hard segmentation algorithm to completely separate the target and clutter regions. The hard segmentation
+approach is tested in two ways. 1) Gaussian noise is added to the entire image, and the clutter intensity is modified.
+This not only introduces changes across the entire image but also results in additional modifications to the mean clutter
+intensity. 2) Gaussian noise is added, and the intensity is modified only in the clutter region, leaving the target region
+unchanged. This focuses the changes exclusively on the clutter region. These two approaches are compared with the
+SSR framework under the same experimental setup as in the first scenario.
+The ATR results for each network are summarized in Table 4. When comparing the hard segmentation approaches
+with SSR, SSR achieved higher performance across all networks. Although the hard segmentation approaches clearly
+separate the target and clutter regions, they can introduce boundary artifacts that do not naturally occur in real-world
+scenarios. These artifacts, particularly at the boundaries between regions, can disrupt the natural transition between the
+target and clutter, causing the network to fail in accounting for the complexity of real-world environments. As a result,
+the network may fail to adequately capture shape information in real-world data, leading to reduced generalizability.
+14
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Table 4: Results of ATR accuracy [%] using different segmentation methods
+VGG-11
+VGG-16
+ResNet18
+ResNet50
+MobileNet v2
+ShuffleNet v2
+AConvNet
+AM-CNN
+
+1) Hard Seg
+78.53 ± 1.40
+74.71 ± 1.90
+74.71 ± 1.99
+73.05 ± 2.05
+76.42 ± 2.09
+74.10 ± 1.69
+78.71 ± 3.57
+75.79 ± 1.90
+
+2) Hard Seg
+67.35 ± 2.68
+68.29 ± 2.96
+77.61 ± 6.39
+70.48 ± 9.45
+68.87 ± 9.18
+72.37 ± 5.78
+82.24 ± 4.65
+87.88 ± 2.67
+
+Figure 12: Effect of kernel mean change rate on
+network accuracy across different models
+
+5.2
+
+SSR (Proposed)
+87.51 ± 0.89
+87.64 ± 1.52
+94.69 ± 1.19
+92.95 ± 2.22
+91.97 ± 1.98
+91.95 ± 1.30
+91.15 ± 2.59
+94.38 ± 1.20
+
+Figure 13: Effect of kernel standard deviation
+change rate on network accuracy across different models
+
+Hyperparameter Selection
+
+The effective application of the proposed SSR framework relies heavily on the selection of the Gaussian kernel’s mean
+change rate, α, and standard deviation change rate, β. These two hyperparameters control intensity adjustments in
+the clutter region and ultimately have a significant impact on network performance. We conducted experiments with
+various α and β values; the results are shown in Fig. 12 and 13.
+Fig. 12 shows the changes in accuracy with varying α. We observed that accuracy increased with higher α in ResNet18,
+MobileNet v2, and AConvNet, with the optimal performance observed at α = 0.6 for ResNet18 and MobileNet v2.
+As shown in Fig. 13, the impact of β on performance was less pronounced; however, there was a slight performance
+improvement across all networks when β was set between 0.2 and 0.4 compared with when it was set to 0 indicating
+that β also contributes to addressing domain discrepancy issues. Therefore, we concluded that setting α to 0.6 and β to
+0.4 is most appropriate for achieving optimal performance.
+5.3
+
+Measured Data Augmentation
+
+In the ablation study, we apply the SSR framework to the MSTAR dataset, focusing on the measured data. Owing to the
+minimal difference in speckle noise between the training and testing data, a weaker Gaussian noise with a standard
+deviation of 0.2 was used while the other parameters are as in the original SSR experiments. The experiments are
+structured into two scenarios.
+5.3.1
+
+First Scenario
+
+In this scenario, data with a depression angle of 17◦ across 10 classes were used for training, with each class having 36
+samples varied by approximately 10◦ of the aspect angle. To evaluate model generalizability, testing was performed
+using data with a depression angle of 15◦ (Table 5). The purpose of this experiment is to assess whether applying SSR
+improves the generalizability of models trained on a limited amount of measured data.
+15
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+Table 5: Training and testing datasets under experimental scenarios with measured data
+Class
+
+Serial No.
+
+2S1
+BMP2
+BRDM2
+BTR60
+BTR70
+D7
+T62
+T72
+
+B01
+9563
+E71
+7532
+C71
+13015
+A51
+132
+812
+S7
+A64
+E12
+D08
+
+ZIL131
+ZSU23-4
+
+First Scenario
+Train (17◦ ) Test (15◦ )
+36
+274
+36
+195
+36
+274
+36
+195
+36
+196
+36
+274
+36
+273
+36
+196
+36
+274
+36
+274
+
+Second Scenario
+Train (17◦ ) Test (30◦ ) + Clutter
+299
+288
+298
+287
+232
+231
+228
+288
+299
+288
+
+As shown in Table 6, applying SSR led to performance improvements across all networks. Notably, significant
+enhancements were observed in MobileNet v2 and ShuffleNet v2, indicating that SSR helps models better generalize
+across various angles and conditions even with a limited amount of measured data.
+Table 6: Results of the first scenario experiments
+with measured data ATR accuracy [%]
+VGG-11
+VGG-16
+ResNet18
+ResNet50
+MobileNet v2
+ShuffleNet v2
+AConvNet
+AM-CNN
+
+5.3.2
+
+w/o Aug
+83.05 ± 1.10
+76.29 ± 2.28
+81.48 ± 3.37
+69.74 ± 3.37
+42.52 ± 3.77
+58.00 ± 5.23
+81.79 ± 2.06
+86.48 ± 5.43
+
+Table 7: Results of the second scenario experiments with measured data ATR accuracy [%]
+
+SSR (Proposed)
+87.15 ± 1.44
+83.67 ± 2.05
+92.81 ± 0.94
+90.86 ± 1.31
+91.53 ± 1.94
+90.68 ± 1.54
+82.47 ± 1.96
+96.08 ± 0.56
+
+VGG-11
+VGG-16
+ResNet18
+ResNet50
+MobileNet v2
+ShuffleNet v2
+AConvNet
+AM-CNN
+
+w/o Aug
+56.27 ± 3.93
+47.49 ± 8.93
+72.61 ± 1.46
+71.35 ± 5.20
+63.94 ± 6.36
+65.69 ± 3.02
+77.45 ± 2.33
+75.26 ± 5.66
+
+SSR (Proposed)
+86.66 ± 2.15
+79.05 ± 4.01
+81.61 ± 2.20
+80.44 ± 3.61
+86.75 ± 2.76
+82.80 ± 3.10
+88.68 ± 2.33
+86.68 ± 4.23
+
+Second Scenario
+
+This scenario simulates an extended operating condition (EOC) by training models on data with a depression angle of
+17◦ across four classes and testing them on data with a significantly different depression angle of 30◦ (Table 5). In
+addition, for the T72 class, the serial numbers of the data used for training and testing differ. This experiment assesses
+how effectively SSR can minimize performance degradation caused by the angle and serial number differences.
+According to the results in Table 7, SSR applied models demonstrated strong adaptability to the differences in angle
+between training and testing data, even under EOC. Changes in the depression angle and serial numbers significantly
+alter the target signatures. Nevertheless, SSR-applied models can overcome these discrepancies, thereby mitigating
+performance degradation and maintaining higher accuracy. This demonstrates that SSR is effective even under EOC
+and is useful for reducing domain discrepancies under various operational conditions.
+
+6
+
+Conclusion
+
+In this study, we proposed a novel data augmentation framework, SSR, to mitigate domain discrepancies between
+synthetic and measured SAR data in ATR tasks. By softly segmenting and randomizing the clutter and target regions
+in the synthetic data using a GMM, SSR effectively reduces differences in the statistical properties of the synthetic
+and measured data, thereby improving the generalizability of deep learning models. Overall, this study addresses the
+limitations of synthetic SAR data, making them more applicable to real-world scenarios in which data acquisition is
+challenging or impossible. Future research could explore the integration of SSR with other DA or DG techniques to
+further enhance its effectiveness.
+16
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+References
+[1] Christian Cochin, Philippe Pouliguen, Benoit DELAHAYE, Daniel le HELLARD, Philippe GOSSELIN, and
+Franck AUBINEAU. Mocem-an’all in one’tool to simulate sar image. In 7th European Conference on Synthetic
+Aperture Radar, pages 1–4. VDE, 2008.
+[2] Miriam Cha, Arjun Majumdar, HT Kung, and Jarred Barber. Improving sar automatic target recognition using
+simulated images under deep residual refinements. In 2018 IEEE International Conference on Acoustics, Speech
+and Signal Processing (ICASSP), pages 2606–2610. IEEE, 2018.
+[3] Anders Kusk, Adili Abulaitijiang, and Jorgen Dall. Synthetic sar image generation using sensor, terrain and target
+models. In Proceedings of EUSAR 2016: 11th European Conference on Synthetic Aperture Radar, pages 1–5,
+2016.
+[4] Benjamin Lewis, Theresa Scarnati, Elizabeth Sudkamp, John Nehrbass, Stephen Rosencrantz, and Edmund Zelnio.
+A SAR dataset for ATR development: the Synthetic and Measured Paired Labeled Experiment (SAMPLE). In
+Edmund Zelnio and Frederick D. Garber, editors, Algorithms for Synthetic Aperture Radar Imagery XXVI, volume
+10987, page 109870H. International Society for Optics and Photonics, SPIE, 2019.
+[5] Horst Hammer and Karsten Schulz. Coherent simulation of sar images. In Image and Signal Processing for
+Remote Sensing XV, volume 7477, pages 406–414. SPIE, 2009.
+[6] Timo Balz and Uwe Stilla. Hybrid gpu-based single-and double-bounce sar simulation. IEEE Transactions on
+Geoscience and Remote Sensing, 47(10):3519–3529, 2009.
+[7] Jihee Yoo and Junmo Kim. Sar image generation of ground targets for automatic target recognition using indirect
+information. IEEE Access, 9:27003–27014, 2021.
+[8] Kaiyang Zhou, Ziwei Liu, Yu Qiao, Tao Xiang, and Chen Change Loy. Domain generalization: A survey. IEEE
+Transactions on Pattern Analysis and Machine Intelligence, 45(4):4396–4415, 2022.
+[9] Jae-Ho Choi, Myung-Jun Lee, Nam-Hoon Jeong, Geon Lee, and Kyung-Tae Kim. Fusion of target and shadow
+regions for improved sar atr. IEEE Transactions on Geoscience and Remote Sensing, 60:1–17, 2022.
+[10] Sizhe Chen, Haipeng Wang, Feng Xu, and Ya-Qiu Jin. Target classification using the deep convolutional networks
+for sar images. IEEE transactions on geoscience and remote sensing, 54(8):4806–4817, 2016.
+[11] Ming Zhang, Jubai An, Li Dong Yang, Liang Wu, Xiao Qi Lu, et al. Convolutional neural network with attention
+mechanism for sar automatic target recognition. IEEE geoscience and remote sensing letters, 19:1–5, 2020.
+[12] Chenwei Wang, Siyi Luo, Lin Liu, Yin Zhang, Jifang Pei, Yulin Huang, and Jianyu Yang. Sar atr under limited
+training data via mobilenetv3. In 2023 IEEE Radar Conference (RadarConf23), pages 1–6. IEEE, 2023.
+[13] Jianwei Li, Zhentao Yu, Lu Yu, Pu Cheng, Jie Chen, and Cheng Chi. A comprehensive survey on sar atr in
+deep-learning era. Remote Sensing, 15(5):1454, 2023.
+[14] Da Li, Yongxin Yang, Yi-Zhe Song, and Timothy M. Hospedales. Deeper, broader and artier domain generalization.
+In Proceedings of the IEEE International Conference on Computer Vision (ICCV), Oct 2017.
+[15] Shiqi Lin, Zhizheng Zhang, Zhipeng Huang, Yan Lu, Cuiling Lan, Peng Chu, Quanzeng You, Jiang Wang,
+Zicheng Liu, Amey Parulkar, Viraj Navkal, and Zhibo Chen. Deep frequency filtering for domain generalization.
+In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), pages
+11797–11807, June 2023.
+[16] Dan Hendrycks, Steven Basart, Norman Mu, Saurav Kadavath, Frank Wang, Evan Dorundo, Rahul Desai, Tyler
+Zhu, Samyak Parajuli, Mike Guo, Dawn Song, Jacob Steinhardt, and Justin Gilmer. The many faces of robustness:
+A critical analysis of out-of-distribution generalization. In Proceedings of the IEEE/CVF International Conference
+on Computer Vision (ICCV), pages 8340–8349, October 2021.
+[17] Jiaxing Huang, Dayan Guan, Aoran Xiao, and Shijian Lu. Fsdr: Frequency space domain randomization for
+domain generalization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+(CVPR), pages 6891–6902, June 2021.
+[18] Chen Zhang, Yinghua Wang, Hongwei Liu, Yuanshuang Sun, and Siyuan Wang. Vsfa: Visual and scattering
+topological feature fusion and alignment network for unsupervised domain adaptation in sar target recognition.
+IEEE Transactions on Geoscience and Remote Sensing, 2023.
+[19] Shaoyan Du, Jun Hong, Yu Wang, Kaichu Xing, and Tian Qiu. Physical-related feature extraction from simulated
+sar image based on the adversarial encoding network for data augmentation. IEEE Geoscience and Remote
+Sensing Letters, 19:1–5, 2021.
+17
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+[20] Qishan He, Lingjun Zhao, Kefeng Ji, and Gangyao Kuang. Sar target recognition based on task-driven domain
+adaptation using simulated data. IEEE Geoscience and Remote Sensing Letters, 19:1–5, 2021.
+[21] Fangzhou Han, Hongwei Dong, Lingyu Si, and Lamei Zhang. Improving sar automatic target recognition via
+trusted knowledge distillation from simulated data. IEEE Transactions on Geoscience and Remote Sensing, 2024.
+[22] David Malmgren-Hansen, Anders Kusk, Jørgen Dall, Allan Aasbjerg Nielsen, Rasmus Engholm, and Henning
+Skriver. Improving sar automatic target recognition models with transfer learning from simulated data. IEEE
+Geoscience and remote sensing Letters, 14(9):1484–1488, 2017.
+[23] Benjamin Lewis, Omar DeGuchy, Joseph Sebastian, and John Kaminski. Realistic sar data augmentation using
+machine learning techniques. In Algorithms for Synthetic Aperture Radar Imagery XXVI, volume 10987, pages
+12–28. SPIE, 2019.
+[24] Jianyu Wang, Jingwen Li, Bing Sun, and Zhixiong Zuo. Sar image synthesis based on conditional generative
+adversarial networks. The Journal of Engineering, 2019(21):8093–8097, 2019.
+[25] Geunhyuk Youk and Munchurl Kim. Transformer-based synthetic-to-measured sar image translation via learning
+of representational features. IEEE Transactions on Geoscience and Remote Sensing, 61:1–18, 2023.
+[26] Nathan Inkawhich, Matthew J Inkawhich, Eric K Davis, Uttam K Majumder, Erin Tripp, Chris Capraro, and
+Yiran Chen. Bridging a gap in sar-atr: Training on fully synthetic and testing on measured data. IEEE Journal of
+Selected Topics in Applied Earth Observations and Remote Sensing, 14:2942–2955, 2021.
+[27] Bomi Kim, Sunhyeok Lee, Nahyun Kim, Donggon Jang, and Dae-Shik Kim. Learning color representations for
+low-light image enhancement. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer
+Vision, pages 1455–1463, 2022.
+[28] Scott M Lundberg and Su-In Lee. A unified approach to interpreting model predictions. Advances in neural
+information processing systems, 30, 2017.
+[29] Chen Zhang, Yinghua Wang, Hongwei Liu, Yuanshuang Sun, and Liping Hu. Sar target recognition using only
+simulated data for training by hierarchically combining cnn and image similarity. IEEE Geoscience and Remote
+Sensing Letters, 19:1–5, 2022.
+[30] Yuanshuang Sun, Yinghua Wang, Liping Hu, and Hongwei Liu. Sar target recognition using simulated data by an
+ensemble multi-scale deep domain adaptation recognition framework. In 2021 CIE International Conference on
+Radar (Radar), pages 1413–1417. IEEE, 2021.
+[31] Zhe Geng, Ying Xu, Bei-Ning Wang, Xiang Yu, Dai-Yin Zhu, and Gong Zhang. Target recognition in sar images
+by deep learning with training data augmentation. Sensors, 23(2):941, 2023.
+[32] Emma Clark and Edmund Zelnio. Synthetic aperture radar physics-based image randomization for identification
+training: Spirit. In Algorithms for Synthetic Aperture Radar Imagery XXX, volume 12520, pages 248–264. SPIE,
+2023.
+[33] Benjamin Lewis, Theresa Scarnati, Elizabeth Sudkamp, John Nehrbass, Stephen Rosencrantz, and Edmund Zelnio.
+A sar dataset for atr development: the synthetic and measured paired labeled experiment (sample). In Algorithms
+for Synthetic Aperture Radar Imagery XXVI, volume 10987, pages 39–54. SPIE, 2019.
+[34] Timothy D Ross, Steven W Worrell, Vincent J Velten, John C Mossing, and Michael Lee Bryant. Standard sar atr
+evaluation experiments using the mstar public release data set. In Algorithms for synthetic aperture radar imagery
+V, volume 3370, pages 566–573. SPIE, 1998.
+[35] Martin Lambers, Holger Nies, and Andreas Kolb. Interactive dynamic range reduction for sar images. IEEE
+Geoscience and Remote Sensing Letters, 5(3):507–511, 2008.
+[36] Xiao Xiang Zhu, Sina Montazeri, Mohsin Ali, Yuansheng Hua, Yuanyuan Wang, Lichao Mou, Yilei Shi, Feng Xu,
+and Richard Bamler. Deep learning meets sar: Concepts, models, pitfalls, and perspectives. IEEE Geoscience and
+Remote Sensing Magazine, 9(4):143–172, 2021.
+[37] Lance M Kaplan, Romain Murenzi, and Kameswara Rao Namuduri. Sar target detection by fusion of cfar,
+variance, and fractal statistics. In Signal Processing, Sensor Fusion, and Target Recognition VII, volume 3374,
+pages 167–178. SPIE, 1998.
+[38] Arthur P Dempster, Nan M Laird, and Donald B Rubin. Maximum likelihood from incomplete data via the em
+algorithm. Journal of the royal statistical society: series B (methodological), 39(1):1–22, 1977.
+[39] Bertrand Rivet, Laurent Girin, and Christian Jutten. Log-rayleigh distribution: A simple and efficient statistical
+representation of log-spectral coefficients. IEEE transactions on audio, speech, and language processing,
+15(3):796–802, 2007.
+18
+
+SSR: Enhancing Domain Generalization in SAR-ATR for Synthetic-to-Measured
+
+[40] Dong-Xiao Yue, Feng Xu, Alejandro C Frery, and Ya-Qiu Jin. Synthetic aperture radar image statistical modeling:
+Part one-single-pixel statistical models. IEEE Geoscience and Remote Sensing Magazine, 9(1):82–114, 2020.
+[41] Karen Simonyan and Andrew Zisserman. Very deep convolutional networks for large-scale image recognition.
+arXiv preprint arXiv:1409.1556, 2014.
+[42] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In
+Proceedings of the IEEE conference on computer vision and pattern recognition, pages 770–778, 2016.
+[43] Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zhmoginov, and Liang-Chieh Chen. Mobilenetv2:
+Inverted residuals and linear bottlenecks. In Proceedings of the IEEE conference on computer vision and pattern
+recognition, pages 4510–4520, 2018.
+[44] Ningning Ma, Xiangyu Zhang, Hai-Tao Zheng, and Jian Sun. Shufflenet v2: Practical guidelines for efficient
+cnn architecture design. In Proceedings of the European conference on computer vision (ECCV), pages 116–131,
+2018.
+[45] Laurens Van der Maaten and Geoffrey Hinton. Visualizing data using t-sne. Journal of machine learning research,
+9(11), 2008.
+
+19
+
+
