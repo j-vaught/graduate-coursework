@@ -1,0 +1,37 @@
+\section{Radar-Camera Sensor Fusion Architectures}
+
+The integration of radar and camera sensors has emerged as a critical area of research in autonomous driving perception. While cameras provide dense semantic information and high angular resolution, they lack depth accuracy and are susceptible to adverse weather conditions. Conversely, radar sensors offer robust range and velocity measurements (via Doppler shift) and operate reliably in poor visibility, but suffer from sparsity and limited angular resolution. Multi-modal fusion architectures aim to leverage the complementary nature of these sensors. This section reviews the progression of fusion methodologies, highlighting key state-of-the-art (SOTA) architectures and the specific technical challenges they address.
+
+\subsection{Progression of Fusion Paradigms}
+
+Fusion architectures are generally categorized based on the stage at which information from different modalities is combined: data-level (early), feature-level (deep), and decision-level (late) fusion.
+
+\subsubsection{Data-Level (Early) Fusion}
+Early fusion involves combining raw sensor data prior to feature extraction. A common approach is to project sparse radar returns onto the image plane to create a pseudo-image channel (e.g., range or velocity maps) which is then concatenated with RGB inputs \cite{Chadwick2019}. While computationally efficient, this approach faces significant challenges due to the extreme sparsity of radar point clouds compared to dense image pixels. The resulting ``sparse depth image'' often contains insufficient information for effective convolution operations, leading to limited performance gains unless densification techniques are applied.
+
+\subsubsection{Decision-Level (Late) Fusion}
+Late fusion treats sensors independently, performing object detection on each modality separately and fusing the resulting bounding boxes or tracks using probabilistic frameworks like Kalman Filters or Hungarian matching. This approach is modular and robust to single-sensor failure. However, it fails to exploit the correlated information between sensors at the feature level. For instance, a weak visual signal of a car in fog might be discarded by a camera-only detector, whereas feature-level fusion could have validated its existence using a strong radar reflection \cite{Meyer2019}.
+
+\subsubsection{Feature-Level (Deep) Fusion}
+Deep feature fusion is currently the dominant paradigm for SOTA performance. In this architecture, neural networks extract high-dimensional feature maps from both modalities independently, which are then fused at intermediate layers. Approaches like 	extbf{CRF-Net} \cite{Nobis2019} introduce cross-modal attention mechanisms to learn which radar features are relevant to specific image regions. The primary challenge here is the spatial alignment of features, given the dimensional mismatch (2D image vs. 3D radar points) and calibration errors.
+
+\subsection{State-of-the-Art Architectures}
+
+Recent advancements have focused on solving the alignment and association problems inherent in fusing sparse 3D points with dense 2D images.
+
+	extbf{CenterFusion} \cite{Nabati2021} represents a significant milestone in feature-level fusion. Building upon the CenterNet anchor-free detector, it utilizes a novel ``frustum association'' method. Instead of projecting all radar points blindly, it generates 3D frustums around preliminary camera-detected objects to filter relevant radar returns. These associated radar features (depth and velocity) are then concatenated with image features to refine the 3D bounding box dimensions and location. This method effectively addresses the association ambiguity in cluttered scenes.
+
+	extbf{CRAFT} (Camera-Radar 3D Object Detection with Spatio-Temporal Cross-Attention) \cite{Kim2023} addresses the limitations of projecting radar points into the image plane, which often discards the 3D structure. CRAFT proposes a Soft-Polar-Association (SPA) mechanism to handle the coordinate transform mismatch without hard projection. Furthermore, it explicitly leverages the temporal information from consecutive radar sweeps using spatio-temporal cross-attention, effectively densifying the sparse radar input and distinguishing dynamic objects from static clutter.
+
+	extbf{GRIF Net} (Gated Region of Interest Fusion) \cite{Kim2020} introduces a gating mechanism to adaptively weigh the importance of radar and camera features. This addresses the issue where noisy radar returns (ghost targets) might degrade the high-quality visual features, ensuring that the network learns to trust the most reliable modality for a given region.
+
+\subsection{Key Challenges in Radar-Camera Fusion}
+
+Despite the progress, several intrinsic challenges remain central to the design of these architectures:
+
+\begin{itemize}
+    \item 	extbf{Sparsity and Resolution}: Traditional automotive radar point clouds are incredibly sparse. Architectures must employ densification strategies or attention mechanisms (as seen in CRAFT) to prevent radar features from vanishing during down-sampling operations in CNNs.
+    \item 	extbf{Sensor Calibration and Synchronization}: Effective feature fusion requires precise extrinsic calibration. Misalignment by even a few pixels can lead to erroneous associations, confusing the network. Additionally, temporal synchronization is difficult as radars and cameras often operate at different frame rates (e.g., 15Hz vs. 30Hz), necessitating temporal interpolation or tracking modules.
+    \item 	extbf{Lack of Elevation Info}: Most conventional radars are 2D (range and azimuth only), lacking elevation data. This makes 3D bounding box estimation ambiguous. SOTA methods often rely on the camera for vertical localization while using radar strictly for depth and velocity.
+    \item 	extbf{Ghost Objects and Multipath}: Radar data contains noise from multipath reflections (ghost objects). Early fusion methods are particularly susceptible to this, whereas deep fusion networks attempt to learn noise-filtering implicitly via attention maps.
+\end{itemize}

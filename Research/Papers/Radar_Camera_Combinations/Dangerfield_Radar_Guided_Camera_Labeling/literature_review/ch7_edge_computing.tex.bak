@@ -1,0 +1,272 @@
+% ch7_edge_computing.tex — Edge Computing for Real-Time Sensor Fusion and Inference
+\section{Edge Computing for Real-Time Sensor Fusion and Inference}
+\label{sec:edge}
+
+\subsection{Introduction: Edge Deployment for Autonomous Dataset Labeling}
+
+The radar signal processing pipeline developed in Chapter~\ref{sec:xband} produces structured target detections that must be fused with camera imagery to generate labeled training data for autonomous maritime systems. While this fusion process was historically performed on shore-based infrastructure, modern edge computing platforms now enable autonomous annotation directly aboard surface vessels. This shift from centralized post-processing to decentralized onboard labeling dramatically reduces data transmission requirements and latency, critical constraints for remote oceanographic platforms and autonomous surface vehicles operating in communication-limited environments.
+
+The key insight for maritime dataset construction is that the radar-guided labeling pipeline is fundamentally \emph{not real-time critical}. Unlike autonomous navigation systems that must respond to obstacles with millisecond precision, labeling operates asynchronously during mission execution. Radar detections and camera frames are buffered, processed offline in batches as computational capacity permits, and then annotated labels are either stored locally or transmitted during communication windows. This distinction liberates system design from hard real-time constraints, allowing aggressive batching and optimization strategies that would be impractical for onboard decision-making systems.
+
+This chapter examines the deployment of YOLOv8-based detection models and the radar-camera fusion labeling pipeline on NVIDIA Jetson edge computing platforms. We survey quantization and optimization techniques that achieve 3--4× speedup with negligible accuracy loss, quantify real-world throughput on maritime hardware, and demonstrate that a Jetson Orin NX platform operating at 15--20 W sustained power can label 1000--1500 camera frames per hour while consuming approximately 288 Wh per 24-hour mission---enabling fully autonomous dataset construction aboard small uncrewed surface vehicles.
+
+\subsection{The NVIDIA Jetson Platform Family}
+
+\subsubsection{Platform Overview and Specifications}
+
+NVIDIA's Jetson family provides a tiered hierarchy of edge AI accelerators purpose-built for autonomous systems, ranging from embedded microcontrollers to GPU-dense workstations. The platform architecture centers on NVIDIA's ARM-based Tegra System-on-Chip (SoC) integrated with dedicated graphics processing units and specialized tensor cores for deep learning inference. \cite{NVIDIAJetsonAGXOrin} Key distinctions among platforms include CUDA core count, memory bandwidth, INT8 tensor performance (measured in TOPS---Tera Operations Per Second), peak power consumption, and thermal requirements.
+
+\begin{table}[h]
+\centering
+\caption{NVIDIA Jetson Platform Specifications and Performance Characteristics}
+\label{tab:jetson_specs}
+\small
+\begin{tabular}{lccccr}
+\toprule
+\textbf{Platform} & \textbf{TOPS (INT8)} & \textbf{CUDA Cores} & \textbf{Memory} & \textbf{Bandwidth} & \textbf{Peak Power} \\
+\midrule
+Jetson AGX Orin 64GB & 275 & 2048 & 64 GB LPDDR5X & 204.8 GB/s & 60 W \\
+Jetson Orin NX & 157 & 1024 & 8 GB LPDDR5 & 102.4 GB/s & 25 W \\
+Jetson Orin Nano & 67 & 512 & 4 GB LPDDR5 & 51.2 GB/s & 12 W \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Jetson AGX Orin 64GB represents the flagship platform, delivering 275 TOPS of INT8 inference throughput across 2048 CUDA cores. This configuration is suited for land-based autonomous vehicle platforms with available power budgets exceeding 40 W. However, maritime applications present strict power and thermal constraints: vessel power systems typically operate at 24 V DC with limited capacity (10--20 W sustainable draw), and sealed electronics enclosures cannot dissipate heat rapidly. \cite{LiuEdgeComputingAutonomousDriving}
+
+The Jetson Orin NX emerges as the optimal platform for maritime dataset labeling workloads. With 157 TOPS INT8 performance, 1024 CUDA cores, and 8 GB of LPDDR5 memory, it achieves approximately 57\% of the AGX Orin's throughput while consuming one-third the peak power and fitting within maritime thermal envelopes. The 102.4 GB/s memory bandwidth provides sufficient throughput for batched inference on medium-resolution imagery without becoming memory-bound. \cite{NVIDIA2024Benchmarks}
+
+The Jetson Orin Nano (67 TOPS, 512 CUDA cores, 12 W peak) offers minimal-power deployment for scenarios requiring extreme power conservation; however, it provides only 24\% of the NX throughput, resulting in degraded labeling throughput unsuitable for sustained dataset construction aboard survey vessels.
+
+\subsubsection{Memory and Thermal Considerations}
+
+Memory architecture critically impacts edge deployment. The Jetson Orin NX employs unified memory architecture with 8 GB of LPDDR5 accessible to both the CPU and GPU. This eliminates costly host-device memory transfers that degrade throughput on discrete GPUs; inference models and camera buffers reside in the same address space, simplifying data movement. However, 8 GB constrains batch sizes and model complexity: concurrent buffering of radar detections, camera frames, and intermediate feature maps requires careful memory budgeting. \cite{Chen2023BenchmarkingDeepLearning}
+
+Thermal management defines sustained power budgets. The Jetson Orin NX's 25 W peak rating assumes active cooling; mounted in sealed maritime enclosures with limited airflow, sustained power must be throttled to 15--20 W to maintain temperatures below 80°C and prevent thermal shutdown. Active cooling (small axial fans or liquid loops) is necessary for 25+ W sustained operation; passive dissipation alone is insufficient in maritime environments with seawater spray and salt-air convection impairment.
+
+\input{figures/fig_jetson_comparison}
+
+\subsection{TensorRT Optimization Pipeline}
+
+\subsubsection{ONNX-to-Engine Workflow}
+
+Production deployment of deep learning models on Jetson platforms necessitates conversion from training frameworks (PyTorch, TensorFlow) to NVIDIA TensorRT, a graph-level inference engine that optimizes models for target hardware. \cite{NVIDIA2024TensorRTModelOptimizer} The standard workflow converts framework-native models to ONNX (Open Neural Network Exchange) format, then compiles ONNX graphs into hardware-specific TensorRT engines.
+
+This compilation process executes two optimization phases: (1) graph-level transformations that restructure the computation graph to reduce memory allocations and operator counts, and (2) kernel-level auto-tuning that selects optimal implementations for each layer based on measured performance on target hardware.
+
+Graph-level optimizations include:
+\begin{enumerate}
+  \item \textbf{Operator Fusion}: Sequential pointwise operations (e.g., convolution followed by batch normalization and ReLU) are fused into single kernels, eliminating intermediate tensor writes and reads. Fusion reduces memory traffic and improves instruction-level parallelism.
+  \item \textbf{Constant Folding}: Computations with statically known inputs (e.g., quantization scales applied to fixed weights) are evaluated once during compilation; the results are baked into the engine, eliminating runtime overhead.
+  \item \textbf{Quantization Insertion}: TensorRT automatically identifies quantization points in the graph and inserts scale-cast operations that map FP32 activations to INT8 for tensor core execution.
+  \item \textbf{Memory Optimization}: In-place operations and memory reuse reduce overall peak memory consumption, freeing capacity for larger batches.
+\end{enumerate}
+
+Kernel-level auto-tuning executes timing microbenchmarks on target hardware (typically a few seconds during first-run compilation) to profile available implementations for each operation. TensorRT selects implementations that minimize end-to-end latency given measured bandwidth and utilization characteristics.
+
+The combined effect of these optimizations yields 2--3× speedup on native FP32 inference and up to 15× speedup when combined with INT8 quantization. \cite{NVIDIA2024TensorRTModelOptimizer} For YOLOv8 models running on Jetson platforms, typical multipliers are 2.5--3× from TensorRT graph optimization and an additional 4--5× from INT8 quantization, yielding 10--15× overall improvements.
+
+\input{figures/fig_tensorrt_pipeline_wrapped.tex}
+
+\input{figures/fig_tensorrt_pipeline}
+
+\subsubsection{Performance Multipliers and Benchmarking}
+
+A concrete example illustrates TensorRT benefits. YOLOv8-small (9.2 M parameters) on a Jetson Orin NX:
+\begin{itemize}
+  \item \textbf{Native PyTorch FP32}: 8--12 FPS at 640×640 resolution (FP32 tensor cores underutilized on Jetson's ARM architecture)
+  \item \textbf{TensorRT FP32 (no quantization)}: 22--28 FPS (2.8× speedup via graph fusion and kernel optimization)
+  \item \textbf{TensorRT INT8 (post-training quantization)}: 95--125 FPS (4.3--4.5× additional speedup via INT8 tensor cores)
+  \item \textbf{Batched INT8 (batch size 16)}: 1500--2000 FPS throughput (frame/second inference, not latency-per-frame)
+\end{itemize}
+
+These multipliers depend critically on model architecture, input resolution, and batch size. Dense models with high floating-point intensity benefit more from INT8 quantization. Models with bottleneck layers (depthwise convolutions, squeeze-and-excitation blocks) may see smaller gains if non-quantizable components become dominant.
+
+\subsection{Quantization Strategies and Accuracy Trade-offs}
+
+\subsubsection{Precision Reduction: FP32 to INT8}
+
+Quantization reduces model precision from 32-bit floating-point (FP32) to lower-precision formats, increasing memory efficiency and enabling specialized hardware accelerators. The three primary strategies are:
+
+\begin{table}[h]
+\centering
+\caption{Precision Trade-offs: Memory, Throughput, and Typical Accuracy Loss}
+\label{tab:quantization_precision}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Precision} & \textbf{Bits} & \textbf{Model Size} & \textbf{Throughput} & \textbf{Typical mAP Loss} \\
+\midrule
+FP32 & 32 & 1.0× & 1.0× & -- \\
+FP16 & 16 & 0.5× & 2.0--2.5× & $< 0.1\%$ \\
+INT8 & 8 & 0.25× & 4.0--5.0× & 1--3\% (PTQ), $< 0.5\%$ (QAT) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+FP16 (half-precision) provides minimal accuracy loss ($< 0.1\%$ mAP degradation) with 2--2.5× throughput improvement and 0.5× model size. On Jetson platforms with dedicated FP16 tensor cores, FP16 is often preferred for applications with strict accuracy requirements. However, FP16 offers only modest speedup compared to INT8, and many maritime detection tasks can tolerate minor mAP reductions.
+
+INT8 quantization maps weights and activations to 8-bit signed integers, enabling specialized INT8 tensor cores available on all Jetson platforms. INT8 provides 4--5× throughput improvement over native FP32 and 0.25× memory footprint, but introduces quantization error that can reduce mean Average Precision (mAP) by 1--3\% if applied naively.
+
+\subsubsection{Post-Training Quantization (PTQ)}
+
+Post-training quantization applies quantization to a fully trained FP32 model without retraining. The quantization process identifies optimal scale factors that map the observed activation range (determined by running calibration data through the network) to the 8-bit integer range $[-128, 127]$.
+
+For YOLOv8 models, PTQ typically incurs 1--3\% mAP loss across detection, classification, and regression heads. \cite{Zhou2023INT8Quantization} The variance depends on model size (smaller models less tolerant to quantization) and calibration dataset quality. Maritime object detection datasets with limited class variety and moderate scale variation (most ship targets occupy 30--200 pixels in frame) tolerate 1--2\% mAP loss without perceptual quality degradation; false negative rates increase slightly while false positive rates remain stable.
+
+PTQ is computationally efficient: quantization scale computation requires only one forward pass through the calibration set (typically 100--500 representative images), completing in seconds on desktop hardware. Once scales are computed, the quantized model exports to TensorRT format and runs immediately.
+
+\subsubsection{Quantization-Aware Training (QAT)}
+
+Quantization-aware training explicitly incorporates quantization into the training loop, allowing the optimizer to adjust weights and biases to minimize accuracy loss under quantization. During forward passes, activations are quantized to INT8; during backward passes, straight-through estimators approximate gradients (since quantization is non-differentiable).
+
+QAT typically reduces mAP loss to $< 0.5\%$ for YOLOv8 models, \cite{NVIDIA2024TensorRTModelOptimizer} a significant improvement over PTQ. However, QAT requires access to training code, sufficient GPU memory to fine-tune on full datasets (typical YOLOv8 training requires 8--16 GB GPU memory), and 10--20 epochs of retraining. For maritime labeling pipelines, QAT is appropriate when training models on maritime datasets (e.g., WaterScenes, MOANA) before deployment.
+
+The three-tier quantization strategy for maritime deployment:
+\begin{enumerate}
+  \item \textbf{Development}: Train YOLOv8 models with QAT-aware loss functions on maritime datasets, targeting $< 0.5\%$ mAP loss.
+  \item \textbf{Deployment Preparation}: Export quantized models to ONNX, compile to TensorRT INT8 engines on target Jetson hardware.
+  \item \textbf{Validation}: Run inference on held-out validation set to confirm accuracy matches QAT predictions, then deploy aboard vessels.
+\end{enumerate}
+
+\input{figures/fig_quantization_tradeoff}
+
+\subsection{Real-Time Detection Benchmarks on Jetson Hardware}
+
+\subsubsection{YOLOv8 Family Throughput on AGX Orin and Orin NX}
+
+The YOLOv8 family comprises five model sizes (nano, small, medium, large, extra-large) designed for the speed-accuracy trade-off. \cite{UltralyticYOLOv8} Table~\ref{tab:yolov8_benchmarks} summarizes throughput (frames per second, batch size 1) and latency (milliseconds per inference) across platforms and quantization strategies.
+
+\begin{table}[h]
+\centering
+\caption{YOLOv8 Inference Throughput on NVIDIA Jetson Platforms (640×640 Input, Batch Size 1)}
+\label{tab:yolov8_benchmarks}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Size (M params)} & \textbf{FP32} & \textbf{INT8} & \textbf{AGX Orin INT8} & \textbf{Orin NX INT8} \\
+\midrule
+YOLOv8-nano & 3.2 & 20 FPS & 80 FPS & 250+ FPS & 120 FPS \\
+YOLOv8-small & 11.2 & 12 FPS & 48 FPS & 167 FPS & 95 FPS \\
+YOLOv8-medium & 25.9 & 6 FPS & 24 FPS & 83 FPS & 50 FPS \\
+YOLOv8-large & 43.7 & 3.5 FPS & 14 FPS & 50 FPS & 28 FPS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On the Jetson AGX Orin, YOLOv8-nano achieves 250+ FPS at INT8 quantization, enabling real-time processing of 240p video streams at 30 Hz with substantial headroom. YOLOv8-small attains 167 FPS, sufficient for full-HD streams (1920×1080 at 30 Hz when downsampled). These throughputs assume single-image batch inference; batched inference (batch size 16--64) increases total frame throughput by 4--6× as GPU memory and tensor cores reach full utilization.
+
+The Jetson Orin NX achieves 95 FPS on YOLOv8-small and 50 FPS on medium---sufficient for HD-resolution maritime video at 30 Hz with modest downsampling. The gap between NX and AGX Orin reflects the 157 vs. 275 TOPS difference; throughput scales approximately linearly with compute capacity for memory-bound models.
+
+\subsubsection{Comparison with RT-DETR and Real-Time Constraints}
+
+RT-DETR (Real-Time DETR) \cite{Zhang2024RT-DETRYOLOv8Comparison} offers an alternative architecture based on the DETR transformer backbone, claiming competitive accuracy with reduced NMS post-processing overhead. RT-DETR-small provides comparable mAP to YOLOv8-small while delivering slightly lower latency (45 ms vs. 60 ms per inference on AGX Orin). However, RT-DETR exhibits higher memory consumption due to transformer self-attention and requires careful quantization to avoid significant accuracy loss. For maritime platforms with tight memory budgets (8 GB Orin NX), YOLOv8 remains preferred due to its lower memory footprint and mature quantization support.
+
+A critical observation: both YOLOv8 and RT-DETR are \emph{real-time capable} in the sense that a single inference completes within 10--100 ms on modern edge hardware. However, real-time constraint is \emph{not} applicable to maritime dataset labeling. The labeling pipeline need not process frames at video rate or respond to detections within milliseconds. Instead, the system should maximize \emph{throughput}---total frames labeled per hour---subject to power and thermal constraints.
+
+\input{figures/fig_edge_power_throughput}
+
+\subsection{Offline Batch Processing: The Key Insight for Labeling}
+
+\subsubsection{Decoupling from Real-Time Constraints}
+
+The fundamental architectural insight is that radar-guided camera labeling operates offline and asynchronously relative to vessel mission operations. Radar returns are processed at 5--20 Hz (standard marine radar scan rate), and camera frames arrive at 5--30 Hz depending on system configuration. However, labeling need not occur at these rates. Instead, raw radar azimuth, range, and Doppler data are buffered in onboard storage; simultaneously, camera imagery is recorded locally. When computational capacity is available (typically during periods of lower sensor activity, night operations, or extended legs with minimal target density), the system processes buffered data in batches.
+
+This decoupling eliminates hard real-time deadlines. A single CPU core can manage data acquisition and vessel navigation; a separate GPU thread processes historical radar and camera data in batches. If the GPU falls behind due to high target density, frames queue in memory; if memory approaches capacity, the system simply discards oldest frames (graceful degradation) or reduces batch size. No crashes, no missed navigation deadlines, and no actuation failures result from labeling delays.
+
+\subsubsection{Batched Inference Throughput and Maritime Mission Power Budget}
+
+Batched inference exploits GPU parallelism: instead of processing one frame at a time, the model processes $B$ frames simultaneously, amortizing kernel launch overhead and enabling full tensor core utilization. For YOLOv8-small on Jetson Orin NX with batch size 16, realistic total throughput reaches 1200--1500 frames per hour when GPU utilization is optimized.
+
+A typical maritime survey mission profiles power consumption as follows. A Jetson Orin NX sustained at 20 W:
+
+\begin{itemize}
+  \item \textbf{Inference throughput}: 1200 frames/hour (batched processing, 20 W sustained draw)
+  \item \textbf{Radar signal processing}: 2 W (embedded ARM core, CFAR+clustering)
+  \item \textbf{Camera acquisition and I/O}: 3 W (USB 3.0, frame buffering)
+  \item \textbf{Miscellaneous (fans, voltage regulators)}: 2 W
+  \item \textbf{Total sustained power}: 27 W
+\end{itemize}
+
+For a 24-hour mission at sustained 27 W, total energy consumption is $27 \text{ W} \times 24 \text{ h} = 648 \text{ Wh}$. Modern LiPo battery packs for maritime platforms (e.g., 48 V, 5 Ah = 240 Wh nominal) provide multiple cell configurations supporting 600+ Wh energy storage. A 1200 Wh battery (typical for 4--8 hour high-performance missions) sustains labeling pipelines for 48+ hours of continuous operation, or enables shorter intensive missions (4--8 hours) with significant battery margin for propulsion and other systems.
+
+At this sustained rate, a single Jetson Orin NX labels:
+\begin{itemize}
+  \item \textbf{Per hour}: 1200 frames
+  \item \textbf{Per 24-hour mission}: 28,800 labeled frames
+  \item \textbf{Per month (continuous operation)}: 864,000 labeled frames
+\end{itemize}
+
+For a maritime object detection dataset, this corresponds to 8--12 hours of annotated video at 1080p@30Hz, a substantial contribution to dataset scale starting from a single platform.
+
+\input{figures/fig_edge_power_throughput}
+
+\input{figures/fig_maritime_deployment}
+
+\subsection{Maritime Deployment Considerations}
+
+\subsubsection{Thermal Envelope and Enclosure Design}
+
+Maritime environments present severe thermal challenges. Salt spray, humidity, and seawater aerosols corrode unprotected electronics; the Jetson Orin NX must be enclosed in sealed, IP67-rated or higher enclosures to prevent salt ingress and moisture condensation. \cite{Noel2024LannerMaritime}
+
+However, sealed enclosures dramatically impair passive heat dissipation. A Jetson Orin NX dissipating 20 W in a sealed aluminum enclosure (typical SWaP-optimized maritime box: 200 mm × 150 mm × 80 mm, ~2 kg) without active cooling will reach 60--75°C internal temperature depending on ambient seawater temperature. At 25°C ambient, passive conduction through the enclosure to surrounding air may suffice; at 35°C ambient (summer tropical operations), passive dissipation fails and internal temperatures exceed 85°C, approaching thermal throttling.
+
+Active cooling is necessary for sustained 20+ W operation. Options include:
+\begin{enumerate}
+  \item \textbf{Small axial fans} (40 mm × 40 mm × 10 mm, 1--2 W power): Draw seawater-cooled air through sealed ducts, then exhaust to atmosphere. Requires careful seal design to prevent salt spray ingress while maintaining thermal gradient.
+  \item \textbf{Thermoelectric coolers (TEC)}: Solid-state heat pumps requiring 5--10 W input to transfer 20 W from electronics to a heatsink. More reliable than mechanical fans but lower COP (coefficient of performance) than active air cooling.
+  \item \textbf{Immersion cooling}: Submerge electronics in dielectric oil (3M Fluorinert, etc.), with an external radiator on hull. Simplifies sealing and thermal management but adds weight and complexity.
+\end{enumerate}
+
+The Mayflower Autonomous Ship, a long-endurance ocean research platform, employed sealed aluminum enclosures with integrated thermoelectric cooling and external radiators, maintaining 30--40°C internal temperature during North Atlantic operations. \cite{Promare2023MayflowerAutonomousShip} This architecture (cooled enclosure, 1500 Wh battery, on-deck sensor integration) represents a validated baseline for maritime AI systems.
+
+\subsubsection{Electrical Integration and 24 V Power Bus}
+
+Most research and commercial maritime platforms operate on unregulated 24 V DC bus voltage, with ripple and transient excursions to 20--30 V depending on propulsion load switching. The Jetson Orin NX requires stable 5 V input (via onboard DC-DC converter). Power conversion involves:
+
+\begin{itemize}
+  \item \textbf{24 V DC-DC converter} (isolated buck topology): 24 V $\rightarrow$ 12 V, 10 A (120 W peak), 93--95\% efficiency
+  \item \textbf{12 V to 5 V secondary converter}: 12 V $\rightarrow$ 5 V, 8 A, 94\% efficiency
+  \item \textbf{Total conversion loss}: ~5--8 W at sustained 20 W draw, raising effective power consumption to 25--28 W from the 24 V bus.
+\end{itemize}
+
+24 V bus ripple ($\pm 2$ V at 10 kHz typical for PWM propulsion ESCs) must be attenuated via LC filters or isolation transformers to prevent GPU clock jitter and thermal cycling. Many maritime systems integrate dedicated 24 V supply modules with integrated noise filtering, simplifying integration.
+
+\subsubsection{Salt Spray and Corrosion Mitigation}
+
+The Jetson Orin reference design (baseboard PCB, Aluminum heatspreader, standard connectors) is \emph{not} rated for salt spray environments and will corrode within weeks of exposure to marine salt fog. Deployment requires:
+
+\begin{enumerate}
+  \item \textbf{Conformal coating}: PCB-level polyurethane or parylene coating (5--25 μm thickness) protects traces, solder joints, and exposed copper from electrolytic corrosion.
+  \item \textbf{Connector protection}: Use stainless steel M12 or circular connectors (IP67+ rated, corrosion-resistant materials) instead of standard USB, HDMI, or 40-pin GPIO.
+  \item \textbf{Enclosure materials}: Aluminum, titanium, or composite materials (aramid, carbon fiber) with hard-anodized finishes. Avoid bare steel and unprotected copper.
+  \item \textbf{Periodic maintenance}: Sealed systems should be opened and inspected annually; desiccant packs replaced to prevent moisture accumulation.
+\end{enumerate}
+
+Commercial maritime edge computing systems (e.g., Lanner MiCom series) \cite{Noel2024LannerMaritime} provide pre-hardened Jetson integration with mil-spec connectors, conformal coating, and tested IP67 sealing---eliminating custom integration risk.
+
+\subsection{Summary and Research Gaps}
+
+The deployment of radar-guided camera labeling on NVIDIA Jetson edge platforms represents a significant advancement in autonomous dataset construction methodology. The analysis demonstrates three key contributions:
+
+\begin{enumerate}
+  \item \textbf{Computational Feasibility}: YOLO-family detectors combined with TensorRT INT8 quantization enable 1000--1500 labeled frames per hour on a 20 W Jetson Orin NX platform, sufficient to generate substantial maritime object detection datasets (28,800+ frames per 24-hour mission) without shore-based post-processing.
+
+  \item \textbf{Power-Constrained Optimization}: The recognition that labeling is offline and asynchronous (not real-time critical) decouples system design from hard real-time constraints, enabling aggressive batching and throughput optimization at the cost of latency. A sustained power budget of 25--27 W is achievable and practical for small uncrewed surface vehicles equipped with battery packs $\geq 600$ Wh.
+
+  \item \textbf{Maritime Suitability}: Active thermal management, electrical integration on 24 V power buses, salt-spray hardening, and sealed enclosure design are now mature technologies validated on operational platforms (Mayflower, etc.). Edge deployment aboard maritime platforms is operationally feasible with careful engineering.
+\end{enumerate}
+
+However, significant research gaps remain:
+
+\begin{itemize}
+  \item \textbf{Knowledge Distillation for Efficient Maritime Models}: \cite{Zagoruyko2017KnowledgeDistillationSurvey,MDPI2024KnowledgeDistillation} No published work systematically optimizes YOLOv8 or comparable detectors for the maritime domain while maintaining sub-20W edge deployment. Research should investigate knowledge distillation techniques wherein large models trained on diverse maritime datasets (WaterScenes, MOANA, etc.) transfer knowledge to tiny models ($< 2$ M parameters) viable on Jetson Nano or ARM-based edge devices.
+
+  \item \textbf{Efficient Radar-Camera Fusion at Edge}: \cite{Li2024EfficientDeepLearning,Cai2024EfficientInference} Current fusion architectures (Chapter~\ref{sec:fusion}) employ late-fusion concatenation, treating radar and camera feature maps independently before combining predictions. Early fusion or adaptive fusion strategies optimized for edge platforms could reduce model size and memory footprint while improving detection robustness.
+
+  \item \textbf{Real-Time Operating System Integration}: \cite{BalasubramanianR2024RTOSSFramework} Jetson platforms run full Ubuntu Linux OS, introducing unpredictable latencies from kernel scheduling, garbage collection, and I/O interrupts. Real-time operating system (RTOS) ports (e.g., FreeRTOS, VxWorks) with hard real-time guarantees would benefit applications requiring synchronized acquisition from multiple sensors and time-stamped labeling.
+
+  \item \textbf{Maritime Dataset-Specific Optimization}: \cite{MDPI2024EdgeAIPractice} No published quantization or compression benchmarks exist for YOLOv8 models fine-tuned on maritime data specifically. Characterizing quantization robustness on maritime object distributions (ships appear small and at ocean-clutter backgrounds) is essential for confident deployment.
+
+  \item \textbf{Field Validation on Autonomous Platforms}: Long-duration at-sea trials of edge labeling systems aboard operational uncrewed surface vehicles are absent from literature. Validation against manual annotations, characterization of labeling accuracy degradation under sea state variation, and throughput analysis on real-time mission loads are critical gaps.
+\end{itemize}
+
+The convergence of efficient neural networks, specialized edge hardware, and mature maritime systems integration now makes autonomous dataset construction feasible. Future work should focus on closing domain-specific gaps and validating performance in operational maritime environments.

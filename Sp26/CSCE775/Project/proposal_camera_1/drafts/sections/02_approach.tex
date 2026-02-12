@@ -1,0 +1,22 @@
+We formulate the preprocessing control as a Markov Decision Process (MDP) where a Reinforcement Learning (RL) agent dynamically optimizes image registration and data augmentation parameters. As illustrated in Figure~\ref{fig:method-overview}, the proposed framework establishes a closed-loop system: \textit{Input $\rightarrow$ RL Agent $\rightarrow$ Action $\rightarrow$ Downstream Task $\rightarrow$ Reward}.
+
+\subsection{State and Action Space}
+The state $s_t$ includes frame quality metrics (Laplacian variance for blur, histogram entropy), a proxy for initial misalignment (e.g., mutual information score), and an environmental context vector (encoding `day/night` or `clear/rain`).
+
+The action $a_t$ consists of two coupled decisions:
+\begin{enumerate}
+    \item \textbf{Registration Strategy:} Selection of a transform model $T \in \{\text{Rigid}, \text{Affine}, \text{Homography}\}$. The agent learns to select simpler models when keypoints are sparse and complex models when significant perspective shifts are detected.
+    \item \textbf{Augmentation Parameters:} Selection of operator parameters $\lambda_{aug}$ (magnitude, probability) for primitives such as MixUp, CutMix, Gaussian blur, and modality-specific operations like thermal noise injection.
+\end{enumerate}
+
+\subsection{Feedback Loop and Reward Definition}
+Unlike traditional open-loop pipelines, our system explicitly evaluates the utility of its preprocessing actions through a feedback mechanism. Once the agent executes action $a_t$, the processed frames are fed into the downstream object detector. The system then calculates a composite reward $r_t$ reflecting the immediate benefit of that action:
+
+\begin{equation}
+    r_t = \alpha \cdot \mathcal{M}_{task} + \beta \cdot \mathcal{M}_{cons} - \gamma \cdot \mathcal{C}_{comp}
+\end{equation}
+
+Here, $\mathcal{M}_{task}$ is the downstream detection performance (e.g., improvement in mAP or confidence scores). $\mathcal{M}_{cons}$ quantifies the geometric and semantic alignment between modalities (e.g., via edge correlation), and $\mathcal{C}_{comp}$ penalizes computational latency.
+
+\subsection{Policy Optimization}
+The RL policy $\pi_\theta$ is updated using Proximal Policy Optimization (PPO) based on this reward signal. This feedback loop is critical: it enables the agent to learn from trial and error. By receiving positive reinforcement when detection accuracy ($\mathcal{M}_{task}$) and consistency ($\mathcal{M}_{cons}$) increase, the policy optimizes future actions to favor preprocessing configurations that maximize task utility. To address the sparse reward problem of training full detectors, we utilize a lightweight proxy model (frozen backbone) for rapid feedback during the initial training phase, ensuring the agent learns efficiently to adapt to diverse environmental states.
