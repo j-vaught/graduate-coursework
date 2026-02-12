@@ -11,6 +11,7 @@ mkdir -p "$OUT_DIR"
 pushd "$DRAFT_DIR" >/dev/null
 latexmk -g -pdf -interaction=nonstopmode -halt-on-error proposal1_asme.tex
 cp proposal1_asme.pdf "$OUT_DIR/proposal1_asme_final.pdf"
+latexmk -c
 popd >/dev/null
 
 echo "Built $OUT_DIR/proposal1_asme_final.pdf"
