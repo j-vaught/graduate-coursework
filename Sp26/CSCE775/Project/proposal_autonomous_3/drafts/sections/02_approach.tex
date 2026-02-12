@@ -1,0 +1,9 @@
+We formulate the autonomous exploration problem as a Partially Observable Markov Decision Process (POMDP), solved via Deep Reinforcement Learning (DRL). The core mechanism is the closed-loop interaction shown in Figure \ref{fig:method-overview}: the agent perceives the environment, acts, and learns from the consequences.
+
+At each time step $t$, the environment presents a state $s_t$, consisting of fused sensor observations (IR/RGB/Radar), a local occupancy grid (belief map), the remaining battery state of charge $E_t$, and the water-body classification $w_{type}$ (e.g., river current vs. static lake). The policy network $\pi_\theta(a_t|s_t)$ processes this state to output an action $a_t$. Crucially, this action space is hybrid, controlling both the USV's motion (velocity $v$, turn rate $\omega$) and its perception hardware (duty-cycling sensors on/off to save power).
+
+Upon execution, the physical environment processes the action—applying hydrodynamic drag, currents, and wind—to produce a new state $s_{t+1}$ (new position, updated battery level). Simultaneously, a reward signal $r_t$ is computed to quantify performance:
+\begin{equation}
+    r_t = \lambda_1 \cdot \Delta \text{InfoGain} - \lambda_2 \cdot \text{EnergyCost}(a_t, w_{type}) - \lambda_3 \cdot \text{CollisionPenalty}
+\end{equation}
+The feedback loop closes as the agent receives this reward. The RL algorithm updates the policy parameters $\theta$ to maximize the expected cumulative return. Through this iterative process, the agent learns to associate specific state-action pairs with higher energy efficiency, effectively optimizing the global metric of coverage per Joule ($m^2$/Joule). This allows emergent strategies, such as coasting with currents or reducing sensor polling rates in open water, to develop naturally from the reward structure.
