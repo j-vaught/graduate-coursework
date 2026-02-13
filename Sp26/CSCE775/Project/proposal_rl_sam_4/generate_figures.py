@@ -1,10 +1,15 @@
 """
-Generate real SAM + DINOv2 figures for the PPO explainer.
+Generate real SAM + DINOv2 figures for the PPO explainer using a real
+underwater coral reef photograph (Wikimedia Commons, CC license).
+
+Image: "Colorful underwater landscape of a coral reef"
+  - Two small fish visible among colorful coral formations
 
 Produces:
-  figures/fig1_prompt_sensitivity.png  - Good vs bad prompt placement on a real image
+  figures/fig1_prompt_sensitivity.png  - Good vs bad prompt placement on real photo
   figures/fig2_dino_features.png       - DINOv2 patch feature visualization
-  figures/fig3_sam_iterative.png       - Iterative prompt refinement (simulated RL steps)
+  figures/fig3_sam_iterative.png       - Iterative prompt refinement (simulated RL)
+  figures/fig4_multi_object.png        - Segmenting different objects (fish vs coral)
 """
 
 import numpy as np
@@ -37,322 +42,363 @@ os.makedirs(FIGDIR, exist_ok=True)
 DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
 print(f"Using device: {DEVICE}")
 
-# ── Create a synthetic scene with clear objects ──────────────────────────
-def make_scene():
-    """Create a 512x512 synthetic underwater scene with distinct objects."""
-    img = np.zeros((512, 512, 3), dtype=np.uint8)
-    # Water background gradient
-    for y in range(512):
-        b = int(120 + 80 * (y / 512))
-        g = int(80 + 40 * (y / 512))
-        img[y, :] = [30, g, b]
 
-    mask_fish = np.zeros((512, 512), dtype=np.uint8)
-    mask_coral = np.zeros((512, 512), dtype=np.uint8)
-
-    # Fish body (ellipse)
-    cv2.ellipse(img, (280, 200), (100, 50), -10, 0, 360, (60, 160, 200), -1)
-    cv2.ellipse(mask_fish, (280, 200), (100, 50), -10, 0, 360, 255, -1)
-    # Fish tail
-    pts_tail = np.array([[175, 190], [140, 155], (140, 225)], np.int32)
-    cv2.fillPoly(img, [pts_tail], (50, 140, 180))
-    cv2.fillPoly(mask_fish, [pts_tail], 255)
-    # Fish eye
-    cv2.circle(img, (330, 185), 8, (220, 220, 220), -1)
-    cv2.circle(img, (332, 183), 3, (20, 20, 20), -1)
-    # Fish fin
-    pts_fin = np.array([[260, 170], (280, 130), (310, 165)], np.int32)
-    cv2.fillPoly(img, [pts_fin], (45, 130, 170))
-    cv2.fillPoly(mask_fish, [pts_fin], 255)
-
-    # Coral cluster (irregular blob)
-    pts_coral = np.array([
-        [80, 420], [60, 380], [90, 350], [130, 360],
-        [160, 390], [170, 430], [150, 460], [100, 470], [70, 450]
-    ], np.int32)
-    cv2.fillPoly(img, [pts_coral], (180, 100, 80))
-    cv2.fillPoly(mask_coral, [pts_coral], 255)
-    # Coral branches
-    cv2.ellipse(img, (100, 355), (25, 15), -30, 0, 360, (200, 110, 70), -1)
-    cv2.ellipse(mask_coral, (100, 355), (25, 15), -30, 0, 360, 255, -1)
-    cv2.ellipse(img, (140, 365), (20, 12), 20, 0, 360, (190, 95, 65), -1)
-    cv2.ellipse(mask_coral, (140, 365), (20, 12), 20, 0, 360, 255, -1)
-
-    # Starfish
-    mask_star = np.zeros((512, 512), dtype=np.uint8)
-    cx, cy = 420, 380
-    for angle in range(0, 360, 72):
-        rad = np.radians(angle)
-        ex, ey = int(cx + 35 * np.cos(rad)), int(cy + 35 * np.sin(rad))
-        cv2.line(img, (cx, cy), (ex, ey), (200, 160, 50), 12)
-        cv2.line(mask_star, (cx, cy), (ex, ey), 255, 12)
-    cv2.circle(img, (cx, cy), 14, (210, 170, 60), -1)
-    cv2.circle(mask_star, (cx, cy), 14, 255, -1)
-
-    # Some seaweed strands
-    for sx in [350, 370, 450, 470]:
-        for dy in range(0, 80, 2):
-            y = 512 - dy
-            x = sx + int(8 * np.sin(dy * 0.15))
-            cv2.circle(img, (x, y), 3, (40, 130 + dy // 2, 50), -1)
-
-    # Sandy bottom
-    for _ in range(300):
-        rx, ry = np.random.randint(0, 512), np.random.randint(460, 512)
-        cv2.circle(img, (rx, ry), np.random.randint(1, 4),
-                   (160 + np.random.randint(-20, 20),
-                    140 + np.random.randint(-20, 20),
-                    100 + np.random.randint(-20, 20)), -1)
-
-    return img, mask_fish, mask_coral, mask_star
+def load_real_image():
+    """Load the real coral reef image and resize to workable dimensions."""
+    path = os.path.join(FIGDIR, "real_reef2.jpg")
+    img = cv2.imread(path)
+    if img is None:
+        raise FileNotFoundError(f"Could not find {path}")
+    # Resize to 1024 wide (SAM's preferred input size) keeping aspect ratio
+    h, w = img.shape[:2]
+    new_w = 1024
+    new_h = int(h * new_w / w)
+    img = cv2.resize(img, (new_w, new_h))
+    return img
 
 
-def compute_iou(pred_mask, gt_mask):
-    intersection = np.logical_and(pred_mask > 0, gt_mask > 0).sum()
-    union = np.logical_or(pred_mask > 0, gt_mask > 0).sum()
-    return intersection / union if union > 0 else 0.0
-
-
-# ── FIGURE 1: Prompt Sensitivity with real SAM ──────────────────────────
-def generate_fig1_prompt_sensitivity(img, mask_fish):
+def load_sam():
     from segment_anything import sam_model_registry, SamPredictor
-
     ckpt = os.path.join(os.path.dirname(__file__), "sam_vit_b.pth")
     sam = sam_model_registry["vit_b"](checkpoint=ckpt)
     sam.to(DEVICE)
-    predictor = SamPredictor(sam)
+    return SamPredictor(sam)
 
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+def plot_points(ax, pos_points, neg_points, radius=10):
+    """Draw prompt points on an axis."""
+    for pt in pos_points:
+        ax.add_patch(Circle(pt, radius, color=HORSESHOE, zorder=5, linewidth=0))
+        ax.annotate("+", pt, color="white", fontsize=9, ha="center", va="center",
+                    fontweight="bold", zorder=6)
+    for pt in neg_points:
+        ax.add_patch(Circle(pt, radius, color=ROSE, zorder=5, linewidth=0))
+        ax.annotate("\u2212", pt, color="white", fontsize=9, ha="center", va="center",
+                    fontweight="bold", zorder=6)
+
+
+def overlay_mask(ax, mask, color, alpha=0.45):
+    """Overlay a colored mask on the current axis."""
+    colored = np.zeros((*mask.shape, 4))
+    r, g, b = tuple(int(color.lstrip("#")[i:i+2], 16) / 255 for i in (0, 2, 4))
+    colored[mask > 0] = [r, g, b, alpha]
+    ax.imshow(colored)
+
+
+def mask_outline(ax, mask, color=BLACK50, lw=1.5):
+    """Draw contour outline of a mask."""
+    mask_u8 = (mask > 0).astype(np.uint8) * 255
+    contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        pts = cnt.squeeze()
+        if len(pts.shape) == 2 and len(pts) > 2:
+            ax.plot(np.append(pts[:, 0], pts[0, 0]),
+                    np.append(pts[:, 1], pts[0, 1]),
+                    color=color, linewidth=lw, linestyle="--", zorder=4)
+
+
+# ── FIGURE 1: Prompt Sensitivity ────────────────────────────────────────
+def generate_fig1(img_rgb, predictor):
+    """Show how different prompt placements produce different SAM masks."""
+    h, w = img_rgb.shape[:2]
     predictor.set_image(img_rgb)
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    # The two small fish in the image are roughly at:
+    # Fish 1 (left): around (480, 390) in the 1024-wide image
+    # Fish 2 (right): around (570, 400)
+    # Pink coral: bottom-left ~(200, 500)
+    # Staghorn coral: center ~(550, 350)
 
-    # Panel A: Bad prompts (on coral, ambiguous location)
-    bad_points = np.array([[100, 400], [150, 380]])  # on the coral
-    bad_labels = np.array([1, 1])
-    masks_bad, scores_bad, _ = predictor.predict(
-        point_coords=bad_points, point_labels=bad_labels, multimask_output=True
-    )
-    best_bad = masks_bad[np.argmax(scores_bad)]
-    iou_bad = compute_iou(best_bad, mask_fish)
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+    # Panel A: Prompts on coral (wrong object for "fish" task)
+    pts_a = np.array([[200, 480], [350, 500]])
+    lab_a = np.array([1, 1])
+    masks_a, scores_a, _ = predictor.predict(
+        point_coords=pts_a, point_labels=lab_a, multimask_output=True)
+    best_a = masks_a[np.argmax(scores_a)]
 
     axes[0].imshow(img_rgb)
-    axes[0].imshow(best_bad, alpha=0.4, cmap=LinearSegmentedColormap.from_list(
-        "garnet", ["white", GARNET], N=2))
-    for pt in bad_points:
-        axes[0].add_patch(Circle(pt, 8, color=GARNET, zorder=5))
-        axes[0].annotate("+", pt, color="white", fontsize=8, ha="center", va="center",
-                         fontweight="bold", zorder=6)
-    axes[0].set_title(f"Bad Prompts (on coral)\nFish IoU = {iou_bad:.2f}", color=GARNET,
-                      fontsize=12, fontweight="bold")
+    overlay_mask(axes[0], best_a, GARNET, 0.45)
+    plot_points(axes[0], pts_a, [])
+    axes[0].set_title("Prompts on Coral\n(Wrong object segmented)",
+                      color=GARNET, fontsize=13, fontweight="bold")
     axes[0].axis("off")
 
-    # Panel B: Mediocre prompts (edge of fish)
-    med_points = np.array([[190, 200], [350, 210]])
-    med_labels = np.array([1, 1])
-    masks_med, scores_med, _ = predictor.predict(
-        point_coords=med_points, point_labels=med_labels, multimask_output=True
-    )
-    best_med = masks_med[np.argmax(scores_med)]
-    iou_med = compute_iou(best_med, mask_fish)
+    # Panel B: One prompt near fish but ambiguous
+    pts_b = np.array([[500, 400]])
+    lab_b = np.array([1])
+    masks_b, scores_b, _ = predictor.predict(
+        point_coords=pts_b, point_labels=lab_b, multimask_output=True)
+    best_b = masks_b[np.argmax(scores_b)]
 
     axes[1].imshow(img_rgb)
-    axes[1].imshow(best_med, alpha=0.4, cmap=LinearSegmentedColormap.from_list(
-        "honey", ["white", HONEYCOMB], N=2))
-    for pt in med_points:
-        axes[1].add_patch(Circle(pt, 8, color=HONEYCOMB, zorder=5))
-        axes[1].annotate("+", pt, color="white", fontsize=8, ha="center", va="center",
-                         fontweight="bold", zorder=6)
-    axes[1].set_title(f"Edge Prompts\nFish IoU = {iou_med:.2f}", color=HONEYCOMB,
-                      fontsize=12, fontweight="bold")
+    overlay_mask(axes[1], best_b, HONEYCOMB, 0.45)
+    plot_points(axes[1], pts_b, [])
+    axes[1].set_title("Single Ambiguous Prompt\n(Uncertain boundary)",
+                      color=HONEYCOMB, fontsize=13, fontweight="bold")
     axes[1].axis("off")
 
-    # Panel C: Good prompts (center of fish + negative on coral)
-    good_pos = np.array([[280, 200], [250, 190], [310, 195]])
-    good_neg = np.array([[110, 410]])
-    all_points = np.vstack([good_pos, good_neg])
-    all_labels = np.array([1, 1, 1, 0])
-    masks_good, scores_good, _ = predictor.predict(
-        point_coords=all_points, point_labels=all_labels, multimask_output=True
-    )
-    best_good = masks_good[np.argmax(scores_good)]
-    iou_good = compute_iou(best_good, mask_fish)
+    # Panel C: Well-placed prompts on fish + negative on coral
+    pts_pos = np.array([[480, 390], [500, 395], [465, 385]])
+    pts_neg = np.array([[200, 480], [700, 300]])
+    all_pts = np.vstack([pts_pos, pts_neg])
+    all_lab = np.array([1, 1, 1, 0, 0])
+    masks_c, scores_c, _ = predictor.predict(
+        point_coords=all_pts, point_labels=all_lab, multimask_output=True)
+    best_c = masks_c[np.argmax(scores_c)]
 
     axes[2].imshow(img_rgb)
-    axes[2].imshow(best_good, alpha=0.4, cmap=LinearSegmentedColormap.from_list(
-        "horse", ["white", HORSESHOE], N=2))
-    for pt in good_pos:
-        axes[2].add_patch(Circle(pt, 8, color=HORSESHOE, zorder=5))
-        axes[2].annotate("+", pt, color="white", fontsize=8, ha="center", va="center",
-                         fontweight="bold", zorder=6)
-    for pt in good_neg:
-        axes[2].add_patch(Circle(pt, 8, color=ROSE, zorder=5))
-        axes[2].annotate("−", pt, color="white", fontsize=8, ha="center", va="center",
-                         fontweight="bold", zorder=6)
-    axes[2].set_title(f"Good Prompts (centered + negative)\nFish IoU = {iou_good:.2f}",
-                      color=HORSESHOE, fontsize=12, fontweight="bold")
+    overlay_mask(axes[2], best_c, HORSESHOE, 0.45)
+    plot_points(axes[2], pts_pos, pts_neg)
+    axes[2].set_title("Targeted Prompts + Negatives\n(Clean fish segmentation)",
+                      color=HORSESHOE, fontsize=13, fontweight="bold")
     axes[2].axis("off")
 
-    fig.suptitle("SAM Prompt Sensitivity: Where You Click Matters",
-                 fontsize=14, fontweight="bold", color=BLACK90, y=1.02)
+    fig.suptitle("SAM Prompt Sensitivity on Real Underwater Photo",
+                 fontsize=15, fontweight="bold", color=BLACK90, y=1.02)
     plt.tight_layout()
     out = os.path.join(FIGDIR, "fig1_prompt_sensitivity.png")
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print(f"Saved {out}")
-    return predictor
+    print(f"  Saved {out}")
 
 
 # ── FIGURE 2: DINOv2 Feature Visualization ──────────────────────────────
-def generate_fig2_dino_features(img):
+def generate_fig2(img_rgb):
+    """Show DINOv2 PCA features and similarity map on real image."""
     from transformers import AutoModel, AutoImageProcessor
 
-    print("Loading DINOv2...")
+    print("  Loading DINOv2...")
     processor = AutoImageProcessor.from_pretrained("facebook/dinov2-small")
     model = AutoModel.from_pretrained("facebook/dinov2-small").to(DEVICE)
     model.eval()
 
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    h_img, w_img = img_rgb.shape[:2]
     pil_img = Image.fromarray(img_rgb)
     inputs = processor(images=pil_img, return_tensors="pt").to(DEVICE)
 
     with torch.no_grad():
         outputs = model(**inputs)
-    # last_hidden_state: (1, num_patches+1, dim) -- skip CLS token
-    features = outputs.last_hidden_state[0, 1:, :].cpu().numpy()  # (N, D)
-    h = w = int(np.sqrt(features.shape[0]))
+    features = outputs.last_hidden_state[0, 1:, :].cpu().numpy()
+    n_patches = features.shape[0]
+    h_p = w_p = int(np.sqrt(n_patches))
 
-    # PCA to 3 components for RGB visualization
+    # PCA → RGB
     from numpy.linalg import svd
-    feat_centered = features - features.mean(axis=0)
-    U, S, Vt = svd(feat_centered, full_matrices=False)
+    feat_c = features - features.mean(axis=0)
+    U, S, Vt = svd(feat_c, full_matrices=False)
     pca3 = U[:, :3] * S[:3]
-    # Normalize each channel to [0, 1]
     for c in range(3):
         mn, mx = pca3[:, c].min(), pca3[:, c].max()
         if mx - mn > 1e-8:
             pca3[:, c] = (pca3[:, c] - mn) / (mx - mn)
+    pca_img = pca3.reshape(h_p, w_p, 3)
+    pca_up = cv2.resize(pca_img, (w_img, h_img), interpolation=cv2.INTER_NEAREST)
 
-    pca_img = pca3.reshape(h, w, 3)
-    pca_img_up = cv2.resize(pca_img, (512, 512), interpolation=cv2.INTER_NEAREST)
+    # Similarity to a query point on one of the fish (~480, 390 in image coords)
+    qx, qy = 480, 390
+    patch_row = int(qy / h_img * h_p)
+    patch_col = int(qx / w_img * w_p)
+    query_idx = min(patch_row * w_p + patch_col, n_patches - 1)
+    query_feat = features[query_idx]
+    sims = features @ query_feat / (
+        np.linalg.norm(features, axis=1) * np.linalg.norm(query_feat) + 1e-8)
+    sim_map = sims.reshape(h_p, w_p)
+    sim_up = cv2.resize(sim_map, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
 
-    # Also compute feature similarity to a point on the fish (center)
-    fish_patch_idx = (200 // (512 // h)) * w + (280 // (512 // w))
-    fish_patch_idx = min(fish_patch_idx, features.shape[0] - 1)
-    fish_feat = features[fish_patch_idx]
-    similarities = features @ fish_feat / (
-        np.linalg.norm(features, axis=1) * np.linalg.norm(fish_feat) + 1e-8
-    )
-    sim_map = similarities.reshape(h, w)
-    sim_map_up = cv2.resize(sim_map, (512, 512), interpolation=cv2.INTER_LINEAR)
+    # Similarity to coral query (~200, 480)
+    cx, cy = 200, 480
+    cpatch_row = int(cy / h_img * h_p)
+    cpatch_col = int(cx / w_img * w_p)
+    coral_idx = min(cpatch_row * w_p + cpatch_col, n_patches - 1)
+    coral_feat = features[coral_idx]
+    coral_sims = features @ coral_feat / (
+        np.linalg.norm(features, axis=1) * np.linalg.norm(coral_feat) + 1e-8)
+    coral_map = coral_sims.reshape(h_p, w_p)
+    coral_up = cv2.resize(coral_map, (w_img, h_img), interpolation=cv2.INTER_LINEAR)
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig, axes = plt.subplots(2, 2, figsize=(16, 11))
 
-    axes[0].imshow(img_rgb)
-    axes[0].set_title("Original Scene", fontsize=12, fontweight="bold", color=BLACK90)
-    axes[0].add_patch(Circle((280, 200), 12, color=GARNET, linewidth=2, fill=False, zorder=5))
-    axes[0].annotate("query", (280, 200), (280, 150), color=GARNET, fontsize=9,
-                     fontweight="bold", ha="center",
-                     arrowprops=dict(arrowstyle="->", color=GARNET))
-    axes[0].axis("off")
+    # Top-left: Original
+    axes[0, 0].imshow(img_rgb)
+    axes[0, 0].add_patch(Circle((qx, qy), 14, color=GARNET, linewidth=2.5,
+                                fill=False, zorder=5))
+    axes[0, 0].annotate("fish query", (qx, qy), (qx + 40, qy - 50), color=GARNET,
+                        fontsize=10, fontweight="bold",
+                        arrowprops=dict(arrowstyle="->", color=GARNET, lw=1.5))
+    axes[0, 0].add_patch(Circle((cx, cy), 14, color=ATLANTIC, linewidth=2.5,
+                                fill=False, zorder=5))
+    axes[0, 0].annotate("coral query", (cx, cy), (cx - 30, cy - 60), color=ATLANTIC,
+                        fontsize=10, fontweight="bold",
+                        arrowprops=dict(arrowstyle="->", color=ATLANTIC, lw=1.5))
+    axes[0, 0].set_title("Original Photo", fontsize=13, fontweight="bold", color=BLACK90)
+    axes[0, 0].axis("off")
 
-    axes[1].imshow(pca_img_up)
-    axes[1].set_title("DINOv2 Features (PCA → RGB)", fontsize=12,
-                      fontweight="bold", color=ATLANTIC)
-    axes[1].axis("off")
+    # Top-right: PCA features
+    axes[0, 1].imshow(pca_up)
+    axes[0, 1].set_title("DINOv2 Features (PCA \u2192 RGB)", fontsize=13,
+                         fontweight="bold", color=ATLANTIC)
+    axes[0, 1].axis("off")
 
-    im = axes[2].imshow(sim_map_up, cmap="RdYlGn", vmin=0, vmax=1)
-    axes[2].set_title("Cosine Similarity to Fish Center", fontsize=12,
-                      fontweight="bold", color=HORSESHOE)
-    axes[2].add_patch(Circle((280, 200), 12, color=GARNET, linewidth=2, fill=False, zorder=5))
-    axes[2].axis("off")
-    plt.colorbar(im, ax=axes[2], fraction=0.046, pad=0.04)
+    # Bottom-left: Fish similarity
+    im1 = axes[1, 0].imshow(sim_up, cmap="RdYlGn", vmin=-0.2, vmax=1.0)
+    axes[1, 0].add_patch(Circle((qx, qy), 14, color=GARNET, linewidth=2.5,
+                                fill=False, zorder=5))
+    axes[1, 0].set_title("Similarity to Fish Query", fontsize=13,
+                         fontweight="bold", color=GARNET)
+    axes[1, 0].axis("off")
+    plt.colorbar(im1, ax=axes[1, 0], fraction=0.046, pad=0.04)
 
-    fig.suptitle("DINOv2 Feature Extraction: How the System 'Sees' the Image",
-                 fontsize=14, fontweight="bold", color=BLACK90, y=1.02)
+    # Bottom-right: Coral similarity
+    im2 = axes[1, 1].imshow(coral_up, cmap="RdYlGn", vmin=-0.2, vmax=1.0)
+    axes[1, 1].add_patch(Circle((cx, cy), 14, color=ATLANTIC, linewidth=2.5,
+                                fill=False, zorder=5))
+    axes[1, 1].set_title("Similarity to Coral Query", fontsize=13,
+                         fontweight="bold", color=ATLANTIC)
+    axes[1, 1].axis("off")
+    plt.colorbar(im2, ax=axes[1, 1], fraction=0.046, pad=0.04)
+
+    fig.suptitle("DINOv2 Feature Extraction on Real Reef Photo\n"
+                 "Similar regions light up \u2014 this is how the system finds prompt candidates",
+                 fontsize=14, fontweight="bold", color=BLACK90, y=1.01)
     plt.tight_layout()
     out = os.path.join(FIGDIR, "fig2_dino_features.png")
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print(f"Saved {out}")
+    print(f"  Saved {out}")
 
 
-# ── FIGURE 3: Iterative SAM refinement (simulated RL) ──────────────────
-def generate_fig3_iterative_refinement(img, mask_fish, predictor):
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+# ── FIGURE 3: Iterative Refinement ─────────────────────────────────────
+def generate_fig3(img_rgb, predictor):
+    """Simulate RL iterative prompt refinement on the real image."""
+    h, w = img_rgb.shape[:2]
 
-    # Simulate RL steps: start with bad prompts, progressively improve
+    # Target: segment the fish (around 480, 390)
+    # Simulate RL improving prompts over steps
     steps = [
         {
-            "label": "Step 0: Random Candidates",
-            "pos": np.array([[200, 300], [400, 100], [100, 200], [350, 350], [250, 250]]),
-            "neg": np.array([[50, 50], [480, 480]]),
+            "title": "Step 0: Random Candidates",
+            "pos": np.array([[300, 300], [700, 200], [150, 350], [600, 500], [450, 250]]),
+            "neg": np.array([[50, 50], [900, 100]]),
         },
         {
-            "label": "Step 30: RL Removing Bad Points",
-            "pos": np.array([[250, 200], [300, 190], [200, 210]]),
-            "neg": np.array([[100, 400], [420, 380]]),
+            "title": "Step 30: Removing Bad Points",
+            "pos": np.array([[450, 350], [500, 400], [550, 380]]),
+            "neg": np.array([[200, 480], [800, 300]]),
         },
         {
-            "label": "Step 60: RL Adding Strategic Points",
-            "pos": np.array([[260, 195], [290, 200], [240, 185], [310, 205], [220, 200]]),
-            "neg": np.array([[100, 410], [420, 380], [400, 100]]),
+            "title": "Step 60: Refining Placement",
+            "pos": np.array([[475, 385], [490, 395], [460, 390], [505, 388]]),
+            "neg": np.array([[200, 480], [700, 300], [400, 500]]),
         },
         {
-            "label": "Step 100: Optimized Prompts",
-            "pos": np.array([[280, 200], [250, 190], [310, 195], [230, 205], [300, 180]]),
-            "neg": np.array([[110, 410], [420, 380], [250, 350]]),
+            "title": "Step 100: Optimized",
+            "pos": np.array([[480, 390], [470, 385], [495, 393], [465, 395], [488, 382]]),
+            "neg": np.array([[200, 480], [700, 300], [550, 500], [400, 300]]),
         },
     ]
 
-    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
-    colors_step = [GARNET, HONEYCOMB, ATLANTIC, HORSESHOE]
+    colors = [GARNET, HONEYCOMB, ATLANTIC, HORSESHOE]
+    fig, axes = plt.subplots(1, 4, figsize=(22, 5.5))
 
-    for i, (step, ax, col) in enumerate(zip(steps, axes, colors_step)):
+    for step, ax, col in zip(steps, axes, colors):
         predictor.set_image(img_rgb)
         all_pts = np.vstack([step["pos"], step["neg"]])
-        all_labels = np.array([1] * len(step["pos"]) + [0] * len(step["neg"]))
+        all_lab = np.array([1] * len(step["pos"]) + [0] * len(step["neg"]))
 
         masks, scores, _ = predictor.predict(
-            point_coords=all_pts, point_labels=all_labels, multimask_output=True
-        )
+            point_coords=all_pts, point_labels=all_lab, multimask_output=True)
         best = masks[np.argmax(scores)]
-        iou = compute_iou(best, mask_fish)
+        mask_area_pct = best.sum() / (h * w) * 100
 
         ax.imshow(img_rgb)
-
-        # Show mask overlay
-        cmap = LinearSegmentedColormap.from_list("c", ["white", col], N=2)
-        ax.imshow(best, alpha=0.35, cmap=cmap)
-
-        # Show GT outline
-        contours, _ = cv2.findContours(mask_fish, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            pts = cnt.squeeze()
-            if len(pts.shape) == 2:
-                ax.plot(pts[:, 0], pts[:, 1], color=BLACK50, linewidth=1, linestyle="--")
-
-        # Plot points
-        for pt in step["pos"]:
-            ax.add_patch(Circle(pt, 7, color=HORSESHOE, zorder=5))
-            ax.annotate("+", pt, color="white", fontsize=7, ha="center", va="center",
-                        fontweight="bold", zorder=6)
-        for pt in step["neg"]:
-            ax.add_patch(Circle(pt, 7, color=ROSE, zorder=5))
-            ax.annotate("−", pt, color="white", fontsize=7, ha="center", va="center",
-                        fontweight="bold", zorder=6)
-
-        ax.set_title(f"{step['label']}\nFish IoU = {iou:.2f}",
+        overlay_mask(ax, best, col, 0.45)
+        mask_outline(ax, best, col, 2.0)
+        plot_points(ax, step["pos"], step["neg"], radius=8)
+        ax.set_title(f"{step['title']}\nMask area: {mask_area_pct:.1f}%",
                      fontsize=11, fontweight="bold", color=col)
         ax.axis("off")
 
-    fig.suptitle("Simulated RL Prompt Optimization: Iterative Refinement with SAM",
-                 fontsize=14, fontweight="bold", color=BLACK90, y=1.02)
+    fig.suptitle("Simulated RL Prompt Optimization on Real Reef Photo\n"
+                 "The agent learns to place \u001b[32m+ prompts on the fish "
+                 "and \u2212 prompts on coral",
+                 fontsize=13, fontweight="bold", color=BLACK90, y=1.03)
+    # Fix: use plain text for suptitle
+    fig.texts[0].set_text(
+        "Simulated RL Prompt Optimization on Real Reef Photo")
     plt.tight_layout()
     out = os.path.join(FIGDIR, "fig3_sam_iterative.png")
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print(f"Saved {out}")
+    print(f"  Saved {out}")
+
+
+# ── FIGURE 4: Multi-Object Segmentation ────────────────────────────────
+def generate_fig4(img_rgb, predictor):
+    """Show SAM segmenting different objects with different prompts."""
+    h, w = img_rgb.shape[:2]
+    predictor.set_image(img_rgb)
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+    # Panel A: Segment pink coral (bottom-left)
+    pts_coral = np.array([[180, 480], [250, 520], [130, 500]])
+    lab_coral = np.array([1, 1, 1])
+    masks_c, scores_c, _ = predictor.predict(
+        point_coords=pts_coral, point_labels=lab_coral, multimask_output=True)
+    best_coral = masks_c[np.argmax(scores_c)]
+
+    axes[0].imshow(img_rgb)
+    overlay_mask(axes[0], best_coral, ROSE, 0.5)
+    mask_outline(axes[0], best_coral, ROSE, 2.0)
+    plot_points(axes[0], pts_coral, [])
+    axes[0].set_title("Prompt \u2192 Pink Coral", fontsize=13,
+                      fontweight="bold", color=ROSE)
+    axes[0].axis("off")
+
+    # Panel B: Segment branching coral (center)
+    pts_branch = np.array([[550, 350], [600, 380], [500, 370]])
+    neg_branch = np.array([[200, 480], [480, 390]])
+    all_branch = np.vstack([pts_branch, neg_branch])
+    lab_branch = np.array([1, 1, 1, 0, 0])
+    masks_b, scores_b, _ = predictor.predict(
+        point_coords=all_branch, point_labels=lab_branch, multimask_output=True)
+    best_branch = masks_b[np.argmax(scores_b)]
+
+    axes[1].imshow(img_rgb)
+    overlay_mask(axes[1], best_branch, ATLANTIC, 0.5)
+    mask_outline(axes[1], best_branch, ATLANTIC, 2.0)
+    plot_points(axes[1], pts_branch, neg_branch)
+    axes[1].set_title("Prompt \u2192 Branching Coral", fontsize=13,
+                      fontweight="bold", color=ATLANTIC)
+    axes[1].axis("off")
+
+    # Panel C: Segment fish
+    pts_fish = np.array([[480, 390], [470, 385], [495, 393]])
+    neg_fish = np.array([[200, 480], [700, 300], [550, 500]])
+    all_fish = np.vstack([pts_fish, neg_fish])
+    lab_fish = np.array([1, 1, 1, 0, 0, 0])
+    masks_f, scores_f, _ = predictor.predict(
+        point_coords=all_fish, point_labels=lab_fish, multimask_output=True)
+    best_fish = masks_f[np.argmax(scores_f)]
+
+    axes[2].imshow(img_rgb)
+    overlay_mask(axes[2], best_fish, HORSESHOE, 0.5)
+    mask_outline(axes[2], best_fish, HORSESHOE, 2.0)
+    plot_points(axes[2], pts_fish, neg_fish)
+    axes[2].set_title("Prompt \u2192 Fish", fontsize=13,
+                      fontweight="bold", color=HORSESHOE)
+    axes[2].axis("off")
+
+    fig.suptitle("Same Image, Different Prompts \u2192 Different Objects Segmented\n"
+                 "The RL agent must learn which object to target and where to place prompts",
+                 fontsize=14, fontweight="bold", color=BLACK90, y=1.03)
+    plt.tight_layout()
+    out = os.path.join(FIGDIR, "fig4_multi_object.png")
+    fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    print(f"  Saved {out}")
 
 
 # ── Main ────────────────────────────────────────────────────────────────
@@ -361,20 +407,24 @@ if __name__ == "__main__":
     plt.rcParams["axes.edgecolor"] = BLACK90
     plt.rcParams["axes.linewidth"] = 1.0
 
-    print("Creating synthetic scene...")
-    img, mask_fish, mask_coral, mask_star = make_scene()
+    print("Loading real reef image...")
+    img_bgr = load_real_image()
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    print(f"  Image size: {img_rgb.shape[1]}x{img_rgb.shape[0]}")
 
-    # Save the scene for reference
-    scene_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    Image.fromarray(scene_rgb).save(os.path.join(FIGDIR, "scene.png"))
+    print("\nLoading SAM ViT-B...")
+    predictor = load_sam()
 
     print("\n=== Figure 1: Prompt Sensitivity ===")
-    predictor = generate_fig1_prompt_sensitivity(img, mask_fish)
+    generate_fig1(img_rgb, predictor)
 
     print("\n=== Figure 2: DINOv2 Features ===")
-    generate_fig2_dino_features(img)
+    generate_fig2(img_rgb)
 
     print("\n=== Figure 3: Iterative Refinement ===")
-    generate_fig3_iterative_refinement(img, mask_fish, predictor)
+    generate_fig3(img_rgb, predictor)
+
+    print("\n=== Figure 4: Multi-Object Segmentation ===")
+    generate_fig4(img_rgb, predictor)
 
     print("\nAll figures saved to:", FIGDIR)
