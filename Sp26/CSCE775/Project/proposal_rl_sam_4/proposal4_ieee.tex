@@ -29,7 +29,7 @@
 
 \begin{document}
 
-\title{Extending Plug-and-Play PPO: Algorithm Comparison, Domain Transfer, and Temporal Prompting for SAM Segmentation}
+\title{Beyond Tabular Q-Learning for SAM Prompt Optimization: Deep RL Algorithms, Domain Transfer, and Temporal Prompting}
 
 \author{
 \IEEEauthorblockN{Jacob Whisenant, Xeerak Muhammed, J.C. Vaught}
@@ -47,9 +47,9 @@ February 13, 2026}
 
 The Segment Anything Model (SAM)~\cite{Kirillov2023SAM} introduced a paradigm shift in image segmentation by enabling prompt-driven, class-agnostic mask prediction across virtually any visual domain. Given a set of input prompts such as points, bounding boxes, or text, SAM produces high-quality segmentation masks without requiring task-specific fine-tuning. However, SAM's performance is highly sensitive to the quality and placement of these prompts. A poorly placed point prompt can yield a mask that captures the wrong region entirely, while a well-placed one produces near-perfect segmentation. This sensitivity creates a critical bottleneck: in automated pipelines where no human operator is available to provide prompts interactively, the segmentation quality depends entirely on the prompt selection strategy.
 
-Liu et al.~\cite{Liu2025PlugAndPlayPPO} recently addressed this bottleneck by formulating prompt optimization as a reinforcement learning problem. Their Plug-and-Play PPO method trains a policy network using Proximal Policy Optimization~\cite{Schulman2017PPO} to iteratively refine point prompt distributions, guided by a dual-space heterogeneous graph encoding constructed from DINOv2~\cite{Oquab2024DINOv2} features. The method achieves state-of-the-art results on several benchmarks, surpassing both manual prompt strategies and prior automated approaches. Despite these advances, several natural extensions remain unexplored. The original work uses only PPO as the RL algorithm, leaving open the question of whether off-policy methods with continuous action spaces might improve sample efficiency. The evaluation is restricted to standard computer vision benchmarks, leaving domain transfer to specialized fields such as medical imaging, remote sensing, and marine perception untested. The method operates on static images, with no adaptation for temporally consistent video segmentation via SAM 2~\cite{Ravi2024SAM2}. The reward function uses standard IoU, without boundary-aware or class-balanced shaping that could improve performance on challenging structures.
+Liu et al.~\cite{Liu2025PlugAndPlayPPO} recently addressed this bottleneck by formulating prompt optimization as a reinforcement learning problem. Their Plug-and-Play Point Prompt Optimizer (PPO) uses tabular Q-learning with epsilon-greedy exploration to iteratively refine point prompt distributions over a dual-space heterogeneous graph constructed from DINOv2~\cite{Oquab2024DINOv2} patch features. The graph encodes both feature-space similarity and physical-space proximity between candidate prompt locations, and the agent learns to add or remove prompt nodes to optimize a graph-based proxy reward. The method achieves state-of-the-art results on several benchmarks, surpassing both manual prompt strategies and prior automated approaches. Despite these advances, several significant extensions remain unexplored. The original work uses tabular Q-learning with discrete graph-manipulation actions, leaving open the question of whether deep RL methods with continuous action spaces and neural network policies could improve both generalization and sample efficiency. The proxy reward based on graph distances does not directly optimize segmentation quality, suggesting that direct IoU-based rewards could better align training with the downstream objective. The evaluation is restricted to standard computer vision benchmarks, leaving domain transfer to specialized fields such as medical imaging and remote sensing untested. The method operates on static images, with no adaptation for temporally consistent video segmentation via SAM 2~\cite{Ravi2024SAM2}.
 
-We propose to replicate the Plug-and-Play PPO framework and extend it along four axes. First, we replace PPO with Soft Actor-Critic (SAC)~\cite{Haarnoja2018SAC} and Twin Delayed DDPG (TD3)~\cite{Fujimoto2018TD3} to compare on-policy versus off-policy learning for prompt optimization. Second, we evaluate domain transfer to medical polyp segmentation (KVASIR-SEG~\cite{Jha2020KvasirSEG}) and remote sensing imagery~\cite{Osco2023SAMRemoteSensing}. Third, we adapt the prompt optimizer for SAM 2 video segmentation with temporal consistency constraints. Fourth, we introduce boundary-weighted reward shaping~\cite{Ng1999RewardShaping} to improve mask quality on thin and irregular structures.
+We propose to replicate the Plug-and-Play PPO framework and extend it along four axes. First, we replace the tabular Q-learning agent with deep RL algorithms---Proximal Policy Optimization (PPO)~\cite{Schulman2017PPO}, Soft Actor-Critic (SAC)~\cite{Haarnoja2018SAC}, and Twin Delayed DDPG (TD3)~\cite{Fujimoto2018TD3}---using neural network policies that predict continuous point coordinates directly, enabling generalization across images. Second, we evaluate domain transfer to medical polyp segmentation (KVASIR-SEG~\cite{Jha2020KvasirSEG}) and remote sensing imagery~\cite{Osco2023SAMRemoteSensing}. Third, we adapt the prompt optimizer for SAM 2 video segmentation with temporal consistency constraints. Fourth, we replace the graph-distance proxy reward with direct IoU-based feedback augmented by boundary-weighted reward shaping~\cite{Ng1999RewardShaping} to improve mask quality on thin and irregular structures.
 
 % ============================================================
 % FIGURE 1: SYSTEM ARCHITECTURE
@@ -129,19 +129,21 @@ We propose to replicate the Plug-and-Play PPO framework and extend it along four
 
 \subsection{Background: Plug-and-Play PPO}
 
-The original Plug-and-Play PPO~\cite{Liu2025PlugAndPlayPPO} reformulates prompt optimization as a heterogeneous graph optimization problem solved via deep reinforcement learning. Given a reference image with a known mask and a target image, DINOv2~\cite{Oquab2024DINOv2} extracts patch-level features for both images. The system constructs a dual-space graph where nodes represent image patches and edges encode two types of relationships: \textit{feature similarity} in the DINOv2 embedding space and \textit{physical proximity} in pixel coordinates. This heterogeneous graph captures both semantic and spatial structure, enabling the policy to reason about which image regions are likely foreground versus background.
+The original Plug-and-Play Point Prompt Optimizer (PPO)~\cite{Liu2025PlugAndPlayPPO} reformulates prompt optimization as a heterogeneous graph optimization problem solved via reinforcement learning. Given a reference image with a known mask and a target image, DINOv2 ViT-G/14~\cite{Oquab2024DINOv2} extracts patch-level features (one 1024-dimensional vector per $14 \times 14$ patch on $560 \times 560$ images, yielding $40 \times 40 = 1600$ patches). Feature matching via $\texttt{torch.cdist}$ between reference foreground/background patches and target patches generates initial positive and negative prompt candidates. The system then constructs a dual-space heterogeneous multigraph $G$ where nodes represent prompt points and five edge types encode relationships across two spaces: \textit{feature-space} edges capture DINOv2 cosine distances between positive-positive ($e_{\text{feat,pos}}$), positive-negative ($e_{\text{feat,cross}}$) node pairs, while \textit{physical-space} edges capture Euclidean pixel distances between positive-positive ($e_{\text{phys,pos}}$), negative-negative ($e_{\text{phys,neg}}$), and cross-label ($e_{\text{phys,cross}}$) pairs.
 
-The RL agent operates over this graph representation. At each step $t$, the state $s_t$ consists of the graph encoding, the current segmentation mask, and the set of previously placed prompts. The action $a_t$ specifies a point coordinate $(x, y)$ and a label $l \in \{+1, -1\}$ indicating a positive (foreground) or negative (background) prompt. The reward $r_t$ is the change in Intersection-over-Union (IoU) between the predicted mask and ground truth after the new prompt is applied. The policy is trained with PPO~\cite{Schulman2017PPO} to maximize cumulative IoU improvement across iterative prompt refinement steps.
+The RL agent operates over this graph via tabular Q-learning with epsilon-greedy exploration (initial $\epsilon = 1.0$, decay factor $0.995$, minimum $0.1$) and experience replay (buffer size 10,000, batch size 64). At each step $t$, the state $s_t$ is the current graph $G_t$. Actions are discrete graph manipulations: \textit{remove\_pos}, \textit{remove\_neg}, \textit{restore\_pos}, \textit{restore\_neg}, or \textit{add} a new node. Node counts are constrained between 5 and 20 per category. The reward is a \textit{graph-distance proxy} rather than direct segmentation quality. Feature-space terms reward decreased positive-positive distances (semantic coherence) and increased positive-negative distances (discriminability), weighted $5\times$ more heavily than physical-space terms that reward spatial spread among same-label nodes and tight boundaries between opposite-label nodes. The \textit{add} action incurs a penalty of $-10$ to discourage unnecessary expansion. Training runs for 100,000 episodes with a maximum of 100 steps per episode, learning rate $\alpha = 0.1$, and discount factor $\gamma_{\text{rl}} = 0.9$.
 
-\subsection{Extension 1: Algorithm Comparison}
+\subsection{Extension 1: Deep RL Algorithm Comparison}
 
-PPO is an on-policy algorithm that discards collected experience after each policy update, which can limit sample efficiency in environments where each interaction is computationally expensive. We propose replacing PPO with two off-policy alternatives that maintain a replay buffer of past transitions.
+The original PPO uses tabular Q-learning, which stores Q-values for each observed state-action pair without function approximation. This approach cannot generalize across images: each new image requires loading a separate Q-table, and the discrete action space (five graph operations) limits the precision of prompt placement. We propose replacing the tabular agent with three deep RL algorithms that use neural network policies capable of generalizing across images and predicting continuous point coordinates directly.
 
-\textit{Soft Actor-Critic} (SAC)~\cite{Haarnoja2018SAC} maximizes a maximum-entropy objective $J(\pi) = \sum_t \mathbb{E}_{(s_t, a_t) \sim \rho_\pi}\left[r(s_t, a_t) + \alpha \mathcal{H}(\pi(\cdot | s_t))\right]$, where $\alpha$ controls the entropy bonus $\mathcal{H}$. The entropy term encourages exploration of diverse prompt placements, which is particularly valuable in early training when the policy has not yet learned which regions are informative. SAC uses two Q-networks to mitigate overestimation bias and updates the policy via the reparameterization trick for continuous actions.
+\textit{Proximal Policy Optimization} (PPO)~\cite{Schulman2017PPO} is an on-policy algorithm that constrains policy updates via a clipped surrogate objective, preventing destructively large updates. We use PPO as the deep RL baseline with a shared encoder that processes the dual-space graph features through a graph neural network, outputting a stochastic policy over continuous actions.
 
-\textit{Twin Delayed DDPG} (TD3)~\cite{Fujimoto2018TD3} extends DDPG with three key modifications: clipped double Q-learning to reduce value overestimation, delayed policy updates to reduce per-update error, and target policy smoothing to prevent the policy from exploiting narrow peaks in the Q-function. TD3 uses a deterministic policy with additive exploration noise, contrasting with SAC's stochastic policy.
+\textit{Soft Actor-Critic} (SAC)~\cite{Haarnoja2018SAC} maximizes a maximum-entropy objective $J(\pi) = \sum_t \mathbb{E}_{(s_t, a_t) \sim \rho_\pi}\left[r(s_t, a_t) + \alpha \mathcal{H}(\pi(\cdot | s_t))\right]$, where $\alpha$ controls the entropy bonus $\mathcal{H}$. The entropy term encourages exploration of diverse prompt placements, which is particularly valuable in early training when the policy has not yet learned which regions are informative. SAC uses two Q-networks to mitigate overestimation bias and updates the policy via the reparameterization trick for continuous actions. As an off-policy method, SAC reuses past transitions via a replay buffer, offering substantially better sample efficiency than on-policy PPO.
 
-To enable continuous-valued point coordinate prediction with SAC and TD3, we parameterize the action space as $a_t = (x, y, p) \in [0, 1]^3$, where $(x, y)$ are normalized image coordinates and $p$ is thresholded to determine the prompt label ($l = +1$ if $p > 0.5$, else $l = -1$). For PPO, we retain the original discrete action formulation from~\cite{Liu2025PlugAndPlayPPO} for fair comparison.
+\textit{Twin Delayed DDPG} (TD3)~\cite{Fujimoto2018TD3} extends DDPG with three modifications: clipped double Q-learning to reduce value overestimation, delayed policy updates to reduce per-update error, and target policy smoothing to prevent the policy from exploiting narrow peaks in the Q-function. TD3 uses a deterministic policy with additive exploration noise, contrasting with SAC's stochastic policy.
+
+For all three deep RL algorithms, we parameterize the action space as $a_t = (x, y, p) \in [0, 1]^3$, where $(x, y)$ are normalized image coordinates and $p$ is thresholded to determine the prompt label ($l = +1$ if $p > 0.5$, else $l = -1$). This continuous formulation allows sub-patch precision in prompt placement, unlike the original discrete grid-aligned actions. We additionally retain the original tabular Q-learning agent from~\cite{Liu2025PlugAndPlayPPO} as a direct replication baseline.
 
 % ============================================================
 % FIGURE 2: MDP FORMULATION
@@ -254,9 +256,11 @@ We propose adapting the prompt optimizer for video input by augmenting the state
 \label{fig:sam2_temporal}
 \end{figure}
 
-\subsection{Extension 4: Boundary-Weighted Reward Shaping}
+\subsection{Extension 4: Direct IoU Reward with Boundary Shaping}
 
-Standard IoU treats all pixels equally, which can underweight boundary accuracy for objects with thin protrusions or irregular edges. Following principles from reward shaping~\cite{Ng1999RewardShaping}, we propose a boundary-weighted IoU reward. Let $B^*$ denote the set of boundary pixels in the ground truth mask (obtained via morphological gradient) and $\hat{B}$ the corresponding boundary in the predicted mask. The shaped reward is defined as
+The original PPO uses a graph-distance proxy reward that optimizes feature-space and physical-space relationships between prompt nodes rather than directly measuring segmentation quality. While this proxy correlates with good prompt placement, it introduces an alignment gap between what the agent optimizes and what ultimately matters: mask accuracy. Our first modification replaces this proxy with a \textit{direct} IoU reward, $r_t = \text{IoU}(\hat{M}_t, M^*) - \text{IoU}(\hat{M}_{t-1}, M^*)$, computed by running SAM after each prompt action and comparing the resulting mask against ground truth.
+
+Building on this direct reward, we further introduce boundary-weighted shaping following principles from~\cite{Ng1999RewardShaping}. Standard IoU treats all pixels equally, which can underweight boundary accuracy for objects with thin protrusions or irregular edges. Let $B^*$ denote the set of boundary pixels in the ground truth mask (obtained via morphological gradient) and $\hat{B}$ the corresponding boundary in the predicted mask. The shaped reward is defined as
 \begin{align}
 r_t^{\text{shaped}} = \Delta\text{IoU}_t + \gamma \cdot \Delta\text{BIoU}_t
 \label{eq:boundary_reward}
@@ -275,16 +279,24 @@ where $\text{BIoU}$ computes IoU restricted to a narrow band around object bound
     every node/.style={font=\footnotesize}
 ]
 
+% Q-Learning
+\node[alg, fill=black30] (ql) {\textbf{Q-Learning}\\Tabular};
+\node[prop, below=0.1cm of ql] (qlp) {
+    $\bullet$ $\epsilon$-greedy\\
+    $\bullet$ Discrete actions\\
+    $\bullet$ No generalization
+};
+
 % PPO
-\node[alg, fill=garnet!12] (ppo) {\textbf{PPO}\\On-Policy};
+\node[alg, fill=garnet!12, right=0.5cm of ql] (ppo) {\textbf{PPO}\\On-Policy};
 \node[prop, below=0.1cm of ppo] (ppop) {
     $\bullet$ Clipped surrogate\\
-    $\bullet$ Discrete actions\\
-    $\bullet$ No replay buffer
+    $\bullet$ Continuous actions\\
+    $\bullet$ Neural network
 };
 
 % SAC
-\node[alg, fill=atlantic!12, right=1.0cm of ppo] (sac) {\textbf{SAC}\\Off-Policy};
+\node[alg, fill=atlantic!12, right=0.5cm of ppo] (sac) {\textbf{SAC}\\Off-Policy};
 \node[prop, below=0.1cm of sac] (sacp) {
     $\bullet$ Max-entropy obj.\\
     $\bullet$ Continuous actions\\
@@ -292,25 +304,26 @@ where $\text{BIoU}$ computes IoU restricted to a narrow band around object bound
 };
 
 % TD3
-\node[alg, fill=congaree!12, right=1.0cm of sac] (td3) {\textbf{TD3}\\Off-Policy};
+\node[alg, fill=congaree!12, right=0.5cm of sac] (td3) {\textbf{TD3}\\Off-Policy};
 \node[prop, below=0.1cm of td3] (td3p) {
-    $\bullet$ Deterministic policy\\
+    $\bullet$ Deterministic\\
     $\bullet$ Delayed updates\\
     $\bullet$ Target smoothing
 };
 
 % Comparison arrows
-\node[below=1.8cm of sac, font=\footnotesize\bfseries] (comp) {Comparison Axes};
-\node[below=0.15cm of comp, font=\scriptsize, text width=7cm, align=center] {
-    Sample Efficiency $\cdot$ Final IoU $\cdot$ Training Stability $\cdot$ Inference Speed
+\node[below=1.8cm of ppo, font=\footnotesize\bfseries] (comp) {Comparison Axes};
+\node[below=0.15cm of comp, font=\scriptsize, text width=8cm, align=center] {
+    Sample Efficiency $\cdot$ Final IoU $\cdot$ Cross-Image Generalization $\cdot$ Training Stability
 };
 
+\draw[arr, black50] (ql.south) -- ++(0, -0.8);
 \draw[arr, black50] (ppo.south) -- ++(0, -0.8);
 \draw[arr, black50] (sac.south) -- ++(0, -0.8);
 \draw[arr, black50] (td3.south) -- ++(0, -0.8);
 
 \end{tikzpicture}
-\caption{Comparison of three RL algorithms for prompt optimization. PPO (baseline from~\cite{Liu2025PlugAndPlayPPO}) operates on-policy with discrete actions. SAC and TD3 are off-policy with continuous action spaces and replay buffers, potentially offering improved sample efficiency.}
+\caption{Comparison of four RL approaches for prompt optimization. The original tabular Q-learning~\cite{Liu2025PlugAndPlayPPO} uses discrete graph operations without cross-image generalization. Our proposed deep RL alternatives (PPO, SAC, TD3) use neural network policies with continuous action spaces for direct coordinate prediction.}
 \label{fig:algo_comparison}
 \end{figure}
 
@@ -325,7 +338,7 @@ We evaluate on four datasets spanning diverse visual domains. Pascal VOC~\cite{E
 
 \subsection{Baselines}
 
-We compare our extended methods against six baselines. \textit{Center-of-mass prompts} place a single positive point at the centroid of a coarse initial mask. \textit{Random point prompts} sample points uniformly from the image. \textit{Grid-based prompts} place points on a regular grid with labels assigned by a coarse mask. \textit{Original PPO}~\cite{Liu2025PlugAndPlayPPO} provides the direct replication baseline. \textit{Greedy heuristic} selects the point that maximizes instantaneous IoU at each step via exhaustive search over a candidate set. \textit{FocalClick}~\cite{Chen2022FocalClick} represents the supervised interactive segmentation baseline, and \textit{RITM}~\cite{Sofiiuk2022RITM} provides an iterative training baseline.
+We compare our extended methods against seven baselines spanning non-RL and RL approaches. \textit{Center-of-mass prompts} place a single positive point at the centroid of a coarse initial mask. \textit{Random point prompts} sample points uniformly from the image. \textit{Grid-based prompts} place points on a regular grid with labels assigned by a coarse mask. \textit{Greedy heuristic} selects the point that maximizes instantaneous IoU at each step via exhaustive search over a candidate set. \textit{Original tabular Q-learning}~\cite{Liu2025PlugAndPlayPPO} provides the direct replication baseline with the graph-distance proxy reward and discrete actions. \textit{FocalClick}~\cite{Chen2022FocalClick} represents the supervised interactive segmentation baseline, and \textit{RITM}~\cite{Sofiiuk2022RITM} provides an iterative mask-guided training baseline.
 
 % ============================================================
 % TABLE 1: EVALUATION PLAN
@@ -367,11 +380,12 @@ We conduct the following ablations to isolate contributions of each component. R
 ]
 
 % Methods column
-\node[block, fill=garnet!10] (m1) {PPO (Baseline)};
+\node[block, fill=black30] (m0) {Q-Learn. (Orig.)};
+\node[block, fill=garnet!10, below=0.3cm of m0] (m1) {PPO (Ours)};
 \node[block, fill=garnet!10, below=0.3cm of m1] (m2) {SAC (Ours)};
 \node[block, fill=garnet!10, below=0.3cm of m2] (m3) {TD3 (Ours)};
-\node[block, fill=black30, below=0.3cm of m3] (m4) {Center-of-Mass};
-\node[block, fill=black30, below=0.3cm of m4] (m5) {Random / Grid};
+\node[block, fill=black30, below=0.3cm of m3] (m4) {Center / Grid};
+\node[block, fill=black30, below=0.3cm of m4] (m5) {FocalClick / RITM};
 
 % Datasets
 \node[block, fill=atlantic!10, right=1.5cm of m2, minimum width=2.4cm] (ds) {Datasets};
@@ -387,7 +401,7 @@ We conduct the following ablations to isolate contributions of each component. R
 \node[metric, fill=horseshoe!10, below=0.25cm of met3] (met4) {Efficiency};
 
 % Arrows
-\foreach \m in {m1,m2,m3,m4,m5} {
+\foreach \m in {m0,m1,m2,m3,m4,m5} {
     \draw[arr, black50] (\m.east) -- (ds.west |- \m);
 }
 \draw[arr, black50] (ds.east |- met1) -- (met1.west);
@@ -409,18 +423,19 @@ We conduct the following ablations to isolate contributions of each component. R
 % ============================================================
 \begin{table}[t]
 \centering
-\caption{Expected algorithmic properties of each RL method.}
+\caption{Algorithmic properties of each RL method.}
 \label{tab:algo_properties}
-\begin{tabular}{@{}lccc@{}}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-\textbf{Property} & \textbf{PPO} & \textbf{SAC} & \textbf{TD3} \\
+\textbf{Property} & \textbf{Q-Learn.} & \textbf{PPO} & \textbf{SAC} & \textbf{TD3} \\
 \midrule
-Policy Type         & Stochastic & Stochastic & Deterministic \\
-On/Off-Policy       & On-policy  & Off-policy & Off-policy \\
-Action Space        & Discrete   & Continuous & Continuous \\
-Replay Buffer       & No         & Yes        & Yes \\
-Entropy Bonus       & No         & Yes        & No \\
-Sample Efficiency   & Low        & High       & High \\
+Policy Type         & $\epsilon$-greedy & Stochastic & Stochastic & Determ. \\
+Function Approx.    & Tabular    & Neural net & Neural net & Neural net \\
+On/Off-Policy       & Off-policy & On-policy  & Off-policy & Off-policy \\
+Action Space        & Discrete   & Continuous & Continuous & Continuous \\
+Replay Buffer       & Yes (10K)  & No         & Yes        & Yes \\
+Entropy Bonus       & No         & No         & Yes        & No \\
+Generalizes         & No         & Yes        & Yes        & Yes \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -430,7 +445,7 @@ Sample Efficiency   & Low        & High       & High \\
 % ============================================================
 \section{Conclusion}
 
-We propose to replicate and extend the Plug-and-Play PPO framework for RL-based point prompt optimization in SAM segmentation. Our extensions span four complementary directions: comparing PPO against off-policy alternatives (SAC and TD3) for prompt coordinate prediction, evaluating domain transfer to medical and remote sensing imagery, adapting the prompt optimizer for temporally consistent video segmentation with SAM 2, and introducing boundary-weighted reward shaping to improve mask quality on challenging structures. The evaluation plan covers four datasets (Pascal VOC, FSS-1000, KVASIR-SEG, DAVIS 2017), seven baselines, and five metric families, with ablation studies to isolate the contribution of each proposed component. This work will provide empirical evidence for whether off-policy RL algorithms can outperform PPO for prompt optimization, whether RL-trained prompt policies transfer across visual domains, and whether temporal awareness and shaped rewards yield measurable improvements in segmentation quality. The project leverages an existing published codebase~\cite{Liu2025PlugAndPlayPPO} with standard benchmarks, providing a low-risk foundation for these novel extensions.
+We propose to replicate and substantially extend the Plug-and-Play PPO framework for RL-based point prompt optimization in SAM segmentation. Our extensions address four fundamental limitations of the original tabular Q-learning approach: replacing it with deep RL algorithms (PPO, SAC, TD3) that use neural network policies with continuous action spaces for cross-image generalization, evaluating domain transfer to medical and remote sensing imagery, adapting the prompt optimizer for temporally consistent video segmentation with SAM 2, and replacing the graph-distance proxy reward with direct IoU feedback augmented by boundary-weighted shaping. The evaluation plan covers four datasets (Pascal VOC, FSS-1000, KVASIR-SEG, DAVIS 2017), seven baselines including the original tabular agent, and five metric families, with ablation studies to isolate each component's contribution. This work will provide empirical evidence for whether deep RL with continuous actions can outperform tabular Q-learning for prompt optimization, whether learned prompt policies generalize across visual domains, and whether direct segmentation rewards with temporal awareness yield measurable improvements. The project leverages an existing published codebase~\cite{Liu2025PlugAndPlayPPO} with standard benchmarks, providing a low-risk foundation for these novel extensions.
 
 % ============================================================
 % REFERENCES
