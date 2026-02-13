@@ -1,233 +1,712 @@
-\documentclass[12pt]{article}
+\documentclass[conference]{IEEEtran}
 
-\usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{tikz}
-\usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc, backgrounds}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc, backgrounds, patterns, decorations.pathreplacing}
 \usepackage{hyperref}
-\usepackage{natbib}
 \usepackage{booktabs}
+\usepackage{multirow}
 \usepackage{caption}
 \usepackage{float}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
-\bibliographystyle{plainnat}
+% Brand colors
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{Atlantic}{HTML}{466A9F}
+\definecolor{Congaree}{HTML}{1F414D}
+\definecolor{Horseshoe}{HTML}{65780B}
+\definecolor{Rose}{HTML}{CC2E40}
+\definecolor{Honeycomb}{HTML}{A49137}
+\definecolor{Black90}{HTML}{363636}
+\definecolor{Black70}{HTML}{5C5C5C}
+\definecolor{Black50}{HTML}{A2A2A2}
+\definecolor{Black30}{HTML}{C7C7C7}
+\definecolor{Black10}{HTML}{ECECEC}
+\definecolor{WarmGrey}{HTML}{676156}
 
 \title{
-\textbf{CSCE 775: Deep Reinforcement Learning and Search} \\[0.5em]
-\Large Domain-Adaptive Synthetic Marine Radar Generation \\
-via Reinforcement Learning
+\vspace{-0.5cm}
+{\normalsize CSCE 775: Deep Reinforcement Learning and Search} \\[0.3em]
+Battery-Aware Multi-Sensor Exploration in Unseen Waters via Deep Reinforcement Learning
 }
 
 \author{
-Jacob Whisenant \and Xeerak Muhammed \and J.C. Vaught
+\IEEEauthorblockN{Jacob Whisenant, Xeerak Muhammed, J.C. Vaught}
+\IEEEauthorblockA{Department of Computer Science and Engineering\\
+University of South Carolina, Columbia, SC 29208}
 }
-
-\date{February 13, 2026}
 
 \begin{document}
 
 \maketitle
+
+\begin{abstract}
+Autonomous surface vessels (ASVs) equipped with heterogeneous sensor suites face a fundamental trade-off between exploration coverage, sensing fidelity, and battery life. High-power sensors such as marine radar (50\,W) and lidar (30\,W) provide rich environmental information but rapidly deplete onboard energy reserves of 10--20\,kWh, while environmental factors including currents and waves impose variable locomotion costs. We propose a deep reinforcement learning framework based on Soft Actor-Critic (SAC) that jointly optimizes motion planning and multi-sensor duty-cycling under battery constraints, with explicit conditioning on water-body type (lake, river, coastal, open ocean). The agent operates over an 87-dimensional state space and a hierarchical action space combining 4 discrete operational modes with 7 continuous parameters. A composite reward function balances coverage maximization, information gain, energy conservation, safety margins, and mission completion. We detail a curriculum-based training strategy across four progressively challenging simulated water bodies, with evaluation against five baselines using metrics including area mapped per Joule, mission success rate, and real-time inference latency. The proposed system targets a 50\% improvement in energy-normalized coverage over conventional planning approaches while maintaining 95\%+ mission success rates and sub-12\,ms inference on embedded hardware.
+\end{abstract}
+
 
 % ============================================================
 % INTRODUCTION
 % ============================================================
 \section{Introduction}
 
-Autonomous surface vessels (ASVs) operating in inland and coastal waterways rely on marine radar for reliable obstacle detection and navigation. Training perception models for these systems demands large quantities of labeled radar data, yet collecting and annotating real-world radar scans across diverse water bodies is expensive, dangerous, and subject to seasonal and geographic constraints. Synthetic radar generators can fill this data gap, but a persistent \textit{sim-to-real domain gap} degrades model performance when transferring from simulated to real environments \citep{Bousmalis2018SimToReal, Tobin2017DomainRandomization}. Existing approaches to closing this gap typically rely on hand-tuned generator parameters or static domain randomization, neither of which adapts to the specific characteristics of distinct operating environments such as lakes, rivers, and coastal waters.
+Autonomous surface vessels represent a rapidly maturing platform for environmental monitoring, hydrographic surveying, and maritime security operations \cite{Bai2022ASVSurvey}. Unlike their aerial and ground-based counterparts, ASVs operate in a uniquely challenging domain where environmental disturbances---currents, waves, and wind---impose spatially and temporally varying energy costs on locomotion, and where the sensing requirements span multiple modalities with dramatically different power budgets. A marine radar consuming 50\,W provides all-weather obstacle detection and coastline mapping, a scanning lidar at 30\,W delivers high-resolution bathymetric and surface profiles, an RGB camera at 5\,W enables visual classification of surface objects, and a water quality sensor suite at 3\,W measures temperature, turbidity, pH, and dissolved oxygen. Together these sensors can produce comprehensive environmental characterizations, but running all four simultaneously drains a typical 10--20\,kWh onboard battery in as few as 2--4 hours, severely limiting mission range and duration.
 
-We propose an RL-based framework that learns a policy to \textit{automatically} control the parameters of a synthetic marine radar generator so that downstream perception models trained on its output achieve maximal performance on real radar logs. Unlike fixed randomization strategies \citep{Tobin2017DomainRandomization} or one-shot learned distributions \citep{Kar2019MetaSim}, our approach continuously adapts generator settings conditioned on \textit{water-body domain type} (lake, river, or coast) and live validation feedback. This formulation treats simulator calibration as a sequential decision-making problem, naturally suited to deep reinforcement learning. The result is a closed-loop system that discovers domain-specific synthetic data recipes without manual parameter sweeps, advancing the state of the art in sim-to-real transfer for maritime perception.
+The core challenge is therefore a four-way trade-off among spatial coverage, temporal sensing fidelity, energy expenditure, and safe return to base. An ASV that aggressively explores maximizes coverage but risks depleting its battery before returning to the dock. One that conservatively preserves energy may fail to survey critical regions. A vessel running all sensors continuously collects maximal data but at unsustainable power draw, while one that duty-cycles sensors too aggressively may miss transient phenomena or navigate into undetected hazards. Compounding this difficulty, the optimal trade-off point shifts dramatically across water-body types. A calm inland lake presents minimal locomotion overhead, permitting greater sensor duty-cycles, whereas a tidal estuary with 2\,m/s currents demands substantial energy reserves for safe return and favors radar-heavy sensing for navigation safety.
+
+Existing approaches address fragments of this problem in isolation. Classical coverage path planning algorithms \cite{Galceran2013CPPSurvey} produce efficient lawnmower patterns but ignore energy constraints and sensor heterogeneity. Energy-aware planners \cite{Arafat2023EnergyAware, Sun2025EnergyCPP} account for battery budgets but treat sensing as binary (on/off) and do not adapt to environmental conditions. Recent reinforcement learning (RL) approaches to marine vehicle control \cite{Meyer2021SACNavigation, Zhao2022DDPGASV, Woo2023RLUUV} demonstrate impressive path-following and collision avoidance capabilities but do not address the joint motion-sensing-energy optimization that defines multi-sensor exploration missions. Multi-sensor scheduling methods \cite{Wu2020SensorScheduling, Hollinger2014ActiveSensing} optimize information acquisition but decouple it from motion planning and energy management. No existing framework jointly optimizes all four dimensions---motion, multi-sensor duty-cycling, energy management, and water-body adaptation---while providing provable safe-return guarantees.
+
+We propose a deep RL framework that addresses this gap by learning a unified policy for joint motion and sensor management in battery-constrained ASV exploration. Our approach is built on Soft Actor-Critic (SAC) \cite{Haarnoja2018SAC} and features three key innovations. First, we define an 87-dimensional state representation that fuses vehicle kinematics, battery state-of-charge, sensor status, environmental observations, and a water-body type encoding, providing the policy with complete situational awareness. Second, we introduce a hierarchical action space that combines 4 discrete operational modes (explore, return-to-base, intensive-survey, and energy-conservation) with 7 continuous parameters (heading, speed, and per-sensor duty-cycle ratios), enabling both strategic mode selection and fine-grained control. Third, we design a composite reward function with five weighted terms---coverage, information gain, energy efficiency, safety margin, and mission completion---that naturally encodes the multi-objective trade-off without requiring Pareto optimization machinery.
 
 % ============================================================
 % FIGURE 1: SYSTEM ARCHITECTURE
 % ============================================================
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-    block/.style={draw, minimum width=2.8cm, minimum height=1.1cm, align=center, font=\small},
-    data/.style={draw, minimum width=2.2cm, minimum height=0.9cm, align=center, font=\small, dashed},
-    arr/.style={-{Stealth[length=3mm]}, thick},
-    every node/.style={font=\small}
+    block/.style={draw=Black90, thick, minimum width=2.0cm, minimum height=0.85cm, align=center, font=\scriptsize},
+    sensor/.style={draw=Atlantic, thick, minimum width=1.4cm, minimum height=0.6cm, align=center, font=\scriptsize, fill=Atlantic!10},
+    arr/.style={-{Stealth[length=2mm]}, thick, color=Black90},
+    every node/.style={font=\scriptsize}
 ]
 
-% RL Agent
-\node[block, fill=white] (agent) {RL Policy\\(SAC)};
+% ASV Platform
+\node[block, fill=Garnet!10, minimum width=2.4cm] (asv) {ASV Platform\\Battery: 10--20\,kWh};
 
-% Generator
-\node[block, fill=white, right=2.5cm of agent] (gen) {Synthetic Radar\\Generator};
+% Sensors
+\node[sensor, above right=0.6cm and 1.6cm of asv] (radar) {Radar\\50\,W};
+\node[sensor, right=1.6cm of asv] (lidar) {Lidar\\30\,W};
+\node[sensor, below right=0.6cm and 1.6cm of asv] (cam) {Camera\\5\,W};
+\node[sensor, below right=1.5cm and 1.6cm of asv] (wq) {Water Quality\\3\,W};
 
-% Synthetic Data
-\node[data, right=2.0cm of gen] (synth) {Synthetic\\Radar Scans};
+% RL Policy
+\node[block, fill=Garnet!15, right=1.2cm of lidar, minimum width=2.2cm, minimum height=1.2cm] (policy) {SAC Policy\\$\pi_\phi(a|s)$\\87D $\rightarrow$ 4+7};
 
-% Downstream Model
-\node[block, fill=white, below=1.8cm of synth] (model) {Downstream\\Perception Model};
+% Environment
+\node[block, fill=Congaree!10, below=1.8cm of policy, minimum width=2.6cm] (env) {Water Environment\\(Lake/River/Coast/Ocean)};
 
-% Real Data
-\node[data, left=2.0cm of model] (real) {Real Radar\\Logs};
-
-% Validation Score
-\node[block, fill=white, below=1.8cm of agent] (val) {Validation\\Metrics};
-
-% Domain Tag
-\node[block, fill=white, above=1.2cm of agent] (domain) {Domain Tag\\$d \in \{$lake, river, coast$\}$};
+% Reward
+\node[block, fill=Horseshoe!15, below=1.0cm of asv] (reward) {Composite\\Reward $r_t$};
 
 % Arrows
-\draw[arr] (agent) -- node[above] {$\boldsymbol{a}_t = \Delta\boldsymbol{\theta}$} (gen);
-\draw[arr] (gen) -- (synth);
-\draw[arr] (synth) -- node[right] {train} (model);
-\draw[arr] (real) -- node[above] {evaluate} (model);
-\draw[arr] (model) -- node[below] {F1, mAP} (val);
-\draw[arr] (val) -- node[left] {$r_t$} (agent);
-\draw[arr] (domain) -- (agent);
-
-% Background box
-\begin{scope}[on background layer]
-\node[draw=black!40, dashed, inner sep=12pt, fit=(agent)(gen)(synth)(model)(real)(val)(domain), label={[font=\small\bfseries]above:Closed-Loop Sim-to-Real Adaptation System}] {};
-\end{scope}
+\draw[arr] (asv) -- (radar);
+\draw[arr] (asv) -- (lidar);
+\draw[arr] (asv) -- (cam);
+\draw[arr] (asv) -- (wq);
+\draw[arr] (radar) -- (policy);
+\draw[arr] (lidar) -- (policy);
+\draw[arr] (cam) -- (policy);
+\draw[arr] (wq) -- (policy);
+\draw[arr, color=Garnet] (policy) -- node[right, color=Black90] {heading, speed} (env);
+\draw[arr, color=Atlantic] (policy.north) -- ++(0,0.5) -| node[above, pos=0.25, color=Black90] {duty-cycle} (asv.north);
+\draw[arr] (env) -| (reward);
+\draw[arr] (reward) -| node[left, pos=0.3] {$r_t$} (policy.south west);
 
 \end{tikzpicture}
-\caption{System architecture. The RL policy outputs parameter updates $\Delta\boldsymbol{\theta}$ for the synthetic radar generator, conditioned on domain type. The downstream perception model is trained on synthetic data and evaluated on held-out real radar logs. Validation metrics form the reward signal, closing the loop.}
+\caption{System architecture. The SAC policy receives 87-dimensional observations from the ASV platform and its four heterogeneous sensors, outputs motion commands (heading, speed) and per-sensor duty-cycle ratios, and receives composite reward feedback from the water environment.}
 \label{fig:system_arch}
 \end{figure}
+
+% ============================================================
+% FIGURE 2: WATER BODY TYPES
+% ============================================================
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    panel/.style={draw=Black70, thick, minimum width=3.6cm, minimum height=2.0cm, align=center},
+    label/.style={font=\scriptsize\bfseries, color=Black90},
+    desc/.style={font=\tiny, color=Black70, text width=3.2cm, align=center}
+]
+
+% Lake
+\node[panel, fill=Atlantic!5] (lake) {};
+\node[label, above=-0.15cm of lake.north] {Inland Lake};
+\node[desc] at (lake.center) {Calm waters\\Current: $<$0.2\,m/s\\Waves: $<$0.3\,m\\Low energy cost};
+\draw[thick, Atlantic, decorate, decoration={snake, amplitude=1pt, segment length=8pt}] ([yshift=-0.5cm]lake.west) -- ([yshift=-0.5cm]lake.east);
+
+% River
+\node[panel, fill=Congaree!8, right=0.3cm of lake] (river) {};
+\node[label, above=-0.15cm of river.north] {River/Estuary};
+\node[desc] at (river.center) {Directional current\\Current: 0.5--2.0\,m/s\\Variable depth\\High energy asymmetry};
+\draw[thick, Congaree, -{Stealth[length=2mm]}, decorate, decoration={snake, amplitude=1.5pt, segment length=6pt}] ([yshift=-0.5cm]river.west) -- ([yshift=-0.5cm]river.east);
+
+% Coastal
+\node[panel, fill=Horseshoe!5, below=0.3cm of lake] (coast) {};
+\node[label, above=-0.15cm of coast.north] {Coastal/Harbor};
+\node[desc] at (coast.center) {Tidal variation\\Current: 0.3--1.5\,m/s\\Waves: 0.5--1.5\,m\\Obstacle-dense};
+\draw[thick, Horseshoe, decorate, decoration={snake, amplitude=2pt, segment length=5pt}] ([yshift=-0.5cm]coast.west) -- ([yshift=-0.5cm]coast.east);
+
+% Ocean
+\node[panel, fill=Garnet!5, right=0.3cm of coast] (ocean) {};
+\node[label, above=-0.15cm of ocean.north] {Open Ocean};
+\node[desc] at (ocean.center) {Strong currents\\Current: 0.5--3.0\,m/s\\Waves: 1.0--4.0\,m\\Maximum energy cost};
+\draw[thick, Garnet, decorate, decoration={snake, amplitude=3pt, segment length=4pt}] ([yshift=-0.5cm]ocean.west) -- ([yshift=-0.5cm]ocean.east);
+
+\end{tikzpicture}
+\caption{Four water-body types with characteristic environmental conditions. The policy is conditioned on water-body type via a one-hot encoding in the state vector, enabling adaptation of motion and sensing strategies to domain-specific energy costs and hazard profiles.}
+\label{fig:water_bodies}
+\end{figure}
+
+Figure~\ref{fig:system_arch} illustrates the closed-loop system architecture, and Figure~\ref{fig:water_bodies} depicts the four water-body types that define our evaluation domains.
+
+The scope of this work is deliberately constrained to single-vehicle exploration in known water-body types, deferring multi-agent coordination and unknown-domain adaptation to future work. Within this scope, we target three quantitative objectives. First, the policy should achieve $\geq 0.65$\,m$^2$/J energy-normalized coverage, representing a $\geq$50\% improvement over the best non-RL baseline. Second, the mission success rate (defined as $\geq$90\% area coverage with safe return to base) should exceed 95\% across all four water-body types. Third, the policy network should achieve $<$12\,ms inference latency on embedded GPU hardware (NVIDIA Jetson AGX Orin), enabling real-time closed-loop control at 10\,Hz update rate. These targets are informed by analysis of existing ASV operational requirements and represent meaningful improvements over current capabilities.
+
+The key challenge that distinguishes this work from prior RL approaches to marine vehicle control is the \textit{joint} optimization of motion and sensing under energy constraints. Existing methods optimize motion assuming fixed sensor configurations, or optimize sensing assuming predetermined trajectories. Our formulation recognizes that motion and sensing decisions are deeply coupled through the energy budget: activating a 50\,W radar for 10 additional seconds consumes the same energy as traveling an additional 25 meters at cruise speed. This coupling means that the optimal sensor duty-cycle depends on the planned trajectory, and the optimal trajectory depends on which sensors will be active---a joint optimization that is naturally suited to RL but intractable for decomposed planning approaches.
+
+The remainder of this proposal is organized as follows. Section~II presents the technical approach, including a literature review, MDP formulation, algorithm design, and network architecture. Section~III details the evaluation methodology, including simulation environments, baselines, metrics, ablation studies, and a sim-to-real deployment roadmap. Section~IV concludes with expected outcomes and future directions.
+
 
 % ============================================================
 % APPROACH
 % ============================================================
 \section{Approach}
 
-We formulate simulator parameter tuning as a Markov Decision Process (MDP). At each step $t$, the RL agent observes a state $\boldsymbol{s}_t$ comprising the current generator parameter vector $\boldsymbol{\theta}_t \in \mathbb{R}^k$, a domain indicator $d \in \{\text{lake}, \text{river}, \text{coast}\}$, and recent downstream validation metrics. The agent selects a continuous action $\boldsymbol{a}_t = \Delta\boldsymbol{\theta}_t$ that updates the generator parameters to $\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t + \boldsymbol{a}_t$. The generator then produces a batch of synthetic radar scans under the new parameters, a downstream perception model is trained (or fine-tuned) on this batch, and evaluated against held-out real radar logs. The reward $r_t$ is the improvement in downstream task score (detection F1 or segmentation mAP) minus a realism penalty that discourages implausible parameter settings.
+\subsection{Related Work}
+
+\textit{ASV and AUV path planning.} Coverage path planning (CPP) for marine vehicles has been extensively studied. Galceran and Carreras \cite{Galceran2013CPPSurvey} provide a comprehensive survey of CPP algorithms, categorizing approaches into classical decomposition, sampling-based, and optimization methods. For ASVs specifically, Bai et al. \cite{Bai2022ASVSurvey} survey the state of the art across perception, planning, and control, identifying energy-aware planning as a key open challenge. Hitz et al. \cite{Hitz2017AUVCoverage} propose adaptive informative path planning for underwater monitoring that adjusts sampling density based on environmental information, but their approach assumes unlimited energy and single-sensor operation. Luo et al. \cite{Luo2024MarineCoverage} address energy-constrained multi-robot coverage for marine surface monitoring, introducing task allocation strategies that account for battery limits, though their formulation uses predefined sensor configurations rather than learned duty-cycling policies.
+
+\textit{Energy-aware robot planning.} Arafat and Moh \cite{Arafat2023EnergyAware} review energy-efficient path planning for USVs, identifying current-aware routing and speed optimization as primary strategies. Shi et al. \cite{Shi2024BatteryAware} propose battery-aware task allocation for multi-robot systems using mixed-integer programming, incorporating battery degradation models but relying on offline optimization rather than online adaptation. Sun et al. \cite{Sun2025EnergyCPP} present coverage planning with return-to-base guarantees using dynamic programming over discretized energy budgets, providing formal safety guarantees but at the cost of scalability to high-dimensional sensor action spaces. Chen et al. \cite{Chen2025InformedCPP} combine information-theoretic objectives with energy constraints for marine robots, achieving improved survey efficiency but without considering heterogeneous sensor power profiles.
+
+\textit{Reinforcement learning for marine robotics.} Deep RL has emerged as a promising paradigm for marine vehicle control. Meyer et al. \cite{Meyer2021SACNavigation} apply SAC to ASV path following and collision avoidance, demonstrating robust performance in simulated harbor environments with current disturbances. Zhao et al. \cite{Zhao2022DDPGASV} use DDPG for USV collision avoidance path planning, showing advantages over classical methods in dynamic obstacle scenarios. Woo and Kim \cite{Woo2023RLUUV} develop a DRL-based controller for USV path following that adapts to varying sea states. Cao et al. \cite{Cao2024MarineRL} extend RL to multi-objective AUV navigation, balancing path efficiency against obstacle clearance. These works demonstrate RL viability for marine control but address single-objective problems without sensor management or energy-aware exploration.
+
+\textit{Multi-sensor scheduling and informative planning.} Hollinger and Sukhatme \cite{Hollinger2014ActiveSensing} develop sampling-based algorithms for robotic information gathering, optimizing sensor placement along robot trajectories. Wu et al. \cite{Wu2020SensorScheduling} address adaptive sensor scheduling in wireless networks, developing online algorithms that balance tracking accuracy against communication costs. Popovi\'{c} et al. \cite{Popovic2020InformativePlanning} propose informative path planning under localization uncertainty, jointly optimizing sensing actions and motion for active field mapping. These methods optimize information acquisition but treat motion planning and energy management as separate concerns.
+
+\textit{Hierarchical and multi-objective RL.} Nachum et al. \cite{Nachum2018HIRO} introduce hierarchical RL with off-policy corrections, enabling efficient learning over temporally extended action hierarchies. Yang et al. \cite{Yang2019MORL} propose a generalized algorithm for multi-objective RL that learns a single policy conditioned on preference vectors, enabling post-hoc trade-off adjustment. Our hierarchical action space draws on these ideas by combining discrete mode selection with continuous parameter control, while our composite reward formulation encodes fixed preference weights determined by mission requirements rather than learned trade-offs.
+
+\textit{Safe RL and sim-to-real transfer.} Achiam et al. \cite{Achiam2017CPO} formulate constrained policy optimization with formal constraint satisfaction guarantees, providing a principled framework for safety-critical RL. Brunke et al. \cite{Brunke2022SafeRL} survey safe learning in robotics, identifying domain randomization and robust policy training as key enablers for sim-to-real deployment. Tobin et al. \cite{Tobin2017DomainRandomization} demonstrate that aggressive domain randomization in simulation enables zero-shot transfer to real robotic manipulation. Peng et al. \cite{Peng2018SimToReal} extend this to dynamics randomization for locomotion control. For marine simulation, Manh\~{a}es et al. \cite{Manhaes2016UUVSimulator} provide the UUV Simulator package for Gazebo, offering realistic underwater vehicle dynamics and sensor models. Paravisi et al. \cite{Paravisi2019VRXSim} develop an ASV simulator with environmental disturbances including wind, waves, and currents. Our work builds on these simulation platforms while adding domain randomization across water-body types for robust policy transfer.
+
+
+\subsection{MDP Formulation}
+
+We formulate battery-aware multi-sensor ASV exploration as a Markov Decision Process $(\mathcal{S}, \mathcal{A}, \mathcal{T}, \mathcal{R}, \gamma)$ with continuous state space, hybrid action space, and episodic structure.
+
+\textit{State space.} The 87-dimensional state vector $\boldsymbol{s}_t \in \mathbb{R}^{87}$ comprises five groups.
+\begin{align}
+\boldsymbol{s}_t = [\boldsymbol{s}_t^{\text{kin}},\ \boldsymbol{s}_t^{\text{bat}},\ \boldsymbol{s}_t^{\text{sens}},\ \boldsymbol{s}_t^{\text{env}},\ \boldsymbol{s}_t^{\text{map}}]
+\end{align}
+The kinematic substate $\boldsymbol{s}_t^{\text{kin}} \in \mathbb{R}^{9}$ contains position $(x, y)$, heading $\psi$, speed $v$, angular rate $\dot{\psi}$, distance to base $d_{\text{base}}$, bearing to base $\theta_{\text{base}}$, estimated time to return $\hat{t}_{\text{rtn}}$, and current mission time $t_{\text{elapsed}}$. The battery substate $\boldsymbol{s}_t^{\text{bat}} \in \mathbb{R}^{5}$ encodes state-of-charge (SoC) as a fraction, instantaneous power draw, average power draw over a rolling window, estimated remaining endurance, and SoC required for safe return. The sensor substate $\boldsymbol{s}_t^{\text{sens}} \in \mathbb{R}^{16}$ contains, for each of the 4 sensors, the current duty-cycle ratio, cumulative energy consumed, information gain rate, and operational status flag (4 values per sensor). The environmental substate $\boldsymbol{s}_t^{\text{env}} \in \mathbb{R}^{17}$ includes current velocity (magnitude and direction), wave height, wave period, wind speed, wind direction, water depth, 8-sector obstacle distances from the most recent lidar/radar scan, and a 4-dimensional one-hot water-body type encoding. The map substate $\boldsymbol{s}_t^{\text{map}} \in \mathbb{R}^{40}$ is a compressed representation of the exploration grid, encoding the fraction of cells mapped in each of 36 angular sectors (10$^\circ$ bins) around the ASV, plus overall coverage fraction, frontier cell count, nearest frontier distance, and nearest frontier bearing.
+
+\textit{Action space.} The hybrid action space consists of a discrete mode selection $a^d_t \in \{0, 1, 2, 3\}$ and a continuous parameter vector $\boldsymbol{a}^c_t \in \mathbb{R}^7$.
+\begin{align}
+a^d_t &\in \{\texttt{EXPLORE},\ \texttt{RETURN},\ \texttt{SURVEY},\ \texttt{CONSERVE}\} \\
+\boldsymbol{a}^c_t &= [\Delta\psi,\ v_{\text{cmd}},\ \delta_{\text{radar}},\ \delta_{\text{lidar}},\ \delta_{\text{cam}},\ \delta_{\text{wq}},\ \alpha_{\text{speed}}]
+\end{align}
+Here $\Delta\psi \in [-\pi/4, \pi/4]$ is the commanded heading change, $v_{\text{cmd}} \in [0, v_{\max}]$ is the speed command, $\delta_i \in [0, 1]$ are per-sensor duty-cycle ratios controlling what fraction of each control period sensor $i$ is active, and $\alpha_{\text{speed}} \in [0, 1]$ is a speed-energy trade-off factor. The discrete mode biases the continuous parameters. In \texttt{EXPLORE} mode, the policy favors frontier-directed headings with moderate sensor duty-cycles. In \texttt{RETURN} mode, the policy overrides heading toward the base station and minimizes non-essential sensor usage. In \texttt{SURVEY} mode, the policy reduces speed and maximizes sensor duty-cycles for detailed local mapping. In \texttt{CONSERVE} mode, the policy reduces speed and all sensor duty-cycles to extend mission duration. The discrete mode also activates a safety override: if SoC drops below the estimated return threshold plus a 10\% safety margin, the mode is forced to \texttt{RETURN} regardless of the policy output.
 
 % ============================================================
-% FIGURE 2: MDP DIAGRAM
+% FIGURE 3: MDP CYCLE
 % ============================================================
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-    block/.style={draw, minimum width=2.4cm, minimum height=1.0cm, align=center, font=\small},
-    arr/.style={-{Stealth[length=3mm]}, thick},
-    every node/.style={font=\small}
+    block/.style={draw=Black90, thick, minimum width=1.8cm, minimum height=0.8cm, align=center, font=\scriptsize},
+    arr/.style={-{Stealth[length=2mm]}, thick, color=Garnet},
+    every node/.style={font=\scriptsize}
 ]
 
-% State
-\node[block, fill=white] (st) {$\boldsymbol{s}_t$\\$(\boldsymbol{\theta}_t, d, m_t)$};
+\node[block, fill=Atlantic!10] (state) {State $\boldsymbol{s}_t$\\87D};
+\node[block, fill=Garnet!10, right=1.5cm of state] (policy) {SAC Policy\\$\pi_\phi$};
+\node[block, fill=Horseshoe!10, right=1.5cm of policy] (action) {Action\\$a^d_t, \boldsymbol{a}^c_t$};
+\node[block, fill=Congaree!10, below=1.2cm of action] (env) {Water\\Environment};
+\node[block, fill=Honeycomb!10, below=1.2cm of state] (reward) {Reward\\$r_t$};
 
-% Policy
-\node[block, fill=white, right=2.5cm of st] (pi) {$\pi_\phi(\boldsymbol{a}_t | \boldsymbol{s}_t)$\\SAC Policy};
-
-% Action
-\node[block, fill=white, right=2.5cm of pi] (at) {$\boldsymbol{a}_t = \Delta\boldsymbol{\theta}$\\Parameter Update};
-
-% Environment (below, spanning)
-\node[block, fill=white, below=2.0cm of pi, minimum width=4.0cm] (env) {Environment\\(Generate $\rightarrow$ Train $\rightarrow$ Eval)};
-
-% Next state
-\node[block, fill=white, below=2.0cm of st] (st1) {$\boldsymbol{s}_{t+1}$\\$(\boldsymbol{\theta}_{t+1}, d, m_{t+1})$};
-
-% Reward
-\node[block, fill=white, below=2.0cm of at] (rt) {$r_t = \Delta m_t$\\$ - \lambda \cdot \text{penalty}$};
-
-% Arrows
-\draw[arr] (st) -- (pi);
-\draw[arr] (pi) -- (at);
-\draw[arr] (at) -- (env);
-\draw[arr] (env) -- (st1);
-\draw[arr] (env) -- (rt);
-\draw[arr] (st1) -- node[left] {next step} (st);
-\draw[arr] (rt.west) -- +(-0.8,0) |- ([yshift=-0.3cm]pi.south) -- (pi.south);
-
-% Labels
-\node[above=0.1cm of st, font=\footnotesize\itshape] {State};
-\node[above=0.1cm of pi, font=\footnotesize\itshape] {Policy};
-\node[above=0.1cm of at, font=\footnotesize\itshape] {Action};
+\draw[arr] (state) -- (policy);
+\draw[arr] (policy) -- (action);
+\draw[arr] (action) -- (env);
+\draw[arr] (env) -- node[below] {$\boldsymbol{s}_{t+1}$} (reward);
+\draw[arr] (reward) -- (state);
 
 \end{tikzpicture}
-\caption{MDP formulation. The state $\boldsymbol{s}_t$ encodes generator parameters $\boldsymbol{\theta}_t$, domain tag $d$, and recent metrics $m_t$. The SAC policy outputs continuous parameter deltas. The environment executes the full generate-train-evaluate loop and returns the next state and reward.}
+\caption{MDP interaction cycle. At each timestep the policy maps the 87D state to a hybrid action (discrete mode + continuous parameters). The water environment simulator returns the next state and a composite reward signal.}
 \label{fig:mdp}
 \end{figure}
 
-We adopt Soft Actor-Critic (SAC) \citep{Haarnoja2018SAC} as our primary RL algorithm due to its sample efficiency with off-policy replay and its robust exploration via maximum entropy regularization. The continuous action space is well-suited to SAC, and the entropy bonus naturally encourages diverse generator configurations during early training. We maintain TD3 \citep{Fujimoto2018TD3} as a secondary algorithm for ablation comparison. The generator parameter vector $\boldsymbol{\theta}$ controls physically meaningful knobs including noise floor, sea clutter intensity, multipath reflection strength, signal attenuation profile, and artifact injection probability. Actions are clipped to physically plausible bounds to maintain radar realism.
 
-Our approach differs from prior work in three key respects. First, unlike static domain randomization \citep{Tobin2017DomainRandomization, Tremblay2018TrainingDNN}, our policy adapts generator parameters \textit{online} in response to downstream performance, avoiding wasted computation on uninformative synthetic distributions. Second, unlike Meta-Sim \citep{Kar2019MetaSim}, which learns a single scene-generation distribution, our agent conditions on water-body type, producing domain-specific synthetic recipes. Third, compared to Active Domain Randomization \citep{Mehta2020ActiveDR}, which searches for maximally informative randomization ranges, our formulation directly optimizes the downstream task objective rather than a proxy transferability metric. The domain-adversarial training framework of \citet{Ganin2016DomainAdversarial} serves as an additional baseline representing a non-RL approach to domain adaptation.
+\subsection{Reward Function}
+
+The composite reward at each timestep is a weighted sum of five terms.
+\begin{align}
+r_t = w_c \cdot r_t^{\text{cov}} + w_i \cdot r_t^{\text{info}} + w_e \cdot r_t^{\text{energy}} + w_s \cdot r_t^{\text{safe}} + w_m \cdot r_t^{\text{mission}}
+\end{align}
+The \textit{coverage reward} $r_t^{\text{cov}}$ is the fraction of new grid cells mapped during timestep $t$, encouraging spatial exploration. The \textit{information gain reward} $r_t^{\text{info}}$ measures the entropy reduction in the environment model attributable to sensor observations, rewarding high-value sensing. The \textit{energy efficiency reward} $r_t^{\text{energy}} = -P_t / P_{\max}$ penalizes high instantaneous power draw, normalized by the maximum possible draw (all sensors active at full speed). The \textit{safety reward} $r_t^{\text{safe}}$ is a continuous penalty that increases as the SoC margin above the return threshold shrinks, defined as $r_t^{\text{safe}} = -\max(0,\ \text{SoC}_{\text{rtn}} + \epsilon - \text{SoC}_t)^2$ where $\epsilon = 0.10$ is the safety margin. The \textit{mission completion reward} $r_t^{\text{mission}}$ provides a large terminal bonus ($+100$) for achieving $\geq 95\%$ coverage and returning safely to base, a moderate penalty ($-50$) for battery depletion before return, and a small penalty ($-10$) for timeout without sufficient coverage. Default weights are $w_c = 1.0$, $w_i = 0.5$, $w_e = 0.3$, $w_s = 2.0$, $w_m = 1.0$, determined by sensitivity analysis during hyperparameter tuning.
+
+% ============================================================
+% FIGURE 4: REWARD COMPONENTS
+% ============================================================
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    comp/.style={draw=Black90, thick, minimum width=2.0cm, minimum height=0.6cm, align=center, font=\scriptsize},
+    arr/.style={-{Stealth[length=2mm]}, thick, color=Black70},
+    every node/.style={font=\scriptsize}
+]
+
+\node[comp, fill=Atlantic!15] (cov) {Coverage\\$w_c = 1.0$};
+\node[comp, fill=Congaree!15, below=0.25cm of cov] (info) {Information Gain\\$w_i = 0.5$};
+\node[comp, fill=Horseshoe!15, below=0.25cm of info] (energy) {Energy Efficiency\\$w_e = 0.3$};
+\node[comp, fill=Rose!15, below=0.25cm of energy] (safe) {Safety Margin\\$w_s = 2.0$};
+\node[comp, fill=Honeycomb!15, below=0.25cm of safe] (mission) {Mission Complete\\$w_m = 1.0$};
+
+\node[comp, fill=Garnet!10, right=2.5cm of energy, minimum width=2.4cm, minimum height=1.2cm] (total) {Composite\\Reward $r_t$};
+
+\draw[arr] (cov.east) -- (total.west |- cov.east);
+\draw[arr] (info.east) -- (total.west |- info.east);
+\draw[arr] (energy.east) -- (total);
+\draw[arr] (safe.east) -- (total.west |- safe.east);
+\draw[arr] (mission.east) -- (total.west |- mission.east);
+
+\end{tikzpicture}
+\caption{Five-term composite reward function with default weights. The safety margin receives the highest weight ($w_s=2.0$) to prioritize safe-return behavior, while energy efficiency receives the lowest ($w_e=0.3$) to avoid overly conservative exploration.}
+\label{fig:reward}
+\end{figure}
+
+
+\subsection{SAC Algorithm}
+
+We select Soft Actor-Critic \cite{Haarnoja2018SAC} as our primary algorithm for three reasons. First, SAC's maximum entropy formulation $\pi^* = \arg\max_\pi \sum_t \mathbb{E}[\,r_t + \alpha \mathcal{H}(\pi(\cdot | \boldsymbol{s}_t))\,]$ naturally encourages exploration of diverse motion and sensing strategies during training, which is critical when the reward landscape contains many local optima corresponding to different coverage-energy trade-off points. Second, SAC's off-policy nature enables sample-efficient learning from a replay buffer, important given the computational cost of each simulation episode (10--30 minutes of simulated time per episode). Third, the dual-critic architecture with clipped double-Q learning \cite{Fujimoto2018TD3} provides stable value estimates in our high-dimensional state-action space, mitigating the overestimation bias that can cause premature convergence to suboptimal energy-management strategies.
+
+The SAC objective for our problem becomes
+\begin{align}
+J(\phi) = \sum_{t=0}^{T} \mathbb{E}_{\boldsymbol{s}_t, \boldsymbol{a}_t}\!\left[\,r_t + \alpha \mathcal{H}\!\left(\pi_\phi(\cdot | \boldsymbol{s}_t)\right)\right]
+\end{align}
+where $\alpha$ is the automatically tuned temperature parameter and $\mathcal{H}$ denotes entropy. We maintain twin Q-networks $Q_{\theta_1}, Q_{\theta_2}$ and a target network with Polyak averaging (rate $\tau = 0.005$). The policy loss for the continuous action head is
+\begin{align}
+\mathcal{L}_\pi(\phi) = \mathbb{E}_{\boldsymbol{s}_t}\!\left[\,\alpha \log \pi_\phi(\boldsymbol{a}^c_t | \boldsymbol{s}_t) - \min_{j=1,2} Q_{\theta_j}(\boldsymbol{s}_t, \boldsymbol{a}_t)\,\right]
+\end{align}
+For the discrete mode head, we use the Gumbel-Softmax reparameterization to maintain differentiability through the categorical selection, with temperature annealing from $\tau_{\text{gs}} = 1.0$ to $0.1$ over training. This hybrid approach avoids the need for separate discrete and continuous policy optimization.
+
+The twin Q-networks are trained by minimizing the soft Bellman residual.
+\begin{align}
+\mathcal{L}_Q(\theta_j) = \mathbb{E}_{(\boldsymbol{s}_t, \boldsymbol{a}_t, r_t, \boldsymbol{s}_{t+1})}\!\left[\left(Q_{\theta_j}(\boldsymbol{s}_t, \boldsymbol{a}_t) - y_t\right)^2\right]
+\end{align}
+where the target value $y_t$ incorporates the entropy bonus from the next-state policy.
+\begin{align}
+y_t = r_t + \gamma \left(\min_{j=1,2} Q_{\bar{\theta}_j}(\boldsymbol{s}_{t+1}, \tilde{\boldsymbol{a}}_{t+1}) - \alpha \log \pi_\phi(\tilde{\boldsymbol{a}}_{t+1} | \boldsymbol{s}_{t+1})\right)
+\end{align}
+Here $\tilde{\boldsymbol{a}}_{t+1} \sim \pi_\phi(\cdot | \boldsymbol{s}_{t+1})$ is sampled from the current policy and $\bar{\theta}_j$ denotes the exponentially moving average target parameters updated as $\bar{\theta}_j \leftarrow \tau \theta_j + (1-\tau) \bar{\theta}_j$ after each gradient step. The entropy temperature $\alpha$ is automatically tuned by minimizing $\mathcal{L}(\alpha) = \mathbb{E}[-\alpha (\log \pi_\phi(\boldsymbol{a}_t | \boldsymbol{s}_t) + \bar{\mathcal{H}})]$ where $\bar{\mathcal{H}} = -\dim(\mathcal{A}^c) = -7$ is the target entropy set to the negative dimensionality of the continuous action space.
+
+We compare SAC against three alternative RL algorithms. DDPG \cite{Lillicrap2016DDPG} serves as a deterministic policy baseline, testing whether the entropy bonus is necessary for adequate exploration. TD3 \cite{Fujimoto2018TD3} adds delayed policy updates and target smoothing to DDPG, isolating the effect of stochastic versus deterministic policies. PPO \cite{Schulman2017PPO} represents the on-policy alternative, testing whether off-policy sample efficiency justifies the added complexity of replay buffer management.
+
+
+\subsection{Water-Body Conditioning}
+
+A key innovation of our approach is explicit conditioning on water-body type, encoded as a 4-dimensional one-hot vector within the environmental substate $\boldsymbol{s}_t^{\text{env}}$. This conditioning serves two purposes. First, it enables the policy to learn domain-specific behavioral strategies without requiring separate policies per environment. For example, in the river scenario the policy can learn to preferentially explore downstream first (lower energy cost) before committing remaining energy to upstream coverage, while in the coastal scenario it can learn to time exploration with tidal current reversals to minimize energy expenditure. Second, the conditioning provides a natural mechanism for zero-shot generalization to novel water bodies by interpolating or extrapolating from learned domain representations.
+
+During training, the water-body type is provided as ground truth from the simulator. At deployment time, the type can be specified by the human operator prior to mission start, or inferred online from environmental observations (current patterns, wave characteristics) using a lightweight classifier trained on the same simulation data. We evaluate both oracle (ground truth) and inferred conditioning in our experiments to quantify the sensitivity to domain classification errors. The one-hot encoding could be replaced with a learned embedding in future work, enabling continuous interpolation between water-body types and adaptation to previously unseen domains such as arctic waters or tropical reef environments.
+
+
+\subsection{Network Architecture}
+
+% ============================================================
+% FIGURE 5: NETWORK ARCHITECTURE
+% ============================================================
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    layer/.style={draw=Black90, thick, minimum width=1.6cm, minimum height=0.5cm, align=center, font=\scriptsize},
+    head/.style={draw=Black90, thick, minimum width=1.4cm, minimum height=0.5cm, align=center, font=\scriptsize},
+    arr/.style={-{Stealth[length=2mm]}, thick, color=Black70},
+    every node/.style={font=\scriptsize}
+]
+
+% Policy Network
+\node[layer, fill=Black10, minimum width=2.0cm] (input) {Input: 87D};
+\node[layer, fill=Atlantic!15, above=0.5cm of input] (h1) {FC 512, ReLU};
+\node[layer, fill=Atlantic!15, above=0.4cm of h1] (h2) {FC 256, ReLU};
+\node[layer, fill=Atlantic!15, above=0.4cm of h2] (h3) {FC 128, ReLU};
+
+% Discrete head
+\node[head, fill=Garnet!15, above left=0.5cm and 0.3cm of h3] (disc) {Discrete: 4};
+\node[font=\tiny, above=0.1cm of disc, color=Garnet] {Gumbel-Softmax};
+
+% Continuous head
+\node[head, fill=Horseshoe!15, above right=0.5cm and 0.3cm of h3] (cont) {Continuous: 7};
+\node[font=\tiny, above=0.1cm of cont, color=Horseshoe] {Tanh $\rightarrow$ scale};
+
+% Critic (side)
+\node[layer, fill=Congaree!10, right=2.0cm of h1, minimum width=1.8cm] (ci) {State+Action};
+\node[layer, fill=Congaree!15, above=0.4cm of ci] (ch1) {FC 512, ReLU};
+\node[layer, fill=Congaree!15, above=0.4cm of ch1] (ch2) {FC 256, ReLU};
+\node[head, fill=Congaree!15, above=0.4cm of ch2] (q) {$Q$-value: 1};
+
+\draw[arr] (input) -- (h1);
+\draw[arr] (h1) -- (h2);
+\draw[arr] (h2) -- (h3);
+\draw[arr] (h3) -| (disc);
+\draw[arr] (h3) -| (cont);
+\draw[arr] (ci) -- (ch1);
+\draw[arr] (ch1) -- (ch2);
+\draw[arr] (ch2) -- (q);
+
+% Labels
+\node[font=\scriptsize\bfseries, color=Atlantic, left=0.1cm of h2] {Policy};
+\node[font=\scriptsize\bfseries, color=Congaree, right=0.1cm of ch1] {Critic ($\times 2$)};
+
+\end{tikzpicture}
+\caption{Network architecture. The policy network maps the 87D state through three hidden layers to a discrete mode head (4-way Gumbel-Softmax) and a continuous parameter head (7D with tanh activation). Twin critic networks (approximately 300k parameters each) take state-action pairs and output scalar $Q$-values.}
+\label{fig:network}
+\end{figure}
+
+The policy network $\pi_\phi$ consists of three fully connected hidden layers with 512, 256, and 128 units respectively, each followed by ReLU activations and layer normalization. The 87D input is processed through these shared layers, then branches into two output heads. The discrete head produces a 4-dimensional logit vector passed through Gumbel-Softmax for differentiable mode sampling. The continuous head outputs a 7-dimensional vector through tanh activation, scaled to the appropriate action ranges. The total policy parameter count is approximately 250k. Each of the twin critic networks $Q_{\theta_1}, Q_{\theta_2}$ takes the concatenated state-action pair (87 + 4 + 7 = 98 dimensions) and processes it through three hidden layers of 512, 256, and 128 units to a single scalar $Q$-value output, totaling approximately 300k parameters per critic. Figure~\ref{fig:network} illustrates this architecture.
+
+
+\subsection{Hierarchical Action Space}
+
+% ============================================================
+% FIGURE 6: HIERARCHICAL ACTION SPACE
+% ============================================================
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    mode/.style={draw=Black90, thick, minimum width=1.8cm, minimum height=0.6cm, align=center, font=\scriptsize},
+    param/.style={draw=Black70, thick, minimum width=2.4cm, minimum height=0.5cm, align=center, font=\tiny, fill=Black10},
+    arr/.style={-{Stealth[length=1.5mm]}, thick, color=Black70},
+    every node/.style={font=\scriptsize}
+]
+
+% Mode selection
+\node[mode, fill=Garnet!15] (explore) {\texttt{EXPLORE}};
+\node[mode, fill=Atlantic!15, right=0.3cm of explore] (return) {\texttt{RETURN}};
+\node[mode, fill=Horseshoe!15, right=0.3cm of return] (survey) {\texttt{SURVEY}};
+\node[mode, fill=Honeycomb!15, right=0.3cm of survey] (conserve) {\texttt{CONSERVE}};
+
+\node[font=\scriptsize\bfseries, above=0.3cm of return.north east] {Discrete Mode Selection};
+
+% Continuous params below each
+\node[param, below=0.8cm of explore] (ep) {$\Delta\psi$: frontier-biased\\$v$: moderate\\$\delta$: balanced};
+\node[param, below=0.8cm of return] (rp) {$\Delta\psi$: base-directed\\$v$: efficient\\$\delta$: minimal};
+\node[param, below=0.8cm of survey] (sp) {$\Delta\psi$: local scan\\$v$: slow\\$\delta$: maximum};
+\node[param, below=0.8cm of conserve] (cp) {$\Delta\psi$: drift-aware\\$v$: low\\$\delta$: reduced};
+
+\draw[arr] (explore) -- (ep);
+\draw[arr] (return) -- (rp);
+\draw[arr] (survey) -- (sp);
+\draw[arr] (conserve) -- (cp);
+
+\node[font=\scriptsize\bfseries, below=0.3cm of rp.south east] {Continuous Parameters (7D)};
+
+\end{tikzpicture}
+\caption{Hierarchical action space. The discrete mode selection (top) biases the interpretation of the 7 continuous parameters (bottom). Each mode defines characteristic operating ranges for heading, speed, and sensor duty-cycle ratios, though the continuous parameters allow fine-grained adaptation within each mode.}
+\label{fig:action_space}
+\end{figure}
+
+The hierarchical action space (Figure~\ref{fig:action_space}) decomposes the control problem into strategic decisions (mode selection) and tactical execution (continuous parameters). This decomposition is motivated by the observation that ASV exploration naturally involves distinct behavioral phases: aggressive frontier-seeking when battery is plentiful, cautious return planning when energy is low, intensive surveying at regions of interest, and energy-conservation drift when conditions are unfavorable. Rather than requiring the policy to learn these mode transitions implicitly through continuous actions alone, the discrete head provides an explicit switching mechanism that accelerates learning and improves interpretability. The continuous parameters within each mode are not hard-constrained but soft-biased through the reward function: for example, high speed in \texttt{CONSERVE} mode incurs elevated energy penalties, naturally discouraging mode-inconsistent actions.
+
+% ============================================================
+% TABLE 1: COMPARISON WITH PRIOR WORK
+% ============================================================
+\begin{table}[t]
+\centering
+\caption{Comparison with prior work on ASV planning and marine RL.}
+\label{tab:comparison}
+\scriptsize
+\begin{tabular}{p{2.0cm}ccccc}
+\toprule
+\textbf{Method} & \textbf{Energy} & \textbf{Multi} & \textbf{RL} & \textbf{Water} & \textbf{Safe} \\
+ & \textbf{Aware} & \textbf{Sensor} & \textbf{Based} & \textbf{Adapt.} & \textbf{Return} \\
+\midrule
+Galceran \cite{Galceran2013CPPSurvey} & \texttimes & \texttimes & \texttimes & \texttimes & \texttimes \\
+Hitz \cite{Hitz2017AUVCoverage} & \texttimes & \texttimes & \texttimes & \texttimes & \texttimes \\
+Arafat \cite{Arafat2023EnergyAware} & \checkmark & \texttimes & \texttimes & \texttimes & \checkmark \\
+Meyer \cite{Meyer2021SACNavigation} & \texttimes & \texttimes & \checkmark & \texttimes & \texttimes \\
+Zhao \cite{Zhao2022DDPGASV} & \texttimes & \texttimes & \checkmark & \texttimes & \texttimes \\
+Sun \cite{Sun2025EnergyCPP} & \checkmark & \texttimes & \texttimes & \texttimes & \checkmark \\
+Luo \cite{Luo2024MarineCoverage} & \checkmark & \texttimes & \texttimes & \texttimes & \texttimes \\
+Cao \cite{Cao2024MarineRL} & \texttimes & \texttimes & \checkmark & \texttimes & \texttimes \\
+\textbf{Ours} & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:comparison} summarizes how our approach relates to prior work across five key capability dimensions. No existing method addresses all five simultaneously, leaving a significant gap that motivates our unified RL framework.
+
 
 % ============================================================
 % EVALUATION
 % ============================================================
 \section{Evaluation}
 
-We evaluate on real marine radar logs collected across lake, river, and coastal environments. Data is split by geographic location within each domain to prevent spatial leakage, with 70\%/15\%/15\% train/validation/test splits. The primary downstream task is radar target detection, measured by detection F1 score and mean Average Precision (mAP). We additionally report calibration error and the \textit{sim-to-real gap}, defined as the absolute difference in F1 between a model evaluated on synthetic versus real data.
+\subsection{Simulation Environment}
+
+We conduct all training and primary evaluation in Gazebo \cite{Koenig2004Gazebo} with the UUV Simulator plugin \cite{Manhaes2016UUVSimulator} extended to support surface vessel dynamics and multi-sensor simulation. The simulation provides realistic hydrodynamic forces (drag, added mass, Coriolis effects), configurable current fields with spatial and temporal variation, stochastic wave generation using JONSWAP spectra, and sensor models with configurable noise, field-of-view, and power consumption profiles (radar at 50\,W, lidar at 30\,W, camera at 5\,W, water quality sensors at 3\,W). Each episode simulates a $500 \times 500$\,m exploration area discretized into a $100 \times 100$ occupancy grid, with episodes terminating upon mission completion (95\% coverage and safe return), battery depletion, timeout (60 minutes simulated time), or collision with an obstacle.
+
+We define four evaluation scenarios of increasing difficulty.
+The \textit{lake scenario} features calm water with negligible current ($<$0.2\,m/s), minimal waves ($<$0.3\,m significant height), and sparse obstacles, representing the baseline difficulty level. The \textit{river scenario} introduces a unidirectional current field of 0.5--2.0\,m/s with spatial gradients, requiring the policy to account for significant energy asymmetry between upstream and downstream travel. The \textit{coastal scenario} adds tidal current variation (0.3--1.5\,m/s, direction-reversing over a 6-hour cycle), moderate waves (0.5--1.5\,m), and dense obstacle fields representing harbor infrastructure. The \textit{open ocean scenario} presents strong multi-directional currents (0.5--3.0\,m/s), large waves (1.0--4.0\,m), and wide-open spaces requiring long-distance planning under high energy uncertainty. Domain randomization is applied within each scenario by varying current magnitudes ($\pm 30\%$), wave parameters ($\pm 25\%$), obstacle density ($\pm 20\%$), and battery capacity ($\pm 15\%$) to promote robust policy learning \cite{Tobin2017DomainRandomization, Peng2018SimToReal}.
+
+
+\subsection{Training Protocol}
+
+Training follows a four-phase curriculum of 500k total environment steps.
+Phase~1 (0--100k steps) trains exclusively on the lake scenario with a simplified reward (coverage only) and relaxed energy constraints (battery capacity doubled), enabling the policy to learn basic exploration and sensor usage patterns. Phase~2 (100k--250k steps) introduces the full composite reward function and realistic battery capacity, still on the lake scenario, teaching energy-aware behavior. Phase~3 (250k--400k steps) randomly samples from all four water-body types with the full reward, introducing the water-body conditioning and cross-domain generalization challenge. Phase~4 (400k--500k steps) increases domain randomization ranges by 50\% and introduces sensor failure events (random sensor dropout with 5\% probability per episode), stress-testing policy robustness.
+
+Training is distributed across 4$\times$ NVIDIA RTX 6000 Ada GPUs using 16 parallel simulation environments (4 per GPU). The replay buffer holds 1M transitions with prioritized experience replay (PER) using $\alpha_{\text{PER}} = 0.6$, $\beta_{\text{PER}}$ annealed from 0.4 to 1.0. The learning rate is $3 \times 10^{-4}$ for all networks with Adam optimizer, batch size 256, and discount factor $\gamma = 0.99$. We apply gradient clipping at $\|\nabla\| = 1.0$ to prevent instability during curriculum transitions. Layer normalization is applied after each hidden layer in both policy and critic networks to stabilize training across the diverse state magnitude ranges (SoC fractions in $[0,1]$ vs. obstacle distances in $[0, 500]$\,m). The total estimated training time is approximately 72 hours wall-clock across the four GPUs, with each simulation episode averaging 30--60 seconds of wall-clock time (corresponding to 10--60 minutes of simulated time at 10--60$\times$ real-time acceleration).
+
+Table~\ref{tab:hyperparams} summarizes the key hyperparameters for reproducibility.
+
+\begin{table}[t]
+\centering
+\caption{Training hyperparameters.}
+\label{tab:hyperparams}
+\scriptsize
+\begin{tabular}{lc}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Total environment steps & 500k \\
+Parallel environments & 16 \\
+Replay buffer size & 1M transitions \\
+Batch size & 256 \\
+Learning rate (all networks) & $3 \times 10^{-4}$ \\
+Discount factor $\gamma$ & 0.99 \\
+Polyak averaging $\tau$ & 0.005 \\
+Target entropy $\bar{\mathcal{H}}$ & $-7$ \\
+PER $\alpha$ & 0.6 \\
+PER $\beta$ (annealed) & $0.4 \rightarrow 1.0$ \\
+Gradient clip norm & 1.0 \\
+Gumbel-Softmax $\tau_{\text{gs}}$ (annealed) & $1.0 \rightarrow 0.1$ \\
+Reward weights $(w_c, w_i, w_e, w_s, w_m)$ & $(1.0, 0.5, 0.3, 2.0, 1.0)$ \\
+Safety margin $\epsilon$ & 0.10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Baselines}
+
+We compare against five baselines spanning classical planning, rule-based control, and alternative RL algorithms.
+
+\textit{Frontier exploration} selects the nearest unexplored frontier cell at each planning step, with all sensors active and a simple distance-based return heuristic. This represents a common exploration strategy that ignores energy optimization and sensor management.
+
+\textit{Lawn-mower coverage} follows a boustrophedon (back-and-forth) pattern computed offline to cover the entire area, with all sensors active and a fixed-speed return when battery reaches 30\% SoC. This is the industry standard for systematic survey operations.
+
+\textit{Rule-based duty-cycle} augments frontier exploration with hand-designed sensor scheduling rules. Radar is always on, lidar activates near obstacles or in unmapped areas, the camera activates in regions of interest, and the water quality sensor activates on a fixed 30-second interval. Speed reduces when SoC drops below 40\%.
+
+\textit{Energy-CPP} implements the energy-constrained coverage planning approach of Sun et al. \cite{Sun2025EnergyCPP} adapted for our multi-sensor ASV, using dynamic programming over the energy budget with binary sensor activation (all on or all off).
+
+\textit{DDPG-ASV} applies the DDPG-based USV controller of Zhao et al. \cite{Zhao2022DDPGASV} extended with a continuous sensor duty-cycle action space but without discrete mode selection or water-body conditioning.
+
+
+\subsection{Metrics}
+
+We evaluate all methods using five complementary metrics.
+\textit{Area mapped per Joule} ($\text{m}^2/\text{J}$) is the primary efficiency metric, measuring the energy-normalized exploration productivity. \textit{Mission success rate} is the fraction of episodes achieving $\geq$90\% coverage with safe return to base over 100 independent trials per scenario. \textit{Weighted information gain} measures the total entropy reduction in the environment model, weighted by sensor fidelity, capturing data quality rather than mere spatial coverage. \textit{Energy remaining at return} measures the SoC margin upon docking, with higher values indicating more conservative (and potentially suboptimal) energy management. \textit{Coverage completion time} is the wall-clock simulated time to reach 90\% coverage, penalizing overly cautious strategies that sacrifice speed for energy.
+
+
+\subsection{Ablation Studies}
+
+We conduct five ablation experiments to isolate the contribution of each design component.
+The \textit{no water-body conditioning} ablation removes the 4D one-hot encoding from the state vector, testing whether explicit domain awareness improves cross-scenario performance. The \textit{no sensor duty-cycling} ablation fixes all sensor duty-cycles to 1.0 (always on), isolating the benefit of learned sensor management. The \textit{no discrete mode} ablation removes the discrete action head and uses only continuous actions, testing whether the hierarchical structure aids learning. The \textit{single reward term} ablations train with each reward component individually (coverage only, energy only, safety only) to verify that the composite formulation outperforms single-objective optimization. The \textit{reduced state} ablation removes the map substate (40D compressed grid), testing whether the spatial coverage representation is necessary for effective frontier-seeking.
+
+
+\subsection{Stress Tests}
+
+Beyond standard evaluation, we subject the trained policy to four stress-test scenarios. \textit{Extreme current} doubles the maximum current magnitude to 6.0\,m/s in the ocean scenario, testing graceful degradation. \textit{High wave} sets significant wave height to 5.0\,m, exceeding training distribution. \textit{Low battery start} initializes SoC at 30\% instead of 100\%, testing the policy's ability to plan partial missions. \textit{Sensor failure} disables the radar (highest-power sensor) mid-mission, testing sensor-loss adaptation.
+
 
 % ============================================================
-% FIGURE 3: EVALUATION PIPELINE
+% FIGURE 7: EXPECTED TRAINING CURVES
 % ============================================================
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\begin{tikzpicture}[
-    block/.style={draw, minimum width=2.6cm, minimum height=0.9cm, align=center, font=\small},
-    metric/.style={draw, minimum width=2.0cm, minimum height=0.7cm, align=center, font=\footnotesize, fill=white},
-    arr/.style={-{Stealth[length=2.5mm]}, thick},
-    every node/.style={font=\small},
-    brace/.style={decorate, decoration={brace, amplitude=6pt}}
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=5cm,
+    xlabel={Environment Steps ($\times 10^3$)},
+    ylabel={Episode Return},
+    xmin=0, xmax=500,
+    ymin=-50, ymax=200,
+    legend style={at={(0.02,0.98)}, anchor=north west, font=\tiny, draw=Black30},
+    grid=major,
+    grid style={Black10},
+    tick label style={font=\tiny},
+    label style={font=\scriptsize},
+    every axis plot/.append style={thick}
 ]
 
-% Training configs (left column)
-\node[block, fill=white] (b1) {Baseline 1\\Fixed Defaults};
-\node[block, fill=white, below=0.6cm of b1] (b2) {Baseline 2\\Random Search};
-\node[block, fill=white, below=0.6cm of b2] (b3) {Baseline 3\\Bayesian Opt.};
-\node[block, fill=white, below=0.6cm of b3] (b4) {Baseline 4\\Domain-Adv.};
-\node[block, fill=white, below=0.6cm of b4] (ours) {\textbf{Ours}\\SAC Policy};
-
-% Middle: evaluation scenarios
-\node[block, fill=white, right=2.5cm of b3, minimum width=3.2cm] (eval) {Test Scenarios};
-
-% Scenarios listed
-\node[font=\footnotesize, below=0.2cm of eval, text width=4.0cm, align=left] (scenarios) {
-    1. In-domain (same env type)\\
-    2. Cross-domain (held-out env)\\
-    3. Unseen location\\
-    4. Low-SNR stress test
+% SAC (Ours)
+\addplot[color=Garnet, smooth] coordinates {
+    (0,-30) (25,-15) (50,10) (75,35) (100,55) (125,70) (150,85) (175,100)
+    (200,115) (225,125) (250,130) (275,140) (300,150) (325,158) (350,163)
+    (375,168) (400,172) (425,175) (450,177) (475,178) (500,180)
 };
 
-% Metrics (right)
-\node[metric, right=7.5cm of b1] (m1) {F1 Score};
-\node[metric, right=7.5cm of b2] (m2) {mAP};
-\node[metric, right=7.5cm of b3] (m3) {Calibration Err.};
-\node[metric, right=7.5cm of b4] (m4) {Sim-to-Real Gap};
-\node[metric, right=7.5cm of ours] (m5) {Policy Stability};
+% DDPG-ASV
+\addplot[color=Atlantic, smooth, dashed] coordinates {
+    (0,-35) (25,-20) (50,0) (75,15) (100,30) (125,42) (150,52) (175,60)
+    (200,68) (225,75) (250,80) (275,84) (300,90) (325,95) (350,100)
+    (375,105) (400,108) (425,110) (450,112) (475,113) (500,114)
+};
 
-% Arrows from baselines to eval
-\draw[arr] (b1.east) -- (eval.west |- b1);
-\draw[arr] (b2.east) -- (eval.west |- b2);
-\draw[arr] (b3.east) -- (eval.west |- b3);
-\draw[arr] (b4.east) -- (eval.west |- b4);
-\draw[arr] (ours.east) -- (eval.west |- ours);
+% TD3
+\addplot[color=Horseshoe, smooth, dashdotted] coordinates {
+    (0,-32) (25,-18) (50,5) (75,25) (100,42) (125,55) (150,67) (175,78)
+    (200,88) (225,96) (250,103) (275,110) (300,118) (325,125) (350,130)
+    (375,135) (400,139) (425,142) (450,144) (475,146) (500,148)
+};
 
-% Arrows from eval to metrics
-\draw[arr] (eval.east |- m1) -- (m1.west);
-\draw[arr] (eval.east |- m2) -- (m2.west);
-\draw[arr] (eval.east |- m3) -- (m3.west);
-\draw[arr] (eval.east |- m4) -- (m4.west);
-\draw[arr] (eval.east |- m5) -- (m5.west);
+% PPO
+\addplot[color=Honeycomb, smooth, dotted] coordinates {
+    (0,-40) (25,-30) (50,-15) (75,-5) (100,8) (125,20) (150,30) (175,40)
+    (200,50) (225,58) (250,65) (275,72) (300,78) (325,83) (350,88)
+    (375,92) (400,96) (425,99) (450,102) (475,104) (500,106)
+};
 
-% Labels
-\node[above=0.3cm of b1, font=\small\bfseries] {Methods};
-\node[above=0.3cm of m1, font=\small\bfseries] {Metrics};
-
+\legend{SAC (Ours), DDPG-ASV, TD3, PPO}
+\end{axis}
 \end{tikzpicture}
-\caption{Evaluation pipeline. All methods (four baselines plus our SAC-based approach) are evaluated across four test scenarios. Performance is measured by five complementary metrics capturing both task accuracy and transfer quality.}
-\label{fig:eval}
+\caption{Expected training curves. SAC achieves the highest asymptotic return due to entropy-driven exploration and off-policy efficiency. TD3 converges to a competitive but lower return, while DDPG and PPO lag due to limited exploration and on-policy sample inefficiency, respectively. Vertical markers at 100k, 250k, and 400k denote curriculum phase transitions.}
+\label{fig:training_curves}
 \end{figure}
 
-We compare against four baselines. The first uses the synthetic generator with fixed default parameters. The second replaces the RL policy with random parameter search over the same action space. The third substitutes Bayesian optimization (Gaussian process with expected improvement acquisition) as a non-RL adaptive baseline. The fourth applies domain-adversarial training \citep{Ganin2016DomainAdversarial} directly to the perception model without modifying the generator. Evaluation follows four test scenarios of increasing difficulty. \textit{In-domain transfer} trains and tests within the same water-body type. \textit{Cross-domain transfer} trains on two environment types and tests on the held-out third. \textit{Unseen-location robustness} tests on new geographic sites within a known environment type. \textit{Low-SNR stress testing} evaluates under elevated clutter and noise conditions. We additionally conduct ablation studies removing the domain conditioning and the RL loop entirely to isolate the contribution of each component.
+
+% ============================================================
+% FIGURE 8: EVALUATION PIPELINE
+% ============================================================
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    method/.style={draw=Black90, thick, minimum width=1.5cm, minimum height=0.5cm, align=center, font=\tiny},
+    scenario/.style={draw=Black90, thick, minimum width=1.5cm, minimum height=0.5cm, align=center, font=\tiny, fill=Atlantic!10},
+    metric/.style={draw=Black90, thick, minimum width=1.5cm, minimum height=0.5cm, align=center, font=\tiny, fill=Horseshoe!10},
+    arr/.style={-{Stealth[length=1.5mm]}, color=Black70},
+    every node/.style={font=\tiny}
+]
+
+% Methods column
+\node[method, fill=Garnet!10] (m1) {SAC (Ours)};
+\node[method, fill=Black10, below=0.15cm of m1] (m2) {Frontier};
+\node[method, fill=Black10, below=0.15cm of m2] (m3) {Lawn-mower};
+\node[method, fill=Black10, below=0.15cm of m3] (m4) {Rule-based};
+\node[method, fill=Black10, below=0.15cm of m4] (m5) {Energy-CPP};
+\node[method, fill=Black10, below=0.15cm of m5] (m6) {DDPG-ASV};
+
+% Scenarios column
+\node[scenario, right=1.3cm of m1] (s1) {Lake};
+\node[scenario, below=0.15cm of s1] (s2) {River};
+\node[scenario, below=0.15cm of s2] (s3) {Coastal};
+\node[scenario, below=0.15cm of s3] (s4) {Ocean};
+
+% Metrics column
+\node[metric, right=1.3cm of s1] (k1) {m$^2$/J};
+\node[metric, below=0.15cm of k1] (k2) {Success \%};
+\node[metric, below=0.15cm of k2] (k3) {Info Gain};
+\node[metric, below=0.15cm of k3] (k4) {Energy \%};
+\node[metric, below=0.15cm of k4] (k5) {Time (min)};
+
+% Connectors
+\draw[arr] (m1.east) -- (s1.west);
+\draw[arr] (m6.east) -- (s4.west);
+\draw[arr] (s1.east) -- (k1.west);
+\draw[arr] (s4.east) -- (k5.west);
+
+% Cross-connections (implied by box)
+\node[draw=Black30, dashed, inner sep=4pt, fit=(m1)(m6), label={[font=\tiny\bfseries]above:6 Methods}] {};
+\node[draw=Black30, dashed, inner sep=4pt, fit=(s1)(s4), label={[font=\tiny\bfseries]above:4 Scenarios}] {};
+\node[draw=Black30, dashed, inner sep=4pt, fit=(k1)(k5), label={[font=\tiny\bfseries]above:5 Metrics}] {};
+
+\end{tikzpicture}
+\caption{Evaluation pipeline. Six methods are evaluated across four water-body scenarios using five complementary metrics, yielding 120 method-scenario-metric combinations. Each combination comprises 100 independent trial episodes.}
+\label{fig:eval_pipeline}
+\end{figure}
+
+
+\subsection{Expected Results}
+
+% ============================================================
+% TABLE 2: EXPECTED QUANTITATIVE RESULTS
+% ============================================================
+\begin{table}[t]
+\centering
+\caption{Expected quantitative results averaged across all four water-body scenarios. Values represent mean $\pm$ standard deviation over 100 trials per scenario.}
+\label{tab:results}
+\scriptsize
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Method} & \textbf{m$^2$/J} & \textbf{Success} & \textbf{Info} & \textbf{SoC at} & \textbf{Time} \\
+ & & \textbf{Rate} & \textbf{Gain} & \textbf{Return} & \textbf{(min)} \\
+\midrule
+Frontier & 0.32 & 62\% & 0.71 & 8\% & 48.2 \\
+Lawn-mower & 0.28 & 58\% & 0.65 & 12\% & 52.1 \\
+Rule-based & 0.41 & 74\% & 0.78 & 15\% & 44.6 \\
+Energy-CPP & 0.45 & 82\% & 0.73 & 18\% & 46.3 \\
+DDPG-ASV & 0.48 & 78\% & 0.80 & 14\% & 41.8 \\
+\textbf{SAC (Ours)} & \textbf{0.68} & \textbf{96\%} & \textbf{0.91} & \textbf{12\%} & \textbf{35.4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:results} presents expected quantitative results averaged across all four scenarios. We hypothesize that our SAC-based approach will achieve approximately 0.68\,m$^2$/J, representing a 50\% improvement over the best non-RL baseline (Energy-CPP at 0.45\,m$^2$/J) and a 42\% improvement over the DDPG-ASV baseline. The mission success rate of 96\% reflects the combined benefit of the hierarchical action space (explicit \texttt{RETURN} mode), the safety-weighted reward ($w_s = 2.0$), and the hard SoC override mechanism. The information gain advantage (0.91 vs. 0.80 for DDPG-ASV) stems from learned sensor duty-cycling that activates high-power sensors selectively in high-information regions rather than uniformly. The coverage time improvement (35.4 vs. 41.8 minutes) results from efficient mode-switching between aggressive exploration and focused surveying.
+
+We expect performance advantages to vary significantly across scenarios. In the lake scenario, all methods should achieve relatively high success rates ($>$80\%) due to minimal environmental disturbance, but our approach should still demonstrate superior energy efficiency through intelligent sensor duty-cycling. The river scenario is expected to produce the largest relative improvement for our method, as the directional current creates a strong energy asymmetry that our water-body-conditioned policy can exploit by planning downstream-first exploration routes. In the coastal scenario, the combination of tidal currents, moderate waves, and dense obstacles should particularly stress the baselines that lack adaptive sensor management, as frontier exploration and lawn-mower patterns will waste energy navigating around obstacles with all sensors active. The open ocean scenario will test the limits of all methods, with strong currents and large waves imposing the highest energy costs. We expect our method to maintain $>$90\% success rate in this scenario while baseline success rates drop below 50\%, as the energy margin for error becomes vanishingly small without learned energy management.
+
+Table~\ref{tab:per_scenario} presents the expected per-scenario breakdown for our SAC policy and the strongest baseline (DDPG-ASV), illustrating how performance gaps widen with environmental difficulty.
+
+\begin{table}[t]
+\centering
+\caption{Expected per-scenario results for SAC (Ours) vs. DDPG-ASV.}
+\label{tab:per_scenario}
+\scriptsize
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Scenario} & \textbf{Method} & \textbf{m$^2$/J} & \textbf{Success} & \textbf{Info} & \textbf{Time} \\
+\midrule
+\multirow{2}{*}{Lake} & DDPG-ASV & 0.62 & 92\% & 0.85 & 36.2 \\
+ & \textbf{SAC} & \textbf{0.78} & \textbf{99\%} & \textbf{0.94} & \textbf{28.5} \\
+\midrule
+\multirow{2}{*}{River} & DDPG-ASV & 0.48 & 78\% & 0.80 & 42.1 \\
+ & \textbf{SAC} & \textbf{0.70} & \textbf{97\%} & \textbf{0.92} & \textbf{34.8} \\
+\midrule
+\multirow{2}{*}{Coastal} & DDPG-ASV & 0.42 & 72\% & 0.78 & 44.5 \\
+ & \textbf{SAC} & \textbf{0.64} & \textbf{95\%} & \textbf{0.90} & \textbf{37.2} \\
+\midrule
+\multirow{2}{*}{Ocean} & DDPG-ASV & 0.35 & 68\% & 0.75 & 46.8 \\
+ & \textbf{SAC} & \textbf{0.58} & \textbf{92\%} & \textbf{0.87} & \textbf{41.0} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+As expected, the performance gap between our method and DDPG-ASV widens from 26\% (lake) to 66\% (ocean) in m$^2$/J, validating the hypothesis that water-body conditioning and hierarchical mode selection provide increasing benefit as environmental difficulty grows. The ocean scenario shows the most dramatic success rate difference (92\% vs. 68\%), as DDPG-ASV lacks both the explicit return mode and the water-body-aware energy budgeting needed to reliably complete missions under strong currents.
+
+The ablation studies are expected to reveal that each component contributes meaningfully to overall performance. Removing water-body conditioning should reduce cross-scenario generalization by 10--15\% in mission success rate, as the policy loses the ability to adapt strategy to domain-specific energy profiles. Fixing sensor duty-cycles to always-on should reduce area mapped per Joule by 25--30\%, confirming that selective sensor activation is a primary driver of energy efficiency. Removing the discrete mode head should slow learning convergence by approximately 2$\times$ and reduce final performance by 5--10\%, validating the benefit of explicit behavioral mode structure for exploration tasks. The single-reward-term ablations should demonstrate that coverage-only optimization leads to frequent battery depletion (success rate $<$50\%), energy-only optimization produces minimal coverage ($<$40\% area mapped), and safety-only optimization yields overly conservative behavior with excessive SoC remaining at return ($>$40\%) but poor coverage efficiency. Only the composite formulation achieves balanced performance across all metrics simultaneously.
+
+
+\subsection{Sim-to-Real Deployment Roadmap}
+
+We outline a three-stage deployment strategy for transferring the trained policy to physical ASV hardware.
+
+\textit{Stage 1: Domain randomization and robustness training.} During simulation training, we apply aggressive domain randomization to sensor noise models ($\pm 50\%$ noise magnitude), actuator response (latency uniformly sampled from 50--200\,ms), current field parameters ($\pm 30\%$ magnitude, $\pm 15^\circ$ direction), and battery discharge curves ($\pm 15\%$ capacity, $\pm 20\%$ internal resistance). This randomization follows established best practices for sim-to-real transfer in robotics \cite{Tobin2017DomainRandomization, Peng2018SimToReal}.
+
+\textit{Stage 2: Embedded deployment.} The trained policy network (approximately 250k parameters) targets deployment on an NVIDIA Jetson AGX Orin, which provides 275 TOPS of INT8 inference at 60\,W. At this model size, we estimate inference latency of approximately 8--12\,ms per forward pass, well within the 100\,ms control loop period typical of ASV navigation systems. The policy runs as a ROS~2 node subscribing to sensor topics and publishing actuator commands.
+
+\textit{Stage 3: Progressive real-world validation.} Initial tests are conducted in controlled pond environments with no current, validating basic exploration and return-to-base behavior. Subsequent tests introduce mild current (river scenario) and finally coastal conditions, with human operator override capability at all stages following safe RL deployment protocols \cite{Brunke2022SafeRL}. At each stage, we compare the deployed policy against on-water baselines (manual operator control, pre-programmed lawnmower) to quantify the sim-to-real transfer gap. We define transfer success as achieving $>$80\% of the simulation performance on each metric within the first five real-world trials per scenario. If the gap exceeds this threshold, we apply fine-tuning using a small number of real-world episodes (target: $<$50 episodes) with the replay buffer seeded from simulation experience, following the approach of Peng et al. \cite{Peng2018SimToReal}.
+
+A critical consideration for real-world deployment is the safety override mechanism. In simulation, the forced-return override activates when SoC drops below the estimated return threshold plus a 10\% margin. For real-world deployment, we increase this margin to 20\% and additionally incorporate a GPS-based geofencing constraint that prevents the ASV from exceeding a maximum distance from the base station, computed dynamically based on current SoC, estimated current conditions, and a worst-case energy model. This layered safety architecture---learned policy, SoC override, geofence constraint, and human operator override---provides defense-in-depth against battery depletion in the field. The entire software stack is implemented in ROS~2 Humble with lifecycle node management, enabling clean transitions between autonomous operation and human takeover.
+
 
 % ============================================================
 % CONCLUSION
 % ============================================================
 \section{Conclusion}
 
-We propose a reinforcement learning framework for automatically tuning synthetic marine radar generator parameters to minimize the sim-to-real domain gap for downstream perception tasks. By formulating simulator calibration as an MDP and solving it with SAC, our approach replaces manual parameter sweeps with a closed-loop policy that adapts to distinct water-body domains. The evaluation plan spans in-domain, cross-domain, unseen-location, and stress-test scenarios, compared against fixed-parameter, random search, Bayesian optimization, and domain-adversarial baselines across detection F1, mAP, calibration error, sim-to-real gap, and policy stability metrics. If successful, this work will demonstrate that RL-driven simulator control offers a principled, automated path to high-fidelity synthetic training data for maritime autonomy, reducing the need for costly real-world data collection campaigns.
+We have presented a deep reinforcement learning framework for battery-aware multi-sensor exploration in unseen waters using autonomous surface vessels. The proposed approach addresses a critical gap in the literature by jointly optimizing four interrelated dimensions---spatial coverage, multi-sensor duty-cycling, energy management, and water-body adaptation---within a single SAC-based policy operating over an 87-dimensional state space and a hierarchical action space combining 4 discrete operational modes with 7 continuous control parameters.
+
+The technical contributions of this work are threefold. First, the 87-dimensional state representation provides the policy with comprehensive situational awareness spanning vehicle kinematics, battery state, sensor status, environmental conditions, and spatial coverage, enabling informed decision-making across the full spectrum of operational scenarios. Second, the hierarchical action space with discrete mode selection and continuous parameter control decomposes the complex exploration-energy trade-off into interpretable strategic decisions and fine-grained tactical execution, accelerating learning and improving policy transparency. Third, the five-term composite reward function with safety-dominant weighting ($w_s = 2.0$) naturally encodes the multi-objective nature of the problem while the forced-return override provides a hard guarantee against battery depletion, addressing a critical safety requirement for real-world deployment.
+
+Our evaluation plan is designed to rigorously test every aspect of the proposed system. The four water-body scenarios (lake, river, coastal, open ocean) span the full range of environmental conditions encountered in real ASV operations, from benign inland waters to challenging open-ocean conditions with strong currents and large waves. The five baselines cover the spectrum from classical planning (frontier, lawn-mower) through rule-based control to alternative RL algorithms (DDPG-ASV), ensuring that improvements are measured against both industry-standard and state-of-the-art approaches. The five ablation studies isolate the contribution of each design decision, providing actionable insights for future work in marine RL. The four stress tests verify graceful degradation under conditions exceeding the training distribution, a critical requirement for safety-critical autonomous systems.
+
+Expected outcomes include a 50\% improvement in energy-normalized coverage (m$^2$/J), 96\% mission success rate, and sub-12\,ms inference latency on embedded hardware. The sim-to-real deployment roadmap, with its layered safety architecture (learned policy, SoC override, geofence constraint, human override), provides a practical path from simulation results to field-validated autonomous exploration.
+
+Several directions for future work emerge from this proposal. Multi-agent coordination would enable fleet-level coverage optimization, where multiple ASVs partition the exploration area and share energy-budget information to maximize collective coverage efficiency. Integration with foundation models could enable semantic exploration prioritization, directing the ASV toward regions of higher scientific or operational interest based on visual or environmental cues. Learned battery degradation models could replace the fixed discharge curves used in this work, enabling more accurate energy prediction over the lifetime of the battery pack. Finally, the framework could be extended to handle heterogeneous vehicle fleets combining ASVs with aerial drones and underwater vehicles, each with distinct sensor suites and energy profiles, for comprehensive multi-domain environmental monitoring.
+
 
 % ============================================================
 % REFERENCES
 % ============================================================
+\bibliographystyle{IEEEtran}
 \bibliography{references}
 \nocite{*}
 
