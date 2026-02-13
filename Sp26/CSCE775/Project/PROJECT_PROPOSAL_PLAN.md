@@ -1,7 +1,7 @@
 # CSCE 775 Project Proposal Ideation Plan (Radar-First, High Ambition)
 
 ## Brief Summary
-By Friday, February 13, 2026, produce 3 polished proposal concepts aligned with the course rubric, centered on deep RL and available assets (separate marine radar logs, IR/RGB logs, 2 servers with 4x RTX 6000 Ada each). Primary recommendation: choose a radar sim-to-real RL core, with sensor fusion as a phase-2 extension.
+By Friday, February 13, 2026, produce 4 polished proposal concepts aligned with the course rubric, centered on deep RL and available assets (separate marine radar logs, IR/RGB logs, 2 servers with 4x RTX 6000 Ada each). Primary recommendation: choose a radar sim-to-real RL core, with sensor fusion as a phase-2 extension. Concept 4 offers a lower-risk replication-plus-extension path based on a recent CVPR 2025 paper.
 
 ## Decision-Complete Proposal Concepts
 
@@ -56,6 +56,35 @@ By Friday, February 13, 2026, produce 3 polished proposal concepts aligned with 
 - Major risk:
   - Integration complexity likely too high for core semester scope unless simplified simulator exists.
 
+## 4) Low-Risk Replication + Extension: RL-Optimized Point Prompts for Interactive Segmentation
+- Goal: replicate and extend Plug-and-Play PPO (Liu et al., CVPR 2025), which trains an RL agent to iteratively place point prompts that maximize SAM segmentation quality.
+- Reference: Liu, X., Wang, R., Lai, Y., Shi, G., Shao, F., Hao, F., ... & Zheng, W. (2025). Plug-and-Play PPO: An Adaptive Point Prompt Optimizer Making SAM Greater. CVPR 2025, pp. 4332-4342.
+- Code: https://github.com/XueyuLiu/PPO
+- Core RL framing (from paper):
+  - State: image features + current segmentation mask + dual-space heterogeneous graph encoding.
+  - Action: point coordinates and labels (positive/negative prompts).
+  - Reward: IoU / Dice score improvement over current segmentation.
+  - Policy: PPO-trained policy network that iteratively refines prompt distribution.
+- Why this fits: clean RL formulation, published codebase, standard datasets, low integration risk.
+- Novelty angle (proposed extensions, pick 1-2):
+  1. Algorithm comparison: replace PPO with SAC or TD3 (continuous action space for point coordinates) and compare sample efficiency and final performance.
+  2. Domain transfer: apply trained prompt optimizer to a new domain (marine IR/RGB imagery, satellite imagery, or medical imaging not in the original evaluation).
+  3. SAM 2 extension: adapt the prompt optimizer for video segmentation with SAM 2, where temporal consistency matters.
+  4. Reward shaping: boundary-weighted IoU or class-balanced rewards to improve performance on thin structures or rare classes.
+- Baselines:
+  - Manual point prompts (center-of-mass, random).
+  - Grid-based prompt placement.
+  - Original PPO paper results (direct replication).
+  - Non-RL prompt selection (greedy heuristic, Bayesian optimization).
+- Evaluation:
+  - Datasets: Pascal VOC, FSS-1000, KVASIR-SEG (from original paper), plus extension domain.
+  - Metrics: IoU, Dice coefficient, number of prompts to reach target quality, inference time.
+  - Ablations: with/without dual-space graph, different RL algorithms, reward function variants.
+- Risks + fallback:
+  - Low risk overall due to existing codebase and standard benchmarks.
+  - If extension domain lacks labels, use pseudo-labels from SAM with manual verification on a small subset.
+  - Fallback: pure replication with thorough ablation study still satisfies course requirements.
+
 ## RL Method Choice (Beginner-Friendly Defaults)
 - Default for Concepts 1/2: off-policy continuous-control RL (SAC first, TD3 backup).
 - Why:
@@ -72,7 +101,8 @@ By Friday, February 13, 2026, produce 3 polished proposal concepts aligned with 
   - Concept 1: `delta_theta`
   - Concept 2: transform/augmentation selection
   - Concept 3: navigation + sensor scheduling command
-- `Reward r_t`: task gain terms, realism terms, and optional energy penalty.
+  - Concept 4: point coordinates `(x, y)` + label (positive/negative)
+- `Reward r_t`: task gain terms, realism terms, and optional energy penalty (Concepts 1-3); IoU/Dice delta (Concept 4).
 - Data split contract:
   - train/val/test separated by location and environment to prevent leakage.
 
@@ -102,4 +132,4 @@ By Friday, February 13, 2026, produce 3 polished proposal concepts aligned with 
 - Labels: environment-type labels available; no object-level labels.
 - Fusion scope: phase-2 extension, not core requirement for primary proposal.
 - Novelty preference: mostly novel method.
-- Default recommendation: pursue Concept 1 as primary submission, keep Concept 2 as backup/extension, and frame Concept 3 as long-horizon stretch.
+- Default recommendation: pursue Concept 1 as primary submission, keep Concept 2 as backup/extension, frame Concept 3 as long-horizon stretch, and consider Concept 4 as the safest fallback (replication + extension with existing code and data).
