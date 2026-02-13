@@ -7,7 +7,7 @@
 
 ---
 
-With over 106 different minors, USC has a large number of diverse and interesting options for students to choose from. However, analysis of five years of grade spread data reveals a troubling reality. Eleven of these minors cannot be completed because required courses have never been offered. Another 16 minors have required courses offered less than 30 percent of the time. Across all minors, 17 courses are "ghost courses" that never appear in teaching schedules. Another 42 are "zombie courses" offered less than once every five semesters. Students are signing up for degree requirements that do not exist.
+With over 106 different minors, USC has a large number of diverse and interesting options for students to choose from. However, analysis of five years of grade spread data reveals a troubling reality. Eleven of these minors cannot be completed because required courses have never been offered. Another 16 minors have required courses offered less than 30 percent of the time. Across all minors, 17 courses have never appeared in teaching schedules. Another 42 are offered less than once every five semesters. Students are signing up for degree requirements that do not exist.
 
 The Audio Recording Minor illustrates this problem starkly. USC's bulletin lists six required courses. But grade spread data from 18 semesters reveals the gap between what is advertised and what exists. One required course, MUSC 571 (Digital Audio Technology), has never been offered in five years. Zero semesters.
 
@@ -17,7 +17,7 @@ The Audio Recording Minor is not an outlier. It is the pattern. The [professiona
 
 Ten more minors face the same problem. These programs exist in catalogs. Students declare them. But required courses do not exist in teaching schedules.
 
-The scope of this problem extends systematically across the minor system. Analysis reveals 17 ghost courses never offered and 42 zombie courses offered less than 30 percent of the time. Additionally, 39 minors face critical risk and 35 more face high risk due to course scarcity.
+The scope of this problem extends systematically across the minor system. Analysis reveals 17 courses never offered and 42 courses offered less than 30 percent of the time. Additionally, 39 minors face critical risk and 35 more face high risk due to course scarcity.
 
 Some departments are particularly affected. Foreign Language Education relies on FORL courses never offered. Jewish Studies requires courses never offered. Arabic Studies courses are offered only 15.6 percent of the time.
 
