@@ -7,7 +7,7 @@
 
 ---
 
-With over 106 different minors, USC has a large number of diverse and interesting options for students to choose from. However, analysis of five years of grade spread data reveals a troubling reality. Eleven of these minors cannot be completed because required courses have never been offered. Another 16 minors have required courses offered less than 30 percent of the time. Across all minors, 17 courses are ["ghost courses"](https://medium.com/@hcomottercsumb/a-catalog-without-accountability-inside-csumbs-course-confusion-d17f30e9cb70) that never appear in teaching schedules. Another 42 are ["zombie courses"](https://medium.com/@hcomottercsumb/a-catalog-without-accountability-inside-csumbs-course-confusion-d17f30e9cb70) offered less than once every five semesters. Students are signing up for degree requirements that do not exist.
+With over 106 different minors, USC has a large number of diverse and interesting options for students to choose from. However, analysis of five years of grade spread data reveals a troubling reality. Eleven of these minors cannot be completed because required courses have never been offered. Another 16 minors have required courses offered less than 30 percent of the time. Across all minors, 17 courses are "ghost courses" that never appear in teaching schedules. Another 42 are "zombie courses" offered less than once every five semesters. Students are signing up for degree requirements that do not exist.
 
 The Audio Recording Minor illustrates this problem starkly. USC's bulletin lists six required courses. But grade spread data from 18 semesters reveals the gap between what is advertised and what exists. One required course, MUSC 571 (Digital Audio Technology), has never been offered in five years. Zero semesters.
 
