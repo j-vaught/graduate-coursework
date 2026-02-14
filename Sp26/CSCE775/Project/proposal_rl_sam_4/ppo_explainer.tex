@@ -55,7 +55,7 @@ This document provides a detailed technical walkthrough of the Plug-and-Play Pro
 
 The Segment Anything Model (SAM) produces high-quality segmentation masks but requires user-provided \textit{prompts}: point coordinates labeled as positive (``segment here'') or negative (``not here''). The quality of SAM's output is extremely sensitive to prompt placement. Moving a single point by a few pixels can change the mask from a tight object boundary to a background region covering 87\% of the image.
 
-\textbf{One-shot segmentation} aims to segment an object in a new \textit{target} image given only a single \textit{reference} image with a ground-truth mask. The challenge is automatically generating effective SAM prompts for the target image without any manual intervention or model retraining.
+The goal of \textit{one-shot segmentation} is to segment an object in a new \textit{target} image given only a single \textit{reference} image with a ground-truth mask. The challenge is automatically generating effective SAM prompts for the target image without any manual intervention or model retraining.
 
 Figure~\ref{fig:sensitivity} demonstrates the prompt sensitivity problem on a real underwater image. In the first panel, prompts placed on the coral cause SAM to select the wrong object entirely, segmenting the background instead of the fish. The second panel shows the optimal case: a single well-placed positive prompt produces a near-perfect mask of the blue tang. The third panel illustrates that over-prompting can be counterproductive --- too many positive and negative points cause SAM to lock onto the wrong regions, such as the black markings on the fish rather than the full body.
 
@@ -209,11 +209,11 @@ Figure~\ref{fig:graph_detail} traces this process with real pipeline outputs. In
 
 The graph is wrapped in a reinforcement learning environment (\texttt{GraphOptimizationEnv}) with the following interface.
 
-\textbf{State.} The current graph $G = (V, E)$ with whatever nodes remain after agent actions. This is a NetworkX MultiGraph object.
+The state is the current graph $G = (V, E)$ with whatever nodes remain after agent actions, represented as a NetworkX MultiGraph object.
 
-\textbf{Reset.} On each episode start, \textit{all nodes are removed} from the graph and placed in a ``removed'' set. The agent begins with an empty graph and must actively restore nodes. This makes the agent's task fundamentally one of \textbf{subset selection}: choosing which of the 1,447 candidate nodes to include.
+On each episode start, \textit{all nodes are removed} from the graph and placed in a ``removed'' set. The agent begins with an empty graph and must actively restore nodes. This makes the agent's task fundamentally one of \textit{subset selection}: choosing which of the 1,447 candidate nodes to include.
 
-\textbf{Actions.} The agent can perform five types of actions at each step.
+The agent can perform five types of actions at each step.
 
 \begin{table}[H]
 \centering
@@ -232,9 +232,9 @@ The graph is wrapped in a reinforcement learning environment (\texttt{GraphOptim
 \end{tabular*}
 \end{table}
 
-\textbf{Episode length.} Fixed at $T = 100$ steps per episode.
+Each episode is fixed at $T = 100$ steps.
 
-\textbf{Constraints.} The environment enforces $5 \leq |\text{pos nodes}| \leq 20$ and $5 \leq |\text{neg nodes}| \leq 20$. If positive node count hits the minimum, only \texttt{restore\_pos} actions are available. If it hits the maximum, only \texttt{remove\_pos} is available. The same logic applies to negative nodes. Additionally, \texttt{remove\_pos} and \texttt{remove\_neg} action lists are subsampled to match lengths, ensuring balanced removal probability between the two categories.
+The environment enforces $5 \leq |\text{pos nodes}| \leq 20$ and $5 \leq |\text{neg nodes}| \leq 20$. If positive node count hits the minimum, only \texttt{restore\_pos} actions are available. If it hits the maximum, only \texttt{remove\_pos} is available. The same logic applies to negative nodes. Additionally, \texttt{remove\_pos} and \texttt{remove\_neg} action lists are subsampled to match lengths, ensuring balanced removal probability between the two categories.
 
 \subsection{Reward Function}
 
@@ -281,20 +281,20 @@ where $\text{sgn}^{-}(\Delta) = \bar{d}^{(t-1)} - \bar{d}^{(t)}$ (rewards \texti
 
 Figure~\ref{fig:reward} summarizes the reward components. Five graph statistics are tracked after every action. Feature-space objectives (top two) are weighted $5\times$ more than physical-space ones (bottom three). An add-node action incurs a flat $-10$ penalty.
 
-\textbf{Intuition behind the reward design.} The reward encourages a prompt set where (1) positive prompts are semantically coherent --- they should all represent the target object in DINOv2 feature space, (2) positive and negative prompts are semantically distinct --- foreground vs.\ background should be easily distinguishable, (3) prompts are spatially well-distributed across the image for coverage, and (4) negative prompts lie near the object boundary to help SAM delineate edges. The feature-space objectives receive $5\times$ weight because semantic correctness is more important than spatial arrangement.
+The intuition behind this reward design is that it encourages a prompt set where (1) positive prompts are semantically coherent --- they should all represent the target object in DINOv2 feature space, (2) positive and negative prompts are semantically distinct --- foreground vs.\ background should be easily distinguishable, (3) prompts are spatially well-distributed across the image for coverage, and (4) negative prompts lie near the object boundary to help SAM delineate edges. The feature-space objectives receive $5\times$ weight because semantic correctness is more important than spatial arrangement.
 
 \subsection{Q-Learning Agent}
 
 Despite the repository name ``PPO,'' the actual algorithm is \textbf{tabular Q-learning with experience replay}. There is no neural network policy, no clipping objective, and no advantage estimation. The name ``PPO'' refers to ``Plug-and-Play Optimization,'' not the RL algorithm.
 
-\textbf{Q-table.} A Python \texttt{defaultdict(float)} mapping $(s, a)$ pairs to scalar Q-values. The state key $s$ is the graph object reference; actions $a$ are tuples like $(\texttt{node\_id}, \texttt{"restore\_pos"})$.
+The Q-table is a Python \texttt{defaultdict(float)} mapping $(s, a)$ pairs to scalar Q-values. The state key $s$ is the graph object reference; actions $a$ are tuples like $(\texttt{node\_id}, \texttt{"restore\_pos"})$.
 
-\textbf{Update rule} (standard Q-learning with learning rate $\alpha = 0.1$ and discount factor $\gamma = 0.9$):
+The update rule follows standard Q-learning with learning rate $\alpha = 0.1$ and discount factor $\gamma = 0.9$:
 \begin{align}
 Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]
 \end{align}
 
-\textbf{Exploration schedule.} Epsilon-greedy action selection. Epsilon is reset at the start of each episode based on the best cumulative reward achieved so far.
+Action selection follows an epsilon-greedy exploration schedule. Epsilon is reset at the start of each episode based on the best cumulative reward achieved so far.
 \begin{align}
 \epsilon_{\text{init}} = \begin{cases}
 1.0 & \text{if } R_{\text{best}} < 0 \quad \text{(fully random)} \\
@@ -304,7 +304,7 @@ Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s,
 \end{align}
 Within each episode, $\epsilon$ decays multiplicatively by $0.995$ after every step, so over 100 steps it decreases by roughly $\epsilon \times 0.995^{100} \approx 0.61\epsilon$.
 
-\textbf{Experience replay.} A ring buffer stores up to 10,000 transitions $(s, a, r, s')$. After each step, a random mini-batch of 64 transitions is sampled and used for additional Q-table updates. When a new best episode reward is achieved, the current buffer is cloned as ``best memory'' and replayed to reinforce successful strategies.
+Experience replay uses a ring buffer that stores up to 10,000 transitions $(s, a, r, s')$. After each step, a random mini-batch of 64 transitions is sampled and used for additional Q-table updates. When a new best episode reward is achieved, the current buffer is cloned as ``best memory'' and replayed to reinforce successful strategies.
 
 \begin{table}[H]
 \centering
