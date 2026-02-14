@@ -57,15 +57,6 @@ The Segment Anything Model (SAM) produces high-quality segmentation masks but re
 
 \textbf{One-shot segmentation} aims to segment an object in a new \textit{target} image given only a single \textit{reference} image with a ground-truth mask. The challenge is automatically generating effective SAM prompts for the target image without any manual intervention or model retraining.
 
-Figure~\ref{fig:problem} shows the full pipeline architecture. A single labeled reference example feeds into frozen DINOv2 ViT-G/14, which extracts 1536-dim patch features for both reference and target images. These features construct a dual-space heterogeneous graph (${\sim}$2M edges, 5 types), on which a tabular Q-learning agent optimizes prompt selection via graph-statistic rewards without ever calling SAM. The final Q-table is decoded into $(x,y)$ point prompts fed to frozen SAM ViT-B, which segments the target image in a single forward pass.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\textwidth]{fig_pipeline_highlevel.pdf}
-\caption{Full PPO pipeline architecture.}
-\label{fig:problem}
-\end{figure}
-
 Figure~\ref{fig:sensitivity} demonstrates the prompt sensitivity problem on a real underwater image. In the first panel, prompts placed on the coral cause SAM to select the wrong object entirely, segmenting the background instead of the fish. The second panel shows the optimal case: a single well-placed positive prompt produces a near-perfect mask of the blue tang. The third panel illustrates that over-prompting can be counterproductive --- too many positive and negative points cause SAM to lock onto the wrong regions, such as the black markings on the fish rather than the full body.
 
 \begin{figure}[H]
@@ -79,7 +70,16 @@ Figure~\ref{fig:sensitivity} demonstrates the prompt sensitivity problem on a re
 \section{Pipeline Overview}
 % ============================================================
 
-The PPO pipeline has three stages executed sequentially. Figure~\ref{fig:problem} provides the high-level dataflow. The remaining figures in this document detail each stage individually. Figure~\ref{fig:dino_detail} shows how DINOv2 extracts and matches patch-level features between the reference and target images. Figure~\ref{fig:dsh_internals} illustrates the dual-space heterogeneous graph structure with its five edge types spanning feature space and physical space. Figure~\ref{fig:graph_detail} traces the graph construction and Q-learning optimization process using real pipeline outputs. Figure~\ref{fig:qlearning_mdp} diagrams the Q-learning MDP loop that drives prompt selection.
+The PPO pipeline has three stages executed sequentially. Figure~\ref{fig:problem} shows the full pipeline architecture. A single labeled reference example feeds into frozen DINOv2 ViT-G/14, which extracts 1536-dim patch features for both reference and target images. These features construct a dual-space heterogeneous graph (${\sim}$2M edges, 5 types), on which a tabular Q-learning agent optimizes prompt selection via graph-statistic rewards without ever calling SAM. The final Q-table is decoded into $(x,y)$ point prompts fed to frozen SAM ViT-B, which segments the target image in a single forward pass.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig_pipeline_highlevel.pdf}
+\caption{Full PPO pipeline architecture.}
+\label{fig:problem}
+\end{figure}
+
+The remaining figures in this document detail each stage individually. Figure~\ref{fig:dino_detail} shows how DINOv2 extracts and matches patch-level features between the reference and target images. Figure~\ref{fig:dsh_internals} illustrates the dual-space heterogeneous graph structure with its five edge types spanning feature space and physical space. Figure~\ref{fig:graph_detail} traces the graph construction and Q-learning optimization process using real pipeline outputs. Figure~\ref{fig:qlearning_mdp} diagrams the Q-learning MDP loop that drives prompt selection.
 
 % ============================================================
 \section{Step 1: DINOv2 Feature Matching}
