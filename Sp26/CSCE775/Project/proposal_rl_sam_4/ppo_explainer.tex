@@ -57,19 +57,21 @@ The Segment Anything Model (SAM) produces high-quality segmentation masks but re
 
 \textbf{One-shot segmentation} aims to segment an object in a new \textit{target} image given only a single \textit{reference} image with a ground-truth mask. The challenge is automatically generating effective SAM prompts for the target image without any manual intervention or model retraining.
 
+Figure~\ref{fig:problem} shows the full pipeline architecture. A single labeled reference example feeds into frozen DINOv2 ViT-G/14, which extracts 1536-dim patch features for both reference and target images. These features construct a dual-space heterogeneous graph (${\sim}$2M edges, 5 types), on which a tabular Q-learning agent optimizes prompt selection via graph-statistic rewards without ever calling SAM. The final Q-table is decoded into $(x,y)$ point prompts fed to frozen SAM ViT-B, which segments the target image in a single forward pass.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_pipeline_highlevel.pdf}
-\caption{Full PPO pipeline architecture. A single labeled reference example feeds into frozen DINOv2 ViT-G/14, which extracts 1536-dim patch features for both reference and target images. These features are used to construct a dual-space heterogeneous graph (${\sim}$2M edges, 5 types), on which a tabular Q-learning agent optimizes prompt selection via graph-statistic rewards without ever calling SAM. The final Q-table is decoded into $(x,y)$ point prompts fed to frozen SAM ViT-B, which segments the target image in a single forward pass.}
+\caption{Full PPO pipeline architecture.}
 \label{fig:problem}
 \end{figure}
 
-Figure~\ref{fig:sensitivity} demonstrates the prompt sensitivity problem on a real underwater image. The same SAM model produces drastically different masks depending on where points are placed.
+Figure~\ref{fig:sensitivity} demonstrates the prompt sensitivity problem on a real underwater image. The same SAM model produces drastically different masks depending on where points are placed. Different point placements on the same blue tang image produce masks ranging from 87\% of the image (background) to 4\% (tight fish segmentation). Green dots are positive prompts and red dots are negative prompts.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth, trim=0 0 0 80pt, clip]{figures/bluetang_fig1_prompt_sensitivity.png}
-\caption{SAM prompt sensitivity. Different point placements on the same blue tang image produce masks ranging from 87\% of the image (background) to 4\% (tight fish segmentation). Green dots are positive prompts, red dots are negative prompts.}
+\caption{SAM prompt sensitivity on the blue tang image.}
 \label{fig:sensitivity}
 \end{figure}
 
@@ -107,9 +109,11 @@ The center pixel of patch $i$ is at coordinates
 \draw[{Stealth}-{Stealth}, thick] (-0.3, 0) -- (-0.3, 5.6) node[midway, left, font=\footnotesize] {560 px};
 \draw[{Stealth}-{Stealth}, thick] (0, -0.3) -- (5.6, -0.3) node[midway, below, font=\footnotesize] {560 px};
 \end{tikzpicture}
-\caption{Patchification. The $560 \times 560$ image is divided into $40 \times 40 = 1{,}600$ patches of size $14 \times 14$ pixels. Each patch is assigned a 1D index used throughout the pipeline.}
+\caption{Patchification of the $560 \times 560$ input image into a $40 \times 40$ grid.}
 \label{fig:patches}
 \end{figure}
+
+Figure~\ref{fig:patches} illustrates this grid. Each of the $40 \times 40 = 1{,}600$ patches occupies $14 \times 14$ pixels and is assigned a 1D index used throughout the pipeline.
 
 \subsection{Foreground and Background Classification}
 
@@ -123,10 +127,12 @@ Both images are preprocessed with ImageNet normalization and passed through \tex
 \mathbf{F}^{\text{tgt}} &= \text{DINOv2}(I_{\text{tgt}}) \in \mathbb{R}^{1600 \times 1536}
 \end{align}
 
+Figure~\ref{fig:dino_detail} shows this process in detail. The reference image with its ground-truth mask and the target image are both passed through frozen DINOv2 ViT-G/14. PCA visualization of the 1536-dim patch features reveals that the model separates the fish from the coral background in feature space. Cosine similarity matching between reference foreground patches and all target patches produces initial positive prompt candidates.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_dino_detail.pdf}
-\caption{DINOv2 feature extraction and matching detail. The reference image with its ground-truth mask and the target image are both passed through frozen DINOv2 ViT-G/14. PCA visualization of the 1536-dim patch features reveals that the model separates the fish from the coral background in feature space. Cosine similarity matching between reference foreground patches and all target patches produces initial positive prompt candidates.}
+\caption{DINOv2 feature extraction and cosine matching pipeline with real outputs.}
 \label{fig:dino_detail}
 \end{figure}
 
@@ -139,10 +145,12 @@ For each foreground patch index $f_i \in \mathcal{F}$, the pipeline finds the ta
 
 This produces the \textbf{initial positive prompt indices} on the target image. The same process is applied to background patches $\mathcal{B}$ to get \textbf{initial negative prompt indices}. Any index appearing in both sets is removed from both to prevent contradictory prompts.
 
+Figure~\ref{fig:step1} shows the Step 1 output. The left panel displays DINOv2 feature-matched prompts on the target image (34 positive, 1413 negative). The right panel shows the SAM mask produced with these unoptimized prompts. The initial IoU with ground truth is only 0.001 because feature matching produces many false positive and negative prompt locations.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/ppo_step1_initial_mask.png}
-\caption{Step 1 output. Left: DINOv2 feature-matched prompts on the target image (34 positive, 1413 negative). Right: SAM mask produced with these unoptimized prompts. The initial IoU with ground truth is only 0.001 because feature matching produces many false positive and negative prompt locations.}
+\caption{Step 1 output: initial prompts (left) and resulting SAM mask (right), IoU = 0.001.}
 \label{fig:step1}
 \end{figure}
 
@@ -170,10 +178,12 @@ Each candidate prompt index becomes a \textbf{node} in a NetworkX MultiGraph, la
 
 The graph has \textbf{five distinct edge types}, each encoding pairwise distances between nodes in one of two spaces: DINOv2 feature space (semantic) or pixel coordinate space (physical). All distances are computed via L2 norm and then min-max normalized to $[0, 1]$.
 
+Figure~\ref{fig:dsh_internals} illustrates the dual-space structure. The left panel shows DINOv2 feature space, where positive nodes (foreground prompts) and negative nodes (background prompts) are connected by feature-distance edges encoding semantic similarity. The right panel shows physical pixel space, where the same nodes are connected by spatial-distance edges encoding geometric arrangement. Five edge types span both spaces: \texttt{feature\_pos}, \texttt{feature\_cross}, \texttt{physical\_pos}, \texttt{physical\_neg}, and \texttt{physical\_cross}.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_dsh_internals.pdf}
-\caption{Dual-space heterogeneous graph internals. The left panel shows DINOv2 feature space, where positive nodes (foreground prompts) and negative nodes (background prompts) are connected by feature-distance edges encoding semantic similarity. The right panel shows physical pixel space, where the same nodes are connected by spatial-distance edges encoding geometric arrangement. Five edge types span both spaces: \texttt{feature\_pos}, \texttt{feature\_cross}, \texttt{physical\_pos}, \texttt{physical\_neg}, and \texttt{physical\_cross}.}
+\caption{Dual-space heterogeneous graph: feature space (left) and physical space (right).}
 \label{fig:dsh_internals}
 \end{figure}
 
@@ -196,10 +206,12 @@ The graph has \textbf{five distinct edge types}, each encoding pairwise distance
 
 For our experiment with 34 positive and 1413 negative nodes, the fully-connected graph contains approximately \textbf{2,093,484 edges} across all five types. This is the primary computational bottleneck of the pipeline.
 
+Figure~\ref{fig:graph_detail} traces this process with real pipeline outputs. Initial positive and negative prompt candidates from Step 1 are used to build the dual-space heterogeneous graph. The Q-learning agent then optimizes prompt selection over 30 episodes, reducing 1,447 candidates to 26 optimized prompts (6 positive, 20 negative) that produce a high-quality SAM segmentation mask.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{fig_graph_detail.pdf}
-\caption{Graph-stage overview with real pipeline outputs. Initial positive and negative prompt candidates from Step 1 are used to build the dual-space heterogeneous graph. The Q-learning agent then optimizes prompt selection over 30 episodes, reducing 1,447 candidates to 26 optimized prompts (6 positive, 20 negative) that produce a high-quality SAM segmentation mask.}
+\caption{Graph stage: from initial prompts through Q-learning optimization to final output.}
 \label{fig:graph_detail}
 \end{figure}
 
@@ -273,9 +285,11 @@ where $\text{sgn}^{-}(\Delta) = \bar{d}^{(t-1)} - \bar{d}^{(t)}$ (rewards \texti
 \node[right=0.3cm of pc, font=\tiny\itshape, text=Horseshoe, text width=2.5cm, anchor=west] {Neg prompts near object boundary};
 
 \end{tikzpicture}
-\caption{Composite reward function. Five graph statistics are tracked after every action. Feature-space objectives (top two) are weighted $5\times$ more than physical-space ones (bottom three). An add-node action incurs a flat $-10$ penalty.}
+\caption{Composite reward function with five edge-statistic components.}
 \label{fig:reward}
 \end{figure}
+
+Figure~\ref{fig:reward} summarizes the reward components. Five graph statistics are tracked after every action. Feature-space objectives (top two) are weighted $5\times$ more than physical-space ones (bottom three). An add-node action incurs a flat $-10$ penalty.
 
 \textbf{Intuition behind the reward design.} The reward encourages a prompt set where (1) positive prompts are semantically coherent --- they should all represent the target object in DINOv2 feature space, (2) positive and negative prompts are semantically distinct --- foreground vs.\ background should be easily distinguishable, (3) prompts are spatially well-distributed across the image for coverage, and (4) negative prompts lie near the object boundary to help SAM delineate edges. The feature-space objectives receive $5\times$ weight because semantic correctness is more important than spatial arrangement.
 
@@ -327,10 +341,12 @@ Min/Max nodes per category & 5 / 20 \\
 
 Each training episode proceeds as follows.
 
+Figure~\ref{fig:qlearning_mdp} diagrams the MDP loop. The agent starts with an empty graph each episode and takes 100 actions (restore/remove positive or negative nodes) to build up a prompt set. At each step, the environment computes a reward from changes in mean edge weights across five graph statistics. The Q-table maps (state, action) pairs to values and is updated via standard Q-learning with experience replay. The best Q-table is saved when a new best cumulative reward is achieved.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{fig_qlearning.pdf}
-\caption{Q-learning MDP loop. The agent starts with an empty graph each episode and takes 100 actions (restore/remove positive or negative nodes) to build up a prompt set. At each step, the environment computes a reward from changes in mean edge weights across five graph statistics. The Q-table maps (state, action) pairs to values and is updated via standard Q-learning with experience replay. The best Q-table is saved when a new best cumulative reward is achieved.}
+\caption{Q-learning MDP loop for prompt subset selection.}
 \label{fig:qlearning_mdp}
 \end{figure}
 
@@ -388,9 +404,11 @@ We tested the pipeline on a public-domain underwater photograph of a Pacific blu
 \includegraphics[width=\textwidth]{figures/bluetang_gt_tight_fish_mask.png}
 \caption{Binary GT mask}
 \end{subfigure}
-\caption{Blue tang test case. The GT mask covers only the fish body ($\sim$4\% of image area), requiring precise prompt placement for SAM to segment correctly.}
+\caption{Blue tang test case: input image, ground truth overlay, and binary mask.}
 \label{fig:bluetang_setup}
 \end{figure}
+
+Figure~\ref{fig:bluetang_setup} shows the test case. The GT mask covers only the fish body ($\sim$4\% of image area), requiring precise prompt placement for SAM to segment correctly.
 
 \subsection{Quantitative Results}
 
@@ -412,19 +430,23 @@ Mask area & variable & $\sim$5\% & --- \\
 
 \subsection{Visual Comparison}
 
+Figure~\ref{fig:comparison} presents a four-panel comparison from the completed pipeline. From left to right: ground-truth mask, initial SAM mask with unoptimized prompts (IoU 0.001), optimized SAM mask after Q-learning (IoU 0.760), and difference overlay (red = initial only, green = optimized only, yellow = overlap).
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ppo_step3_comparison.png}
-\caption{Four-panel comparison from the completed pipeline. Left to right: ground-truth mask, initial SAM mask with unoptimized prompts (IoU 0.001), optimized SAM mask after Q-learning (IoU 0.760), and difference overlay (red = initial only, green = optimized only, yellow = overlap).}
+\caption{Four-panel comparison: GT, initial mask, optimized mask, and difference overlay.}
 \label{fig:comparison}
 \end{figure}
 
 \subsection{Training Dynamics}
 
+Figure~\ref{fig:training_curve} shows training rewards over 30 episodes. Negative spikes correspond to episodes where the agent triggered the add-node penalty ($-10$). The best Q-table is saved independently of per-episode performance.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/ppo_checkpoint_training_curve.png}
-\caption{Training rewards over 30 episodes. Negative spikes correspond to episodes where the agent triggered the add-node penalty ($-10$). The best Q-table is saved independently of per-episode performance.}
+\caption{Training rewards over 30 episodes.}
 \label{fig:training_curve}
 \end{figure}
 
@@ -432,10 +454,12 @@ Mask area & variable & $\sim$5\% & --- \\
 
 A separate checkpoint run saved the optimized mask at episodes 0 (pre-training), 1, 5, 10, 15, 20, 25, and 30.
 
+Figure~\ref{fig:iou_prog} plots IoU and mask area progression. The best IoU (0.638) was achieved at episode 5. Fluctuations reflect the high exploration rate ($\epsilon \approx 0.78$) with only 30 episodes. The separately saved ``best Q-table'' from the main run achieves IoU 0.760.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/ppo_iou_progression.png}
-\caption{IoU and mask area progression. The best IoU (0.638) was achieved at episode 5. Fluctuations reflect the high exploration rate ($\epsilon \approx 0.78$) with only 30 episodes. The separately saved ``best Q-table'' from the main run achieves IoU 0.760.}
+\caption{IoU and mask area progression over training episodes.}
 \label{fig:iou_prog}
 \end{figure}
 
@@ -458,9 +482,11 @@ A separate checkpoint run saved the optimized mask at episodes 0 (pre-training),
 \includegraphics[width=\textwidth]{figures/snapshot_ep030.png}
 \caption{Episode 30 (IoU: 0.372)}
 \end{subfigure}
-\caption{Segmentation snapshots during training. The agent finds a strong configuration by episode 5 but continues exploring due to high epsilon, causing IoU to fluctuate. The best configuration is saved separately via the best-reward checkpoint.}
+\caption{Segmentation snapshots at episodes 0, 5, and 30.}
 \label{fig:snapshots}
 \end{figure}
+
+Figure~\ref{fig:snapshots} shows segmentation snapshots during training. The agent finds a strong configuration by episode 5 but continues exploring due to high epsilon, causing IoU to fluctuate. The best configuration is saved separately via the best-reward checkpoint.
 
 \begin{table}[H]
 \centering
@@ -490,10 +516,12 @@ Best Q-table (main run) & \textbf{0.760} & $\sim$5\% & 6 / 20 \\
 
 To understand what DINOv2 ``sees'' in the image, we can visualize the patch-level features. Figure~\ref{fig:dino_features} shows the DINOv2 feature similarity map and PCA decomposition for the blue tang image, illustrating how the model distinguishes the fish from the coral background in feature space.
 
+Figure~\ref{fig:dino_features} visualizes these features. The model produces distinct feature representations for the fish body versus the coral background, which is what enables the feature-matching step and the graph-based reward to work effectively.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/bluetang_fig2_dino_features.png}
-\caption{DINOv2 feature visualization. The model produces distinct feature representations for the fish body versus the coral background, which is what enables the feature-matching step and the graph-based reward to work effectively.}
+\caption{DINOv2 PCA feature visualization and similarity map for the blue tang image.}
 \label{fig:dino_features}
 \end{figure}
 
