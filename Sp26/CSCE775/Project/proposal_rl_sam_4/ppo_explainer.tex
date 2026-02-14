@@ -1,513 +1,645 @@
-\documentclass[12pt]{article}
+\documentclass[11pt]{article}
+
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{tikz}
-\usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc, backgrounds, decorations.pathreplacing, patterns, shadows}
-\usepackage{xcolor}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, fit, calc, backgrounds, decorations.pathreplacing}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
 \usepackage{caption}
+\usepackage{subcaption}
 \usepackage{float}
 \usepackage{enumitem}
+\usepackage{xcolor}
 
 % Brand colors
 \definecolor{Garnet}{HTML}{73000A}
 \definecolor{Atlantic}{HTML}{466A9F}
 \definecolor{Congaree}{HTML}{1F414D}
-\definecolor{Horseshoe}{HTML}{65780B}
 \definecolor{Rose}{HTML}{CC2E40}
+\definecolor{Horseshoe}{HTML}{65780B}
+\definecolor{Grass}{HTML}{CED318}
 \definecolor{Honeycomb}{HTML}{A49137}
+\definecolor{LightGray}{HTML}{ECECEC}
 \definecolor{Black90}{HTML}{363636}
 \definecolor{Black70}{HTML}{5C5C5C}
 \definecolor{Black50}{HTML}{A2A2A2}
-\definecolor{Black30}{HTML}{C7C7C7}
-\definecolor{Black10}{HTML}{ECECEC}
 \definecolor{Sandstorm}{HTML}{FFF2E3}
-\definecolor{Grass}{HTML}{CED318}
 
-\title{\textbf{How Plug-and-Play PPO Works}\\[0.3em]
-\large RL-Based Point Prompt Optimization for SAM Segmentation}
-\author{Explainer for CSCE 775 Proposal 4}
-\date{}
+\hypersetup{colorlinks=true, linkcolor=Garnet, urlcolor=Atlantic, citecolor=Congaree}
+
+\title{
+\textbf{Plug-and-Play Prompt Optimization} \\[0.3em]
+\Large One-Shot Segmentation via Q-Learning on \\
+Dual-Space Heterogeneous Graphs \\[0.5em]
+\normalsize A Technical Explainer of the PPO Pipeline (Liu et al., CVPR 2025)
+}
+
+\author{J.C. Vaught}
+\date{February 2026}
 
 \begin{document}
 \maketitle
-\thispagestyle{empty}
+
+\begin{abstract}
+This document provides a detailed technical walkthrough of the Plug-and-Play Prompt Optimization (PPO) pipeline for one-shot image segmentation. The system combines DINOv2 feature matching, a dual-space heterogeneous graph representation, tabular Q-learning with experience replay, and the Segment Anything Model (SAM) to segment objects in unseen images given only a single reference example. We explain every component with mathematical formulations, architectural diagrams, and experimental results from a real underwater segmentation task (blue tang fish on coral reef), where the pipeline improved SAM mask IoU from 0.001 to 0.760 after 30 training episodes.
+\end{abstract}
+
+\tableofcontents
+\newpage
 
 % ============================================================
-% DIAGRAM 1: THE PROBLEM — PROMPT SENSITIVITY
+\section{Problem Statement}
 % ============================================================
-\section*{1. The Problem: SAM Is Sensitive to Where You Click}
 
-SAM (Segment Anything Model) can segment \textit{any} object in an image, but you have to tell it \textit{where} to look by giving it point prompts. The quality of the segmentation depends heavily on where those points are placed.
+The Segment Anything Model (SAM) produces high-quality segmentation masks but requires user-provided \textit{prompts}: point coordinates labeled as positive (``segment here'') or negative (``not here''). The quality of SAM's output is extremely sensitive to prompt placement. Moving a single point by a few pixels can change the mask from a tight object boundary to a background region covering 87\% of the image.
+
+\textbf{One-shot segmentation} aims to segment an object in a new \textit{target} image given only a single \textit{reference} image with a ground-truth mask. The challenge is automatically generating effective SAM prompts for the target image without any manual intervention or model retraining.
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
+    block/.style={draw, minimum width=2.8cm, minimum height=1.1cm, align=center, font=\small},
+    data/.style={draw, dashed, minimum width=2.4cm, minimum height=0.9cm, align=center, font=\small},
+    arr/.style={-{Stealth[length=3mm]}, thick},
     every node/.style={font=\small}
 ]
 
-% === LEFT PANEL: Bad prompts ===
-\node[font=\small\bfseries, color=Garnet] at (2.5, 4.5) {Bad Prompt Placement};
+% Row 1: Reference Image -> PPO Pipeline -> Target Image
+\node[data, fill=LightGray] (ref) {Reference\\Image};
+\node[block, fill=Garnet!10, right=1.8cm of ref] (pipeline) {\textbf{PPO}\\Pipeline};
+\node[data, fill=LightGray, right=1.8cm of pipeline] (target) {Target\\Image};
 
-% Image background
-\draw[thick, Black90, fill=Black10] (0,0) rectangle (5,4);
-\node[font=\tiny, Black50] at (0.5, 3.7) {Image};
+% Row 2: GT Mask (below ref), Optimized Prompts (below pipeline), SAM (below target)
+\node[data, fill=LightGray, below=0.8cm of ref] (gt) {GT Mask};
+\node[data, fill=Horseshoe!15, below=0.8cm of pipeline] (prompts) {Optimized\\Prompts};
+\node[block, fill=Atlantic!10, below=0.8cm of target] (sam) {SAM};
 
-% Fish object (irregular blob)
-\fill[Atlantic!30, draw=Atlantic, thick]
-    (1.0, 2.0) .. controls (1.5, 3.0) and (2.5, 3.2) ..
-    (3.5, 2.8) .. controls (4.2, 2.5) and (4.5, 2.0) ..
-    (4.0, 1.5) .. controls (3.5, 1.0) and (2.0, 0.8) ..
-    (1.0, 2.0);
-\node[font=\scriptsize, Atlantic] at (2.8, 2.0) {Fish};
+% Row 3: Output Mask (below SAM)
+\node[data, fill=Horseshoe!15, below=0.8cm of sam] (mask) {Output\\Mask};
 
-% Coral object
-\fill[Horseshoe!30, draw=Horseshoe, thick]
-    (0.3, 0.3) .. controls (0.5, 1.2) and (1.2, 1.5) ..
-    (1.8, 0.8) .. controls (1.5, 0.3) and (0.8, 0.2) ..
-    (0.3, 0.3);
-\node[font=\scriptsize, Horseshoe] at (1.0, 0.7) {Coral};
-
-% Bad prompt points (on wrong object / edge)
-\fill[Garnet] (0.8, 0.9) circle (4pt);
-\node[font=\tiny, Garnet, above] at (0.8, 1.0) {+};
-\fill[Garnet] (1.5, 2.8) circle (4pt);
-\node[font=\tiny, Garnet, above] at (1.5, 2.9) {+};
-
-% Bad mask result (dashed, wrong area)
-\draw[Garnet, very thick, dashed]
-    (0.2, 0.2) .. controls (0.5, 1.5) and (1.5, 3.2) ..
-    (2.0, 3.0) .. controls (2.5, 2.8) and (2.0, 0.5) ..
-    (0.2, 0.2);
-
-% Result label
-\node[font=\scriptsize, Garnet, fill=white, inner sep=2pt] at (2.5, 0.3) {Wrong mask!};
-
-
-% === RIGHT PANEL: Good prompts ===
-\node[font=\small\bfseries, color=Horseshoe] at (9.0, 4.5) {Good Prompt Placement};
-
-% Image background
-\draw[thick, Black90, fill=Black10] (6.5,0) rectangle (11.5,4);
-\node[font=\tiny, Black50] at (7.0, 3.7) {Image};
-
-% Fish object (same shape)
-\fill[Atlantic!30, draw=Atlantic, thick]
-    (7.5, 2.0) .. controls (8.0, 3.0) and (9.0, 3.2) ..
-    (10.0, 2.8) .. controls (10.7, 2.5) and (11.0, 2.0) ..
-    (10.5, 1.5) .. controls (10.0, 1.0) and (8.5, 0.8) ..
-    (7.5, 2.0);
-\node[font=\scriptsize, Atlantic] at (9.3, 2.0) {Fish};
-
-% Coral object
-\fill[Horseshoe!30, draw=Horseshoe, thick]
-    (6.8, 0.3) .. controls (7.0, 1.2) and (7.7, 1.5) ..
-    (8.3, 0.8) .. controls (8.0, 0.3) and (7.3, 0.2) ..
-    (6.8, 0.3);
-\node[font=\scriptsize, Horseshoe] at (7.5, 0.7) {Coral};
-
-% Good prompt points (well-placed on fish)
-\fill[Horseshoe] (8.5, 2.3) circle (4pt);
-\node[font=\tiny, Horseshoe, above] at (8.5, 2.4) {+};
-\fill[Horseshoe] (9.8, 2.2) circle (4pt);
-\node[font=\tiny, Horseshoe, above] at (9.8, 2.3) {+};
-\fill[Horseshoe] (9.0, 1.5) circle (4pt);
-\node[font=\tiny, Horseshoe, above] at (9.0, 1.6) {+};
-
-% Negative point (on coral, keeping it out)
-\fill[Rose] (7.5, 0.7) circle (4pt);
-\node[font=\tiny, Rose, below] at (7.5, 0.6) {$-$};
-
-% Good mask result (matches fish closely)
-\draw[Horseshoe, very thick, dashed]
-    (7.4, 1.9) .. controls (7.9, 3.1) and (9.1, 3.3) ..
-    (10.1, 2.9) .. controls (10.8, 2.6) and (11.1, 2.1) ..
-    (10.6, 1.4) .. controls (10.1, 0.9) and (8.4, 0.7) ..
-    (7.4, 1.9);
-
-% Result label
-\node[font=\scriptsize, Horseshoe, fill=white, inner sep=2pt] at (9.0, 0.3) {Correct mask!};
-
-% Arrow between panels
-\draw[-{Stealth[length=4mm]}, very thick, Garnet] (5.3, 2.0) -- node[above, font=\scriptsize] {Fix prompts} (6.2, 2.0);
+% Arrows
+\draw[arr] (ref.east) -- (pipeline.west);
+\draw[arr] (gt.east) -- (prompts.west);
+\draw[arr] (target.west) -- (pipeline.east);
+\draw[arr] (pipeline.south) -- (prompts.north);
+\draw[arr] (prompts.east) -- (sam.west);
+\draw[arr] (target.south) -- (sam.north);
+\draw[arr] (sam.south) -- (mask.north);
 
 \end{tikzpicture}
-\caption{\textbf{The core problem.} SAM needs point prompts (\textcolor{Horseshoe}{\textbf{+}} = foreground, \textcolor{Rose}{\textbf{--}} = background) to know what to segment. Badly placed prompts (left) produce wrong masks. Well-placed prompts (right) produce accurate masks. The question is: how do we \textit{automatically} find good prompt locations?}
+\caption{One-shot segmentation setup. Given a reference image with a ground-truth mask and a new target image, the PPO pipeline produces optimized SAM prompts that segment the same object class in the target.}
 \label{fig:problem}
 \end{figure}
 
-
-% ============================================================
-% DIAGRAM 2: THE REFERENCE-TARGET SETUP
-% ============================================================
-\section*{2. Step 1: Start with a Reference Image}
-
-The system begins with a \textit{reference image} where we already know the correct segmentation (ground truth mask). It uses this to find candidate prompt locations on a new \textit{target image}.
+Figure~\ref{fig:sensitivity} demonstrates the prompt sensitivity problem on a real underwater image. The same SAM model produces drastically different masks depending on where points are placed.
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    every node/.style={font=\small}
-]
-
-% === REFERENCE IMAGE ===
-\node[font=\small\bfseries, Black90] at (2.5, 5.0) {Reference Image (known mask)};
-\draw[thick, Black90, fill=Black10] (0, 0.5) rectangle (5, 4.5);
-
-% Star-shaped object (reference)
-\fill[Atlantic!40, draw=Atlantic, thick]
-    (2.5, 2.8) -- (2.8, 3.5) -- (3.5, 3.5) -- (3.0, 3.0) --
-    (3.3, 2.3) -- (2.5, 2.6) -- (1.7, 2.3) -- (2.0, 3.0) --
-    (1.5, 3.5) -- (2.2, 3.5) -- cycle;
-\node[font=\scriptsize, Atlantic] at (2.5, 2.9) {Object};
-
-% Ground truth mask overlay
-\draw[Horseshoe, very thick]
-    (2.5, 2.8) -- (2.8, 3.5) -- (3.5, 3.5) -- (3.0, 3.0) --
-    (3.3, 2.3) -- (2.5, 2.6) -- (1.7, 2.3) -- (2.0, 3.0) --
-    (1.5, 3.5) -- (2.2, 3.5) -- cycle;
-\node[font=\scriptsize, Horseshoe, fill=white, inner sep=1pt] at (2.5, 1.5) {Known mask};
-
-% Foreground patches highlighted
-\fill[Garnet!30] (2.2, 2.7) rectangle (2.8, 3.3);
-\fill[Garnet!30] (1.8, 3.0) rectangle (2.4, 3.6);
-\fill[Garnet!30] (2.8, 3.0) rectangle (3.4, 3.6);
-\node[font=\tiny, Garnet] at (2.5, 1.0) {Foreground patches};
-
-% === DINOv2 ARROW ===
-\draw[-{Stealth[length=4mm]}, very thick, Garnet] (5.3, 2.5) -- node[above, font=\scriptsize, text width=2cm, align=center] {DINOv2\\extracts\\features} (7.2, 2.5);
-
-% === TARGET IMAGE ===
-\node[font=\small\bfseries, Black90] at (9.5, 5.0) {Target Image (unknown mask)};
-\draw[thick, Black90, fill=Black10] (7.0, 0.5) rectangle (12.0, 4.5);
-
-% Similar star-shaped object (target, slightly different)
-\fill[Atlantic!25, draw=Atlantic!50, thick, dashed]
-    (9.5, 2.6) -- (9.9, 3.4) -- (10.7, 3.5) -- (10.1, 2.9) --
-    (10.5, 2.1) -- (9.5, 2.5) -- (8.5, 2.1) -- (8.9, 2.9) --
-    (8.3, 3.5) -- (9.1, 3.4) -- cycle;
-\node[font=\scriptsize, Atlantic!70] at (9.5, 2.7) {Object?};
-
-% Candidate prompt points from feature matching
-\fill[Horseshoe] (9.2, 3.0) circle (4pt);
-\fill[Horseshoe] (10.0, 3.1) circle (4pt);
-\fill[Horseshoe] (9.5, 2.4) circle (4pt);
-\fill[Horseshoe] (8.8, 2.8) circle (4pt);
-\fill[Horseshoe] (10.3, 2.7) circle (4pt);
-
-% Negative candidates
-\fill[Rose] (8.0, 1.5) circle (4pt);
-\fill[Rose] (11.0, 4.0) circle (4pt);
-\fill[Rose] (7.8, 3.8) circle (4pt);
-
-\node[font=\tiny, Horseshoe] at (9.5, 0.9) {Candidate + points (feature-matched)};
-\node[font=\tiny, Rose] at (9.5, 0.5) {Candidate -- points (background)};
-
-\end{tikzpicture}
-\caption{\textbf{Step 1: Feature matching.} DINOv2 extracts visual features from both images. Patches in the target image that are similar to foreground patches in the reference become candidate \textcolor{Horseshoe}{\textbf{+}} prompts. Dissimilar patches become candidate \textcolor{Rose}{\textbf{--}} prompts. But we have too many candidates --- which ones should we actually use?}
-\label{fig:reference_target}
+\includegraphics[width=\textwidth]{figures/bluetang_fig1_prompt_sensitivity.png}
+\caption{SAM prompt sensitivity. Different point placements on the same blue tang image produce masks ranging from 87\% of the image (background) to 4\% (tight fish segmentation). Green dots are positive prompts, red dots are negative prompts.}
+\label{fig:sensitivity}
 \end{figure}
 
-
 % ============================================================
-% DIAGRAM 3: THE DUAL-SPACE GRAPH
+\section{Pipeline Overview}
 % ============================================================
-\section*{3. Step 2: Build a Graph of Candidate Prompts}
 
-The candidate points are organized into a \textit{dual-space graph}. Each point becomes a node, and edges encode two types of relationships: how similar the points \textit{look} (feature space) and how far apart they \textit{are} (physical space).
+The PPO pipeline has three stages executed sequentially.
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-    pos/.style={circle, draw=Horseshoe, thick, fill=Horseshoe!20, minimum size=8mm, font=\scriptsize},
-    neg/.style={circle, draw=Rose, thick, fill=Rose!20, minimum size=8mm, font=\scriptsize},
-    every node/.style={font=\small}
-]
-
-% === FEATURE SPACE (LEFT) ===
-\node[font=\small\bfseries, Atlantic] at (3.0, 6.5) {Feature Space};
-\node[font=\scriptsize, Black70] at (3.0, 6.0) {(How similar do patches \textit{look}?)};
-
-% Positive nodes clustered together
-\node[pos] (p1) at (1.5, 4.5) {$+_1$};
-\node[pos] (p2) at (2.5, 5.0) {$+_2$};
-\node[pos] (p3) at (3.0, 4.2) {$+_3$};
-\node[pos] (p4) at (2.0, 3.5) {$+_4$};
-
-% Negative nodes far away
-\node[neg] (n1) at (4.5, 3.0) {$-_1$};
-\node[neg] (n2) at (5.0, 4.0) {$-_2$};
-
-% Feature edges (pos-pos: want SMALL distance = similar)
-\draw[Horseshoe, thick] (p1) -- node[above, font=\tiny] {close} (p2);
-\draw[Horseshoe, thick] (p2) -- (p3);
-\draw[Horseshoe, thick] (p3) -- (p4);
-\draw[Horseshoe, thick] (p1) -- (p4);
-
-% Feature edges (pos-neg: want LARGE distance = different)
-\draw[Rose, thick, dashed] (p3) -- node[above, font=\tiny, sloped] {far apart} (n1);
-\draw[Rose, thick, dashed] (p2) -- (n2);
-
-% Good/bad annotations
-\draw[decorate, decoration={brace, amplitude=5pt}, Horseshoe, thick]
-    (0.8, 5.3) -- (3.7, 5.3) node[midway, above=5pt, font=\scriptsize, Horseshoe] {Similar = good};
-\draw[decorate, decoration={brace, amplitude=5pt, mirror}, Rose, thick]
-    (3.3, 2.5) -- (5.5, 2.5) node[midway, below=5pt, font=\scriptsize, Rose] {Different = good};
-
-
-% === PHYSICAL SPACE (RIGHT) ===
-\node[font=\small\bfseries, Congaree] at (10.0, 6.5) {Physical Space};
-\node[font=\scriptsize, Black70] at (10.0, 6.0) {(How far apart in the image?)};
-
-% Object outline
-\draw[Black30, thick, fill=Black10]
-    (8.0, 3.5) .. controls (8.5, 5.0) and (10.0, 5.2) ..
-    (11.0, 4.5) .. controls (11.5, 4.0) and (11.5, 3.0) ..
-    (10.5, 2.8) .. controls (9.5, 2.5) and (8.5, 2.8) ..
-    (8.0, 3.5);
-\node[font=\tiny, Black50] at (9.7, 3.8) {Object outline};
-
-% Points placed in image coordinates
-\node[pos] (pp1) at (8.5, 4.0) {$+_1$};
-\node[pos] (pp2) at (9.5, 4.5) {$+_2$};
-\node[pos] (pp3) at (10.5, 4.0) {$+_3$};
-\node[pos] (pp4) at (9.5, 3.3) {$+_4$};
-
-\node[neg] (nn1) at (7.5, 3.0) {$-_1$};
-\node[neg] (nn2) at (11.5, 5.0) {$-_2$};
-
-% Physical edges (same-label: want SPREAD OUT)
-\draw[Congaree, thick] (pp1) -- node[above, font=\tiny, sloped] {spread} (pp3);
-\draw[Congaree, thick] (pp2) -- (pp4);
-
-% Physical edges (cross-label: want TIGHT boundary)
-\draw[Honeycomb, thick, dashed] (pp1) -- node[below, font=\tiny, sloped] {boundary} (nn1);
-\draw[Honeycomb, thick, dashed] (pp3) -- (nn2);
-
-% Annotations
-\draw[decorate, decoration={brace, amplitude=5pt}, Congaree, thick]
-    (8.2, 5.0) -- (10.8, 5.0) node[midway, above=5pt, font=\scriptsize, Congaree] {Spread out = good coverage};
-
-\end{tikzpicture}
-\caption{\textbf{Step 2: Dual-space graph.} Each candidate prompt is a node. \textbf{Feature-space} edges (left) measure visual similarity --- we want \textcolor{Horseshoe}{\textbf{+}} points to look alike and to look \textit{different} from \textcolor{Rose}{\textbf{--}} points. \textbf{Physical-space} edges (right) measure pixel distance --- we want \textcolor{Horseshoe}{\textbf{+}} points spread across the object for good coverage. The RL agent will optimize this graph.}
-\label{fig:graph}
-\end{figure}
-
-
-% ============================================================
-% DIAGRAM 4: THE RL LOOP
-% ============================================================
-\section*{4. Step 3: The RL Agent Optimizes the Prompts}
-
-The RL agent looks at the current graph of prompts and decides how to improve it. At each step, it can add a new point, remove a bad point, or restore a previously removed point. After each action, it gets a reward based on whether the segmentation improved.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-    block/.style={draw=Black90, thick, minimum width=3.0cm, minimum height=1.2cm, align=center, font=\small},
-    arr/.style={-{Stealth[length=3mm]}, very thick},
-    every node/.style={font=\small}
-]
-
-% State
-\node[block, fill=Sandstorm] (state) {
-    \textbf{State} $s_t$\\[2pt]
-    Current graph\\
-    of prompts
-};
-
-% Policy
-\node[block, fill=Garnet!15, right=2.5cm of state] (policy) {
-    \textbf{RL Policy}\\[2pt]
-    Q-table or\\
-    neural network
-};
-
-% Action
-\node[block, fill=Atlantic!15, right=2.5cm of policy] (action) {
-    \textbf{Action} $a_t$\\[2pt]
-    Add / Remove /\\
-    Restore a point
-};
-
-% SAM
-\node[block, fill=Horseshoe!10, below=2.0cm of action] (sam) {
-    \textbf{SAM}\\[2pt]
-    Generates mask\\
-    from prompts
-};
-
-% Reward
-\node[block, fill=Rose!10, below=2.0cm of state] (reward) {
-    \textbf{Reward} $r_t$\\[2pt]
-    Did the mask\\
-    get better?
-};
-
-% Arrows
-\draw[arr, Black90] (state) -- (policy);
-\draw[arr, Garnet] (policy) -- (action);
-\draw[arr, Atlantic] (action) -- (sam);
-\draw[arr, Horseshoe] (sam) -- node[below, font=\scriptsize] {New mask $\hat{M}_t$} (reward);
-\draw[arr, Rose] (reward) -- node[left, font=\scriptsize] {Update policy} (state);
-
-% Step numbers
-\node[circle, fill=Garnet, text=white, font=\scriptsize\bfseries, inner sep=2pt] at ($(state.north east)+(0.3,0.3)$) {1};
-\node[circle, fill=Garnet, text=white, font=\scriptsize\bfseries, inner sep=2pt] at ($(policy.north east)+(0.3,0.3)$) {2};
-\node[circle, fill=Garnet, text=white, font=\scriptsize\bfseries, inner sep=2pt] at ($(action.north east)+(0.3,0.3)$) {3};
-\node[circle, fill=Garnet, text=white, font=\scriptsize\bfseries, inner sep=2pt] at ($(sam.south east)+(0.3,-0.3)$) {4};
-\node[circle, fill=Garnet, text=white, font=\scriptsize\bfseries, inner sep=2pt] at ($(reward.south west)+(-0.3,-0.3)$) {5};
-
-\end{tikzpicture}
-\caption{\textbf{Step 3: The RL optimization loop.} \textcircled{1} The agent observes the current prompt graph. \textcircled{2} The policy decides what to do. \textcircled{3} It takes an action (add/remove/restore a point). \textcircled{4} SAM generates a mask using the updated prompts. \textcircled{5} The reward measures improvement and feeds back to the policy. This repeats for up to 100 steps per image.}
-\label{fig:rl_loop}
-\end{figure}
-
-
-% ============================================================
-% DIAGRAM 5: BEFORE AND AFTER OPTIMIZATION
-% ============================================================
-\section*{5. The Result: Better Prompts, Better Masks}
-
-Over many iterations, the RL agent learns to remove unhelpful points and add informative ones, progressively improving the segmentation mask.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-    every node/.style={font=\small}
-]
-
-% === STEP 0: Initial (too many, messy) ===
-\node[font=\small\bfseries, Black90] at (2.5, 5.2) {Step 0: Initial Candidates};
-\draw[thick, Black90, fill=Black10] (0, 0.5) rectangle (5, 4.8);
-
-% Polyp-like blob (medical image scenario)
-\fill[Atlantic!25, draw=Atlantic, thick]
-    (2.5, 2.8) circle [x radius=1.5, y radius=1.2];
-\node[font=\scriptsize, Atlantic] at (2.5, 2.8) {Polyp};
-
-% Many scattered points (messy)
-\foreach \x/\y in {1.2/3.0, 1.8/3.5, 2.0/2.2, 2.8/3.8, 3.2/2.5, 3.5/3.2, 2.5/1.8, 1.5/2.5} {
-    \fill[Horseshoe] (\x, \y) circle (3pt);
-}
-\foreach \x/\y in {0.5/1.0, 4.2/4.2, 0.8/4.0, 4.5/1.5, 0.3/2.5, 4.0/3.0} {
-    \fill[Rose] (\x, \y) circle (3pt);
-}
-
-% Bad mask
-\draw[Garnet, thick, dashed]
-    (2.5, 2.8) circle [x radius=2.0, y radius=1.8];
-\node[font=\scriptsize, Garnet, fill=white, inner sep=1pt] at (2.5, 0.7) {IoU = 0.52};
-
-
-% === STEP 50: Getting better ===
-\node[font=\small\bfseries, Black90] at (8.5, 5.2) {Step 50: RL Refining};
-\draw[thick, Black90, fill=Black10] (6.0, 0.5) rectangle (11.0, 4.8);
-
-% Same polyp
-\fill[Atlantic!25, draw=Atlantic, thick]
-    (8.5, 2.8) circle [x radius=1.5, y radius=1.2];
-\node[font=\scriptsize, Atlantic] at (8.5, 2.8) {Polyp};
-
-% Fewer, better-placed points
-\foreach \x/\y in {7.8/3.2, 8.5/3.5, 9.2/3.0, 8.0/2.3, 9.0/2.3} {
-    \fill[Horseshoe] (\x, \y) circle (3pt);
-}
-\foreach \x/\y in {6.5/1.2, 10.5/4.2, 6.8/4.0} {
-    \fill[Rose] (\x, \y) circle (3pt);
-}
-
-% Removed points (X marks)
-\foreach \x/\y in {7.2/3.8, 9.5/1.8} {
-    \node[font=\tiny, Garnet] at (\x, \y) {\textsf{X}};
-}
-
-% Better mask
-\draw[Honeycomb, thick, dashed]
-    (8.5, 2.8) circle [x radius=1.7, y radius=1.4];
-\node[font=\scriptsize, Honeycomb, fill=white, inner sep=1pt] at (8.5, 0.7) {IoU = 0.78};
-
-
-% Arrow
-\draw[-{Stealth[length=4mm]}, very thick, Garnet] (5.2, 2.8) -- node[above, font=\scriptsize] {RL acts} (5.8, 2.8);
-
-
-% === STEP 100: Optimized ===
-\node[font=\small\bfseries, Black90] at (14.5, 5.2) {Step 100: Optimized};
-\draw[thick, Black90, fill=Black10] (12.0, 0.5) rectangle (17.0, 4.8);
-
-% Same polyp
-\fill[Atlantic!25, draw=Atlantic, thick]
-    (14.5, 2.8) circle [x radius=1.5, y radius=1.2];
-\node[font=\scriptsize, Atlantic] at (14.5, 2.8) {Polyp};
-
-% Optimal points: spread across object, clean boundary
-\fill[Horseshoe] (13.5, 3.0) circle (4pt);
-\fill[Horseshoe] (14.5, 3.5) circle (4pt);
-\fill[Horseshoe] (15.5, 2.8) circle (4pt);
-\fill[Horseshoe] (14.0, 2.2) circle (4pt);
-\fill[Horseshoe] (15.0, 2.2) circle (4pt);
-
-% Tight negative boundary
-\fill[Rose] (12.5, 1.0) circle (4pt);
-\fill[Rose] (16.2, 4.3) circle (4pt);
-
-% Excellent mask (nearly matches object)
-\draw[Horseshoe, very thick, dashed]
-    (14.5, 2.8) circle [x radius=1.55, y radius=1.25];
-\node[font=\scriptsize, Horseshoe, fill=white, inner sep=1pt] at (14.5, 0.7) {IoU = 0.94};
-
-% Arrow
-\draw[-{Stealth[length=4mm]}, very thick, Garnet] (11.2, 2.8) -- node[above, font=\scriptsize] {RL acts} (11.8, 2.8);
-
-\end{tikzpicture}
-\caption{\textbf{Optimization over time.} The RL agent starts with many noisy candidate prompts (IoU = 0.52), iteratively removes bad ones and adds better ones (IoU = 0.78), and converges to a clean set of well-placed prompts that produce an accurate mask (IoU = 0.94). \textcolor{Horseshoe}{\textbf{+}} = foreground, \textcolor{Rose}{\textbf{--}} = background, \textcolor{Garnet}{\textsf{X}} = removed.}
-\label{fig:optimization}
-\end{figure}
-
-
-% ============================================================
-% DIAGRAM 6: OUR EXTENSIONS
-% ============================================================
-\section*{6. What We Propose to Change (Proposal 4 Extensions)}
-
-The original system uses tabular Q-learning with a proxy reward. We propose four upgrades.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-    old/.style={draw=Black50, thick, fill=Black10, minimum width=4.5cm, minimum height=1.2cm, align=center, font=\small},
-    new/.style={draw=Garnet, thick, fill=Garnet!8, minimum width=4.5cm, minimum height=1.2cm, align=center, font=\small},
+    step/.style={draw, thick, minimum width=4.5cm, minimum height=1.8cm, align=center, font=\small},
     arr/.style={-{Stealth[length=3mm]}, very thick, Garnet},
     every node/.style={font=\small}
 ]
 
-% Extension 1
-\node[old] (old1) at (0, 5) {\textbf{Tabular Q-Learning}\\Discrete actions, no generalization};
-\node[new] (new1) at (8, 5) {\textbf{Deep RL (PPO/SAC/TD3)}\\Continuous coords, cross-image};
-\draw[arr] (old1) -- node[above, font=\scriptsize] {Extension 1} (new1);
+\node[step, fill=Atlantic!12] (s1) {\textbf{Step 1}\\DINOv2 Feature Matching\\[3pt]\footnotesize Reference + GT $\to$ Target prompts};
+\node[step, fill=Garnet!10, right=1.5cm of s1] (s2) {\textbf{Step 2}\\Q-Learning on\\Dual-Space Graph\\[3pt]\footnotesize 1447 candidates $\to$ 26 optimized};
+\node[step, fill=Horseshoe!12, right=1.5cm of s2] (s3) {\textbf{Step 3}\\SAM Segmentation\\[3pt]\footnotesize Optimized prompts $\to$ mask};
 
-% Extension 2
-\node[old] (old2) at (0, 3) {\textbf{Natural images only}\\Pascal VOC, FSS-1000};
-\node[new] (new2) at (8, 3) {\textbf{+ Medical \& Remote Sensing}\\KVASIR-SEG polyps, satellite};
-\draw[arr] (old2) -- node[above, font=\scriptsize] {Extension 2} (new2);
+\draw[arr] (s1) -- node[above, font=\footnotesize] {features,} node[below, font=\footnotesize] {indices} (s2);
+\draw[arr] (s2) -- node[above, font=\footnotesize] {6 pos,} node[below, font=\footnotesize] {20 neg} (s3);
 
-% Extension 3
-\node[old] (old3) at (0, 1) {\textbf{Single images only}\\No temporal awareness};
-\node[new] (new3) at (8, 1) {\textbf{Video via SAM 2}\\Memory bank + temporal consistency};
-\draw[arr] (old3) -- node[above, font=\scriptsize] {Extension 3} (new3);
-
-% Extension 4
-\node[old] (old4) at (0, -1) {\textbf{Graph-distance proxy reward}\\Does not measure mask quality};
-\node[new] (new4) at (8, -1) {\textbf{Direct IoU + boundary shaping}\\Optimizes actual segmentation};
-\draw[arr] (old4) -- node[above, font=\scriptsize] {Extension 4} (new4);
-
-% Labels
-\node[font=\small\bfseries, Black50] at (0, 6.2) {Original PPO};
-\node[font=\small\bfseries, Garnet] at (8, 6.2) {Our Extensions};
+\node[below=0.3cm of s1, font=\footnotesize\itshape, text=Atlantic] {GPU: DINOv2 ViT-G/14};
+\node[below=0.3cm of s2, font=\footnotesize\itshape, text=Garnet] {CPU: Graph + Q-table};
+\node[below=0.3cm of s3, font=\footnotesize\itshape, text=Horseshoe] {GPU: SAM ViT-B};
 
 \end{tikzpicture}
-\caption{\textbf{Our four proposed extensions} to the Plug-and-Play PPO framework. Each replaces a limitation of the original system (left, gray) with an improved approach (right, garnet).}
-\label{fig:extensions}
+\caption{Three-stage pipeline. Step 1 extracts DINOv2 features and generates initial prompt candidates via nearest-neighbor matching. Step 2 optimizes the prompt set using Q-learning on a graph. Step 3 runs SAM with the optimized prompts.}
+\label{fig:pipeline}
 \end{figure}
+
+% ============================================================
+\section{Step 1: DINOv2 Feature Matching}
+% ============================================================
+
+\subsection{Image Patchification}
+
+Both the reference and target images are resized to $560 \times 560$ pixels. DINOv2 uses a Vision Transformer with \textbf{patch size 14}, dividing each image into a $40 \times 40 = 1{,}600$ grid of non-overlapping patches. Each patch occupies a $14 \times 14$ pixel region and receives a one-dimensional index computed as
+\begin{align}
+\texttt{index} = \texttt{row} \times 40 + \texttt{col}, \quad \text{where} \quad \texttt{row} = \lfloor y / 14 \rfloor, \quad \texttt{col} = \lfloor x / 14 \rfloor.
+\end{align}
+The center pixel of patch $i$ is at coordinates
+\begin{align}
+(c_x, c_y) = \left( (\texttt{col}_i \times 14) + 7, \; (\texttt{row}_i \times 14) + 7 \right).
+\end{align}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\small}]
+\draw[step=0.7cm, black!30, thin] (0,0) grid (5.6,5.6);
+\node[above] at (2.8, 5.6) {\textbf{40 patches}};
+\node[rotate=90, above] at (0, 2.8) {\textbf{40 patches}};
+\fill[Garnet!30] (1.4, 3.5) rectangle (2.1, 4.2);
+\draw[Garnet, thick] (1.4, 3.5) rectangle (2.1, 4.2);
+\node[font=\tiny, Garnet] at (1.75, 3.85) {$14{\times}14$};
+\draw[-{Stealth}, thick, Garnet] (2.1, 3.85) -- ++(1.5, 0) node[right, font=\footnotesize] {index $= 3 \times 40 + 2 = 122$};
+\draw[{Stealth}-{Stealth}, thick] (-0.3, 0) -- (-0.3, 5.6) node[midway, left, font=\footnotesize] {560 px};
+\draw[{Stealth}-{Stealth}, thick] (0, -0.3) -- (5.6, -0.3) node[midway, below, font=\footnotesize] {560 px};
+\end{tikzpicture}
+\caption{Patchification. The $560 \times 560$ image is divided into $40 \times 40 = 1{,}600$ patches of size $14 \times 14$ pixels. Each patch is assigned a 1D index used throughout the pipeline.}
+\label{fig:patches}
+\end{figure}
+
+\subsection{Foreground and Background Classification}
+
+The reference image's ground-truth mask is scanned in $14 \times 14$ blocks. A block is classified as \textbf{foreground} if every pixel in that block is non-black (RGB $\neq [0,0,0]$), and as \textbf{background} if every pixel is black. Blocks with mixed content (partially on the object boundary) are discarded entirely. This produces two index sets: $\mathcal{F} = \{f_1, f_2, \ldots, f_{N_f}\}$ (foreground) and $\mathcal{B} = \{b_1, b_2, \ldots, b_{N_b}\}$ (background).
+
+\subsection{DINOv2 Feature Extraction}
+
+Both images are preprocessed with ImageNet normalization and passed through \textbf{DINOv2 ViT-G/14} ($\sim$1.1B parameters, $\sim$4.2 GB checkpoint). The model outputs patch-level features from the \texttt{x\_norm\_patchtokens} layer, yielding a tensor of shape $[2, 1600, 1536]$. For each of the 2 images, each of the 1600 patches receives a 1536-dimensional feature vector.
+\begin{align}
+\mathbf{F}^{\text{ref}} &= \text{DINOv2}(I_{\text{ref}}) \in \mathbb{R}^{1600 \times 1536} \\
+\mathbf{F}^{\text{tgt}} &= \text{DINOv2}(I_{\text{tgt}}) \in \mathbb{R}^{1600 \times 1536}
+\end{align}
+
+\subsection{Nearest-Neighbor Feature Matching}
+
+For each foreground patch index $f_i \in \mathcal{F}$, the pipeline finds the target patch with the most similar DINOv2 feature vector using L2 distance.
+\begin{align}
+\texttt{pos}_i = \arg\min_{j \in \{1, \ldots, 1600\}} \left\| \mathbf{F}^{\text{ref}}_{f_i} - \mathbf{F}^{\text{tgt}}_j \right\|_2
+\end{align}
+
+This produces the \textbf{initial positive prompt indices} on the target image. The same process is applied to background patches $\mathcal{B}$ to get \textbf{initial negative prompt indices}. Any index appearing in both sets is removed from both to prevent contradictory prompts.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ppo_step1_initial_mask.png}
+\caption{Step 1 output. Left: DINOv2 feature-matched prompts on the target image (34 positive, 1413 negative). Right: SAM mask produced with these unoptimized prompts. The initial IoU with ground truth is only 0.001 because feature matching produces many false positive and negative prompt locations.}
+\label{fig:step1}
+\end{figure}
+
+\subsection{Step 1 Summary}
+
+Step 1 outputs three artifacts used by Step 2.
+\begin{itemize}[nosep]
+\item \textbf{features}: DINOv2 patch features for both images, shape $[2, 1600, 1536]$
+\item \textbf{pos\_indices}: Initial positive prompt patch indices on target (e.g., 34 patches for our blue tang)
+\item \textbf{neg\_indices}: Initial negative prompt patch indices on target (e.g., 1413 patches)
+\end{itemize}
+
+These are the \textit{unoptimized} prompt candidates. SAM segmentation with these raw prompts typically produces poor results because nearest-neighbor feature matching gives many false positives and negatives.
+
+% ============================================================
+\section{Step 2: Q-Learning on Dual-Space Heterogeneous Graph}
+\label{sec:step2}
+% ============================================================
+
+This is the core contribution of the paper. The pipeline constructs a graph encoding both semantic and spatial relationships between candidate prompts, then uses Q-learning to select the optimal subset.
+
+\subsection{Graph Construction}
+
+Each candidate prompt index becomes a \textbf{node} in a NetworkX MultiGraph, labeled as either \texttt{pos} (positive prompt) or \texttt{neg} (negative prompt). In our blue tang experiment, this produces $34 + 1413 = 1{,}447$ nodes.
+
+The graph has \textbf{five distinct edge types}, each encoding pairwise distances between nodes in one of two spaces: DINOv2 feature space (semantic) or pixel coordinate space (physical). All distances are computed via L2 norm and then min-max normalized to $[0, 1]$.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node_pos/.style={circle, draw=Garnet, fill=Garnet!20, minimum size=0.8cm, font=\footnotesize\bfseries},
+    node_neg/.style={circle, draw=Atlantic, fill=Atlantic!20, minimum size=0.8cm, font=\footnotesize\bfseries},
+    every node/.style={font=\small}
+]
+
+% Positive nodes
+\node[node_pos] (p1) at (0, 2) {$p_1$};
+\node[node_pos] (p2) at (2, 3) {$p_2$};
+\node[node_pos] (p3) at (1, 0.5) {$p_3$};
+
+% Negative nodes
+\node[node_neg] (n1) at (5, 3) {$n_1$};
+\node[node_neg] (n2) at (6, 1) {$n_2$};
+\node[node_neg] (n3) at (4.5, 0) {$n_3$};
+
+% Feature pos edges
+\draw[Garnet, thick] (p1) -- node[font=\tiny, above left, fill=white, inner sep=1pt] {\texttt{feat\_pos}} (p2);
+\draw[Garnet, thick] (p2) -- (p3);
+\draw[Garnet, thick] (p1) -- (p3);
+
+% Physical neg edges
+\draw[Atlantic, thick] (n1) -- node[font=\tiny, above right, fill=white, inner sep=1pt] {\texttt{phys\_neg}} (n2);
+\draw[Atlantic, thick] (n2) -- (n3);
+\draw[Atlantic, thick] (n1) -- (n3);
+
+% Cross edges
+\draw[Honeycomb, thick, dotted] (p1) -- node[font=\tiny, above, fill=white, inner sep=1pt] {\texttt{feat\_cross}} (n1);
+\draw[Honeycomb, thick, dotted] (p2) -- (n2);
+\draw[Horseshoe, dashed] (p3) -- node[font=\tiny, below, fill=white, inner sep=1pt] {\texttt{phys\_cross}} (n3);
+
+% Legend
+\node[below right, text width=10cm, font=\footnotesize] at (-0.5, -1) {
+\textcolor{Garnet}{\rule{0.6cm}{2pt}} \texttt{feature\_pos} / \texttt{physical\_pos} (within positive nodes) \quad
+\textcolor{Atlantic}{\rule{0.6cm}{2pt}} \texttt{physical\_neg} (within negative nodes) \\
+\textcolor{Honeycomb}{\rule[0.5ex]{0.6cm}{1.5pt}} \texttt{feature\_cross} (pos $\leftrightarrow$ neg) \quad
+\textcolor{Horseshoe}{- - -} \texttt{physical\_cross} (pos $\leftrightarrow$ neg)
+};
+
+\end{tikzpicture}
+\caption{Dual-space heterogeneous graph. Positive nodes (red) represent candidate foreground prompts; negative nodes (blue) represent background prompts. Five edge types encode pairwise distances in both DINOv2 feature space and physical pixel space.}
+\label{fig:graph}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Five edge types in the dual-space graph.}
+\label{tab:edges}
+\begin{tabular}{@{}lllp{4.5cm}@{}}
+\toprule
+\textbf{Edge Type} & \textbf{Space} & \textbf{Connects} & \textbf{Optimization Goal} \\
+\midrule
+\texttt{feature\_pos} & DINOv2 & pos $\leftrightarrow$ pos & Minimize (semantic cohesion) \\
+\texttt{feature\_cross} & DINOv2 & pos $\leftrightarrow$ neg & Maximize (fg/bg separation) \\
+\texttt{physical\_pos} & Pixel & pos $\leftrightarrow$ pos & Maximize (spatial spread) \\
+\texttt{physical\_neg} & Pixel & neg $\leftrightarrow$ neg & Maximize (spatial spread) \\
+\texttt{physical\_cross} & Pixel & pos $\leftrightarrow$ neg & Minimize (boundary proximity) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For our experiment with 34 positive and 1413 negative nodes, the fully-connected graph contains approximately \textbf{2,093,484 edges} across all five types. This is the primary computational bottleneck of the pipeline.
+
+\subsection{Graph Optimization Environment}
+
+The graph is wrapped in a reinforcement learning environment (\texttt{GraphOptimizationEnv}) with the following interface.
+
+\textbf{State.} The current graph $G = (V, E)$ with whatever nodes remain after agent actions. This is a NetworkX MultiGraph object.
+
+\textbf{Reset.} On each episode start, \textit{all nodes are removed} from the graph and placed in a ``removed'' set. The agent begins with an empty graph and must actively restore nodes. This makes the agent's task fundamentally one of \textbf{subset selection}: choosing which of the 1,447 candidate nodes to include.
+
+\textbf{Actions.} The agent can perform five types of actions at each step.
+
+\begin{table}[H]
+\centering
+\caption{Action space. The agent manipulates individual nodes. Counts are constrained to $[5, 20]$ per category.}
+\label{tab:actions}
+\begin{tabular}{@{}lp{8.5cm}@{}}
+\toprule
+\textbf{Action} & \textbf{Effect} \\
+\midrule
+\texttt{(node, restore\_pos)} & Restore a positive node from the removed set with all its original edges \\
+\texttt{(node, restore\_neg)} & Restore a negative node from the removed set \\
+\texttt{(node, remove\_pos)} & Remove a positive node currently in the graph \\
+\texttt{(node, remove\_neg)} & Remove a negative node currently in the graph \\
+\texttt{(node, add)} & Add a brand new node (randomly assigned pos/neg, penalized $-10$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Episode length.} Fixed at $T = 100$ steps per episode.
+
+\textbf{Constraints.} The environment enforces $5 \leq |\text{pos nodes}| \leq 20$ and $5 \leq |\text{neg nodes}| \leq 20$. If positive node count hits the minimum, only \texttt{restore\_pos} actions are available. If it hits the maximum, only \texttt{remove\_pos} is available. The same logic applies to negative nodes. Additionally, \texttt{remove\_pos} and \texttt{remove\_neg} action lists are subsampled to match lengths, ensuring balanced removal probability between the two categories.
+
+\subsection{Reward Function}
+
+The reward after each action is computed from the change in five mean edge-weight statistics. Let $\bar{d}^{(t)}_k$ denote the mean weight of edge type $k$ at step $t$, and let $\bar{d}^{(t-1)}_k$ denote the value before the action.
+
+\begin{align}
+r_t &= \underbrace{5 \cdot \text{sgn}^{-}(\Delta\bar{d}_{\texttt{feat\_pos}})}_{\text{feature cohesion}} + \underbrace{5 \cdot \text{sgn}^{+}(\Delta\bar{d}_{\texttt{feat\_cross}})}_{\text{feature separation}} + \underbrace{1 \cdot \text{sgn}^{+}(\Delta\bar{d}_{\texttt{phys\_pos}})}_{\text{pos spread}} \nonumber \\
+&\quad + \underbrace{1 \cdot \text{sgn}^{+}(\Delta\bar{d}_{\texttt{phys\_neg}})}_{\text{neg spread}} + \underbrace{1 \cdot \text{sgn}^{-}(\Delta\bar{d}_{\texttt{phys\_cross}})}_{\text{boundary proximity}} - \underbrace{10 \cdot \mathbb{1}[\texttt{add}]}_{\text{add penalty}}
+\end{align}
+
+where $\text{sgn}^{-}(\Delta) = \bar{d}^{(t-1)} - \bar{d}^{(t)}$ (rewards \textit{decreases}; penalizes increases by the same magnitude) and $\text{sgn}^{+}(\Delta) = \bar{d}^{(t)} - \bar{d}^{(t-1)}$ (rewards \textit{increases}; penalizes decreases).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    comp/.style={draw, thick, minimum width=4.2cm, minimum height=0.9cm, align=center, font=\small},
+    arr/.style={-{Stealth[length=2.5mm]}, thick},
+    every node/.style={font=\small}
+]
+
+\node[comp, fill=Garnet!10] (fp) at (0, 4) {\texttt{feature\_pos} $\downarrow$ \quad weight: $\times 5$};
+\node[comp, fill=Rose!10] (fc) at (0, 3) {\texttt{feature\_cross} $\uparrow$ \quad weight: $\times 5$};
+\node[comp, fill=Atlantic!10] (pp) at (0, 2) {\texttt{physical\_pos} $\uparrow$ \quad weight: $\times 1$};
+\node[comp, fill=Congaree!10] (pn) at (0, 1) {\texttt{physical\_neg} $\uparrow$ \quad weight: $\times 1$};
+\node[comp, fill=Horseshoe!10] (pc) at (0, 0) {\texttt{physical\_cross} $\downarrow$ \quad weight: $\times 1$};
+
+\node[comp, fill=Honeycomb!15, minimum width=2.0cm, right=3.5cm of pp] (sum) {$r_t = \sum$};
+\node[comp, fill=LightGray, below=0.3cm of sum] (pen) {\texttt{add} penalty: $-10$};
+
+\foreach \n in {fp,fc,pp,pn,pc} {
+    \draw[arr] (\n.east) -- (sum.west |- \n);
+}
+\draw[arr, dashed] (pen.north) -- (sum.south);
+
+\node[right=0.3cm of fp, font=\tiny\itshape, text=Garnet, text width=2.5cm, anchor=west] {Pos prompts semantically similar};
+\node[right=0.3cm of fc, font=\tiny\itshape, text=Rose, text width=2.5cm, anchor=west] {Fg/Bg semantically different};
+\node[right=0.3cm of pn, font=\tiny\itshape, text=Congaree, text width=2.5cm, anchor=west] {Neg prompts spatially spread};
+\node[right=0.3cm of pc, font=\tiny\itshape, text=Horseshoe, text width=2.5cm, anchor=west] {Neg prompts near object boundary};
+
+\end{tikzpicture}
+\caption{Composite reward function. Five graph statistics are tracked after every action. Feature-space objectives (top two) are weighted $5\times$ more than physical-space ones (bottom three). An add-node action incurs a flat $-10$ penalty.}
+\label{fig:reward}
+\end{figure}
+
+\textbf{Intuition behind the reward design.} The reward encourages a prompt set where (1) positive prompts are semantically coherent --- they should all represent the target object in DINOv2 feature space, (2) positive and negative prompts are semantically distinct --- foreground vs.\ background should be easily distinguishable, (3) prompts are spatially well-distributed across the image for coverage, and (4) negative prompts lie near the object boundary to help SAM delineate edges. The feature-space objectives receive $5\times$ weight because semantic correctness is more important than spatial arrangement.
+
+\subsection{Q-Learning Agent}
+
+Despite the repository name ``PPO,'' the actual algorithm is \textbf{tabular Q-learning with experience replay}. There is no neural network policy, no clipping objective, and no advantage estimation. The name ``PPO'' refers to ``Plug-and-Play Optimization,'' not the RL algorithm.
+
+\textbf{Q-table.} A Python \texttt{defaultdict(float)} mapping $(s, a)$ pairs to scalar Q-values. The state key $s$ is the graph object reference; actions $a$ are tuples like $(\texttt{node\_id}, \texttt{"restore\_pos"})$.
+
+\textbf{Update rule} (standard Q-learning with learning rate $\alpha = 0.1$ and discount factor $\gamma = 0.9$):
+\begin{align}
+Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]
+\end{align}
+
+\textbf{Exploration schedule.} Epsilon-greedy action selection. Epsilon is reset at the start of each episode based on the best cumulative reward achieved so far.
+\begin{align}
+\epsilon_{\text{init}} = \begin{cases}
+1.0 & \text{if } R_{\text{best}} < 0 \quad \text{(fully random)} \\
+1 - R_{\text{best}} / 5 & \text{if } 0 \leq R_{\text{best}} < 5 \\
+0.1 & \text{if } R_{\text{best}} \geq 5 \quad \text{(mostly greedy)}
+\end{cases}
+\end{align}
+Within each episode, $\epsilon$ decays multiplicatively by $0.995$ after every step, so over 100 steps it decreases by roughly $\epsilon \times 0.995^{100} \approx 0.61\epsilon$.
+
+\textbf{Experience replay.} A ring buffer stores up to 10,000 transitions $(s, a, r, s')$. After each step, a random mini-batch of 64 transitions is sampled and used for additional Q-table updates. When a new best episode reward is achieved, the current buffer is cloned as ``best memory'' and replayed to reinforce successful strategies.
+
+\begin{table}[H]
+\centering
+\caption{Q-learning hyperparameters.}
+\label{tab:hyperparams}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Learning rate ($\alpha$) & 0.1 \\
+Discount factor ($\gamma$) & 0.9 \\
+Epsilon start & 1.0 \\
+Epsilon end & 0.1 \\
+Epsilon decay (per step) & 0.995 \\
+Replay buffer size & 10,000 \\
+Replay batch size & 64 \\
+Steps per episode ($T$) & 100 \\
+Min/Max nodes per category & 5 / 20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Training Loop}
+
+Each training episode proceeds as follows.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    block/.style={draw, thick, minimum width=3.0cm, minimum height=1.0cm, align=center, font=\small},
+    arr/.style={-{Stealth[length=3mm]}, thick},
+    every node/.style={font=\small}
+]
+
+\node[block, fill=LightGray] (load) {Load features\\+ indices};
+\node[block, fill=Atlantic!10, right=1.0cm of load] (build) {Build graph\\(1447 nodes)};
+\node[block, fill=Garnet!10, right=1.0cm of build] (reset) {Reset env\\(empty graph)};
+\node[block, fill=Horseshoe!10, below=1.5cm of build] (step) {100 steps:\\select, execute,\\reward, update,\\replay};
+\node[block, fill=Honeycomb!10, left=1.0cm of step] (save) {Save best\\Q-table};
+\node[block, fill=LightGray, right=1.0cm of step] (next) {Next\\episode};
+
+\draw[arr] (load) -- (build);
+\draw[arr] (build) -- (reset);
+\draw[arr] (reset.south) |- (step.east);
+\draw[arr] (step) -- node[above, font=\tiny] {if best} (save);
+\draw[arr] (step.east) -- (next.west);
+\draw[arr, dashed] (next.south) -- ++(0, -0.4) -| (load.south);
+
+\end{tikzpicture}
+\caption{Training loop per episode. The graph is rebuilt each episode. The environment resets to empty. The agent takes 100 actions to build up a prompt set. The best Q-table is saved when a new best reward is achieved.}
+\label{fig:training_loop}
+\end{figure}
+
+Over training, the agent learns which specific patch indices to include. In our experiment, it consistently converges to approximately \textbf{6 positive and 20 negative nodes} from the original 1,447 candidates. The three ``best'' models are tracked independently: best by cumulative reward, best by feature cohesion (lowest mean \texttt{feature\_pos}), and best by feature separation (highest mean \texttt{feature\_cross}).
+
+\subsection{Critical Design Decision: SAM is Not in the Training Loop}
+
+SAM is \textbf{never called during Q-learning training}. The reward function is based entirely on graph statistics (mean edge weights). SAM is only invoked twice in the entire pipeline: once with initial prompts (to show the baseline) and once with optimized prompts (to produce the final mask). This makes training computationally feasible --- the reward is a \textit{proxy} for segmentation quality rather than a direct measure of it. The proxy works because the five graph objectives (feature cohesion, feature separation, spatial spread, and boundary proximity) correlate well with SAM's ability to produce accurate masks from the resulting prompt set.
+
+% ============================================================
+\section{Step 3: SAM Segmentation with Optimized Prompts}
+% ============================================================
+
+\subsection{Prompt Optimization at Inference}
+
+Using the trained Q-table, the agent runs one final episode with reduced exploration ($\epsilon \approx 0.1$). Starting from an empty graph, it restores and removes nodes over 100 steps. The surviving nodes become the optimized prompt set.
+
+Each patch index is converted to pixel coordinates.
+\begin{align}
+(x, y) = \left( (i \bmod 40) \times 14 + 7, \; \lfloor i / 40 \rfloor \times 14 + 7 \right)
+\end{align}
+
+\subsection{SAM Prediction}
+
+The optimized coordinates are passed to \textbf{SAM ViT-B} (358 MB checkpoint) as point prompts.
+\begin{align}
+\texttt{mask} = \text{SAM}\!\left(I_{\text{tgt}}, \; \{(x_i, y_i, \ell_i)\}_{i=1}^{N_{\text{pos}} + N_{\text{neg}}}\right)
+\end{align}
+where $\ell_i = 1$ for positive prompts and $\ell_i = 0$ for negative. SAM's \texttt{multimask\_output} is set to \texttt{False}, producing a single best mask.
+
+% ============================================================
+\section{Experimental Results: Blue Tang Segmentation}
+% ============================================================
+
+\subsection{Setup}
+
+We tested the pipeline on a public-domain underwater photograph of a Pacific blue tang (\textit{Paracanthurus hepatus}) on a coral reef. Both the reference and target were the same image (self-supervised demonstration). The ground-truth mask was a tight fish-only segmentation covering approximately 4\% of the image area. Training used 30 episodes on an NVIDIA RTX 6000 Ada GPU.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/candidate_bluetang.jpg}
+\caption{Input image}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/bluetang_gt_tight_fish_overlay.png}
+\caption{Ground truth overlay}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/bluetang_gt_tight_fish_mask.png}
+\caption{Binary GT mask}
+\end{subfigure}
+\caption{Blue tang test case. The GT mask covers only the fish body ($\sim$4\% of image area), requiring precise prompt placement for SAM to segment correctly.}
+\label{fig:bluetang_setup}
+\end{figure}
+
+\subsection{Quantitative Results}
+
+\begin{table}[H]
+\centering
+\caption{Before and after prompt optimization. IoU is computed against the ground-truth fish mask.}
+\label{tab:results}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Metric} & \textbf{Initial (Step 1)} & \textbf{Optimized (Step 3)} & \textbf{Change} \\
+\midrule
+Positive prompts & 34 & 6 & $-82\%$ \\
+Negative prompts & 1,413 & 20 & $-99\%$ \\
+IoU with GT & 0.001 & 0.760 & $+134{,}443\%$ \\
+Mask area & variable & $\sim$5\% & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Visual Comparison}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ppo_step3_comparison.png}
+\caption{Four-panel comparison from the completed pipeline. Left to right: ground-truth mask, initial SAM mask with unoptimized prompts (IoU 0.001), optimized SAM mask after Q-learning (IoU 0.760), and difference overlay (red = initial only, green = optimized only, yellow = overlap).}
+\label{fig:comparison}
+\end{figure}
+
+\subsection{Training Dynamics}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ppo_checkpoint_training_curve.png}
+\caption{Training rewards over 30 episodes. Negative spikes correspond to episodes where the agent triggered the add-node penalty ($-10$). The best Q-table is saved independently of per-episode performance.}
+\label{fig:training_curve}
+\end{figure}
+
+\subsection{IoU Progression During Training}
+
+A separate checkpoint run saved the optimized mask at episodes 0 (pre-training), 1, 5, 10, 15, 20, 25, and 30.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/ppo_iou_progression.png}
+\caption{IoU and mask area progression. The best IoU (0.638) was achieved at episode 5. Fluctuations reflect the high exploration rate ($\epsilon \approx 0.78$) with only 30 episodes. The separately saved ``best Q-table'' from the main run achieves IoU 0.760.}
+\label{fig:iou_prog}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/snapshot_ep000_pretrain.png}
+\caption{Pre-training (IoU: 0.266)}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/snapshot_ep005.png}
+\caption{Episode 5 (IoU: 0.638)}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/snapshot_ep030.png}
+\caption{Episode 30 (IoU: 0.372)}
+\end{subfigure}
+\caption{Segmentation snapshots during training. The agent finds a strong configuration by episode 5 but continues exploring due to high epsilon, causing IoU to fluctuate. The best configuration is saved separately via the best-reward checkpoint.}
+\label{fig:snapshots}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Full IoU progression from the checkpoint run.}
+\label{tab:iou_prog}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+\textbf{Episode} & \textbf{IoU} & \textbf{Mask Area} & \textbf{Pos / Neg Nodes} \\
+\midrule
+0 (pre-train) & 0.266 & 11.9\% & 6 / 20 \\
+1 & 0.202 & 7.7\% & 5 / 19 \\
+5 & \textbf{0.638} & 4.8\% & 6 / 20 \\
+10 & 0.371 & 10.6\% & 6 / 20 \\
+15 & 0.528 & 7.1\% & 6 / 20 \\
+20 & 0.332 & 11.8\% & 6 / 20 \\
+25 & 0.338 & 11.4\% & 6 / 20 \\
+30 & 0.372 & 9.7\% & 6 / 20 \\
+\midrule
+Best Q-table (main run) & \textbf{0.760} & $\sim$5\% & 6 / 20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{DINOv2 Feature Visualization}
+% ============================================================
+
+To understand what DINOv2 ``sees'' in the image, we can visualize the patch-level features. Figure~\ref{fig:dino_features} shows the DINOv2 feature similarity map and PCA decomposition for the blue tang image, illustrating how the model distinguishes the fish from the coral background in feature space.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/bluetang_fig2_dino_features.png}
+\caption{DINOv2 feature visualization. The model produces distinct feature representations for the fish body versus the coral background, which is what enables the feature-matching step and the graph-based reward to work effectively.}
+\label{fig:dino_features}
+\end{figure}
+
+% ============================================================
+\section{Design Decisions Summary}
+% ============================================================
+
+\begin{table}[H]
+\centering
+\caption{Key architectural decisions and their rationale.}
+\label{tab:design}
+\begin{tabular}{@{}p{3.5cm}p{3.5cm}p{5.5cm}@{}}
+\toprule
+\textbf{Decision} & \textbf{Choice} & \textbf{Rationale} \\
+\midrule
+Feature extractor & DINOv2 ViT-G/14 & Best self-supervised features; patch-level output aligns with SAM's point prompts \\
+Segmentation model & SAM ViT-B (frozen) & Foundation model; no retraining needed \\
+RL algorithm & Tabular Q-learning & Simple, no neural network overhead; graph state is discrete \\
+Graph representation & Dual-space heterogeneous & Captures both semantic similarity and spatial arrangement simultaneously \\
+Environment reset & Start empty each episode & Forces explicit subset selection rather than incremental pruning \\
+Reward design & Mean edge weights & Avoids calling SAM during training ($\sim$100$\times$ faster per episode) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Computational Profile}
+% ============================================================
+
+\begin{table}[H]
+\centering
+\caption{Computational costs for the blue tang experiment on NVIDIA RTX 6000 Ada (48 GB).}
+\label{tab:compute}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Component} & \textbf{Time} & \textbf{Hardware} & \textbf{Memory} \\
+\midrule
+DINOv2 ViT-G/14 download & $\sim$60s & Network & 4.2 GB disk \\
+DINOv2 feature extraction & $\sim$5s & GPU & $\sim$16 GB VRAM \\
+Graph construction & $\sim$10s & CPU & $\sim$2 GB RAM \\
+Q-learning (30 episodes) & $\sim$45 min & CPU-bound & $\sim$8 GB RAM \\
+SAM ViT-B inference & $<$1s & GPU & $\sim$1.5 GB VRAM \\
+\midrule
+\textbf{Total pipeline} & $\sim$50 min & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The bottleneck is Q-learning training, which is CPU-bound due to the large graph ($\sim$2M edges). Computing mean edge weights at every step dominates the per-step cost. Each of the 100 steps per episode also involves replaying 64 transitions from the buffer with full Q-table lookups.
 
 \end{document}

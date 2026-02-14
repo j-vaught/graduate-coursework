@@ -1,0 +1,113 @@
+SAM Prompt Configuration Reference — Blue Tang on Coral
+=======================================================
+Image: candidate_bluetang.jpg (resized to 1024x814)
+Fish center approx: (510, 380)
+Coral background everywhere else
+
+Tested Configs (pos points, neg points -> mask area %, score):
+
+1. Far from fish (corners)
+   pos: [[100,100], [900,700], [50,600]]  neg: []
+   -> mask area: 87.3%  score: 0.983
+   NOTE: Huge mask, covers almost everything. Good "bad" example.
+
+2. On coral only (with neg on fish)
+   pos: [[200,600], [800,600], [500,700]]  neg: [[500,380]]
+   -> mask area: 87.7%  score: 0.955
+   NOTE: Giant coral mask, excludes fish. Good "wrong object" example.
+
+3. One point near fish edge
+   pos: [[550,430]]  neg: []
+   -> mask area: 10.8%  score: 0.989
+   NOTE: Gets fish but with some extra area. Good "ambiguous" example.
+
+4. Fish center only (1 point)
+   pos: [[510,380]]  neg: []
+   -> mask area: 11.0%  score: 0.943
+   NOTE: Similar to above, decent fish mask.
+
+5. Fish center + neg on coral (2 pos, 2 neg)
+   pos: [[510,380], [490,400]]  neg: [[200,600], [800,600]]
+   -> mask area: 4.5%  score: 0.935
+   NOTE: Tighter fish-only mask. Good "improved" example.
+
+6. Tight fish cluster (4 pos, 3 neg)
+   pos: [[505,375], [515,390], [495,385], [520,400]]
+   neg: [[200,600], [800,200], [500,700]]
+   -> mask area: 10.9%  score: 0.978
+   NOTE: Good fish coverage, slightly larger than #5.
+
+7. Very tight fish 5pts (5 pos, 4 neg)
+   pos: [[508,380], [500,390], [520,375], [495,395], [515,385]]
+   neg: [[150,300], [850,600], [500,700], [300,200]]
+   -> mask area: 4.0%  score: 0.945
+   NOTE: Tightest fish-only mask. Best "optimized" candidate.
+
+Recommended progression for RL simulation figures:
+  Step 0  -> Config 1 (87.3%, random mess)
+  Step 30 -> Config 3 (10.8%, getting close but ambiguous)
+  Step 60 -> Config 6 (10.9%, decent fish cluster)
+  Step 100 -> Config 7 (4.0%, tight optimized mask)
+
+GT-like mask candidates:
+  - Config 5 (4.5%) or Config 7 (4.0%) = tightest fish-only segmentation
+  - Config 6 (10.9%) = full fish with some margin
+
+Saved GT masks:
+  bluetang_gt_tight_fish_mask.png   (4.0%)
+  bluetang_gt_full_fish_mask.png    (10.9%)
+  bluetang_gt_coral_only_mask.png   (87.7%)
+
+
+CLOWNFISH (candidate_clownfish.jpg, resized 1024x1280)
+=======================================================
+Lower fish ~(410, 550), Upper fish ~(590, 285), Anemone base ~(400, 1050)
+
+Tested Configs:
+  Random corners             -> 80.8%  (huge mask)
+  Random spread miss         -> 59.8%
+  Anemone base               -> 24.2%  (purple anemone)
+  Tentacles only             -> 0.9%
+  Lower fish (1pt)           -> 0.2%
+  Lower fish nudged (3pt)    -> 0.3%
+  Lower fish + neg           -> 0.3%
+  Lower fish tight (5pt+neg) -> 1.0%  (best lower fish)
+  Upper fish nudged (3pt)    -> 0.6%
+  Upper fish + neg           -> 0.7%
+
+Recommended progression:
+  Step 0  -> Random corners (80.8%)
+  Step 30 -> Anemone base (24.2%, wrong object)
+  Step 60 -> Lower fish 1pt (0.2%, found fish but tiny)
+  Step 100 -> Lower fish tight (1.0%, optimized)
+
+Saved GT masks:
+  clownfish_gt_lower_fish_mask.png  (1.0%)
+  clownfish_gt_upper_fish_mask.png  (0.7%)
+  clownfish_gt_anemone_mask.png     (24.2%)
+
+
+BUTTERFLYFISH (candidate_butterflyfish.jpg, resized 1024x768)
+=============================================================
+Left fish ~(340, 375), Right fish ~(475, 410), Pink coral ~(750, 480)
+
+Tested Configs:
+  Random far                 -> 86.6%  (huge mask)
+  Big coral mass             -> 28.3%
+  One pt left fish           -> 0.7%
+  Left fish refined (3pt)    -> 0.7%
+  Left fish + neg            -> 0.8%
+  Left fish tight (5pt+neg)  -> 1.2%  (best left fish)
+  Right fish refined (3pt)   -> 1.1%
+  Right fish + neg           -> 1.0%
+
+Recommended progression:
+  Step 0  -> Random far (86.6%)
+  Step 30 -> Big coral mass (28.3%, wrong-ish object)
+  Step 60 -> One pt left fish (0.7%, found it)
+  Step 100 -> Left fish tight (1.2%, optimized)
+
+Saved GT masks:
+  butterflyfish_gt_left_fish_mask.png   (1.2%)
+  butterflyfish_gt_right_fish_mask.png  (1.0%)
+  butterflyfish_gt_pink_coral_mask.png  (1.5%)
