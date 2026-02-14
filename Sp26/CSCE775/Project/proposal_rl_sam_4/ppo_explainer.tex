@@ -46,8 +46,6 @@ Dual-Space Heterogeneous Graphs \\[0.5em]
 This document provides a detailed technical walkthrough of the Plug-and-Play Prompt Optimization (PPO) pipeline for one-shot image segmentation. The system combines DINOv2 feature matching, a dual-space heterogeneous graph representation, tabular Q-learning with experience replay, and the Segment Anything Model (SAM) to segment objects in unseen images given only a single reference example. We explain every component with mathematical formulations, architectural diagrams, and experimental results from a real underwater segmentation task (blue tang fish on coral reef), where the pipeline improved SAM mask IoU from 0.001 to 0.760 after 30 training episodes.
 \end{abstract}
 
-\tableofcontents
-\newpage
 
 % ============================================================
 \section{Problem Statement}
@@ -496,43 +494,6 @@ Figure~\ref{fig:snapshots} shows segmentation snapshots during training. The age
 30 & 0.372 & 9.7\% & 6 / 20 \\
 \midrule
 Best Q-table (main run) & \textbf{0.760} & $\sim$5\% & 6 / 20 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-% ============================================================
-\section{DINOv2 Feature Visualization}
-% ============================================================
-
-To understand what DINOv2 ``sees'' in the image, we can visualize the patch-level features. Figure~\ref{fig:dino_features} shows the DINOv2 feature similarity map and PCA decomposition for the blue tang image, illustrating how the model distinguishes the fish from the coral background in feature space.
-
-Figure~\ref{fig:dino_features} visualizes these features. The model produces distinct feature representations for the fish body versus the coral background, which is what enables the feature-matching step and the graph-based reward to work effectively.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=\textwidth]{figures/bluetang_fig2_dino_features.png}
-\caption{DINOv2 PCA feature visualization and similarity map for the blue tang image.}
-\label{fig:dino_features}
-\end{figure}
-
-% ============================================================
-\section{Design Decisions Summary}
-% ============================================================
-
-\begin{table}[H]
-\centering
-\caption{Key architectural decisions and their rationale.}
-\label{tab:design}
-\begin{tabular}{@{}p{3.5cm}p{3.5cm}p{5.5cm}@{}}
-\toprule
-\textbf{Decision} & \textbf{Choice} & \textbf{Rationale} \\
-\midrule
-Feature extractor & DINOv2 ViT-G/14 & Best self-supervised features; patch-level output aligns with SAM's point prompts \\
-Segmentation model & SAM ViT-B (frozen) & Foundation model; no retraining needed \\
-RL algorithm & Tabular Q-learning & Simple, no neural network overhead; graph state is discrete \\
-Graph representation & Dual-space heterogeneous & Captures both semantic similarity and spatial arrangement simultaneously \\
-Environment reset & Start empty each episode & Forces explicit subset selection rather than incremental pruning \\
-Reward design & Mean edge weights & Avoids calling SAM during training ($\sim$100$\times$ faster per episode) \\
 \bottomrule
 \end{tabular}
 \end{table}
