@@ -60,36 +60,82 @@ The Segment Anything Model (SAM) produces high-quality segmentation masks but re
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-    block/.style={draw, minimum width=2.8cm, minimum height=1.1cm, align=center, font=\small},
-    data/.style={draw, dashed, minimum width=2.4cm, minimum height=0.9cm, align=center, font=\small},
+    model/.style={draw, thick, minimum width=3.0cm, minimum height=1.0cm, align=center, font=\small\bfseries},
+    data/.style={draw, dashed, minimum width=2.6cm, minimum height=0.85cm, align=center, font=\small},
     arr/.style={-{Stealth[length=3mm]}, thick},
+    lbl/.style={font=\scriptsize, midway, fill=white, inner sep=1pt},
     every node/.style={font=\small}
 ]
 
-% Row 1: Reference Image -> PPO Pipeline -> Target Image
-\node[data, fill=LightGray] (ref) {Reference\\Image};
-\node[block, fill=Garnet!10, right=1.8cm of ref] (pipeline) {\textbf{PPO}\\Pipeline};
-\node[data, fill=LightGray, right=1.8cm of pipeline] (target) {Target\\Image};
+% === INPUTS (left column) ===
+\node[data, fill=LightGray] (ref) {Reference Image};
+\node[data, fill=LightGray, below=0.4cm of ref] (gt) {GT Mask};
+\node[data, fill=LightGray, below=1.6cm of gt] (target) {Target Image};
 
-% Row 2: GT Mask (below ref), Optimized Prompts (below pipeline), SAM (below target)
-\node[data, fill=LightGray, below=0.8cm of ref] (gt) {GT Mask};
-\node[data, fill=Horseshoe!15, below=0.8cm of pipeline] (prompts) {Optimized\\Prompts};
-\node[block, fill=Atlantic!10, below=0.8cm of target] (sam) {SAM};
+% === STEP 1: Feature Extraction (center-left) ===
+\node[model, fill=Garnet!10, right=1.5cm of ref, yshift=-0.5cm] (dino) {DINOv2\\ViT-G/14};
+\node[font=\scriptsize, below=0.1cm of dino, text=Garnet] {1.1B params, frozen};
 
-% Row 3: Output Mask (below SAM)
-\node[data, fill=Horseshoe!15, below=0.8cm of sam] (mask) {Output\\Mask};
+% Feature outputs
+\node[data, fill=Horseshoe!15, right=1.5cm of dino, yshift=0.5cm] (reffeat) {Ref.\ Features\\$1600 \times 1536$};
+\node[data, fill=Horseshoe!15, right=1.5cm of dino, yshift=-0.8cm] (tarfeat) {Target Features\\$1600 \times 1536$};
 
-% Arrows
-\draw[arr] (ref.east) -- (pipeline.west);
-\draw[arr] (gt.east) -- (prompts.west);
-\draw[arr] (target.west) -- (pipeline.east);
-\draw[arr] (pipeline.south) -- (prompts.north);
-\draw[arr] (prompts.east) -- (sam.west);
-\draw[arr] (target.south) -- (sam.north);
+% Arrows into DINOv2
+\draw[arr] (ref.east) -- (dino.west |- ref.east) node[lbl, above] {$560{\times}560$};
+\draw[arr] (target.east) -- ++(0.5,0) |- (dino.south west) node[lbl, below right, pos=0.75] {$560{\times}560$};
+
+% Arrows out of DINOv2
+\draw[arr] (dino.east) ++(0,0.2) -- (reffeat.west) node[lbl, above] {patches};
+\draw[arr] (dino.east) ++(0,-0.2) -- (tarfeat.west) node[lbl, below] {patches};
+
+% === STEP 2: Graph + Q-Learning (center-right) ===
+\node[model, fill=Atlantic!10, below=1.8cm of dino] (graph) {Dual-Space\\Heterogeneous Graph};
+\node[font=\scriptsize, below=0.1cm of graph, text=Atlantic] {5 edge types, ${\sim}2$M edges};
+
+\node[model, fill=Congaree!15, right=1.5cm of graph] (qlearn) {Tabular\\Q-Learning};
+\node[font=\scriptsize, below=0.1cm of qlearn, text=Congaree] {30 episodes, $\varepsilon$-greedy};
+
+% Connect features to graph
+\draw[arr] (reffeat.south) -- ++(0,-0.4) -| (graph.north) node[lbl, left, pos=0.25] {cosine sim};
+\draw[arr] (tarfeat.south) -- ++(0,-0.2) -| ([xshift=-0.5cm]graph.north);
+
+% GT mask to graph
+\draw[arr] (gt.east) -- ++(0.3,0) |- (graph.west) node[lbl, above, pos=0.75] {labels};
+
+% Graph to Q-learning
+\draw[arr] (graph.east) -- (qlearn.west) node[lbl, above] {state};
+
+% Q-learning reward loop
+\draw[arr, Garnet] (qlearn.south) -- ++(0,-0.5) -| (graph.south) node[lbl, below, pos=0.25] {add/remove nodes};
+\node[font=\scriptsize, text=Garnet] at ([yshift=-0.7cm]$(graph.south)!0.5!(qlearn.south)$) {reward = graph statistics (no SAM call)};
+
+% === STEP 3: Prompt Extraction + SAM ===
+\node[data, fill=Horseshoe!15, right=1.5cm of qlearn, yshift=0.8cm] (prompts) {Optimized Prompts\\$(x,y)$ pos/neg points};
+
+\node[model, fill=Garnet!10, below=0.5cm of prompts] (sam) {SAM\\ViT-B};
+\node[font=\scriptsize, below=0.1cm of sam, text=Garnet] {91M params, frozen};
+
+\node[data, fill=Horseshoe!15, below=0.7cm of sam] (mask) {Output Mask};
+
+% Q-learning to prompts
+\draw[arr] (qlearn.east) -- ++(0.3,0) |- (prompts.west) node[lbl, above, pos=0.75] {decode Q-table};
+
+% Target image to SAM
+\draw[arr] (target.south) -- ++(0,-0.5) -| (sam.south west) node[lbl, below, pos=0.7] {full image};
+
+% Prompts to SAM
+\draw[arr] (prompts.south) -- (sam.north);
+
+% SAM to mask
 \draw[arr] (sam.south) -- (mask.north);
 
+% === Stage labels ===
+\node[font=\footnotesize\bfseries, text=Garnet, rotate=90, anchor=south] at ([xshift=-0.3cm]dino.west |- dino.north) {Step 1};
+\node[font=\footnotesize\bfseries, text=Atlantic, rotate=90, anchor=south] at ([xshift=-0.3cm]graph.west |- graph.north) {Step 2};
+\node[font=\footnotesize\bfseries, text=Congaree, rotate=90, anchor=south] at ([xshift=-0.3cm]sam.west |- prompts.north) {Step 3};
+
 \end{tikzpicture}
-\caption{One-shot segmentation setup. Given a reference image with a ground-truth mask and a new target image, the PPO pipeline produces optimized SAM prompts that segment the same object class in the target.}
+\caption{Full PPO pipeline architecture. \textbf{Step 1}: Both images are resized to $560{\times}560$ and passed through frozen DINOv2 ViT-G/14 to extract 1600 patch features each (1536-dim). \textbf{Step 2}: Features and GT mask build a dual-space heterogeneous graph (${\sim}$2M edges, 5 types). A tabular Q-learning agent optimizes which target patches to keep via graph-statistic rewards (SAM is never called during training). \textbf{Step 3}: The final Q-table is decoded into $(x,y)$ point prompts fed to frozen SAM ViT-B, which segments the target image in a single forward pass.}
 \label{fig:problem}
 \end{figure}
 
