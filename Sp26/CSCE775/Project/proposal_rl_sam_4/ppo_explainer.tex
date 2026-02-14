@@ -343,31 +343,6 @@ The optimized coordinates are passed to \textbf{SAM ViT-B} (358 MB checkpoint) a
 where $\ell_i = 1$ for positive prompts and $\ell_i = 0$ for negative. SAM's \texttt{multimask\_output} is set to \texttt{False}, producing a single best mask.
 
 % ============================================================
-\section{Computational Profile}
-% ============================================================
-
-\begin{table}[H]
-\centering
-\caption{Computational costs for the blue tang experiment on NVIDIA RTX 6000 Ada (48 GB).}
-\label{tab:compute}
-\begin{tabular}{@{}llll@{}}
-\toprule
-\textbf{Component} & \textbf{Time} & \textbf{Hardware} & \textbf{Memory} \\
-\midrule
-DINOv2 ViT-G/14 download & $\sim$60s & Network & 4.2 GB disk \\
-DINOv2 feature extraction & $\sim$5s & GPU & $\sim$16 GB VRAM \\
-Graph construction & $\sim$10s & CPU & $\sim$2 GB RAM \\
-Q-learning (30 episodes) & $\sim$45 min & CPU-bound & $\sim$8 GB RAM \\
-SAM ViT-B inference & $<$1s & GPU & $\sim$1.5 GB VRAM \\
-\midrule
-\textbf{Total pipeline} & $\sim$50 min & & \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The bottleneck is Q-learning training, which is CPU-bound due to the large graph ($\sim$2M edges). Computing mean edge weights at every step dominates the per-step cost. Each of the 100 steps per episode also involves replaying 64 transitions from the buffer with full Q-table lookups.
-
-% ============================================================
 \section{Limitations for Few-Class Detection}
 \label{sec:limitations}
 % ============================================================
