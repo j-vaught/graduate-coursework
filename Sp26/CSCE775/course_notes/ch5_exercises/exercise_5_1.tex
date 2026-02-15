@@ -12,7 +12,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercise 5.1 --- Blackjack Value Function Analysis}}
+\title{\color{garnet}\textbf{Exercises 5.1 \& 5.2 --- Blackjack Value Function Analysis}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -164,6 +164,101 @@ As the player sum gets closer to 20, this advantage shrinks --- there is less ro
         Drop at dealer Ace & The Ace is the dealer's best card because it is flexible (can count as 1 or 11). This means the dealer almost never busts, so the player gets fewer ``free wins.'' \\
         \addlinespace
         Higher front values with usable ace & A usable ace lets the player survive hits that would otherwise cause a bust --- it is a safety net. This matters most at low sums where the player has to hit many times before reaching 20. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.2}}\\[6pt]
+    {\large First-Visit vs.\ Every-Visit Monte Carlo}
+\end{center}
+
+\section*{Problem Statement}
+
+Suppose every-visit MC was used instead of first-visit MC on the blackjack task. Would you expect the results to be very different? Why or why not?
+
+\section*{Background: What is the difference?}
+
+To answer this, we first need to understand the two flavors of Monte Carlo prediction.
+
+\textbf{First-visit MC.} When computing the value of a state $s$, we look at each simulated game (episode). If the player passed through state $s$ during that game, we record the outcome --- but only for the \textit{first time} $s$ appeared in that episode. If somehow the player landed in state $s$ again later in the same game, we would ignore that second visit.
+
+\textbf{Every-visit MC.} Same idea, except we count \textit{every} time $s$ appears in the episode, not just the first time. If $s$ shows up three times in one game, we record the outcome three times and average all of them together.
+
+\textbf{When would this matter?} The two methods only differ when the \textit{same state is visited more than once within a single episode}. If every state only ever appears once per episode, the two methods are identical --- there is nothing to ``skip'' under first-visit, because there are no repeat visits.
+
+\section*{Answer: No, the results would not differ at all}
+
+In blackjack under this policy, \textbf{no state is ever visited twice in the same game}. The reason has to do with how the state is defined and how the game works.
+
+Recall that a state is a triple: (player sum, dealer showing, usable ace). Consider what happens each time the player takes a card (hits):
+
+\begin{itemize}[nosep]
+    \item The \textbf{dealer's showing card} never changes during a game --- it is dealt once and stays face-up. So this part of the state is fixed.
+    \item The player's \textbf{usable ace} status can change, but only in one direction: a usable ace can be ``spent'' (downgraded from 11 to 1), but a spent ace cannot become usable again.
+    \item The \textbf{player sum} changes with every hit. And here is the key: each card drawn has a value of at least 1, so the player sum \textit{strictly increases} with every hit --- unless the usable ace gets downgraded, in which case the sum drops by 10, but the usable-ace flag also flips. Either way, the overall state triple changes.
+\end{itemize}
+
+More concretely, think of it step by step. Suppose the player has sum 14 with no usable ace against a dealer showing 7 --- state $(14, 7, \text{no})$. They hit and draw a 5, moving to sum 19 --- state $(19, 7, \text{no})$. They hit again and draw a 3, moving to sum 22 --- bust (game over). At no point did the player return to state $(14, 7, \text{no})$, because the sum can only go up.
+
+The only tricky case is with a usable ace: suppose the player has sum 15 with a usable ace --- state $(15, 7, \text{yes})$. They hit and draw a 9, pushing the total to 24. The ace downgrades ($-10$), bringing them to sum 14 --- but now the state is $(14, 7, \text{no})$. The usable-ace flag is different, so this is a \textit{different state} from before.
+
+Since no state ever repeats within an episode, every visit \textit{is} the first visit. The two methods produce \textbf{exactly identical results}.
+
+\section*{Empirical Verification}
+
+To confirm this reasoning, we ran both first-visit and every-visit MC on the same 500{,}000 blackjack episodes. The difference between the two methods was verified to be exactly zero for all 200 states.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{fv_vs_ev_surfaces.png}
+    \caption{Side-by-side comparison of first-visit (left) and every-visit (right) MC surfaces after 500{,}000 episodes. The surfaces are visually identical because no state is ever revisited within a blackjack episode.}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{fv_vs_ev_diff_heatmap.png}
+    \caption{Absolute difference $|V_{\text{first-visit}} - V_{\text{every-visit}}|$ for each state. Every cell is exactly 0.000 --- the methods produced identical estimates for all 200 states.}
+\end{figure}
+
+Some key statistics from the simulation:
+\begin{itemize}[nosep]
+    \item Total state visits recorded (first-visit): 777{,}567
+    \item Total state visits recorded (every-visit): 777{,}567 (identical)
+    \item Episodes with any state revisited: 0 out of 500{,}000 (0\%)
+    \item Maximum absolute difference across all states: 0.0000
+\end{itemize}
+
+\section*{When \textit{would} they differ?}
+
+For completeness, the two methods \textit{would} produce different results in environments where the agent can revisit the same state within an episode. For example:
+
+\begin{itemize}[nosep]
+    \item A robot navigating a gridworld that can walk in circles (visiting the same cell multiple times before reaching a goal).
+    \item Any episodic task where the state can ``reset'' or cycle back to a previous value.
+\end{itemize}
+
+Even in those cases, both methods converge to the true value function given enough episodes --- they just converge at slightly different rates. First-visit MC produces unbiased estimates. Every-visit MC is biased (slightly) but has lower variance, and the bias disappears as the number of episodes grows.
+
+In blackjack, none of this matters because the two methods see exactly the same data.
+
+\section*{Summary}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{p{0.22\textwidth} p{0.68\textwidth}}
+        \toprule
+        \textbf{Question} & \textbf{Answer} \\
+        \midrule
+        Would results differ? & No --- the results are \textit{exactly} identical. \\
+        \addlinespace
+        Why? & Because no state is ever visited twice in a single blackjack episode. Each hit changes the player sum (always increases by at least 1) or flips the usable-ace flag, so the state triple always moves to a new value. \\
+        \addlinespace
+        When would they differ? & In environments where the agent can revisit the same state within an episode (e.g., a gridworld with loops). Blackjack does not have this property. \\
         \bottomrule
     \end{tabular}
 \end{table}
