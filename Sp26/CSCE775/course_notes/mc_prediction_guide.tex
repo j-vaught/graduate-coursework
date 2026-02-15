@@ -533,6 +533,55 @@ $S_6$ & $10.0$   & $10.0$  & $0$ \\
 The difference is substantial. First-visit MC gives $V(S_1) = -0.434$ while every-visit MC gives $V(S_1) = 2.073$. This is because the second visit to $S_1$ (at $t=4$) occurs closer to the goal and thus has a much higher return ($G_4 = 4.58$). Every-visit MC includes this optimistic return in its average, pulling the estimate upward.
 
 % ============================================================
+\section{Which One Should You Use?}
+% ============================================================
+
+Now that we have seen how first-visit and every-visit MC produce different estimates from the same episode, the natural question is: which one should you actually use? The short answer is that it depends on your situation, but every-visit MC is the more common default in practice. Here is a deeper look at the trade-offs.
+
+\subsection{The Bias--Variance Trade-Off}
+
+Before choosing, it helps to understand two key concepts from statistics that govern how estimation methods behave.
+
+\vocab{Bias} is systematic error. An estimator is biased if, on average, it consistently over- or under-estimates the true value. Think of a bathroom scale that always reads 2 pounds too high. No matter how many times you step on it, the average will be off by 2 pounds.
+
+\vocab{Variance} is random scatter. A high-variance estimator gives wildly different answers each time, even if it is correct on average. Think of a scale that is accurate on average but fluctuates between $\pm 10$ pounds on each reading.
+
+Ideally, we want \textit{low bias and low variance}, but there is usually a tension between the two. Reducing one often increases the other. This is the \vocab{bias--variance trade-off}, and it is exactly what separates first-visit from every-visit MC.
+
+\subsection{First-Visit MC: Unbiased but Higher Variance}
+
+First-visit MC produces an \textit{unbiased} estimate. The reason is that the first time we visit a state in an episode, the return we observe is a ``clean'' sample. It does not depend on what happened earlier in the same episode, so each episode gives us one independent data point per state. Independence is a strong statistical property that guarantees convergence by the law of large numbers.
+
+The downside is that first-visit MC \textit{throws away data}. In our example, we had two perfectly good returns for $S_1$ ($-0.434$ and $4.58$), but first-visit MC only used one. With fewer data points, the estimate is noisier (higher variance), especially when episodes are scarce.
+
+\begin{tcolorbox}[examplebox={Choose First-Visit MC When...}]
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+    \item You need \textit{theoretical guarantees}. First-visit MC has cleaner convergence proofs and is easier to analyze mathematically. If you are doing research or need to prove properties of your algorithm, first-visit is the safer foundation.
+    \item You are working in an \textit{on-policy} setting where episodes are cheap to generate. If you can easily run thousands of episodes, the lost data from ignoring revisits does not matter much because you will have plenty of first visits across all those episodes.
+    \item The environment has \textit{strong loops} that cause the agent to revisit states many times in pathological ways. In extreme cases, the correlated revisits in every-visit MC can slow convergence, and first-visit avoids this entirely.
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Every-Visit MC: Slightly Biased but Lower Variance}
+
+Every-visit MC uses \textit{all} the returns, including revisits. This means more data points per episode, which reduces variance. The trade-off is a small bias: the returns from the first and second visits to $S_1$ are not independent (the agent had to take a specific path to revisit $S_1$, so the second return is correlated with the first). However, this bias shrinks to zero as the number of episodes grows, and in practice it is negligibly small.
+
+\begin{tcolorbox}[examplebox={Choose Every-Visit MC When...}]
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+    \item \textit{Episodes are expensive} to generate (e.g., real-world robot trials, costly simulations). Every-visit MC squeezes the most information out of each episode by using every return.
+    \item You want \textit{simpler code}. Every-visit MC does not require tracking which states have already been visited in the current episode. You just loop backward through the episode and record every return. This also makes it less error-prone to implement.
+    \item You are using MC as a \textit{subroutine} inside a larger algorithm (e.g., Monte Carlo control with exploring starts). The extra data from revisits helps the value estimates stabilize faster, which speeds up policy improvement.
+    \item You are in an \textit{early prototyping} phase and just want reasonable estimates quickly. The lower variance means you converge to a useful estimate with fewer episodes.
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{In Practice}
+
+For most practical applications, every-visit MC is the default choice. The slight bias is negligible, the variance reduction from using all data points is meaningful, and the implementation is simpler. First-visit MC is preferred primarily in theoretical work or when you specifically need the unbiasedness guarantee. Many textbooks (including Sutton and Barto) present first-visit MC first because it is easier to prove things about, but then note that every-visit MC is often used in practice.
+
+It is also worth noting that as the number of episodes grows large, the two methods produce nearly identical estimates. The choice matters most when data is limited, which is precisely when every-visit MC's ability to use all available returns gives it the practical edge.
+
+% ============================================================
 \section{Key Takeaways}
 % ============================================================
 
