@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.10 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.11 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -1383,5 +1383,124 @@ So Equation~(5.8) is a strict generalization of Equation~(2.3). The on-policy ca
 \section*{Summary}
 
 The derivation takes five lines of algebra: write $V_{n+1}$ from its definition, split out the last term, substitute $V_n$ for the earlier terms, replace $C_{n-1}$ with $C_n - W_n$, and simplify. The result is the incremental update $V_{n+1} = V_n + \frac{W_n}{C_n}[G_n - V_n]$, where the step size $W_n / C_n$ automatically gives more influence to higher-weighted samples.
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.11}}\\[6pt]
+    {\large Why the Off-Policy MC Control $W$ Update Uses $\frac{1}{b(A_t|S_t)}$}
+\end{center}
+
+\section*{Problem Statement}
+
+In the boxed algorithm for off-policy MC control (page~111), you may have been expecting the $W$ update to have involved the importance-sampling ratio $\frac{\pi(A_t \mid S_t)}{b(A_t \mid S_t)}$, but instead it involves $\frac{1}{b(A_t \mid S_t)}$. Why is this nevertheless correct?
+
+\section*{Background: The algorithm in question}
+
+The off-policy MC control algorithm on page~111 maintains a weight $W$ that accumulates the importance-sampling ratio as it walks backward through the episode. The relevant lines are:
+
+\begin{center}
+\fbox{\parbox{0.88\textwidth}{
+\vspace{4pt}
+\hspace*{1em}\textbf{Loop} for each step, $t = T{-}1, T{-}2, \ldots, 0$:\\[2pt]
+\hspace*{2em}$G \leftarrow \gamma G + R_{t+1}$\\
+\hspace*{2em}$C(S_t, A_t) \leftarrow C(S_t, A_t) + W$\\
+\hspace*{2em}$Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \frac{W}{C(S_t, A_t)}\big[G - Q(S_t, A_t)\big]$\\
+\hspace*{2em}$\pi(S_t) \leftarrow \arg\max_a Q(S_t, a)$\\
+\hspace*{2em}If $A_t \neq \pi(S_t)$ then exit inner Loop\\
+\hspace*{2em}$W \leftarrow W \cdot \dfrac{1}{b(A_t \mid S_t)}$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize why not $\frac{\pi(A_t|S_t)}{b(A_t|S_t)}$?}
+\vspace{4pt}
+}}
+\end{center}
+
+You would expect the standard IS ratio update:
+\begin{align}
+    W \leftarrow W \cdot \frac{\pi(A_t \mid S_t)}{b(A_t \mid S_t)}
+\end{align}
+
+But instead the algorithm uses:
+\begin{align}
+    W \leftarrow W \cdot \frac{1}{b(A_t \mid S_t)}
+\end{align}
+
+These are different formulas. So why is the simplified version correct?
+
+\section*{Answer: Because $\pi(A_t \mid S_t) = 1$ whenever we reach that line}
+
+The key is the line \textit{immediately before} the $W$ update:
+\begin{quote}
+    If $A_t \neq \pi(S_t)$ then exit inner Loop (proceed to next episode)
+\end{quote}
+
+This is a guard clause. If the action taken by the behavior policy ($A_t$) is \textit{not} the action the target policy would have taken ($\pi(S_t)$), the algorithm \textbf{exits the loop immediately} and never reaches the $W$ update.
+
+The only way the algorithm reaches the $W$ update line is if $A_t = \pi(S_t)$ --- that is, the behavior policy happened to choose the same action the target policy would have chosen.
+
+Now, the target policy $\pi$ is \textit{deterministic} (greedy): $\pi(S_t) = \arg\max_a Q(S_t, a)$. A deterministic policy assigns probability 1 to the chosen action and 0 to everything else:
+\begin{align}
+    \pi(A_t \mid S_t) = \begin{cases} 1 & \text{if } A_t = \pi(S_t) \\ 0 & \text{if } A_t \neq \pi(S_t) \end{cases}
+\end{align}
+
+Since we only reach the $W$ update when $A_t = \pi(S_t)$, we know that $\pi(A_t \mid S_t) = 1$ at that point. Therefore:
+\begin{align}
+    \frac{\pi(A_t \mid S_t)}{b(A_t \mid S_t)} = \frac{1}{b(A_t \mid S_t)}
+\end{align}
+
+The two formulas are identical whenever the $W$ update actually executes.
+
+\section*{Walking through the logic step by step}
+
+At each time step $t$, the algorithm asks: ``Did the behavior policy happen to take the same action $\pi$ would have taken?''
+
+\begin{itemize}[nosep]
+    \item \textbf{If no} ($A_t \neq \pi(S_t)$): The IS ratio would be $\pi(A_t \mid S_t) / b(A_t \mid S_t) = 0 / b(A_t \mid S_t) = 0$. Multiplying $W$ by zero would make $W = 0$ for the rest of the episode. Since $W = 0$ means no further updates would have any effect, the algorithm takes a shortcut and just exits the loop entirely. This is more efficient than continuing to process steps with zero weight.
+
+    \item \textbf{If yes} ($A_t = \pi(S_t)$): The IS ratio is $\pi(A_t \mid S_t) / b(A_t \mid S_t) = 1 / b(A_t \mid S_t)$. The algorithm applies this update and continues to the next time step.
+\end{itemize}
+
+\section*{Why does the algorithm work backward?}
+
+This is also why the loop processes steps from the \textit{end} of the episode backward ($t = T{-}1, T{-}2, \ldots, 0$). Walking backward, the algorithm accumulates the IS ratio one factor at a time. The moment it encounters a time step where $A_t \neq \pi(S_t)$, it knows the entire remaining IS ratio (for all earlier time steps) would be zero. So it exits immediately, avoiding wasted computation.
+
+If the loop ran forward, it would have to process the entire episode before discovering (at the end) that the ratio is zero. The backward approach lets it bail out early.
+
+\section*{A concrete example}
+
+Consider an episode with 5 steps. The target policy $\pi$ (greedy) and the behavior policy $b$ (soft/exploratory) chose these actions:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ccccl}
+        \toprule
+        \textbf{$t$} & $\boldsymbol{A_t}$ \textbf{(behavior)} & $\boldsymbol{\pi(S_t)}$ \textbf{(target)} & \textbf{Match?} & \textbf{What happens} \\
+        \midrule
+        4 & hit & hit & Yes & $W \leftarrow W \cdot \frac{1}{b(\text{hit} \mid S_4)}$, continue \\
+        3 & stick & stick & Yes & $W \leftarrow W \cdot \frac{1}{b(\text{stick} \mid S_3)}$, continue \\
+        2 & hit & stick & No & \textbf{Exit loop} \\
+        1 & \multicolumn{4}{l}{\textit{(never reached)}} \\
+        0 & \multicolumn{4}{l}{\textit{(never reached)}} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+At $t = 2$, the behavior policy took ``hit'' but $\pi$ would have taken ``stick.'' The IS ratio factor is $\pi(\text{hit} \mid S_2) / b(\text{hit} \mid S_2) = 0 / b(\text{hit} \mid S_2) = 0$. Rather than multiply $W$ by zero and continue processing $t = 1$ and $t = 0$ (which would all have zero effect), the algorithm exits immediately. Time steps 1 and 0 are never processed --- a significant computational saving in practice.
+
+\section*{Summary}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{p{0.28\textwidth} p{0.60\textwidth}}
+        \toprule
+        \textbf{Question} & \textbf{Answer} \\
+        \midrule
+        Why $1/b$ instead of $\pi/b$? & Because the ``If $A_t \neq \pi(S_t)$ then exit'' guard ensures the $W$ update only executes when $A_t = \pi(S_t)$, which means $\pi(A_t \mid S_t) = 1$. So $\pi/b = 1/b$. \\
+        \addlinespace
+        What about the $\pi = 0$ case? & When $A_t \neq \pi(S_t)$, the ratio would be zero, making $W = 0$. The exit clause handles this efficiently by stopping the loop instead of multiplying by zero. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \end{document}
