@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.3 --- Blackjack \& Monte Carlo Backup Diagrams}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.4 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -447,5 +447,143 @@ For $q_\pi$ specifically, the diagram starts one level lower than $v_\pi$, becau
         \bottomrule
     \end{tabular}
 \end{table}
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.4}}\\[6pt]
+    {\large Incremental Monte Carlo ES}
+\end{center}
+
+\section*{Problem Statement}
+
+The pseudocode for Monte Carlo ES is inefficient because, for each state-action pair, it maintains a list of all returns and repeatedly calculates their mean. It would be more efficient to use techniques similar to those explained in Section~2.4 to maintain just the mean and a count (for each state-action pair) and update them incrementally. Describe how the pseudocode would be altered to achieve this.
+
+\section*{Background: Why is the original version inefficient?}
+
+The Monte Carlo ES algorithm on page~99 of the textbook stores data like this:
+
+\begin{quote}
+    $Returns(s, a) \leftarrow$ an ever-growing list of numbers
+\end{quote}
+
+Every time the agent finishes a game and visits state-action pair $(s, a)$, the algorithm appends the return $G$ to the list $Returns(s, a)$ and then recomputes the average of the \textit{entire} list. As the agent plays more and more games, these lists get longer and longer. After 500{,}000 games, a frequently visited pair might have a list with tens of thousands of entries, and the algorithm recomputes the average over all of them every single time.
+
+This is wasteful in two ways:
+\begin{itemize}[nosep]
+    \item \textbf{Memory:} We are storing every return we have ever seen. For 200 state-action pairs visited thousands of times each, that is a lot of numbers sitting in memory.
+    \item \textbf{Computation:} Recomputing the average of $n$ numbers takes $O(n)$ time. As $n$ grows, this gets slower and slower. But the new average only differs from the old average by a tiny adjustment --- surely we can compute it faster.
+\end{itemize}
+
+\section*{The trick from Section 2.4: Incremental mean update}
+
+Section~2.4 of the textbook shows that you do not need to store the entire list. You only need two things: the \textit{current average} and a \textit{count} of how many values you have seen so far.
+
+The key formula (Equation~2.3 in the textbook) is:
+\begin{align}
+    Q_{n+1} = Q_n + \frac{1}{n}\Big[R_n - Q_n\Big]
+\end{align}
+In plain English: to update the average after seeing a new value, take the old average $Q_n$, compute the ``error'' (how far the new value $R_n$ is from the old average), and nudge the average toward the new value by a fraction $1/n$.
+
+This is an instance of the general update pattern that appears throughout reinforcement learning:
+\begin{align}
+    \text{NewEstimate} \leftarrow \text{OldEstimate} + \text{StepSize} \times \Big[\text{Target} - \text{OldEstimate}\Big]
+\end{align}
+
+The step size $1/n$ gets smaller as we see more data, which makes sense: early observations should move the average a lot, but after thousands of observations, each new one should barely budge it.
+
+\section*{Answer: The modified pseudocode}
+
+We replace the $Returns(s, a)$ lists with two simpler data structures: $Q(s, a)$ (the running average) and $N(s, a)$ (the count). Here is the full modified algorithm:
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{
+\textbf{Monte Carlo ES (Incremental), for estimating $\pi \approx \pi_*$}
+\vspace{4pt}
+
+\textbf{Initialize:}\\[2pt]
+\hspace*{1em}$\pi(s) \in \mathcal{A}(s)$ (arbitrarily), for all $s \in \mathcal{S}$\\
+\hspace*{1em}$Q(s, a) \in \mathbb{R}$ (arbitrarily), for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$\\
+\hspace*{1em}$N(s, a) \leftarrow 0$, for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize replaces $Returns(s,a)$ lists}
+
+\vspace{6pt}
+\textbf{Loop forever} (for each episode):\\[2pt]
+\hspace*{1em}Choose $S_0 \in \mathcal{S}$, $A_0 \in \mathcal{A}(S_0)$ randomly (exploring starts)\\
+\hspace*{1em}Generate an episode from $S_0, A_0$, following $\pi$:\\
+\hspace*{2em}$S_0, A_0, R_1, S_1, A_1, R_2, \ldots, S_{T-1}, A_{T-1}, R_T$\\
+\hspace*{1em}$G \leftarrow 0$\\
+\hspace*{1em}\textbf{Loop} for each step of episode, $t = T{-}1, T{-}2, \ldots, 0$:\\[2pt]
+\hspace*{2em}$G \leftarrow \gamma G + R_{t+1}$\\
+\hspace*{2em}Unless the pair $S_t, A_t$ appears in $S_0, A_0, S_1, A_1, \ldots, S_{t-1}, A_{t-1}$:\\[2pt]
+\hspace*{3em}$N(S_t, A_t) \leftarrow N(S_t, A_t) + 1$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize increment count}\\
+\hspace*{3em}$Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \dfrac{1}{N(S_t, A_t)}\Big[G - Q(S_t, A_t)\Big]$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize incremental update}\\[4pt]
+\hspace*{3em}$\pi(S_t) \leftarrow \arg\max_a\, Q(S_t, a)$
+}}
+\end{center}
+
+\section*{What changed, step by step}
+
+Three things changed from the original pseudocode:
+
+\textbf{1. Initialization.}
+\begin{itemize}[nosep]
+    \item \textit{Removed:} $Returns(s, a) \leftarrow$ empty list, for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$
+    \item \textit{Added:} $N(s, a) \leftarrow 0$, for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$
+    \item $Q(s, a)$ was already initialized (arbitrarily). No change needed there.
+\end{itemize}
+
+\textbf{2. Inside the loop (when a first-visit state-action pair is found).}
+\begin{itemize}[nosep]
+    \item \textit{Removed:} ``Append $G$ to $Returns(S_t, A_t)$''
+    \item \textit{Removed:} ``$Q(S_t, A_t) \leftarrow \text{average}(Returns(S_t, A_t))$''
+    \item \textit{Added:} ``$N(S_t, A_t) \leftarrow N(S_t, A_t) + 1$''
+    \item \textit{Added:} ``$Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \frac{1}{N(S_t, A_t)}\big[G - Q(S_t, A_t)\big]$''
+\end{itemize}
+
+\textbf{3. Everything else stays the same.} The episode generation, the return calculation ($G \leftarrow \gamma G + R_{t+1}$), the first-visit check, and the policy improvement step ($\pi(S_t) \leftarrow \arg\max_a Q(S_t, a)$) are all unchanged.
+
+\section*{Why this works}
+
+The incremental formula produces \textit{exactly} the same running average as recomputing from the full list every time. Here is the intuition with a small example.
+
+Suppose we have seen three returns for a particular state-action pair: 5, 3, and 7.
+
+\textit{List-based approach:}
+\begin{align}
+    Q &= \text{average}(\{5, 3, 7\}) = \frac{5 + 3 + 7}{3} = 5.0
+\end{align}
+
+\textit{Incremental approach:}
+\begin{align}
+    N &= 1,\quad Q = 0 + \tfrac{1}{1}[5 - 0] = 5.0 \\[2pt]
+    N &= 2,\quad Q = 5.0 + \tfrac{1}{2}[3 - 5.0] = 5.0 + (-1.0) = 4.0 \\[2pt]
+    N &= 3,\quad Q = 4.0 + \tfrac{1}{3}[7 - 4.0] = 4.0 + 1.0 = 5.0
+\end{align}
+Same result, but we never stored the list $\{5, 3, 7\}$. We only kept track of $Q$ and $N$.
+
+\section*{Complexity comparison}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        & \textbf{Original (list-based)} & \textbf{Incremental} \\
+        \midrule
+        Memory per $(s,a)$ pair & $O(n)$ --- grows forever & $O(1)$ --- just $Q$ and $N$ \\
+        Time per update & $O(n)$ --- re-averages list & $O(1)$ --- one multiply, one add \\
+        Total memory & Unbounded & $2|\mathcal{S}||\mathcal{A}|$ (fixed) \\
+        \bottomrule
+    \end{tabular}
+    \caption{The incremental version uses constant memory and constant time per update, regardless of how many episodes have been run.}
+\end{table}
+
+\section*{Summary}
+
+Replace the ever-growing $Returns(s, a)$ lists with a simple counter $N(s, a)$. Instead of appending $G$ to a list and recomputing the average, increment the counter and nudge the current estimate $Q(s, a)$ toward $G$ using the step size $1/N(s, a)$. This produces identical results with $O(1)$ memory and $O(1)$ computation per update instead of $O(n)$ for both.
 
 \end{document}
