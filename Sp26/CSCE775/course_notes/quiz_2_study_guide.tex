@@ -1,0 +1,566 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{tikz}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{black90}{HTML}{363636}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{rose}{HTML}{CC2E40}
+
+\color{black90}
+
+\newcommand{\important}[1]{\textcolor{garnet}{\textbf{#1}}}
+\newcommand{\concept}[1]{\textcolor{atlantic}{\textbf{#1}}}
+\newcommand{\formula}[1]{\begin{center}\fcolorbox{garnet}{white}{\parbox{0.9\linewidth}{#1}}\end{center}}
+
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+
+\title{\color{garnet}\textbf{Quiz 2 Study Guide --- Lectures 4--7}\\[4pt]
+\large CSCE 775 --- Spring 2026}
+\author{J.C.\ Vaught}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\textbf{Quiz format:} 1 math problem (50\%) + conceptual questions (50\%).
+Strategy: nail the conceptual questions, get partial credit on the math.
+
+\tableofcontents
+\newpage
+
+% ======================================================================
+\part{Lecture 4: Model-Free RL}
+\textit{Covers Sutton \& Barto Ch.\ 5.1--5.7, 6.1--6.5, 7.1--7.3}
+% ======================================================================
+
+\section{Big Picture}
+
+\concept{Model-free RL} means learning from \textit{experience} without knowing the transition function $p(s',r \mid s,a)$. Two tasks:
+
+\begin{itemize}[nosep]
+    \item \textbf{Prediction (policy evaluation):} estimate $v_\pi$ or $q_\pi$ for a given $\pi$
+    \item \textbf{Control:} find the optimal policy $\pi_*$
+\end{itemize}
+
+Three families of methods, each with a different \textit{target} for the update:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Method} & \textbf{Target} & \textbf{Bias} & \textbf{Variance} \\
+\midrule
+Monte Carlo & $G_t$ (full return) & None & High \\
+TD(0) & $R_{t+1} + \gamma V(S_{t+1})$ & Yes (bootstrap) & Low \\
+$n$-step TD & $R_{t+1} + \cdots + \gamma^{n-1}R_{t+n} + \gamma^n V(S_{t+n})$ & Medium & Medium \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --------------------------------------------------
+\section{Monte Carlo Methods (Ch.\ 5)}
+% --------------------------------------------------
+
+\subsection{MC Prediction}
+
+Estimate $v_\pi(s) = \mathbb{E}_\pi[G_t \mid S_t = s]$ by averaging \textit{sampled returns}.
+
+\formula{
+\textbf{MC Incremental Update:}\quad
+$V(S_t) \leftarrow V(S_t) + \alpha\bigl(G_t - V(S_t)\bigr)$
+}
+
+\begin{itemize}[nosep]
+    \item \textbf{First-visit MC:} average $G_t$ only the \textit{first} time $s$ appears in an episode.
+    \item \textbf{Every-visit MC:} average $G_t$ every time $s$ appears.
+    \item Must wait until the episode ends to compute $G_t$. Does \textit{not} work for continuing (non-episodic) tasks.
+\end{itemize}
+
+\subsection{MC Control (On-Policy)}
+
+Use $Q(s,a)$ instead of $V(s)$ because we cannot derive a policy from $V$ without a model.
+
+\formula{
+\textbf{Policy from Q:}\quad $\pi(s) = \arg\max_a Q(s,a)$
+}
+
+\important{$\varepsilon$-greedy exploration:}
+\[
+\pi(a \mid s) =
+\begin{cases}
+1 - \varepsilon + \varepsilon/|\mathcal{A}(s)| & \text{if } a = \arg\max_{a'} Q(s,a') \\
+\varepsilon/|\mathcal{A}(s)| & \text{otherwise}
+\end{cases}
+\]
+
+The on-policy MC control algorithm: generate episode $\to$ compute returns backward $\to$ update $Q(S_t,A_t)$ $\to$ improve policy to $\varepsilon$-greedy w.r.t.\ new $Q$.
+
+\subsection{On-Policy vs Off-Policy}
+
+\begin{itemize}[nosep]
+    \item \textbf{Behavior policy $b$:} the policy used to collect data.
+    \item \textbf{Target policy $\pi$:} the policy we want to evaluate/improve.
+    \item \textbf{On-policy:} $b = \pi$.
+    \item \textbf{Off-policy:} $b \neq \pi$. Can reuse data from other policies. Requires importance sampling.
+\end{itemize}
+
+% --------------------------------------------------
+\section{Temporal-Difference Learning (Ch.\ 6)}
+% --------------------------------------------------
+
+\subsection{TD(0) Prediction}
+
+\important{Key idea:} update toward a \textit{bootstrapped} target instead of waiting for $G_t$.
+
+\formula{
+\textbf{TD(0) Update:}\quad
+$V(S_t) \leftarrow V(S_t) + \alpha\bigl[\underbrace{R_{t+1} + \gamma V(S_{t+1})}_{\text{TD target}} - V(S_t)\bigr]$
+}
+
+The quantity $\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$ is the \textbf{TD error}.
+
+\important{MC vs TD:}
+\begin{itemize}[nosep]
+    \item MC: unbiased, high variance, needs full episodes.
+    \item TD: biased (initially), low variance, learns online step-by-step.
+    \item TD bootstraps from its own estimate $\Rightarrow$ can propagate value information faster.
+\end{itemize}
+
+\subsection{SARSA --- On-Policy TD Control}
+
+\formula{
+\textbf{SARSA Update:}\quad
+$Q(S_t,A_t) \leftarrow Q(S_t,A_t) + \alpha\bigl[R_{t+1} + \gamma Q(S_{t+1},A_{t+1}) - Q(S_t,A_t)\bigr]$
+}
+
+Name comes from the quintuple $(S_t, A_t, R_{t+1}, S_{t+1}, A_{t+1})$.
+
+Both behavior and target policy are $\varepsilon$-greedy. Choose $A_{t+1}$ from $S_{t+1}$ using $\varepsilon$-greedy \textit{before} the update.
+
+\subsection{Q-Learning --- Off-Policy TD Control}
+
+\formula{
+\textbf{Q-Learning Update:}\quad
+$Q(S_t,A_t) \leftarrow Q(S_t,A_t) + \alpha\bigl[R_{t+1} + \gamma \max_{a} Q(S_{t+1},a) - Q(S_t,A_t)\bigr]$
+}
+
+\important{Key difference:} uses $\max_a Q(S_{t+1},a)$ (greedy) instead of $Q(S_{t+1},A_{t+1})$ ($\varepsilon$-greedy).
+
+\begin{itemize}[nosep]
+    \item Behavior policy: $\varepsilon$-greedy (explores).
+    \item Target policy: greedy (deterministic).
+    \item Off-policy because behavior $\neq$ target.
+\end{itemize}
+
+\important{Cliff Walking Example:}
+\begin{itemize}[nosep]
+    \item SARSA learns a \textit{safer} path (avoids cliff) because it accounts for its own $\varepsilon$-greedy exploration.
+    \item Q-learning learns the \textit{optimal} path (close to cliff) because the target policy is greedy.
+\end{itemize}
+
+% --------------------------------------------------
+\section{$n$-Step Methods (Ch.\ 7)}
+% --------------------------------------------------
+
+\formula{
+\textbf{$n$-step return:}\quad
+$G_{t:t+n} = R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^{n-1}R_{t+n} + \gamma^n V(S_{t+n})$
+}
+
+\begin{itemize}[nosep]
+    \item $n=1$: TD(0).
+    \item $n=\infty$: Monte Carlo.
+    \item Typical sweet spot: $n \approx 5$.
+\end{itemize}
+
+\textbf{TD($\lambda$)} averages over \textit{all} $n$-step returns with exponentially decaying weights $(1-\lambda)\lambda^{n-1}$. When $\lambda = 0$ you get TD(0); when $\lambda = 1$ you get MC.
+
+% --------------------------------------------------
+\section{Unified View: DP vs TD}
+% --------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+& \textbf{Full Backup (DP)} & \textbf{Sample Backup (TD)} \\
+\midrule
+Bellman Expectation for $v_\pi$ & Policy Evaluation & TD Learning \\
+Bellman Expectation for $q_\pi$ & Q-Policy Iteration & SARSA \\
+Bellman Optimality for $q_*$ & Q-Value Iteration & Q-Learning \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\important{Key difference:} DP uses the full model (all transitions); TD samples one transition.
+
+% ======================================================================
+\newpage
+\part{Lecture 5: Deep Learning Fundamentals}
+% ======================================================================
+
+\section{Linear Models}
+
+\subsection{Linear Regression}
+
+\formula{
+$f(\mathbf{x}, \mathbf{w}, b) = \mathbf{w}^\top \mathbf{x} + b$\qquad
+\textbf{Loss:}\quad $\mathcal{L}(\boldsymbol{\theta}) = \frac{1}{2n}\sum_{i=1}^n (y_i - f(\mathbf{x}_i, \boldsymbol{\theta}))^2$
+}
+
+\textbf{Analytical solution:} $\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$
+
+\textbf{Gradient descent update:} $\mathbf{w} \leftarrow \mathbf{w} - \alpha \nabla_{\boldsymbol{\theta}}\mathcal{L}(\boldsymbol{\theta})$
+
+\subsection{Logistic Regression (Binary Classification)}
+
+\formula{
+\textbf{Sigmoid:}\quad $\sigma(z) = \frac{1}{1 + e^{-z}}$\qquad
+\textbf{Derivative:}\quad $\sigma'(z) = \sigma(z)(1-\sigma(z))$
+}
+
+$P(y=1 \mid \mathbf{x}) = \sigma(\mathbf{w}^\top \mathbf{x})$. Decision boundary where $\mathbf{w}^\top \mathbf{x} = 0$.
+
+\textbf{Loss:} negative log-likelihood (cross-entropy):
+\[
+\mathcal{L} = -\sum_i \bigl[y_i \log \sigma(\mathbf{w}^\top \mathbf{x}_i) + (1-y_i)\log(1-\sigma(\mathbf{w}^\top \mathbf{x}_i))\bigr]
+\]
+
+\subsection{Softmax (Multi-class)}
+
+\[
+P(y = i \mid \mathbf{x}) = \frac{e^{\mathbf{w}_i^\top \mathbf{x}}}{\sum_{j=1}^C e^{\mathbf{w}_j^\top \mathbf{x}}}
+\]
+
+% --------------------------------------------------
+\section{Neural Networks}
+% --------------------------------------------------
+
+\subsection{Architecture}
+
+A 2-layer network: $f(\mathbf{x}) = \mathbf{W}^{(2)}\sigma(\mathbf{W}^{(1)}\mathbf{x})$
+
+\important{Activation functions must be non-linear}, otherwise the network collapses to a linear model regardless of depth.
+
+\subsection{Common Activation Functions}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Name} & \textbf{Formula} & \textbf{Notes} \\
+\midrule
+Sigmoid & $\sigma(x) = 1/(1+e^{-x})$ & Output in $(0,1)$; vanishing gradient \\
+Tanh & $\tanh(x)$ & Output in $(-1,1)$ \\
+ReLU & $\max(0,x)$ & Most common; dead neurons possible \\
+Leaky ReLU & $\max(0.1x, x)$ & Fixes dead neuron problem \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Universal Function Approximation}
+
+With enough hidden units, a neural network can approximate \textit{any} continuous function to arbitrary precision. Does \textit{not} guarantee convergence of training.
+
+\subsection{Backpropagation}
+
+Chain rule applied layer by layer. For output layer weights:
+\[
+\frac{\partial E}{\partial W_{ij}^{(2)}} = -(y_i - \hat{y}_i)\,h_j
+\]
+For hidden layer weights, errors propagate backward through the chain rule.
+
+\subsection{Hyperparameters vs Parameters}
+
+\begin{itemize}[nosep]
+    \item \textbf{Parameters:} learned from data (weights, biases).
+    \item \textbf{Hyperparameters:} set before training (learning rate, \# layers, \# neurons, $\varepsilon$, etc.).
+\end{itemize}
+
+% --------------------------------------------------
+\section{Overfitting and Regularization}
+% --------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Technique} & \textbf{How it works} \\
+\midrule
+Train/Val/Test split & Monitor val loss; never train on test \\
+Weight regularization & Add $\lambda \sum W_{ij}^2$ to loss \\
+Dropout & Randomly zero out neurons during training \\
+Data augmentation & Rotations, flips, noise to increase data \\
+Early stopping & Stop when validation error starts rising \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% --------------------------------------------------
+\section{Optimization}
+% --------------------------------------------------
+
+Loss surface is non-convex: local minima, saddle points.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Optimizer} & \textbf{Update Rule} \\
+\midrule
+SGD & $\mathbf{w} \leftarrow \mathbf{w} - \alpha \nabla E$ \\
+SGD + Momentum & $\mathbf{v} \leftarrow \mu\mathbf{v} + \alpha\nabla E$;\quad $\mathbf{w} \leftarrow \mathbf{w} - \mathbf{v}$ \\
+ADAM & Adaptive lr per parameter using mean \& variance of gradients \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Stochastic GD:} compute gradients on random mini-batches instead of full dataset.
+
+\subsection{Residual Networks (ResNets)}
+
+Skip connections: $\text{output} = F(\mathbf{x}) + \mathbf{x}$. Smooths the loss surface; enables training very deep networks (100+ layers).
+
+\subsection{Batch Normalization}
+
+Normalize activations to mean 0, std 1 within each mini-batch. Stabilizes training, allows larger learning rates.
+
+% ======================================================================
+\newpage
+\part{Lecture 6: PyTorch}
+% ======================================================================
+
+\section{Key Concepts (Likely Conceptual Questions)}
+
+\begin{enumerate}[nosep]
+    \item \textbf{Automatic differentiation:} define forward pass; PyTorch computes backward pass (gradients) automatically via computation graph.
+    \item \textbf{Tensor:} multi-dimensional array (like numpy ndarray), but tracks gradients.
+    \item \textbf{Computation graph:} directed graph of operations. Forward pass builds it; \texttt{loss.backward()} traverses it backward.
+    \item \textbf{\texttt{.detach()}:} removes a tensor from the computation graph (stops gradient flow).
+    \item \textbf{Data type:} PyTorch expects \texttt{float32}. Convert before or after creating tensors.
+    \item \textbf{\texttt{loss.item()}:} extract scalar value without keeping the computation graph (prevents memory leak).
+    \item \textbf{\texttt{nnet.train()} vs \texttt{nnet.eval()}:} training mode enables dropout and batch norm updates; eval mode disables them.
+    \item \textbf{Saving/loading:} \texttt{torch.save(nnet.state\_dict(), path)} saves only parameters, not architecture.
+\end{enumerate}
+
+\section{Training Loop Pattern}
+
+\begin{enumerate}[nosep]
+    \item \texttt{optimizer.zero\_grad()} --- clear old gradients
+    \item Forward pass: \texttt{output = nnet(input)}
+    \item Compute loss: \texttt{loss = criterion(output, target)}
+    \item Backward pass: \texttt{loss.backward()}
+    \item Update weights: \texttt{optimizer.step()}
+\end{enumerate}
+
+\section{ResNet in PyTorch}
+
+Residual block: two linear layers + skip connection. Requires input dim = hidden dim (or use a linear projection). Forward: $\mathbf{x} \leftarrow \text{ReLU}(F(\mathbf{x}) + \mathbf{x})$.
+
+\section{Gradient Checking}
+
+Finite differences: $\frac{\partial f}{\partial \theta_i} \approx \frac{f(\theta_i + h) - f(\theta_i)}{h}$ for small $h$ (e.g., $10^{-5}$). Verify each layer independently, then compose.
+
+% ======================================================================
+\newpage
+\part{Lecture 7: DAVI and Deep Q-Networks}
+% ======================================================================
+
+\section{Deep Approximate Value Iteration (DAVI)}
+
+When the state space is too large for a table, approximate $v_*(s)$ with a neural network $v_\theta(s)$.
+
+\formula{
+\textbf{DAVI Target:}\quad
+$y = \begin{cases} \max_a\bigl(r(s,a) + \gamma \sum_{s'} p(s'|s,a)\, v_\theta(s')\bigr) & \text{if } s \text{ non-terminal} \\ 0 & \text{if } s \text{ terminal}\end{cases}$
+}
+
+\formula{
+\textbf{Loss:}\quad $L(\theta) = \frac{1}{2}(y - v_\theta(s))^2$\qquad
+\textbf{Gradient:}\quad $\nabla_\theta L = (y - v_\theta(s))\nabla_\theta v_\theta(s)$
+}
+
+\important{Do NOT differentiate $y$ with respect to $\theta$} even though $y$ depends on $\theta$. Treat $y$ as a fixed target.
+
+\subsection{Target Network}
+
+Problem: target $y$ changes every iteration (non-stationary).
+
+Solution: maintain a separate \textbf{target network} $v_{\theta^-}$ whose parameters are periodically copied from $\theta$. Use $\theta^-$ to compute $y$, train $\theta$.
+
+% --------------------------------------------------
+\section{Deep Q-Networks (DQN)}
+% --------------------------------------------------
+
+Approximate $q_*(s,a)$ with a neural network. Input: state $s$. Output: $Q$-values for all actions (one forward pass).
+
+\formula{
+\textbf{DQN Target:}\quad
+$y = \begin{cases} r + \gamma \max_{a'} q_{\theta^-}(s', a') & \text{non-terminal} \\ r & \text{terminal}\end{cases}$
+}
+
+\formula{
+\textbf{DQN Loss:}\quad $L(\theta) = \frac{1}{2}(y - q_\theta(s,a))^2$
+}
+
+\subsection{Three Key DQN Innovations}
+
+\begin{enumerate}[nosep]
+    \item \important{Target network} ($\theta^-$ updated periodically) --- stabilizes training by making targets less non-stationary.
+    \item \important{Experience replay buffer} --- store $(s, a, r, s')$ tuples; sample random mini-batches to decorrelate training data and prevent catastrophic forgetting.
+    \item \important{Huber loss} --- clips gradients for large TD errors, preventing instability from large rewards.
+\end{enumerate}
+
+\subsection{DQN Ablation (know this!)}
+
+Both replay buffer AND target network are essential. Removing either one drastically hurts performance. DQN also vastly outperforms linear function approximators.
+
+% --------------------------------------------------
+\section{DQN Improvements}
+% --------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lp{10cm}}
+\toprule
+\textbf{Method} & \textbf{Key Idea} \\
+\midrule
+\textbf{Double Q-Learning} &
+Two Q-networks: one selects the action, the other evaluates it. Fixes \textit{maximization bias}.
+$y = r + \gamma q_{\theta_2}(s', \arg\max_{a'} q_{\theta_1}(s', a'))$ \\
+\addlinespace
+\textbf{Dueling DQN} &
+Split network into value stream $v_\theta(s)$ and advantage stream $A_\theta(s,a)$.
+$q(s,a) = v_\theta(s) + A_\theta(s,a)$. Advantage: $A_\pi(s,a) = q_\pi(s,a) - v_\pi(s)$. \\
+\addlinespace
+\textbf{Prioritized Replay} &
+Sample transitions with large TD error more frequently. \\
+\addlinespace
+\textbf{Rainbow} &
+Combines DQN + Double + Dueling + Prioritized + others. Best overall. \\
+\addlinespace
+\textbf{Agent57} &
+First to beat humans on all 57 Atari games. Uses intrinsic curiosity + adaptive discount. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ======================================================================
+\newpage
+\part{Likely Math Problem Targets}
+% ======================================================================
+
+The math problem is worth 50\%. Based on the material, the most likely candidates are:
+
+\section{Candidate 1: TD(0) or MC Update Calculation}
+
+Given a small MDP or sequence of transitions, compute the updated value after one or more steps.
+
+\textbf{Example:} Given $V(A)=0$, $V(B)=0.5$, $\gamma=1$, $\alpha=0.1$, and the transition $A \xrightarrow{r=0} B$:
+\[
+V(A) \leftarrow 0 + 0.1[0 + 1 \cdot 0.5 - 0] = 0.05
+\]
+
+\section{Candidate 2: Q-Learning or SARSA Update}
+
+\textbf{Example:} Given $Q(s,\text{left})=1$, $Q(s,\text{right})=2$, $Q(s',\text{left})=3$, $Q(s',\text{right})=5$, $\alpha=0.5$, $\gamma=0.9$, $r=-1$, action taken = left:
+
+\textbf{Q-learning:}
+\[
+Q(s,\text{left}) \leftarrow 1 + 0.5[-1 + 0.9 \cdot \max(3,5) - 1] = 1 + 0.5[-1 + 4.5 - 1] = 1 + 1.25 = 2.25
+\]
+
+\textbf{SARSA} (if next action = left):
+\[
+Q(s,\text{left}) \leftarrow 1 + 0.5[-1 + 0.9 \cdot 3 - 1] = 1 + 0.5[0.7] = 1.35
+\]
+
+\section{Candidate 3: Gradient Descent Step}
+
+\textbf{Example:} Given $f(x,w) = wx$, data point $(x=2, y=5)$, current $w=1$, $\alpha=0.1$:
+\[
+\mathcal{L} = \frac{1}{2}(5 - 2)^2 = 4.5, \quad
+\frac{\partial \mathcal{L}}{\partial w} = -(5-2)\cdot 2 = -6, \quad
+w \leftarrow 1 - 0.1(-6) = 1.6
+\]
+
+\section{Candidate 4: DQN / DAVI Target Computation}
+
+\textbf{Example:} Compute the DQN target given:
+$r = 3$, $\gamma = 0.99$, $q_{\theta^-}(s', a_1) = 10$, $q_{\theta^-}(s', a_2) = 15$:
+\[
+y = 3 + 0.99 \cdot \max(10, 15) = 3 + 14.85 = 17.85
+\]
+
+Then loss: $L = \frac{1}{2}(17.85 - q_\theta(s,a))^2$
+
+% ======================================================================
+\newpage
+\part{Rapid-Fire Conceptual Review}
+% ======================================================================
+
+\begin{enumerate}[leftmargin=*, nosep, itemsep=6pt]
+
+\item \textbf{Why Q instead of V for model-free control?} Cannot derive $\pi$ from $V(s)$ without knowing $p(s'|s,a)$. With $Q(s,a)$, just take $\arg\max_a$.
+
+\item \textbf{MC vs TD bias/variance?} MC: unbiased, high variance. TD: biased (bootstraps), low variance.
+
+\item \textbf{Can MC handle continuing tasks?} No. Must wait for episode to end.
+
+\item \textbf{SARSA vs Q-learning?} SARSA is on-policy (uses $Q(S',A')$); Q-learning is off-policy (uses $\max_a Q(S',a)$). In cliff walking, SARSA is safer, Q-learning is optimal.
+
+\item \textbf{What is bootstrapping?} Using current estimates of value to update other estimates (TD does this; MC does not).
+
+\item \textbf{What is the TD error?} $\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$.
+
+\item \textbf{Why use $\varepsilon$-greedy?} Ensures exploration. Pure greedy can get stuck.
+
+\item \textbf{Why must activations be non-linear?} Otherwise, any depth of network collapses to a single linear transformation.
+
+\item \textbf{What is ReLU?} $\max(0,x)$. Simple, efficient, avoids vanishing gradient (for $x>0$).
+
+\item \textbf{What is a residual connection?} $\text{output} = F(\mathbf{x}) + \mathbf{x}$. Enables training deep networks by smoothing the loss surface.
+
+\item \textbf{What is batch normalization?} Normalize layer inputs to mean 0, std 1 per mini-batch. Stabilizes and accelerates training.
+
+\item \textbf{Overfitting solutions?} Regularization, dropout, data augmentation, early stopping, simpler model.
+
+\item \textbf{Why experience replay?} Decorrelates training samples. Prevents catastrophic forgetting. Improves data efficiency.
+
+\item \textbf{Why target network?} Stabilizes training by keeping the target fixed for many updates, reducing non-stationarity.
+
+\item \textbf{What is maximization bias?} Q-learning overestimates Q-values because it uses $\max$ for both selection and evaluation. Double Q-learning fixes this.
+
+\item \textbf{What is the advantage function?} $A_\pi(s,a) = q_\pi(s,a) - v_\pi(s)$. How much better action $a$ is than average.
+
+\item \textbf{Dueling DQN?} Separate streams for $v(s)$ and $A(s,a)$, combined as $q(s,a) = v(s) + A(s,a)$.
+
+\item \textbf{What does \texttt{.detach()} do in PyTorch?} Removes a tensor from the computation graph, stopping gradient flow.
+
+\item \textbf{\texttt{nnet.train()} vs \texttt{nnet.eval()}?} Train mode enables dropout and batch norm updates. Eval mode disables them for deterministic inference.
+
+\item \textbf{Why \texttt{loss.item()} not \texttt{loss}?} Using \texttt{loss} keeps the computation graph in memory, causing a memory leak.
+
+\item \textbf{Universal approximation theorem?} A neural network with enough hidden units can approximate any continuous function. Does NOT guarantee we can find the right weights via training.
+
+\item \textbf{SGD vs full gradient descent?} SGD uses random mini-batches instead of full dataset. Faster per step, noisier gradients, but often converges well.
+
+\item \textbf{What is $n$-step TD?} Intermediate between TD(0) and MC. Uses $n$ actual rewards then bootstraps. $n=1$ is TD(0), $n=\infty$ is MC.
+
+\item \textbf{DQN ablation key finding?} Both replay buffer AND target network are essential. Removing either one drastically hurts performance.
+
+\item \textbf{Robbins-Monro conditions?} For convergence: $\sum \alpha_n = \infty$ (steps large enough to overcome initial conditions) and $\sum \alpha_n^2 < \infty$ (steps shrink enough to converge).
+\end{enumerate}
+
+\end{document}
