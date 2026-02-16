@@ -1,0 +1,338 @@
+\documentclass[6pt]{article}
+\usepackage[margin=0.3in, landscape, letterpaper]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\usepackage{titlesec}
+\usetikzlibrary{arrows.meta, positioning, calc}
+
+% Brand colors
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{black90}{HTML}{363636}
+\definecolor{black70}{HTML}{5C5C5C}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{honeycomb}{HTML}{A49137}
+\definecolor{grass}{HTML}{CED318}
+\definecolor{sandstorm}{HTML}{FFF2E3}
+\definecolor{black10}{HTML}{ECECEC}
+
+\color{black90}
+
+% Compact spacing
+\setlength{\parskip}{1pt}
+\setlength{\parindent}{0pt}
+\setlength{\columnsep}{8pt}
+\setlength{\columnseprule}{0.4pt}
+\def\columnseprulecolor{\color{black!20}}
+
+% Compact sections
+\titleformat{\section}{\normalsize\bfseries\color{garnet}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{4pt}{1pt}
+\titleformat{\subsection}{\small\bfseries\color{atlantic}}{}{0pt}{}
+\titlespacing*{\subsection}{0pt}{3pt}{0.5pt}
+
+% Colored boxes
+\tcbset{
+    boxrule=0.5pt,
+    arc=0pt, outer arc=0pt,
+    left=2pt, right=2pt, top=1pt, bottom=1pt,
+    fontupper=\scriptsize,
+}
+
+\newcommand{\mathbox}[2]{%
+\begin{tcolorbox}[colback=sandstorm, colframe=garnet, title={\scriptsize\bfseries\color{white}#1}, coltitle=white, colbacktitle=garnet, toptitle=1pt, bottomtitle=1pt]
+#2
+\end{tcolorbox}
+}
+
+\newcommand{\conceptbox}[2]{%
+\begin{tcolorbox}[colback=atlantic!5, colframe=atlantic, title={\scriptsize\bfseries\color{white}#1}, coltitle=white, colbacktitle=atlantic, toptitle=1pt, bottomtitle=1pt]
+#2
+\end{tcolorbox}
+}
+
+\newcommand{\warnbox}[1]{%
+\begin{tcolorbox}[colback=rose!8, colframe=rose, boxrule=0.8pt]
+\textcolor{rose}{\textbf{!}} #1
+\end{tcolorbox}
+}
+
+\newcommand{\keyeq}[1]{\colorbox{sandstorm}{\ensuremath{#1}}}
+
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+{\large\bfseries\color{garnet} CSCE 775 Quiz 2 Cheat Sheet}\quad{\scriptsize\color{black70} Lectures 4--7 $\mid$ MC, TD, DL, DQN}
+\end{center}
+
+\vspace{-4pt}
+\hrule height 1pt
+\vspace{2pt}
+
+% ====================== PAGE 1 ======================
+\begin{multicols}{4}
+
+% ---- COLUMN: CONCEPTS ----
+\section{Concepts at a Glance}
+
+\conceptbox{MC vs TD vs $n$-step}{
+\begin{tabular}{@{}lccc@{}}
+& \textbf{MC} & \textbf{TD(0)} & \textbf{$n$-step} \\
+\midrule
+Target & $G_t$ & $R\!+\!\gamma V(S')$ & mixed \\
+Bias & None & Yes & Med \\
+Var & High & Low & Med \\
+Episodes? & Must end & Online & Online \\
+Bootstrap? & No & Yes & Yes \\
+\end{tabular}
+}
+
+\subsection{On-Policy vs Off-Policy}
+\textbf{Behavior} $b$ = policy collecting data\\
+\textbf{Target} $\pi$ = policy being improved\\
+\textbf{On-policy:} $b = \pi$ (SARSA, MC control)\\
+\textbf{Off-policy:} $b \neq \pi$ (Q-learning)
+
+\subsection{$\varepsilon$-Greedy}
+Greedy action: $1 - \varepsilon + \varepsilon/|\mathcal{A}|$\\
+Other actions: $\varepsilon/|\mathcal{A}|$ each\\
+\textit{Why?} Pure greedy gets stuck; $\varepsilon$-greedy explores.
+
+\subsection{SARSA vs Q-Learning}
+\begin{tikzpicture}[scale=0.32, every node/.style={font=\tiny}]
+    \foreach \x in {0,...,11} \foreach \y in {0,...,3}
+        \draw[black!15] (\x,\y) rectangle (\x+1,\y+1);
+    \foreach \x in {1,...,10}
+        \fill[garnet!25] (\x,0) rectangle (\x+1,1);
+    \node[garnet, font=\tiny\bfseries] at (6, 0.5) {CLIFF};
+    \fill[atlantic!30] (0,0) rectangle (1,1);
+    \node at (0.5,0.5) {S};
+    \fill[horseshoe!30] (11,0) rectangle (12,1);
+    \node at (11.5,0.5) {G};
+    \draw[-{Stealth}, atlantic, thick] (0.5,1.15) -- (0.5,3.5) -- (11.5,3.5) -- (11.5,1.15);
+    \node[atlantic, above, font=\tiny\bfseries] at (6,3.5) {SARSA (safe)};
+    \draw[-{Stealth}, garnet, thick, dashed] (0.5,0.7) -- (11.5,0.7);
+    \node[garnet, below, font=\tiny\bfseries] at (6,0.55) {Q-learn (optimal)};
+\end{tikzpicture}
+
+SARSA: cautious (accounts for $\varepsilon$-exploration)\\
+Q-learn: optimal (assumes greedy from now on)
+
+\subsection{Bootstrapping}
+Using \textit{current estimates} to update estimates.\\
+TD: yes $\to$ biased but fast.\ \ MC: no $\to$ unbiased but slow.
+
+\subsection{$n$-Step \& TD($\lambda$)}
+$n=1$: TD(0).\quad $n=\infty$: MC.\quad Sweet spot $\approx 5$.\\
+TD($\lambda$): weighted avg of all $n$-step returns.\\
+$\lambda=0 \to$ TD(0).\quad $\lambda=1 \to$ MC.
+
+\subsection{Why $Q$ not $V$?}
+Can't pick actions from $V(s)$ without model $p(s'|s,a)$.\\
+$Q(s,a)$ lets you do $\pi(s) = \arg\max_a Q(s,a)$ directly.
+
+\vfill\null
+\columnbreak
+
+% ---- DEEP LEARNING CONCEPTS ----
+\section{Deep Learning}
+
+\conceptbox{Neural Networks}{
+$f(\mathbf{x}) = \mathbf{W}^{(2)}\sigma(\mathbf{W}^{(1)}\mathbf{x} + \mathbf{b}^{(1)}) + \mathbf{b}^{(2)}$
+
+\textbf{Non-linear activations required!}\\
+Without them: $\mathbf{W}_2\mathbf{W}_1\mathbf{x} = \mathbf{W}'\mathbf{x}$ (still linear)
+}
+
+\subsection{Activation Functions}
+Sigmoid: $\frac{1}{1+e^{-x}}$ $\to$ vanishing grad\\
+Tanh: output $(-1,1)$\quad \textbf{ReLU}: $\max(0,x)$ most common\\
+Leaky ReLU: $\max(0.01x,x)$ fixes dead neurons
+
+\subsection{Overfitting Fixes}
+Regularization ($\lambda\sum W^2$), dropout,\\
+data augmentation, early stopping, simpler model
+
+\subsection{Optimizers}
+\textbf{SGD:} $\mathbf{w} \leftarrow \mathbf{w} - \alpha\nabla E$\\
+\textbf{Momentum:} $\mathbf{v} \leftarrow \mu\mathbf{v} + \alpha\nabla E$;\ $\mathbf{w} \leftarrow \mathbf{w} - \mathbf{v}$\\
+\textbf{ADAM:} adaptive lr per param (mean + variance)
+
+\subsection{ResNets \& BatchNorm}
+\textbf{Skip connection:} output $= F(\mathbf{x}) + \mathbf{x}$\\
+Gradient: $\frac{\partial}{\partial\mathbf{x}}[F(\mathbf{x})+\mathbf{x}] = F' + \mathbf{I}$ ($\geq 1$, no vanishing)\\
+\textbf{BatchNorm:} normalize to $\mu=0,\sigma=1$ per batch
+
+\subsection{Hyperparams vs Params}
+\textbf{Params:} learned (weights, biases)\\
+\textbf{Hyperparams:} set before training (lr, layers, $\varepsilon$)
+
+\section{PyTorch}
+
+\conceptbox{Training Loop (memorize order!)}{
+\texttt{1. optimizer.zero\_grad()}\ \ {\color{black70}clear $\nabla$}\\
+\texttt{2. out = nnet(x)}\ \ {\color{black70}forward}\\
+\texttt{3. loss = criterion(out, y)}\\
+\texttt{4. loss.backward()}\ \ {\color{black70}compute $\nabla_\theta\mathcal{L}$}\\
+\texttt{5. optimizer.step()}\ \ {\color{black70}$\theta \leftarrow \theta - \alpha\nabla$}
+}
+
+\texttt{.detach()} = stop gradient flow (for targets)\\
+\texttt{loss.item()} = get scalar (prevent memory leak)\\
+\texttt{.train()} = dropout ON.\quad \texttt{.eval()} = dropout OFF\\
+\texttt{torch.save(nnet.state\_dict(),...)} = save params only
+
+\section{DQN}
+
+\conceptbox{Three DQN Innovations}{
+\textbf{1.\ Target network} $\theta^-$: freeze target for $C$ steps\\
+\textbf{2.\ Experience replay}: store $(s,a,r,s')$, sample random batches (breaks correlation)\\
+\textbf{3.\ Huber loss}: clips gradients for large TD errors\\[2pt]
+\textcolor{rose}{\textbf{Ablation:}} removing \textit{either} replay OR target net $\to$ catastrophic failure
+}
+
+\subsection{DQN Improvements}
+\textbf{Double Q:} fix max bias---one net picks, other evaluates\\
+\textbf{Dueling:} $q = v(s) + A(s,a)$; separates state value from action advantage\\
+\textbf{Prioritized replay:} sample large-error transitions more\\
+\textbf{Rainbow:} all combined.\ \ \textbf{Agent57:} beats all 57 Atari
+
+\vfill\null
+\columnbreak
+
+% ---- MATH / DERIVATIONS ----
+\section{Math: All Derivations}
+
+\mathbox{1. MC Incremental Update}{
+Start: $V_n = \frac{1}{n}\sum_{k=1}^n G_k$. Split off $n$-th term:
+\begin{align*}
+V_n &= \frac{1}{n}\Bigl(G_n + (n\!-\!1)V_{n-1}\Bigr)\\
+&= V_{n-1} + \frac{1}{n}\bigl(G_n - V_{n-1}\bigr)
+\end{align*}
+\textbf{Trick:} rewrite $\frac{n-1}{n} = 1 - \frac{1}{n}$, then collect terms.
+\[
+\boxed{V(S_t) \leftarrow V(S_t) + \alpha\bigl(G_t - V(S_t)\bigr)}
+\]
+}
+
+\mathbox{2. $\varepsilon$-Greedy Policy Improvement}{
+Show $q_\pi(s,\pi'(s)) \geq v_\pi(s)$:
+\begin{align*}
+&\sum_a \pi'(a|s)\,q_\pi(s,a) \\
+&= \frac{\varepsilon}{|\mathcal{A}|}\sum_a q_\pi(s,a) + (1\!-\!\varepsilon)\max_a q_\pi(s,a)
+\end{align*}
+Since $\max \geq$ weighted avg, substitute weights\\
+$w_a = \frac{\pi(a|s) - \varepsilon/|\mathcal{A}|}{1-\varepsilon}$:
+\begin{align*}
+&\geq \frac{\varepsilon}{|\mathcal{A}|}\textstyle\sum_a q_\pi + \sum_a(\pi(a|s) - \varepsilon/|\mathcal{A}|)\,q_\pi\\
+&= \sum_a \pi(a|s)\,q_\pi(s,a) = v_\pi(s) \quad\square
+\end{align*}
+}
+
+\mathbox{3. Sigmoid Derivative}{
+$\sigma(z) = (1+e^{-z})^{-1}$
+\begin{align*}
+\sigma' &= \frac{e^{-z}}{(1+e^{-z})^2} = \frac{1}{1+e^{-z}}\cdot\frac{e^{-z}}{1+e^{-z}}\\
+&= \sigma \cdot \frac{(1+e^{-z})-1}{1+e^{-z}}
+\end{align*}
+\[\boxed{\sigma'(z) = \sigma(z)(1-\sigma(z))}\]
+Max at $z\!=\!0$: $\sigma'\!=\!0.25$ $\to$ causes vanishing gradients.
+}
+
+\mathbox{4. Logistic Regression Gradient}{
+$\ell = y\log\hat{y} + (1\!-\!y)\log(1\!-\!\hat{y})$,\quad $\hat{y}=\sigma(\mathbf{w}^\top\mathbf{x})$
+\begin{align*}
+\frac{\partial\ell}{\partial\mathbf{w}} &= y\frac{\hat{y}(1\!-\!\hat{y})}{\hat{y}}\mathbf{x} + (1\!-\!y)\frac{-\hat{y}(1\!-\!\hat{y})}{1\!-\!\hat{y}}\mathbf{x}\\
+&= (y - \hat{y})\,\mathbf{x}
+\end{align*}
+\textbf{Key:} $\sigma'=\sigma(1\!-\!\sigma)$ cancels denominators!
+\[\boxed{\nabla_\mathbf{w}\mathcal{L} = \frac{1}{N}\sum_i(\hat{y}_i - y_i)\,\mathbf{x}_i}\]
+}
+
+\vfill\null
+\columnbreak
+
+\mathbox{5. Backprop (2-Layer Network)}{
+$\hat{\mathbf{y}} = \mathbf{W}^{(2)}\mathbf{h}$,\quad $\mathbf{h} = \sigma(\mathbf{W}^{(1)}\mathbf{x})$,\quad $E = \frac{1}{2}\|\mathbf{y}-\hat{\mathbf{y}}\|^2$
+
+\textbf{Output weights:}
+\[\frac{\partial E}{\partial W_{ij}^{(2)}} = -(y_i - \hat{y}_i)\cdot h_j\]
+
+\textbf{Hidden weights:} (chain through 2 layers)
+\[\frac{\partial E}{\partial W_{jk}^{(1)}} = \underbrace{\sum_i[-(y_i-\hat{y}_i)]W_{ij}^{(2)}}_{\text{backprop error}}\;\sigma'(\cdot)\;x_k\]
+
+\textbf{Pattern:} error $\times$ connecting weight $\times$ $\sigma'$ $\times$ input
+}
+
+\mathbox{6. DAVI Gradient}{
+$y = \max_a[r(s,a) + \gamma\sum_{s'}p(s'|s,a)\,v_{\theta^-}(s')]$ {\color{rose}\textbf{(constant!)}}
+
+$L(\theta) = \frac{1}{2}(y - v_\theta(s))^2$
+
+\[\nabla_\theta L = -(y - v_\theta(s))\,\nabla_\theta v_\theta(s)\]
+\[\boxed{\theta \leftarrow \theta + \alpha(y - v_\theta(s))\,\nabla_\theta v_\theta(s)}\]
+
+\textcolor{rose}{\textbf{Do NOT differentiate $y$ w.r.t.\ $\theta$!}} $y$ uses $\theta^-$ (frozen).\\
+PyTorch: compute $y$ with \texttt{.detach()} or \texttt{no\_grad()}.
+}
+
+\mathbox{7. Linear Regression Closed Form}{
+$\mathcal{L} = \|\mathbf{X}\mathbf{w} - \mathbf{y}\|^2 = \mathbf{w}^\top\mathbf{X}^\top\mathbf{X}\mathbf{w} - 2\mathbf{w}^\top\mathbf{X}^\top\mathbf{y} + \mathbf{y}^\top\mathbf{y}$
+
+Set $\nabla_\mathbf{w}\mathcal{L} = 2\mathbf{X}^\top\mathbf{X}\mathbf{w} - 2\mathbf{X}^\top\mathbf{y} = \mathbf{0}$
+
+\[\boxed{\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}}\]
+
+Key identity: $\nabla_\mathbf{w}(\mathbf{w}^\top\mathbf{A}\mathbf{w}) = 2\mathbf{A}\mathbf{w}$
+}
+
+\vspace{4pt}
+
+\warnbox{\textbf{Common Derivation Tricks:}\\[1pt]
+$\bullet$\ Split off last term from sum: $\sum_1^n = \sum_1^{n-1} + n\text{-th}$\\
+$\bullet$\ $\sigma' = \sigma(1-\sigma)$ cancels log denominators\\
+$\bullet$\ $\max_a f(a) \geq \sum_a w_a f(a)$ for any convex weights\\
+$\bullet$\ Chain rule = multiply derivatives layer by layer\\
+$\bullet$\ Matrix: $\nabla_\mathbf{w}(\mathbf{w}^\top\mathbf{A}\mathbf{w}) = 2\mathbf{A}\mathbf{w}$\\
+$\bullet$\ \textbf{Never} differentiate the target $y$ in DAVI/DQN}
+
+\vspace{4pt}
+
+\conceptbox{Key Update Equations}{
+\textbf{MC:}\ $V(S_t) \leftarrow V(S_t) + \alpha(G_t - V(S_t))$
+
+\textbf{TD(0):}\ $V(S_t) \leftarrow V(S_t) + \alpha[\underbrace{R + \gamma V(S')}_{\text{target}} - V(S_t)]$
+
+\textbf{SARSA:}\ $Q(S,A) \leftarrow Q(S,A)$\\
+\hspace*{2.5em}$+ \alpha[R + \gamma Q(S',\textcolor{atlantic}{A'}) - Q(S,A)]$
+
+\textbf{Q-learn:}\ $Q(S,A) \leftarrow Q(S,A)$\\
+\hspace*{2.5em}$+ \alpha[R + \gamma\textcolor{garnet}{\max_a} Q(S',a) - Q(S,A)]$
+
+\textbf{DQN:}\ $y = R + \gamma\max_{a'}q_{\textcolor{rose}{\theta^-}}(S',a')$\\
+\hspace*{2.5em}$L = \frac{1}{2}(y - q_\theta(S,A))^2$
+
+\textbf{$n$-step:}\ $G_{t:t+n} = \sum_{k=0}^{n-1}\gamma^k R_{t+k+1} + \gamma^n V(S_{t+n})$
+}
+
+\vspace{2pt}
+\begin{center}
+\scriptsize\color{black70}
+$\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$ \quad (TD error)\\
+$A_\pi(s,a) = q_\pi(s,a) - v_\pi(s)$ \quad (advantage)\\
+Robbins-Monro: $\sum\alpha_n = \infty$,\ $\sum\alpha_n^2 < \infty$
+\end{center}
+
+\end{multicols}
+
+\end{document}
