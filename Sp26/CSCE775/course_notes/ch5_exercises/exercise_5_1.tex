@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.8 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.9 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -1115,5 +1115,148 @@ Every-visit MC does not help with the infinite variance of \textit{ordinary} imp
         \bottomrule
     \end{tabular}
 \end{table}
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.9}}\\[6pt]
+    {\large Incremental First-Visit MC Prediction}
+\end{center}
+
+\section*{Problem Statement}
+
+Modify the algorithm for first-visit MC policy evaluation (Section~5.1) to use the incremental implementation for sample averages described in Section~2.4.
+
+\section*{Background: The original algorithm}
+
+The textbook's first-visit MC prediction algorithm (page~92) estimates the state-value function $V \approx v_\pi$. Its inner loop works like this:
+
+\begin{center}
+\fbox{\parbox{0.88\textwidth}{
+\textbf{First-visit MC prediction, for estimating $V \approx v_\pi$} (original)
+\vspace{4pt}
+
+\textbf{Initialize:}\\[2pt]
+\hspace*{1em}$V(s) \in \mathbb{R}$ (arbitrarily), for all $s \in \mathcal{S}$\\
+\hspace*{1em}$Returns(s) \leftarrow$ an empty list, for all $s \in \mathcal{S}$
+
+\vspace{6pt}
+\textbf{Loop forever} (for each episode):\\[2pt]
+\hspace*{1em}Generate an episode following $\pi$: $S_0, A_0, R_1, S_1, A_1, R_2, \ldots, S_{T-1}, A_{T-1}, R_T$\\
+\hspace*{1em}$G \leftarrow 0$\\
+\hspace*{1em}\textbf{Loop} for each step of episode, $t = T{-}1, T{-}2, \ldots, 0$:\\[2pt]
+\hspace*{2em}$G \leftarrow \gamma G + R_{t+1}$\\
+\hspace*{2em}Unless $S_t$ appears in $S_0, S_1, \ldots, S_{t-1}$:\\[2pt]
+\hspace*{3em}Append $G$ to $Returns(S_t)$\\
+\hspace*{3em}$V(S_t) \leftarrow \text{average}(Returns(S_t))$
+}}
+\end{center}
+
+This has the same inefficiency we saw in Exercise~5.4: it maintains an ever-growing list $Returns(s)$ for each state and recomputes the full average every time. As the number of episodes grows, these lists get longer and recomputing the average gets slower.
+
+\section*{How this differs from Exercise 5.4}
+
+Exercise~5.4 asked us to do the same thing for \textbf{Monte Carlo ES} (a control algorithm that estimates $Q(s, a)$ and improves the policy). This exercise is simpler:
+
+\begin{itemize}[nosep]
+    \item We are estimating $V(s)$ (state values), not $Q(s, a)$ (state-action values).
+    \item There is no policy improvement step --- we are just doing \textit{prediction} (evaluating a fixed policy $\pi$).
+    \item Everything else about the incremental trick is the same.
+\end{itemize}
+
+\section*{Answer: The modified algorithm}
+
+We replace the $Returns(s)$ lists with a counter $N(s)$ and use the incremental mean update from Section~2.4 (Equation~2.3):
+\begin{align}
+    V_{n+1} = V_n + \frac{1}{n}\Big[G - V_n\Big]
+\end{align}
+
+\begin{center}
+\fbox{\parbox{0.88\textwidth}{
+\textbf{First-visit MC prediction, for estimating $V \approx v_\pi$} (incremental)
+\vspace{4pt}
+
+\textbf{Initialize:}\\[2pt]
+\hspace*{1em}$V(s) \in \mathbb{R}$ (arbitrarily), for all $s \in \mathcal{S}$\\
+\hspace*{1em}$N(s) \leftarrow 0$, for all $s \in \mathcal{S}$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize replaces $Returns(s)$ lists}
+
+\vspace{6pt}
+\textbf{Loop forever} (for each episode):\\[2pt]
+\hspace*{1em}Generate an episode following $\pi$: $S_0, A_0, R_1, S_1, A_1, R_2, \ldots, S_{T-1}, A_{T-1}, R_T$\\
+\hspace*{1em}$G \leftarrow 0$\\
+\hspace*{1em}\textbf{Loop} for each step of episode, $t = T{-}1, T{-}2, \ldots, 0$:\\[2pt]
+\hspace*{2em}$G \leftarrow \gamma G + R_{t+1}$\\
+\hspace*{2em}Unless $S_t$ appears in $S_0, S_1, \ldots, S_{t-1}$:\\[2pt]
+\hspace*{3em}$N(S_t) \leftarrow N(S_t) + 1$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize increment count}\\
+\hspace*{3em}$V(S_t) \leftarrow V(S_t) + \dfrac{1}{N(S_t)}\Big[G - V(S_t)\Big]$
+\hfill {\color{garnet}$\triangleleft$ \scriptsize incremental update}
+}}
+\end{center}
+
+\section*{What changed}
+
+Exactly three things changed from the original:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lll}
+        \toprule
+        & \textbf{Original} & \textbf{Incremental} \\
+        \midrule
+        Initialization & $Returns(s) \leftarrow$ empty list & $N(s) \leftarrow 0$ \\
+        \addlinespace
+        On first visit & Append $G$ to $Returns(S_t)$ & $N(S_t) \leftarrow N(S_t) + 1$ \\
+        \addlinespace
+        Value update & $V(S_t) \leftarrow \text{average}(Returns(S_t))$ & $V(S_t) \leftarrow V(S_t) + \frac{1}{N(S_t)}[G - V(S_t)]$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Everything else is identical: the episode generation, the return calculation ($G \leftarrow \gamma G + R_{t+1}$), and the first-visit check (``unless $S_t$ appears in $S_0, \ldots, S_{t-1}$'').
+
+\section*{Comparison with Exercise 5.4}
+
+The modification here is a strict subset of what we did in Exercise~5.4:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        & \textbf{Exercise 5.4 (MC ES)} & \textbf{Exercise 5.9 (MC Prediction)} \\
+        \midrule
+        Estimates & $Q(s, a)$ & $V(s)$ \\
+        Counter & $N(s, a)$ & $N(s)$ \\
+        Update target & $Q(S_t, A_t)$ & $V(S_t)$ \\
+        Policy improvement & $\pi(S_t) \leftarrow \arg\max_a Q(S_t, a)$ & None (fixed $\pi$) \\
+        \addlinespace
+        Incremental trick & Identical & Identical \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The core idea is the same in both cases: replace an ever-growing list with a running count, and nudge the current estimate toward the new return using a step size of $1/N$. The prediction version is just simpler because there is no action dimension and no policy update.
+
+\section*{Complexity comparison}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        & \textbf{Original (list-based)} & \textbf{Incremental} \\
+        \midrule
+        Memory per state & $O(n)$ --- list grows with episodes & $O(1)$ --- just $V$ and $N$ \\
+        Time per update & $O(n)$ --- re-averages entire list & $O(1)$ --- one multiply, one add \\
+        Total memory & $O(|\mathcal{S}| \cdot n)$ --- unbounded & $O(|\mathcal{S}|)$ --- fixed \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section*{Summary}
+
+Replace $Returns(s)$ with $N(s)$. Instead of appending $G$ to a list and recomputing the mean, increment the counter and update $V(s) \leftarrow V(s) + \frac{1}{N(s)}[G - V(s)]$. This is mathematically equivalent to the original but uses $O(1)$ memory and $O(1)$ time per state per episode.
 
 \end{document}
