@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.4 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.5 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -585,5 +585,150 @@ Same result, but we never stored the list $\{5, 3, 7\}$. We only kept track of $
 \section*{Summary}
 
 Replace the ever-growing $Returns(s, a)$ lists with a simple counter $N(s, a)$. Instead of appending $G$ to a list and recomputing the average, increment the counter and nudge the current estimate $Q(s, a)$ toward $G$ using the step size $1/N(s, a)$. This produces identical results with $O(1)$ memory and $O(1)$ computation per update instead of $O(n)$ for both.
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.5}}\\[6pt]
+    {\large First-Visit vs.\ Every-Visit Estimators in a Simple MDP}
+\end{center}
+
+\section*{Problem Statement}
+
+Consider an MDP with a single nonterminal state and a single action that transitions back to the nonterminal state with probability $p$ and transitions to the terminal state with probability $1 - p$. Let the reward be $+1$ on all transitions, and let $\gamma = 1$. Suppose you observe one episode that lasts 10 steps, with a return of 10. What are the first-visit and every-visit estimators of the value of the nonterminal state?
+
+\section*{Background: Setting up the problem}
+
+This exercise strips everything down to the simplest possible MDP --- just one nonterminal state, one action, and one coin flip that decides whether the episode continues or ends. It is designed to highlight a subtle difference between first-visit and every-visit Monte Carlo.
+
+\textbf{The MDP.} There is only one nonterminal state, call it $s$. From $s$, the agent takes its only action and one of two things happens:
+\begin{itemize}[nosep]
+    \item With probability $p$: the agent transitions \textit{back to $s$} and receives reward $+1$.
+    \item With probability $1 - p$: the agent transitions to the \textit{terminal state} and receives reward $+1$.
+\end{itemize}
+
+Every transition gives $+1$ regardless, and $\gamma = 1$ (no discounting). So the total return from an episode is simply the number of time steps.
+
+\textbf{The true value.} For reference, the true value of state $s$ is:
+\begin{align}
+    v_\pi(s) &= \mathbb{E}[\text{number of steps in an episode}]
+\end{align}
+Each step either loops back (probability $p$) or terminates (probability $1-p$). This is a geometric distribution, so the expected number of steps is:
+\begin{align}
+    v_\pi(s) &= \frac{1}{1-p}
+\end{align}
+For example, if $p = 0.9$, the expected episode length is 10, so $v_\pi(s) = 10$.
+
+\textbf{The observed episode.} We see exactly one episode that lasted 10 steps, giving a total return of $G = 10$. The episode looks like this:
+
+\begin{center}
+\begin{tikzpicture}[
+    state/.style={circle, draw=black90, thick, minimum size=20pt, inner sep=0pt, font=\small},
+    terminal/.style={rectangle, fill=black90, minimum size=12pt, inner sep=0pt},
+    every node/.style={font=\small},
+    >=stealth
+]
+    \node[state] (s0) at (0,0) {$s$};
+    \node[state] (s1) at (1.6,0) {$s$};
+    \node[state] (s2) at (3.2,0) {$s$};
+    \node at (4.6,0) {$\cdots$};
+    \node[state] (s9) at (6.0,0) {$s$};
+    \node[terminal] (T) at (7.6,0) {};
+
+    \draw[->, thick] (s0) -- node[above]{\scriptsize $+1$} (s1);
+    \draw[->, thick] (s1) -- node[above]{\scriptsize $+1$} (s2);
+    \draw[->, thick] (s2) -- node[above]{\scriptsize $+1$} (4.1,0);
+    \draw[->, thick] (5.1,0) -- node[above]{\scriptsize $+1$} (s9);
+    \draw[->, thick] (s9) -- node[above]{\scriptsize $+1$} (T);
+
+    \node[below=4pt of s0] {\scriptsize $t=0$};
+    \node[below=4pt of s1] {\scriptsize $t=1$};
+    \node[below=4pt of s2] {\scriptsize $t=2$};
+    \node[below=4pt of s9] {\scriptsize $t=9$};
+    \node[below=4pt of T] {\scriptsize terminal};
+\end{tikzpicture}
+\end{center}
+
+The agent visits state $s$ at time steps $t = 0, 1, 2, \ldots, 9$ (ten visits total), then terminates after the tenth transition.
+
+\section*{Answer: First-visit MC estimator}
+
+\textbf{What first-visit MC does.} It looks at the episode and finds the \textit{first} time state $s$ was visited. That happens at time step $t = 0$. It computes the return from that point onward:
+\begin{align}
+    G_0 &= R_1 + R_2 + \cdots + R_{10} = \underbrace{1 + 1 + \cdots + 1}_{10} = 10
+\end{align}
+
+All subsequent visits to $s$ (at $t = 1, 2, \ldots, 9$) are \textit{ignored} because first-visit MC only counts the first occurrence per episode.
+
+Since we observed only one episode, the first-visit estimate is just that single return:
+\begin{align}
+    \boxed{V_{\text{first-visit}}(s) = 10}
+\end{align}
+
+This is straightforward. With one episode, the first-visit estimator equals the return from the first (and only counted) visit.
+
+\section*{Answer: Every-visit MC estimator}
+
+\textbf{What every-visit MC does.} It looks at \textit{every} time state $s$ was visited in the episode and records the return from each visit. State $s$ was visited 10 times, at $t = 0, 1, 2, \ldots, 9$. The return from each visit is:
+
+\begin{align}
+    G_0 &= R_1 + R_2 + \cdots + R_{10} = 10 \\
+    G_1 &= R_2 + R_3 + \cdots + R_{10} = 9 \\
+    G_2 &= R_3 + R_4 + \cdots + R_{10} = 8 \\
+    &\;\;\vdots \notag \\
+    G_8 &= R_9 + R_{10} = 2 \\
+    G_9 &= R_{10} = 1
+\end{align}
+
+Each later visit has a smaller return because there are fewer remaining rewards to collect. The return from time step $t$ is $G_t = 10 - t$.
+
+The every-visit estimator averages \textit{all} of these returns:
+\begin{align}
+    V_{\text{every-visit}}(s) &= \frac{G_0 + G_1 + G_2 + \cdots + G_9}{10} \\[4pt]
+    &= \frac{10 + 9 + 8 + 7 + 6 + 5 + 4 + 3 + 2 + 1}{10} \\[4pt]
+    &= \frac{55}{10}
+\end{align}
+\begin{align}
+    \boxed{V_{\text{every-visit}}(s) = 5.5}
+\end{align}
+
+We used the well-known formula $1 + 2 + \cdots + n = \frac{n(n+1)}{2}$, so $1 + 2 + \cdots + 10 = 55$.
+
+\section*{Why are the two estimates so different?}
+
+The first-visit estimate is $10$ and the every-visit estimate is $5.5$ --- nearly half. This is a big gap! Here is the intuition.
+
+\textbf{First-visit MC} only uses the return from $t = 0$, which captures the \textit{full episode} (all 10 rewards). This is a single, unbiased sample of the true value $v_\pi(s)$. If $p = 0.9$, then $v_\pi(s) = 10$, and our estimate happens to hit the expected value exactly.
+
+\textbf{Every-visit MC} averages the returns from \textit{all} visits, including late ones that only see a fraction of the episode. The visit at $t = 9$ only has one remaining reward (return = 1), the visit at $t = 8$ has two remaining rewards (return = 2), and so on. These later visits systematically produce \textit{lower} returns --- not because the state is worse, but because there is less episode left.
+
+This is the source of every-visit MC's \textit{bias}. The later visits within the same episode do not provide independent samples of $v_\pi(s)$. They are ``leftovers'' from the same trajectory, and they are biased downward because the remaining time to the end of the episode is shorter. Averaging them in pulls the estimate below the true value.
+
+\section*{A general formula}
+
+For this particular MDP, if an episode lasts $n$ steps, the two estimators are always:
+\begin{align}
+    V_{\text{first-visit}} &= n \\[4pt]
+    V_{\text{every-visit}} &= \frac{1}{n}\sum_{k=1}^{n} k = \frac{n+1}{2}
+\end{align}
+
+So for any observed episode length $n$, the every-visit estimate is always $\frac{n+1}{2}$, which is approximately half the first-visit estimate (for large $n$). With more episodes, the bias of every-visit MC would shrink as the estimates converge, but from a single episode the difference is striking.
+
+\section*{Summary}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{p{0.22\textwidth} p{0.16\textwidth} p{0.50\textwidth}}
+        \toprule
+        \textbf{Estimator} & \textbf{Value} & \textbf{Explanation} \\
+        \midrule
+        First-visit MC & $10$ & Uses only the return from the first visit ($t=0$), which captures all 10 rewards. An unbiased sample. \\
+        \addlinespace
+        Every-visit MC & $5.5$ & Averages returns from all 10 visits. Later visits see fewer remaining rewards (9, 8, 7, \ldots, 1), dragging the average down. Biased from a single episode. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \end{document}
