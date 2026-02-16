@@ -7,6 +7,7 @@
 \usepackage{multicol}
 \usepackage{float}
 \usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, calc}
 
 \definecolor{garnet}{HTML}{73000A}
 \definecolor{black90}{HTML}{363636}
@@ -20,6 +21,8 @@
 \newcommand{\important}[1]{\textcolor{garnet}{\textbf{#1}}}
 \newcommand{\concept}[1]{\textcolor{atlantic}{\textbf{#1}}}
 \newcommand{\formula}[1]{\begin{center}\fcolorbox{garnet}{white}{\parbox{0.9\linewidth}{#1}}\end{center}}
+\newcommand{\intuition}[1]{\begin{center}\fcolorbox{atlantic}{blue!3}{\parbox{0.9\linewidth}{\textcolor{atlantic}{\textbf{Intuition:}} #1}}\end{center}}
+\newcommand{\example}[1]{\begin{center}\fcolorbox{horseshoe}{green!3}{\parbox{0.9\linewidth}{\textcolor{horseshoe}{\textbf{Example:}} #1}}\end{center}}
 
 \setlength{\parskip}{4pt}
 \setlength{\parindent}{0pt}
@@ -86,6 +89,10 @@ $V(S_t) \leftarrow V(S_t) + \alpha\bigl(G_t - V(S_t)\bigr)$
     \item Must wait until the episode ends to compute $G_t$. Does \textit{not} work for continuing (non-episodic) tasks.
 \end{itemize}
 
+\intuition{MC is like grading a restaurant after eating the entire meal. You wait until the end, then assign a score to the whole experience. Accurate (unbiased), but your one meal might have been unusually good or bad (high variance).}
+
+\example{A robot plays 3 episodes starting from state $A$. It gets total returns $G = -5, -3, -7$. After first-visit MC: $V(A) = (-5 + -3 + -7)/3 = -5$. Incrementally: start $V(A)=0$, after ep.\ 1: $V(A) = 0 + 1(-5-0) = -5$. After ep.\ 2: $V(A) = -5 + \frac{1}{2}(-3-(-5)) = -4$. After ep.\ 3: $V(A) = -4 + \frac{1}{3}(-7-(-4)) = -5$.}
+
 \subsection{MC Control (On-Policy)}
 
 Use $Q(s,a)$ instead of $V(s)$ because we cannot derive a policy from $V$ without a model.
@@ -104,6 +111,10 @@ Use $Q(s,a)$ instead of $V(s)$ because we cannot derive a policy from $V$ withou
 \]
 
 The on-policy MC control algorithm: generate episode $\to$ compute returns backward $\to$ update $Q(S_t,A_t)$ $\to$ improve policy to $\varepsilon$-greedy w.r.t.\ new $Q$.
+
+\intuition{$\varepsilon$-greedy is like a food critic who \textit{usually} goes to their favorite restaurant (exploit, prob $1-\varepsilon$) but \textit{sometimes} tries a random place (explore, prob $\varepsilon$). Without exploration, you might never discover the best option.}
+
+\example{With $\varepsilon = 0.1$ and 4 actions, the greedy action gets probability $0.9 + 0.1/4 = 0.925$. Each non-greedy action gets $0.1/4 = 0.025$. Sum: $0.925 + 3(0.025) = 1$.}
 
 \subsection{On-Policy vs Off-Policy}
 
@@ -129,6 +140,14 @@ $V(S_t) \leftarrow V(S_t) + \alpha\bigl[\underbrace{R_{t+1} + \gamma V(S_{t+1})}
 
 The quantity $\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$ is the \textbf{TD error}.
 
+\intuition{TD is like updating your restaurant rating after \textit{each course}, not waiting for the full meal. After the appetizer, you adjust your expectation based on what you just experienced + your guess about the rest. Faster feedback, but your guess about dessert might be wrong (biased).}
+
+\example{States $A \to B$ with $r=0$, $\gamma=1$, $\alpha=0.1$. Initially $V(A)=0$, $V(B)=0.75$.
+
+TD update: $V(A) \leftarrow 0 + 0.1[0 + 1(0.75) - 0] = 0.075$.
+
+TD immediately propagates $B$'s value back to $A$ after one step. MC would need to wait for the episode to finish.}
+
 \important{MC vs TD:}
 \begin{itemize}[nosep]
     \item MC: unbiased, high variance, needs full episodes.
@@ -147,6 +166,8 @@ Name comes from the quintuple $(S_t, A_t, R_{t+1}, S_{t+1}, A_{t+1})$.
 
 Both behavior and target policy are $\varepsilon$-greedy. Choose $A_{t+1}$ from $S_{t+1}$ using $\varepsilon$-greedy \textit{before} the update.
 
+\intuition{SARSA asks: ``given what I \textit{actually did} next (including random exploration), how good was my action?'' It's cautious---if exploration might lead off a cliff, SARSA learns to stay away.}
+
 \subsection{Q-Learning --- Off-Policy TD Control}
 
 \formula{
@@ -162,7 +183,32 @@ $Q(S_t,A_t) \leftarrow Q(S_t,A_t) + \alpha\bigl[R_{t+1} + \gamma \max_{a} Q(S_{t
     \item Off-policy because behavior $\neq$ target.
 \end{itemize}
 
+\intuition{Q-learning asks: ``what's the best I \textit{could} do next, assuming I play perfectly from now on?'' It's optimistic---it finds the optimal path even if exploration is risky.}
+
 \important{Cliff Walking Example:}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.55, every node/.style={font=\footnotesize}]
+    % Grid
+    \foreach \x in {0,...,11} \foreach \y in {0,...,3}
+        \draw[black!20] (\x,\y) rectangle (\x+1,\y+1);
+    % Cliff
+    \foreach \x in {1,...,10}
+        \fill[garnet!30] (\x,0) rectangle (\x+1,1);
+    \node[garnet] at (6, 0.5) {CLIFF ($r = -100$)};
+    % Start/Goal
+    \fill[atlantic!30] (0,0) rectangle (1,1);
+    \node at (0.5,0.5) {S};
+    \fill[horseshoe!30] (11,0) rectangle (12,1);
+    \node at (11.5,0.5) {G};
+    % Paths
+    \draw[-{Stealth}, atlantic, very thick] (0.5,1.2) -- (0.5,3.5) -- (11.5,3.5) -- (11.5,1.2);
+    \node[atlantic, above] at (6,3.5) {SARSA (safe)};
+    \draw[-{Stealth}, garnet, very thick, dashed] (0.5,0.8) -- (1,0.8) -- (11,0.8) -- (11.5,0.8);
+    \node[garnet, below] at (6,0.8) {\footnotesize Q-learn (optimal)};
+\end{tikzpicture}
+\end{center}
+
 \begin{itemize}[nosep]
     \item SARSA learns a \textit{safer} path (avoids cliff) because it accounts for its own $\varepsilon$-greedy exploration.
     \item Q-learning learns the \textit{optimal} path (close to cliff) because the target policy is greedy.
@@ -184,6 +230,16 @@ $G_{t:t+n} = R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^{n-1}R_{t+n} + \gamma^n 
 \end{itemize}
 
 \textbf{TD($\lambda$)} averages over \textit{all} $n$-step returns with exponentially decaying weights $(1-\lambda)\lambda^{n-1}$. When $\lambda = 0$ you get TD(0); when $\lambda = 1$ you get MC.
+
+\intuition{$n$-step methods are like reading $n$ chapters of a mystery novel before guessing the ending. $n=1$ (TD): guess after the first chapter---fast but unreliable. $n=\infty$ (MC): read the whole book---accurate but slow. Best results come from reading a few chapters ($n\approx 5$) then making an informed guess.}
+
+\example{In a 4-step episode with rewards $r_1=1, r_2=0, r_3=1, r_4=2$ (terminal) and $\gamma=1$:
+
+\textbf{1-step return:} $G_{1:2} = 1 + V(S_2)$\quad (uses one real reward + estimate)
+
+\textbf{2-step return:} $G_{1:3} = 1 + 0 + V(S_3)$\quad (two real rewards + estimate)
+
+\textbf{4-step (MC):} $G_1 = 1+0+1+2 = 4$\quad (all real rewards, no estimate)}
 
 % --------------------------------------------------
 \section{Unified View: DP vs TD}
@@ -222,6 +278,10 @@ $f(\mathbf{x}, \mathbf{w}, b) = \mathbf{w}^\top \mathbf{x} + b$\qquad
 
 \textbf{Gradient descent update:} $\mathbf{w} \leftarrow \mathbf{w} - \alpha \nabla_{\boldsymbol{\theta}}\mathcal{L}(\boldsymbol{\theta})$
 
+\intuition{Linear regression fits a line (or hyperplane) that minimizes the total squared distance to the data points. Gradient descent nudges the line toward data points it currently misses most.}
+
+\example{Predicting house price from square footage: $f(x) = w \cdot x + b$. If $w=200, b=50000$, a 1500 sq ft house costs $\$350{,}000$. The loss measures how far off our predictions are from actual prices.}
+
 \subsection{Logistic Regression (Binary Classification)}
 
 \formula{
@@ -235,6 +295,10 @@ $P(y=1 \mid \mathbf{x}) = \sigma(\mathbf{w}^\top \mathbf{x})$. Decision boundary
 \[
 \mathcal{L} = -\sum_i \bigl[y_i \log \sigma(\mathbf{w}^\top \mathbf{x}_i) + (1-y_i)\log(1-\sigma(\mathbf{w}^\top \mathbf{x}_i))\bigr]
 \]
+
+\intuition{Sigmoid squashes any real number into $(0,1)$---like a dimmer switch that smoothly goes from ``off'' to ``on.'' For $z \gg 0$, output $\approx 1$; for $z \ll 0$, output $\approx 0$. The cross-entropy loss punishes confident wrong answers exponentially.}
+
+\example{Email spam classification: $\mathbf{w}^\top\mathbf{x} = 3.5 \Rightarrow \sigma(3.5) = 0.97 \Rightarrow$ 97\% chance of spam. If actually spam ($y=1$): loss $= -\log(0.97) = 0.03$ (small). If not spam ($y=0$): loss $= -\log(0.03) = 3.5$ (large penalty for being confidently wrong).}
 
 \subsection{Softmax (Multi-class)}
 
@@ -251,6 +315,10 @@ P(y = i \mid \mathbf{x}) = \frac{e^{\mathbf{w}_i^\top \mathbf{x}}}{\sum_{j=1}^C 
 A 2-layer network: $f(\mathbf{x}) = \mathbf{W}^{(2)}\sigma(\mathbf{W}^{(1)}\mathbf{x})$
 
 \important{Activation functions must be non-linear}, otherwise the network collapses to a linear model regardless of depth.
+
+\intuition{A neural network without non-linear activations is just matrix multiplication stacked: $\mathbf{W}_2(\mathbf{W}_1 \mathbf{x}) = (\mathbf{W}_2\mathbf{W}_1)\mathbf{x} = \mathbf{W}'\mathbf{x}$. No matter how many layers, it is still linear. Non-linear activations let the network ``bend'' the decision boundary into curves, spirals, and arbitrary shapes.}
+
+\example{XOR problem: inputs $(0,0)\to 0$, $(0,1)\to 1$, $(1,0)\to 1$, $(1,1)\to 0$. No single line separates the classes. A 2-layer network with ReLU can solve this; a linear model cannot.}
 
 \subsection{Common Activation Functions}
 
@@ -280,6 +348,8 @@ Chain rule applied layer by layer. For output layer weights:
 \]
 For hidden layer weights, errors propagate backward through the chain rule.
 
+\intuition{Backpropagation is the chain rule applied systematically. Think of a pipeline: raw material $\to$ factory 1 $\to$ factory 2 $\to$ product. If the product is bad, you trace blame backward: How much did factory 2 mess up? Given factory 2's error, how much did factory 1 contribute? Each factory adjusts proportionally to its blame.}
+
 \subsection{Hyperparameters vs Parameters}
 
 \begin{itemize}[nosep]
@@ -305,6 +375,10 @@ Early stopping & Stop when validation error starts rising \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\intuition{Overfitting is like memorizing the textbook word-for-word instead of understanding the concepts. You ace the homework (training set) but fail the exam (test set). Regularization techniques force the model to learn \textit{general patterns} instead of memorizing noise.}
+
+\example{A polynomial of degree 100 can pass through 100 training points perfectly (training loss $= 0$) but wildly oscillates between them. A degree-2 polynomial has higher training loss but generalizes much better to new data.}
 
 % --------------------------------------------------
 \section{Optimization}
@@ -334,6 +408,16 @@ Skip connections: $\text{output} = F(\mathbf{x}) + \mathbf{x}$. Smooths the loss
 \subsection{Batch Normalization}
 
 Normalize activations to mean 0, std 1 within each mini-batch. Stabilizes training, allows larger learning rates.
+
+\intuition{
+\textbf{SGD with momentum} is like a ball rolling downhill---it accumulates speed and can roll past small bumps (local minima). \textbf{ADAM} is like a ball that also adjusts its speed independently in each direction, moving faster along flat dimensions and slower along steep ones.
+
+\textbf{ResNets:} In deep networks, gradients can vanish layer by layer. Skip connections provide a ``highway'' for gradients to flow directly backward, so even layer 100 gets a strong learning signal.
+
+\textbf{Batch norm:} Without it, each layer's input distribution shifts as earlier layers update (internal covariate shift). Batch norm re-centers activations each step, so layers don't have to chase a moving target.
+}
+
+\example{Training a 20-layer network: without skip connections, the gradient at layer 1 is $\approx 0$ (vanishing gradient). With skip connections, the gradient flows through the shortcut: $\frac{\partial}{\partial \mathbf{x}}[F(\mathbf{x}) + \mathbf{x}] = F'(\mathbf{x}) + \mathbf{I}$. The identity $\mathbf{I}$ ensures the gradient is at least 1.}
 
 % ======================================================================
 \newpage
@@ -371,6 +455,18 @@ Residual block: two linear layers + skip connection. Requires input dim = hidden
 
 Finite differences: $\frac{\partial f}{\partial \theta_i} \approx \frac{f(\theta_i + h) - f(\theta_i)}{h}$ for small $h$ (e.g., $10^{-5}$). Verify each layer independently, then compose.
 
+\intuition{PyTorch's autograd is like having an accountant who watches every arithmetic operation you do (forward pass) and records it in a ledger (computation graph). When you call \texttt{.backward()}, the accountant traces the ledger in reverse to compute exactly how much each input contributed to the final result. \texttt{.detach()} tells the accountant to stop recording---useful for targets that should be treated as constants (like in DQN).}
+
+\example{The 5-step PyTorch training loop maps to calculus:
+
+1.~\texttt{zero\_grad()} $\to$ erase old $\nabla_\theta$\quad
+2.~Forward $\to$ compute $\hat{y}$\quad
+3.~Loss $\to$ compute $\mathcal{L}$\quad
+4.~\texttt{backward()} $\to$ compute $\nabla_\theta \mathcal{L}$\quad
+5.~\texttt{step()} $\to$ $\theta \leftarrow \theta - \alpha\nabla_\theta\mathcal{L}$
+
+Forgetting \texttt{zero\_grad()} accumulates gradients across batches (gradients from batch 2 are added to batch 1's gradients).}
+
 % ======================================================================
 \newpage
 \part{Lecture 7: DAVI and Deep Q-Networks}
@@ -392,11 +488,17 @@ $y = \begin{cases} \max_a\bigl(r(s,a) + \gamma \sum_{s'} p(s'|s,a)\, v_\theta(s'
 
 \important{Do NOT differentiate $y$ with respect to $\theta$} even though $y$ depends on $\theta$. Treat $y$ as a fixed target.
 
+\intuition{DAVI is value iteration (from DP) but with a neural network instead of a table. Normally, value iteration updates every state at once using the model. DAVI does the same thing but trains a neural network to approximate the value function. The target $y$ is the ``what the value \textit{should} be'' (one-step lookahead), and we train the network to match it.}
+
+\example{Grid world with 1 million states---too many for a table. DAVI: sample a batch of states, compute targets $y = \max_a[r + \gamma \sum_{s'} p(s'|s,a) v_{\theta^-}(s')]$ using the frozen target network, then do one gradient step to make $v_\theta(s)$ closer to $y$. Repeat.}
+
 \subsection{Target Network}
 
 Problem: target $y$ changes every iteration (non-stationary).
 
 Solution: maintain a separate \textbf{target network} $v_{\theta^-}$ whose parameters are periodically copied from $\theta$. Use $\theta^-$ to compute $y$, train $\theta$.
+
+\intuition{Without a target network, you're chasing a moving target: every time you update $\theta$, the target $y$ changes too (because $y$ depends on $v_\theta$). It's like trying to hit a bullseye that moves every time you throw. The target network freezes the bullseye for $C$ steps, letting you make progress.}
 
 % --------------------------------------------------
 \section{Deep Q-Networks (DQN)}
@@ -424,6 +526,14 @@ $y = \begin{cases} r + \gamma \max_{a'} q_{\theta^-}(s', a') & \text{non-termina
 \subsection{DQN Ablation (know this!)}
 
 Both replay buffer AND target network are essential. Removing either one drastically hurts performance. DQN also vastly outperforms linear function approximators.
+
+\intuition{DQN = Q-learning + neural network + two tricks.
+
+\textbf{Experience replay:} Instead of learning from experiences in order (which are correlated---consecutive frames in a game look alike), store them in a buffer and sample random mini-batches. This breaks correlations, just like shuffling a deck of flashcards helps you learn better than going in order.
+
+\textbf{Target network + replay} are \textit{both} essential. The ablation study shows removing either one causes catastrophic failure. They solve different problems: replay breaks correlation, target network prevents oscillation.}
+
+\example{Atari Breakout: state = raw pixels (84$\times$84$\times$4 frames). Action = left/right/fire. DQN outputs $Q(s,a)$ for all 3 actions in one forward pass. The replay buffer stores millions of $(s,a,r,s')$ transitions. Every 10{,}000 steps, copy $\theta \to \theta^-$.}
 
 % --------------------------------------------------
 \section{DQN Improvements}
@@ -454,6 +564,10 @@ First to beat humans on all 57 Atari games. Uses intrinsic curiosity + adaptive 
 \bottomrule
 \end{tabular}
 \end{table}
+
+\intuition{\textbf{Double Q-learning} fixes maximization bias: if you ask the same person to both nominate and evaluate candidates, they'll be overconfident. Use one network to \textit{pick} the best action, a different network to \textit{score} it.
+
+\textbf{Dueling DQN} separates ``how good is this state?'' ($v(s)$) from ``how much better is this action than average?'' ($A(s,a)$). Many states have similar values regardless of action---the dueling architecture learns this shared value efficiently.}
 
 % ======================================================================
 \newpage
@@ -488,6 +602,8 @@ $V_n = V_{n-1} + \alpha_n\bigl(G_n - V_{n-1}\bigr)$ \quad where $\alpha_n = 1/n$
 Generalizing to a constant step size: $V(S_t) \leftarrow V(S_t) + \alpha\bigl(G_t - V(S_t)\bigr)$
 }
 
+\intuition{This derivation shows that ``take the average of all returns so far'' is equivalent to ``nudge the old estimate toward the new return.'' The key algebraic trick is splitting off the last term from the sum and rewriting $\frac{n-1}{n} = 1 - \frac{1}{n}$.}
+
 % --------------------------------------------------
 \section{Derivation 2: $\varepsilon$-Greedy Policy Improvement}
 % --------------------------------------------------
@@ -511,6 +627,8 @@ Since $\max_a q_\pi(s,a) \geq \sum_a w_a\, q_\pi(s,a)$ for any convex weights $w
 $q_\pi(s,\pi'(s)) \geq v_\pi(s)$ for all $s$. By the \textbf{policy improvement theorem}, this implies $v_{\pi'}(s) \geq v_\pi(s)$ for all $s$.\qquad $\square$
 }
 
+\intuition{The trick is showing the $\varepsilon$-greedy action value is at least as good as the old policy. The $\max$ in $\varepsilon$-greedy is $\geq$ any weighted average (including the old policy's weights), because max $\geq$ average.}
+
 % --------------------------------------------------
 \section{Derivation 3: Sigmoid Derivative}
 % --------------------------------------------------
@@ -529,6 +647,8 @@ $q_\pi(s,\pi'(s)) \geq v_\pi(s)$ for all $s$. By the \textbf{policy improvement 
 \formula{
 $\dfrac{d\sigma}{dz} = \sigma(z)\bigl(1-\sigma(z)\bigr)$
 }
+
+\intuition{The sigmoid derivative is maximized at $z=0$ (where $\sigma = 0.5$, so $\sigma' = 0.25$) and vanishes for $|z| \gg 0$. This is why deep sigmoid networks suffer from vanishing gradients: each layer multiplies by at most 0.25.}
 
 % --------------------------------------------------
 \section{Derivation 4: Gradient of Logistic Regression Loss}
@@ -556,6 +676,8 @@ $\nabla_{\mathbf{w}} \mathcal{L} = -\dfrac{1}{N}\displaystyle\sum_{i=1}^N (y_i -
 = \dfrac{1}{N}\sum_{i=1}^N (\hat{y}_i - y_i)\,\mathbf{x}_i$
 \quad where $\hat{y}_i = \sigma(\mathbf{w}^\top\mathbf{x}_i)$
 }
+
+\intuition{The gradient has a beautiful form: $(\hat{y} - y)\mathbf{x}$. The update is proportional to the error ($\hat{y}-y$) in the direction of the input ($\mathbf{x}$). Large errors $\to$ large updates. The key step is using $\sigma' = \sigma(1-\sigma)$ to cancel the denominators from the log derivatives.}
 
 % --------------------------------------------------
 \section{Derivation 5: Backpropagation for a 2-Layer Network}
@@ -587,6 +709,8 @@ h_j &= \sigma\!\Bigl(\sum_k W_{jk}^{(1)} x_k\Bigr) \\[2pt]
 Errors ``back-propagate'' through each layer via the chain rule.
 }
 
+\intuition{Output layer gradient is simple: error $\times$ hidden activation. Hidden layer gradient adds one more factor: you sum the errors from all output neurons that this hidden unit connects to, weighted by the connection strengths. This ``error propagation'' is what makes it \textit{back}propagation.}
+
 % --------------------------------------------------
 \section{Derivation 6: DAVI / Approximate Value Iteration Gradient}
 % --------------------------------------------------
@@ -615,6 +739,8 @@ $\theta \leftarrow \theta - \alpha\,\nabla_\theta L = \theta + \alpha\bigl(y - v
 
 \textbf{Key:} $y$ depends on $\theta^-$ (frozen target network), NOT on $\theta$, so it is treated as a constant.
 }
+
+\intuition{This is a standard supervised learning gradient---MSE loss between prediction $v_\theta(s)$ and target $y$. The only subtlety is that $y$ is \textit{not} differentiated even though it depends on network parameters (via $\theta^-$). In PyTorch, this means computing $y$ with \texttt{.detach()} or \texttt{torch.no\_grad()}.}
 
 For $N$ states (batched):
 \[
@@ -646,6 +772,8 @@ Take gradient and set to zero:
 \formula{
 $\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$
 }
+
+\intuition{This is one of the few ML problems with an exact solution. Expand the squared loss, take the derivative (using matrix calculus), set to zero, and solve. The key identity is $\nabla_\mathbf{w}(\mathbf{w}^\top\mathbf{A}\mathbf{w}) = 2\mathbf{A}\mathbf{w}$. This closed form exists only because MSE + linear model = quadratic, which has a unique minimum.}
 
 % ======================================================================
 \newpage
