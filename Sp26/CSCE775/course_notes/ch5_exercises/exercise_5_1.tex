@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.7 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.8 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -983,5 +983,137 @@ The ratio $\rho_1$ does \textit{not} cancel. If the trajectory happened to be 10
 \end{table}
 
 The weighted IS estimator's error hump is the cost of its bias: it starts lucky, drifts toward the behavior-policy value, then finally corrects to the true target-policy value. The ordinary IS estimator pays upfront with high variance but improves monotonically.
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.8}}\\[6pt]
+    {\large Every-Visit MC and Infinite Variance}
+\end{center}
+
+\section*{Problem Statement}
+
+The results with Example~5.5 and shown in Figure~5.4 used a first-visit MC method. Suppose that instead an every-visit MC method was used on the same problem. Would the variance of the estimator still be infinite? Why or why not?
+
+\section*{Background: Example 5.5 recap}
+
+Example~5.5 describes a tiny MDP designed to show that ordinary importance sampling can have \textit{infinite variance}. Here is the setup.
+
+\textbf{The MDP.} There is one nonterminal state $s$ and two actions:
+\begin{itemize}[nosep]
+    \item \textbf{Right:} deterministic transition to the terminal state, reward $= 0$.
+    \item \textbf{Left:} with probability $0.9$, transition back to $s$ with reward $= 0$. With probability $0.1$, transition to the terminal state with reward $= +1$.
+\end{itemize}
+
+\textbf{Target policy $\pi$:} always selects \textbf{left}. Under this policy, every episode eventually terminates with reward $+1$, so $v_\pi(s) = 1$ (with $\gamma = 1$).
+
+\textbf{Behavior policy $b$:} selects left or right with \textbf{equal probability} (50/50).
+
+\textbf{The infinite variance result (first-visit).} The textbook proves that for first-visit ordinary IS, the expected square of the importance-sampling-scaled return is infinite:
+\begin{align}
+    \mathbb{E}\left[\left(\rho_{0:T-1} \, G_0\right)^2\right] = \sum_{k=0}^{\infty} 0.1 \cdot 0.9^k \cdot 2^k \cdot 2 = 0.2 \sum_{k=0}^{\infty} 1.8^k = \infty
+\end{align}
+Since the second moment is infinite, the variance is infinite. This means the ordinary IS estimator never truly converges --- even after millions of episodes, the estimates remain unstable (as shown in Figure~5.4).
+
+\section*{What changes with every-visit MC?}
+
+With first-visit MC, each episode contributes exactly \textit{one} sample: the return from the first (and in this MDP, potentially repeated) visit to $s$. With every-visit MC, each episode contributes a sample for \textit{every} time $s$ is visited.
+
+Consider an all-left episode of length $k+1$ (the agent takes \textbf{left} $k$ times, looping back to $s$ each time, then on the $(k{+}1)$th \textbf{left} action it terminates with reward $+1$). State $s$ is visited $k + 1$ times, at time steps $t = 0, 1, \ldots, k$.
+
+The return from each visit is the same (since all intermediate rewards are 0 and the terminal reward is $+1$ with $\gamma = 1$):
+\begin{align}
+    G_t = +1 \quad \text{for all } t = 0, 1, \ldots, k
+\end{align}
+
+But the importance-sampling ratio differs depending on where we start counting:
+\begin{align}
+    \rho_{t:k} &= \prod_{j=t}^{k} \frac{\pi(\text{left} \mid s)}{b(\text{left} \mid s)} = \prod_{j=t}^{k} \frac{1}{0.5} = 2^{k+1-t}
+\end{align}
+
+So the IS-weighted returns from this single episode are:
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ccc}
+        \toprule
+        \textbf{Visit at time $t$} & \textbf{IS ratio $\rho_{t:k}$} & \textbf{$\rho_{t:k} \cdot G_t$} \\
+        \midrule
+        $t = 0$ & $2^{k+1}$ & $2^{k+1}$ \\
+        $t = 1$ & $2^{k}$ & $2^{k}$ \\
+        $t = 2$ & $2^{k-1}$ & $2^{k-1}$ \\
+        $\vdots$ & $\vdots$ & $\vdots$ \\
+        $t = k$ & $2^{1}$ & $2$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section*{Answer: Yes, the variance is still infinite}
+
+The variance of the every-visit ordinary IS estimator is still infinite. Here is why.
+
+\textbf{The key observation.} Every-visit MC pools together \textit{all} visits to $s$ across all episodes. The estimator is:
+\begin{align}
+    V(s) = \frac{1}{N_{\text{total}}} \sum_{\text{all visits}} \rho \cdot G
+\end{align}
+where $N_{\text{total}}$ is the total number of visits to $s$ across all episodes.
+
+Among all these visits, the visit at $t = 0$ in each all-left episode still produces the IS-weighted return $\rho_{0:k} \cdot G_0 = 2^{k+1}$. This is \textit{exactly the same term} that caused infinite variance in the first-visit case.
+
+\textbf{The second moment is still infinite.} To have finite variance, we need the second moment $\mathbb{E}[(\rho \cdot G)^2]$ to be finite for a randomly selected visit. But consider just the $t = 0$ visits (one per episode). The probability of an all-left episode of length $k+1$ is:
+\begin{align}
+    P(\text{length } k{+}1) = \underbrace{\tfrac{1}{2}}_{\text{pick left}} \cdot \underbrace{0.9^k \cdot 0.1}_{\text{loop $k$ times, terminate}} = \frac{0.1 \cdot 0.9^k}{2}
+\end{align}
+
+The squared IS-weighted return from the $t = 0$ visit in such an episode is $(2^{k+1})^2 = 4^{k+1}$.
+
+So the contribution to the expected squared value from just the $t = 0$ visits is:
+\begin{align}
+    \sum_{k=0}^{\infty} \frac{0.1 \cdot 0.9^k}{2} \cdot 4^{k+1} = \sum_{k=0}^{\infty} 0.2 \cdot 0.9^k \cdot 4^{k} = 0.2 \sum_{k=0}^{\infty} 3.6^k = \infty
+\end{align}
+
+Since this partial sum already diverges, adding the (positive) contributions from the $t = 1, 2, \ldots, k$ visits only makes it worse. The total second moment is infinite, so the variance is infinite.
+
+\textbf{Do the extra visits help at all?} The additional visits from later time steps ($t = 1, 2, \ldots, k$) \textit{do} contribute more data points with smaller IS ratios, which might seem helpful. But these visits are \textit{not independent} --- they come from the same episode as the $t = 0$ visit. The fundamental problem is that rare, long episodes produce importance-sampling ratios that grow exponentially ($2^{k+1}$), and the probability of these episodes does not shrink fast enough to compensate ($0.9^k$ vs.\ $4^{k+1}$). No amount of additional correlated samples within those same episodes can fix this.
+
+\section*{Intuition: why adding more samples doesn't help}
+
+Think of it this way. The infinite variance comes from the \textit{tail} --- rare episodes that are very long. When such an episode occurs:
+
+\begin{itemize}[nosep]
+    \item \textbf{First-visit MC} records one enormous IS-weighted return ($2^{k+1}$).
+    \item \textbf{Every-visit MC} records $k+1$ IS-weighted returns ($2^{k+1}, 2^k, \ldots, 2$) --- more samples, but the largest one ($2^{k+1}$) is just as extreme.
+\end{itemize}
+
+The extra samples with ratios $2^k, 2^{k-1}, \ldots, 2$ are \textit{smaller} individually, but:
+\begin{enumerate}[nosep]
+    \item They do not cancel out the $2^{k+1}$ term.
+    \item They are positively correlated with it (they all came from the same long episode).
+    \item Each of them individually still contributes an infinite second moment! The $t = 1$ visit alone has $\rho = 2^k$, and $\sum 0.9^k \cdot 4^k$ still diverges.
+\end{enumerate}
+
+In fact, \textit{every single visit position} $t = 0, 1, 2, \ldots$ has infinite variance on its own. Every-visit MC averages together infinitely many infinite-variance terms --- the result is still infinite variance.
+
+\section*{When \textit{would} every-visit help?}
+
+Every-visit MC does not help with the infinite variance of \textit{ordinary} importance sampling here. However, \textit{weighted} importance sampling would still give finite variance (and in fact an estimate of exactly 1 forever) --- because the weighted estimator's self-normalizing property tames extreme ratios, regardless of whether first-visit or every-visit is used.
+
+\section*{Summary}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{p{0.30\textwidth} p{0.58\textwidth}}
+        \toprule
+        \textbf{Question} & \textbf{Answer} \\
+        \midrule
+        Would variance still be infinite? & \textbf{Yes.} The $t=0$ visit in each episode produces the same exponentially growing IS ratio ($2^{k+1}$) as in first-visit MC. The second moment diverges by the same argument. \\
+        \addlinespace
+        Do extra visits help? & No. Later visits ($t = 1, 2, \ldots$) have smaller ratios but each one \textit{individually} still has infinite variance. They are also correlated (same episode), so pooling them does not fix the divergence. \\
+        \addlinespace
+        What would fix it? & Use \textit{weighted} importance sampling instead of ordinary. The self-normalizing denominator prevents any single episode from dominating the estimate. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \end{document}
