@@ -5,6 +5,9 @@
 \usepackage{booktabs}
 \usepackage{xcolor}
 \usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{float}
 
 \definecolor{garnet}{HTML}{73000A}
 \definecolor{black90}{HTML}{363636}
@@ -12,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1 \& 5.2 --- Blackjack Value Function Analysis}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.3 --- Blackjack \& Monte Carlo Backup Diagrams}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -259,6 +262,188 @@ In blackjack, none of this matters because the two methods see exactly the same 
         Why? & Because no state is ever visited twice in a single blackjack episode. Each hit changes the player sum (always increases by at least 1) or flips the usable-ace flag, so the state triple always moves to a new value. \\
         \addlinespace
         When would they differ? & In environments where the agent can revisit the same state within an episode (e.g., a gridworld with loops). Blackjack does not have this property. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.3}}\\[6pt]
+    {\large Backup Diagram for Monte Carlo Estimation of $q_\pi$}
+\end{center}
+
+\section*{Problem Statement}
+
+What is the backup diagram for Monte Carlo estimation of $q_\pi$?
+
+\section*{Background: What is a backup diagram?}
+
+A \textit{backup diagram} is a small picture that shows how an algorithm computes (or ``backs up'') a value estimate. Think of it as a visual summary of the question: ``What information does the algorithm use to update its estimate for one state (or state-action pair)?''
+
+The diagrams use two shapes:
+\begin{itemize}[nosep]
+    \item \textbf{Open circle} $\circ$ --- represents a \textit{state}. This is a situation the agent finds itself in (e.g., ``player sum is 15, dealer shows 7, no usable ace'').
+    \item \textbf{Filled circle} $\bullet$ --- represents a \textit{state-action pair}. This is a situation \textit{plus} a specific action (e.g., ``player sum is 15, dealer shows 7, no usable ace, \textit{and the player hits}'').
+    \item \textbf{Filled square} --- represents the \textit{terminal state} (end of the episode, e.g., the game is over).
+\end{itemize}
+
+The node at the \textit{top} of the diagram is the thing whose value we are estimating. Lines going downward show the information used to compute that estimate.
+
+\section*{Three diagrams to compare}
+
+To understand the answer, it helps to see three related backup diagrams side by side.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    state/.style={circle, draw=black90, thick, minimum size=16pt, inner sep=0pt},
+    action/.style={circle, fill=black90, minimum size=8pt, inner sep=0pt},
+    terminal/.style={rectangle, fill=black90, minimum size=10pt, inner sep=0pt},
+    every node/.style={font=\small},
+    level distance=18mm,
+    sibling distance=14mm
+]
+
+% ── Diagram A: DP backup for v_π ──
+\begin{scope}[shift={(-5,0)}]
+    \node[state] (s) at (0,0) {};
+    \node[above=2pt of s] {$s$};
+
+    \node[action] (a1) at (-1.2,-1.2) {};
+    \node[action] (a2) at (0,-1.2) {};
+    \node[action] (a3) at (1.2,-1.2) {};
+
+    \node[state] (s1) at (-1.8,-2.4) {};
+    \node[state] (s2) at (-0.6,-2.4) {};
+    \node[state] (s3) at (0.6,-2.4) {};
+    \node[state] (s4) at (1.8,-2.4) {};
+
+    \draw[thick] (s) -- (a1);
+    \draw[thick] (s) -- (a2);
+    \draw[thick] (s) -- (a3);
+    \draw[thick] (a1) -- (s1);
+    \draw[thick] (a1) -- (s2);
+    \draw[thick] (a2) -- (s3);
+    \draw[thick] (a3) -- (s4);
+
+    \node[below=6pt of s3, text width=3.5cm, align=center] (alabel) {\footnotesize (a) DP backup for $v_\pi$};
+    \node[below=4pt of alabel, text width=3.5cm, align=center, text=black90] {\scriptsize Considers \textit{all} actions \\ and \textit{all} next states \\ (one step deep)};
+\end{scope}
+
+% ── Diagram B: MC backup for v_π ──
+\begin{scope}[shift={(0,0)}]
+    \node[state] (ms) at (0,0) {};
+    \node[above=2pt of ms] {$s$};
+
+    \node[action] (ma1) at (0,-1.0) {};
+    \node[state] (ms1) at (0,-2.0) {};
+    \node[action] (ma2) at (0,-3.0) {};
+    \node[state] (ms2) at (0,-4.0) {};
+
+    % dots
+    \node at (0,-4.7) {$\vdots$};
+
+    \node[action] (ma3) at (0,-5.4) {};
+    \node[terminal] (mt) at (0,-6.4) {};
+
+    \draw[thick] (ms) -- (ma1);
+    \draw[thick] (ma1) -- (ms1);
+    \draw[thick] (ms1) -- (ma2);
+    \draw[thick] (ma2) -- (ms2);
+    \draw[thick] (ms2) -- (0,-4.4);
+    \draw[thick] (0,-5.0) -- (ma3);
+    \draw[thick] (ma3) -- (mt);
+
+    \node[right=16pt of ms1] {\scriptsize $R_1$};
+    \node[right=16pt of ms2] {\scriptsize $R_2$};
+    \node[right=16pt of mt] {\scriptsize $R_T$};
+
+    \node[below=6pt of mt, text width=3.5cm, align=center] (blabel) {\footnotesize (b) MC backup for $v_\pi$};
+    \node[below=4pt of blabel, text width=3.5cm, align=center, text=black90] {\scriptsize Follows \textit{one} sampled \\ trajectory to the end \\ (starts at a state)};
+\end{scope}
+
+% ── Diagram C: MC backup for q_π (THE ANSWER) ──
+\begin{scope}[shift={(5,0)}]
+    \node[action] (qa) at (0,0) {};
+    \node[above=2pt of qa] {$s, a$};
+
+    \node[state] (qs1) at (0,-1.0) {};
+    \node[action] (qa1) at (0,-2.0) {};
+    \node[state] (qs2) at (0,-3.0) {};
+    \node[action] (qa2) at (0,-4.0) {};
+
+    % dots
+    \node at (0,-4.7) {$\vdots$};
+
+    \node[action] (qa3) at (0,-5.4) {};
+    \node[terminal] (qt) at (0,-6.4) {};
+
+    \draw[thick] (qa) -- (qs1);
+    \draw[thick] (qs1) -- (qa1);
+    \draw[thick] (qa1) -- (qs2);
+    \draw[thick] (qs2) -- (qa2);
+    \draw[thick] (qa2) -- (0,-4.4);
+    \draw[thick] (0,-5.0) -- (qa3);
+    \draw[thick] (qa3) -- (qt);
+
+    \node[right=16pt of qs1] {\scriptsize $R_1$};
+    \node[right=16pt of qs2] {\scriptsize $R_2$};
+    \node[right=16pt of qt] {\scriptsize $R_T$};
+
+    \node[below=6pt of qt, text width=3.5cm, align=center] (qlabel) {\footnotesize \textbf{(c) MC backup for} $\boldsymbol{q_\pi}$};
+    \node[below=4pt of qlabel, text width=3.5cm, align=center, text=black90] {\scriptsize Follows \textit{one} sampled \\ trajectory to the end \\ (starts at a \textit{state-action pair})};
+\end{scope}
+
+\end{tikzpicture}
+\caption{Three backup diagrams. (a) The DP diagram for $v_\pi$ fans out over all actions and all next states but only goes one step deep. (b) The MC diagram for $v_\pi$ follows a single sampled trajectory from a \textit{state} all the way to the terminal state. (c) The MC diagram for $q_\pi$ --- the answer to Exercise~5.3 --- is the same single trajectory, but starting from a \textit{state-action pair} (filled circle) instead of a state (open circle).}
+\end{figure}
+
+\section*{Answer}
+
+The backup diagram for Monte Carlo estimation of $q_\pi$ is diagram~(c) above. It looks almost identical to the MC backup for $v_\pi$, with one key difference.
+
+\textbf{The difference: what is at the top.}
+\begin{itemize}[nosep]
+    \item MC for $v_\pi$ starts at an \textbf{open circle} (a state $s$). We are asking: ``How good is it to \textit{be in} this state?''
+    \item MC for $q_\pi$ starts at a \textbf{filled circle} (a state-action pair $s, a$). We are asking: ``How good is it to \textit{be in} this state \textit{and take} this specific action?''
+\end{itemize}
+
+\textbf{Everything below the top is the same.} After the starting action is taken, the environment produces a reward and a next state, the policy picks the next action, and so on --- a single sampled path all the way down to the terminal state (the filled square at the bottom). The return from that entire trajectory is used to update the estimate of $q_\pi(s, a)$.
+
+\section*{Why does it look this way?}
+
+The shape of a backup diagram reflects two design choices:
+
+\textbf{1. How wide is it?} (Does it branch, or is it a single path?)
+\begin{itemize}[nosep]
+    \item \textit{DP diagrams are wide} --- they fan out to consider \textit{every} possible action and \textit{every} possible next state. This is possible because DP has access to the full model (the transition probabilities $p(s', r \mid s, a)$).
+    \item \textit{MC diagrams are narrow} --- they follow just \textit{one} sampled trajectory. MC does not need a model; it just plays out one episode and sees what happens.
+\end{itemize}
+
+\textbf{2. How deep is it?} (Does it go one step or to the end?)
+\begin{itemize}[nosep]
+    \item \textit{DP diagrams are shallow} --- they look ahead exactly one step and then plug in an estimated value for the next state (bootstrapping).
+    \item \textit{MC diagrams are deep} --- they go all the way to the end of the episode. MC does \textit{not} bootstrap; it waits for the actual outcome.
+\end{itemize}
+
+For $q_\pi$ specifically, the diagram starts one level lower than $v_\pi$, because we have already committed to a particular action. The first transition out of the top node is the environment's response to that action (producing a reward and a next state), not the policy choosing which action to take.
+
+\section*{Summary}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{p{0.18\textwidth} p{0.16\textwidth} p{0.16\textwidth} p{0.36\textwidth}}
+        \toprule
+        \textbf{Diagram} & \textbf{Top node} & \textbf{Shape} & \textbf{What it does} \\
+        \midrule
+        DP for $v_\pi$ & Open circle ($s$) & Wide, shallow & Branches over all actions and next states, one step deep \\
+        \addlinespace
+        MC for $v_\pi$ & Open circle ($s$) & Narrow, deep & Single trajectory from state to terminal \\
+        \addlinespace
+        MC for $q_\pi$ & Filled circle ($s,a$) & Narrow, deep & Single trajectory from state-action pair to terminal \\
         \bottomrule
     \end{tabular}
 \end{table}
