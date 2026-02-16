@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.9 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.10 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -1279,5 +1279,109 @@ The core idea is the same in both cases: replace an ever-growing list with a run
 \section*{Summary}
 
 Replace $Returns(s)$ with $N(s)$. Instead of appending $G$ to a list and recomputing the mean, increment the counter and update $V(s) \leftarrow V(s) + \frac{1}{N(s)}[G - V(s)]$. This is mathematically equivalent to the original but uses $O(1)$ memory and $O(1)$ time per state per episode.
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.10}}\\[6pt]
+    {\large Deriving the Weighted Importance Sampling Update Rule}
+\end{center}
+
+\section*{Problem Statement}
+
+Derive the weighted-average update rule (5.8) from (5.7). Follow the pattern of the derivation of the unweighted rule (2.3).
+
+\section*{Background: The equations we are working with}
+
+\textbf{Equation (5.7)} defines the weighted importance sampling estimate after seeing $n - 1$ returns:
+\begin{align}
+    V_n \;\doteq\; \frac{\sum_{k=1}^{n-1} W_k \, G_k}{\sum_{k=1}^{n-1} W_k}, \qquad n \geq 2 \label{eq:57}
+\end{align}
+where $G_k$ is the $k$th return and $W_k = \rho_{t_k:T(t_k)-1}$ is the corresponding importance-sampling ratio (the weight).
+
+\textbf{Equation (5.8)} is the incremental update rule we want to derive:
+\begin{align}
+    V_{n+1} \;\doteq\; V_n + \frac{W_n}{C_n}\Big[G_n - V_n\Big], \qquad n \geq 1 \label{eq:58}
+\end{align}
+where $C_n = \sum_{k=1}^{n} W_k$ is the cumulative sum of weights through $n$, with $C_0 = 0$.
+
+\textbf{For comparison}, the unweighted incremental rule from Section~2.4 (Equation~2.3) is:
+\begin{align}
+    Q_{n+1} = Q_n + \frac{1}{n}\Big[R_n - Q_n\Big]
+\end{align}
+In the unweighted case, all weights are equal ($W_k = 1$ for all $k$), so $C_n = n$ and $W_n / C_n = 1/n$. The weighted version generalizes this by allowing different samples to have different weights.
+
+\section*{The derivation}
+
+We follow the same algebraic pattern as the derivation of (2.3) in Section~2.4.
+
+\textbf{Step 1: Write $V_{n+1}$ from the definition.}
+
+From Equation~(\ref{eq:57}), $V_{n+1}$ uses all $n$ returns:
+\begin{align}
+    V_{n+1} = \frac{\sum_{k=1}^{n} W_k \, G_k}{\sum_{k=1}^{n} W_k} = \frac{\sum_{k=1}^{n} W_k \, G_k}{C_n}
+\end{align}
+
+\textbf{Step 2: Separate the last term from the sum.}
+
+Split the numerator into the first $n - 1$ terms plus the new $n$th term:
+\begin{align}
+    V_{n+1} = \frac{\sum_{k=1}^{n-1} W_k \, G_k \;+\; W_n \, G_n}{C_n}
+\end{align}
+
+\textbf{Step 3: Recognize the old estimate in the first part.}
+
+From the definition, $V_n = \frac{\sum_{k=1}^{n-1} W_k G_k}{C_{n-1}}$, which means $\sum_{k=1}^{n-1} W_k G_k = C_{n-1} \cdot V_n$. Substituting:
+\begin{align}
+    V_{n+1} = \frac{C_{n-1} \cdot V_n \;+\; W_n \, G_n}{C_n}
+\end{align}
+
+\textbf{Step 4: Use the relationship $C_n = C_{n-1} + W_n$.}
+
+Replace $C_{n-1}$ with $C_n - W_n$:
+\begin{align}
+    V_{n+1} &= \frac{(C_n - W_n) \cdot V_n \;+\; W_n \, G_n}{C_n}
+\end{align}
+
+\textbf{Step 5: Expand and simplify.}
+
+Distribute the numerator:
+\begin{align}
+    V_{n+1} &= \frac{C_n \cdot V_n - W_n \cdot V_n + W_n \cdot G_n}{C_n} \\[6pt]
+    &= \frac{C_n \cdot V_n}{C_n} + \frac{W_n \cdot G_n - W_n \cdot V_n}{C_n} \\[6pt]
+    &= V_n + \frac{W_n}{C_n}\big(G_n - V_n\big)
+\end{align}
+
+This is exactly Equation~(\ref{eq:58}). $\square$
+
+\section*{Intuition: What does this update rule mean?}
+
+The result has the familiar form:
+\begin{align}
+    \text{NewEstimate} \;\leftarrow\; \text{OldEstimate} + \text{StepSize} \times \Big[\text{Target} - \text{OldEstimate}\Big]
+\end{align}
+
+But unlike the unweighted case where the step size is $1/n$ (all samples contribute equally), the step size here is $W_n / C_n$ --- the \textit{weight of the new sample relative to the total weight so far}.
+
+This means:
+\begin{itemize}[nosep]
+    \item If the new sample has a \textbf{large weight} $W_n$ (the trajectory was much more likely under the target policy), it gets a proportionally larger influence on the update. The estimate moves more.
+    \item If the new sample has a \textbf{small weight} $W_n$ (the trajectory was unlikely under the target policy), it barely moves the estimate.
+    \item If $W_n = 0$ (the trajectory is impossible under the target policy, e.g., the behavior policy took an action $\pi$ would never take), the estimate does not change at all --- as it should, since this episode carries no information about $v_\pi$.
+\end{itemize}
+
+\section*{Connection to the unweighted case}
+
+When all weights are equal ($W_k = 1$ for all $k$, i.e., on-policy with $\pi = b$), we get $C_n = n$ and $W_n / C_n = 1/n$, recovering the standard incremental mean:
+\begin{align}
+    V_{n+1} = V_n + \frac{1}{n}\Big[G_n - V_n\Big]
+\end{align}
+So Equation~(5.8) is a strict generalization of Equation~(2.3). The on-policy case from Exercises~5.4 and~5.9 is a special case of the off-policy weighted IS update.
+
+\section*{Summary}
+
+The derivation takes five lines of algebra: write $V_{n+1}$ from its definition, split out the last term, substitute $V_n$ for the earlier terms, replace $C_{n-1}$ with $C_n - W_n$, and simplify. The result is the incremental update $V_{n+1} = V_n + \frac{W_n}{C_n}[G_n - V_n]$, where the step size $W_n / C_n$ automatically gives more influence to higher-weighted samples.
 
 \end{document}
