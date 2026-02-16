@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.6 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.7 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -877,5 +877,103 @@ Dropping that first factor reduces the variance of the ratio, because there is o
 \section*{Summary}
 
 The weighted importance sampling equation for $Q(s, a)$ is identical to Equation (5.6) for $V(s)$ except: (1) we sum over time steps where the specific pair $(s, a)$ was visited, and (2) the importance-sampling ratio starts at $t + 1$ instead of $t$, because the action at time $t$ is already determined to be $a$ and does not need correction. This shorter ratio means less variance per sample.
+
+% ══════════════════════════════════════════════════════════════
+\newpage
+% ══════════════════════════════════════════════════════════════
+
+\begin{center}
+    {\Large\color{garnet}\textbf{Exercise 5.7}}\\[6pt]
+    {\large Why Weighted IS Error Increases Then Decreases}
+\end{center}
+
+\section*{Problem Statement}
+
+In learning curves such as those shown in Figure~5.3, error generally decreases with training, as indeed happened for the ordinary importance sampling method. But for the weighted importance sampling method, error first \textit{increased} and then decreased. Why do you think this happened?
+
+\section*{Background: What Figure 5.3 shows}
+
+Figure~5.3 (Example~5.4) plots the mean squared error (MSE) of two off-policy estimators as a function of the number of episodes, for a single blackjack state. The behavior policy is random (50/50 hit or stick), and the target policy is stick-on-20-or-21. The true value of the state is approximately $-0.27726$.
+
+The two curves behave very differently:
+\begin{itemize}[nosep]
+    \item \textbf{Ordinary importance sampling:} starts with high error and decreases monotonically.
+    \item \textbf{Weighted importance sampling:} starts with \textit{low} error, then the error \textit{increases} for a while, before eventually decreasing toward zero.
+\end{itemize}
+
+The question is: why does the weighted method get \textit{worse} before getting better?
+
+\section*{Answer: The initial estimate is accidentally good}
+
+The explanation comes from understanding what weighted importance sampling computes after just one or a few episodes.
+
+\textbf{Step 1: What happens after the very first episode.}
+
+Recall the weighted importance sampling formula:
+\begin{align}
+    V(s) = \frac{\sum_t \rho_t \, G_t}{\sum_t \rho_t}
+\end{align}
+
+After observing just one episode that visits state $s$, the estimate is:
+\begin{align}
+    V(s) = \frac{\rho_1 \, G_1}{\rho_1} = G_1
+\end{align}
+
+The importance-sampling ratio \textit{cancels out entirely}. The estimate is simply the observed return $G_1$ from that episode, regardless of how unlikely the trajectory was under the target policy. This is a key property of weighted IS: with a single sample, it always returns the observed return itself.
+
+\textbf{Step 2: Why is this ``accidentally'' close to the true value?}
+
+The behavior policy generates episodes by playing blackjack randomly. The return from any given episode is either $+1$ (win), $-1$ (lose), or $0$ (draw). After one episode, the estimate is one of these three values. The true value is $-0.27726$, which is between $-1$ and $0$.
+
+By luck of averaging, the very first few estimates tend to land near the true value. If the first episode is a loss ($G = -1$), the estimate is $-1$, which is only $0.72$ away from $-0.27726$. If it is a win ($G = +1$), the estimate is $+1$, which is $1.28$ away. Averaged over 100 runs (as in the figure), the initial MSE turns out to be small because the weighted IS estimate is just the raw return --- a reasonable number in the right ballpark.
+
+\textbf{Step 3: Why does the error then \textit{increase}?}
+
+As more episodes are observed, the importance-sampling ratios $\rho_t$ stop canceling. Some episodes have large ratios (trajectories that are much more likely under the target policy than the behavior policy), and some have small ratios (or zero, if the behavior policy took an action the target policy would never take).
+
+The weighted average now starts mixing together returns with very different weights. During this intermediate phase, the estimate can be dominated by a few episodes with large ratios, pulling it away from the true value. The estimator is \textit{biased} --- specifically, it is biased toward the value under the behavior policy $v_b(s)$ rather than $v_\pi(s)$.
+
+In the early episodes:
+\begin{itemize}[nosep]
+    \item The estimate starts near $G_1$ (which happened to be close to $v_\pi(s)$ on average).
+    \item As more data arrives, the bias toward $v_b(s)$ kicks in. Since $v_b(s) \neq v_\pi(s)$ (the random policy evaluates the state differently than the stick-on-20-or-21 policy), this bias temporarily \textit{increases} the error.
+    \item The estimate is being pulled from its accidentally-good starting point toward the wrong value ($v_b$), before eventually accumulating enough weighted samples to converge toward the correct value ($v_\pi$).
+\end{itemize}
+
+\textbf{Step 4: Why does the error eventually decrease?}
+
+With enough episodes, the weighted IS estimator converges to the true value $v_\pi(s)$. The bias shrinks to zero as the denominator $\sum \rho_t$ grows, and the estimate settles in. The weighted estimator's low variance then pays off, and the MSE drops below that of ordinary IS.
+
+\section*{A simple analogy}
+
+Imagine guessing someone's age. Your first guess (50) happens to be close to the truth (48). But then someone tells you ``most people in this room are 30'' (the behavior-policy bias). You adjust your estimate toward 30, and for a while your estimate is \textit{worse} than your initial lucky guess. Eventually, with more information, you correct back toward 48. That temporary dip away from the truth is exactly what happens to the weighted IS estimator.
+
+\section*{Why doesn't ordinary IS show this pattern?}
+
+Ordinary importance sampling divides by the \textit{number of samples} $n$, not by the sum of the weights. After one episode:
+\begin{align}
+    V_{\text{ordinary}}(s) = \frac{\rho_1 \, G_1}{1} = \rho_1 \, G_1
+\end{align}
+
+The ratio $\rho_1$ does \textit{not} cancel. If the trajectory happened to be 10 times more likely under $\pi$ than $b$, the estimate is $10 \times G_1$, which can be wildly off. So the ordinary IS estimator starts with \textit{high} error (due to variance from extreme ratios) and gradually improves as the average of many $\rho_t G_t$ values stabilizes. There is no ``accidentally good'' starting point to lose.
+
+\section*{Summary}
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{p{0.14\textwidth} p{0.37\textwidth} p{0.37\textwidth}}
+        \toprule
+        \textbf{Phase} & \textbf{Ordinary IS} & \textbf{Weighted IS} \\
+        \midrule
+        Early & High error: extreme $\rho$ values amplify returns, causing wild estimates & Low error: $\rho$ cancels in the ratio, estimate $\approx$ raw return (accidentally close to truth) \\
+        \addlinespace
+        Middle & Error decreasing: averaging tames the variance & Error increasing: bias toward $v_b(s)$ pulls estimate away from $v_\pi(s)$ \\
+        \addlinespace
+        Late & Converges (unbiased, high variance) & Converges (bias vanishes, low variance) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The weighted IS estimator's error hump is the cost of its bias: it starts lucky, drifts toward the behavior-policy value, then finally corrects to the true target-policy value. The ordinary IS estimator pays upfront with high variance but improves monotonically.
 
 \end{document}
