@@ -349,41 +349,38 @@ def plot_track_with_policy(track, Q, filename="racetrack_policy.png"):
 
 
 def plot_trajectories(track, Q, filename="racetrack_trajectories.png"):
-    """Plot sample greedy trajectories on the track."""
+    """Plot greedy trajectories from every starting position on the track."""
     rows, cols = track.shape
     env = Racetrack(track)
     fig, ax = plt.subplots(figsize=(8, 14))
     _draw_track(ax, track)
 
-    traj_colors = [ATLANTIC, CONGAREE, ROSE, HONEYCOMB, GRASS]
+    accent_colors = [ATLANTIC, CONGAREE, ROSE, HONEYCOMB, HORSESHOE, GRASS]
     start_cells = env.start_cells
 
-    # Only use start columns that can actually reach the finish
-    # (finish is at column 9; car can only move right, so col <= 9 is needed)
-    reachable = [(r, c) for r, c in start_cells if c <= 9]
-    if not reachable:
-        reachable = start_cells
-    n_traj = min(5, len(reachable))
-    indices = np.linspace(0, len(reachable) - 1, n_traj, dtype=int)
-    # Override start_cells for the loop below
-    start_cells = reachable
-
-    for i, idx in enumerate(indices):
-        sr, sc = start_cells[idx]
-        traj = run_greedy_from(env, Q, sr, sc)
-        color = traj_colors[i % len(traj_colors)]
+    for i, (sr, sc) in enumerate(start_cells):
+        traj = run_greedy_from(env, Q, sr, sc, max_steps=50)
+        color = accent_colors[i % len(accent_colors)]
+        steps = len(traj) - 1
+        # Check if trajectory actually reached the finish
+        last_r, last_c = traj[-1][0], traj[-1][1]
+        reached = (last_r, last_c) in env.finish_cells or steps < 50
 
         xs = [s[1] + 0.5 for s in traj]
         ys = [rows - 1 - s[0] + 0.5 for s in traj]
 
-        ax.plot(xs, ys, '-o', color=color, markersize=3, linewidth=2,
-                label=f"Start col {sc}, {len(traj)-1} steps", alpha=0.85)
+        if reached:
+            ax.plot(xs, ys, '-o', color=color, markersize=2.5, linewidth=1.8,
+                    label=f"Col {sc}: {steps} steps", alpha=0.85)
+        else:
+            ax.plot(xs, ys, '--x', color=BLACK50, markersize=2, linewidth=1,
+                    label=f"Col {sc}: no path", alpha=0.5)
 
     ax.set_xlabel("Column", fontsize=11, color=BLACK90)
     ax.set_ylabel("Row (bottom = start)", fontsize=11, color=BLACK90)
-    ax.set_title("Sample Greedy Trajectories (no noise)", fontsize=13,
-                 color=GARNET, fontweight="bold")
-    ax.legend(loc="upper left", fontsize=8)
+    ax.set_title("Greedy Trajectories from All Start Positions",
+                 fontsize=13, color=GARNET, fontweight="bold")
+    ax.legend(loc="upper left", fontsize=6, ncol=2)
 
     plt.tight_layout()
     plt.savefig(filename, dpi=200, bbox_inches="tight")
