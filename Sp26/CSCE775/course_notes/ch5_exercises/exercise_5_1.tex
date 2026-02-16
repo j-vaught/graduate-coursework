@@ -1197,6 +1197,27 @@ We replace the $Returns(s)$ lists with a counter $N(s)$ and use the incremental 
 }}
 \end{center}
 
+\section*{Intuition: What is the incremental update actually doing?}
+
+The original algorithm throws every return onto a growing pile and re-averages the entire pile each time. After 100{,}000 games, a frequently visited state might have 50{,}000 returns in its list, and the algorithm adds them all up and divides --- even though it already \textit{knew} the average before the new number showed up. That is wasteful.
+
+The fix is to skip the pile entirely. Just remember two things: the current average $V(s)$ and the count $N(s)$. When a new return $G$ arrives, nudge the average toward it:
+\begin{align}
+    V(s) \;\leftarrow\; V(s) + \frac{1}{N(s)}\Big[\underbrace{G - V(s)}_{\text{``error'': how far off was } G\text{?}}\Big]
+\end{align}
+
+In plain English: \textit{``How far off was this new return from my current estimate? Nudge my estimate toward it by a little bit.''}
+
+The fraction $1/N$ controls how much you nudge. Early on ($N = 2, 3, 4$), each new return moves the average a lot --- which makes sense, because you do not have much data yet. After thousands of episodes ($N = 10{,}000$), each new return barely moves the needle --- also sensible, because one data point should not overturn 10{,}000 previous ones.
+
+\textbf{A concrete example.} Suppose the current estimate is $V = -0.5$ after 100 visits. A new episode gives return $G = +1$. The update is:
+\begin{align}
+    V \;\leftarrow\; -0.5 + \frac{1}{101}\big[1 - (-0.5)\big] = -0.5 + 0.0149 = -0.485
+\end{align}
+The estimate barely budges. If you had stored all 101 numbers and re-averaged, you would get the exact same $-0.485$ --- but you would have to add up 101 numbers instead of doing one subtraction and one division.
+
+Same answer, no pile of numbers, constant time and memory. It is the RL equivalent of keeping a running average instead of a spreadsheet.
+
 \section*{What changed}
 
 Exactly three things changed from the original:
