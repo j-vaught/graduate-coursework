@@ -457,52 +457,195 @@ First to beat humans on all 57 Atari games. Uses intrinsic curiosity + adaptive 
 
 % ======================================================================
 \newpage
-\part{Likely Math Problem Targets}
+\part{Likely Derivation Problems}
 % ======================================================================
 
-The math problem is worth 50\%. Based on the material, the most likely candidates are:
+The math problem is 50\% and is a pure symbolic derivation (no numbers). Here are the most likely candidates with full step-by-step derivations.
 
-\section{Candidate 1: TD(0) or MC Update Calculation}
+% --------------------------------------------------
+\section{Derivation 1: MC Incremental Update from Running Average}
+% --------------------------------------------------
 
-Given a small MDP or sequence of transitions, compute the updated value after one or more steps.
+\textit{``Show that the running-average MC update can be written in incremental form.''}
 
-\textbf{Example:} Given $V(A)=0$, $V(B)=0.5$, $\gamma=1$, $\alpha=0.1$, and the transition $A \xrightarrow{r=0} B$:
+Start from the sample-mean definition after $n$ visits to state $s$:
 \[
-V(A) \leftarrow 0 + 0.1[0 + 1 \cdot 0.5 - 0] = 0.05
+V_n = \frac{1}{n}\sum_{k=1}^{n} G_k
 \]
 
-\section{Candidate 2: Q-Learning or SARSA Update}
+Split off the $n$-th return:
+\begin{align}
+V_n &= \frac{1}{n}\Bigl(G_n + \sum_{k=1}^{n-1} G_k\Bigr)
+= \frac{1}{n}\Bigl(G_n + (n-1)\,V_{n-1}\Bigr) \\[4pt]
+&= \frac{1}{n}\,G_n + \frac{n-1}{n}\,V_{n-1}
+= \frac{1}{n}\,G_n + V_{n-1} - \frac{1}{n}\,V_{n-1} \\[4pt]
+&= V_{n-1} + \frac{1}{n}\bigl(G_n - V_{n-1}\bigr)
+\end{align}
 
-\textbf{Example:} Given $Q(s,\text{left})=1$, $Q(s,\text{right})=2$, $Q(s',\text{left})=3$, $Q(s',\text{right})=5$, $\alpha=0.5$, $\gamma=0.9$, $r=-1$, action taken = left:
+\formula{
+$V_n = V_{n-1} + \alpha_n\bigl(G_n - V_{n-1}\bigr)$ \quad where $\alpha_n = 1/n$
 
-\textbf{Q-learning:}
+Generalizing to a constant step size: $V(S_t) \leftarrow V(S_t) + \alpha\bigl(G_t - V(S_t)\bigr)$
+}
+
+% --------------------------------------------------
+\section{Derivation 2: $\varepsilon$-Greedy Policy Improvement}
+% --------------------------------------------------
+
+\textit{``Prove that for any $\varepsilon$-greedy policy $\pi$, the $\varepsilon$-greedy policy $\pi'$ w.r.t.\ $q_\pi$ is an improvement: $v_{\pi'}(s) \geq v_\pi(s)$.''}
+
+Start with the expected value under $\pi'$:
+\begin{align}
+q_\pi(s, \pi'(s)) &= \sum_a \pi'(a \mid s)\,q_\pi(s,a)
+= \frac{\varepsilon}{|\mathcal{A}|}\sum_a q_\pi(s,a) + (1-\varepsilon)\max_a q_\pi(s,a)
+\end{align}
+
+Since $\max_a q_\pi(s,a) \geq \sum_a w_a\, q_\pi(s,a)$ for any convex weights $w_a$ summing to 1, substitute $w_a = \frac{\pi(a \mid s) - \varepsilon/|\mathcal{A}|}{1-\varepsilon}$:
+\begin{align}
+&\geq \frac{\varepsilon}{|\mathcal{A}|}\sum_a q_\pi(s,a) + (1-\varepsilon)\sum_a \frac{\pi(a \mid s) - \varepsilon/|\mathcal{A}|}{1-\varepsilon}\,q_\pi(s,a) \\[4pt]
+&= \frac{\varepsilon}{|\mathcal{A}|}\sum_a q_\pi(s,a) + \sum_a \bigl(\pi(a \mid s) - \varepsilon/|\mathcal{A}|\bigr)\,q_\pi(s,a) \\[4pt]
+&= \sum_a \pi(a \mid s)\,q_\pi(s,a) = v_\pi(s)
+\end{align}
+
+\formula{
+$q_\pi(s,\pi'(s)) \geq v_\pi(s)$ for all $s$. By the \textbf{policy improvement theorem}, this implies $v_{\pi'}(s) \geq v_\pi(s)$ for all $s$.\qquad $\square$
+}
+
+% --------------------------------------------------
+\section{Derivation 3: Sigmoid Derivative}
+% --------------------------------------------------
+
+\textit{``Derive $\frac{d}{dz}\sigma(z)$ where $\sigma(z) = \frac{1}{1+e^{-z}}$.''}
+
+\begin{align}
+\sigma(z) &= (1 + e^{-z})^{-1} \\[4pt]
+\frac{d\sigma}{dz} &= -(1+e^{-z})^{-2} \cdot (-e^{-z})
+= \frac{e^{-z}}{(1+e^{-z})^2} \\[4pt]
+&= \frac{1}{1+e^{-z}} \cdot \frac{e^{-z}}{1+e^{-z}}
+= \sigma(z) \cdot \frac{(1+e^{-z})-1}{1+e^{-z}} \\[4pt]
+&= \sigma(z)\bigl(1 - \sigma(z)\bigr)
+\end{align}
+
+\formula{
+$\dfrac{d\sigma}{dz} = \sigma(z)\bigl(1-\sigma(z)\bigr)$
+}
+
+% --------------------------------------------------
+\section{Derivation 4: Gradient of Logistic Regression Loss}
+% --------------------------------------------------
+
+\textit{``Derive the gradient of the cross-entropy loss for logistic regression.''}
+
+The log-likelihood for one sample:
 \[
-Q(s,\text{left}) \leftarrow 1 + 0.5[-1 + 0.9 \cdot \max(3,5) - 1] = 1 + 0.5[-1 + 4.5 - 1] = 1 + 1.25 = 2.25
+\ell = y\log\sigma(\mathbf{w}^\top\mathbf{x}) + (1-y)\log(1-\sigma(\mathbf{w}^\top\mathbf{x}))
 \]
 
-\textbf{SARSA} (if next action = left):
+Using $\sigma' = \sigma(1-\sigma)$ and abbreviating $\hat{y} = \sigma(\mathbf{w}^\top\mathbf{x})$:
+\begin{align}
+\frac{\partial \ell}{\partial \mathbf{w}}
+&= y \cdot \frac{\hat{y}(1-\hat{y})}{\hat{y}}\,\mathbf{x} + (1-y)\cdot\frac{-\hat{y}(1-\hat{y})}{1-\hat{y}}\,\mathbf{x} \\[4pt]
+&= y(1-\hat{y})\,\mathbf{x} - (1-y)\hat{y}\,\mathbf{x}
+= (y - \hat{y})\,\mathbf{x}
+\end{align}
+
+The loss is \textit{negative} log-likelihood, so the gradient of the loss over $N$ samples:
+
+\formula{
+$\nabla_{\mathbf{w}} \mathcal{L} = -\dfrac{1}{N}\displaystyle\sum_{i=1}^N (y_i - \hat{y}_i)\,\mathbf{x}_i
+= \dfrac{1}{N}\sum_{i=1}^N (\hat{y}_i - y_i)\,\mathbf{x}_i$
+\quad where $\hat{y}_i = \sigma(\mathbf{w}^\top\mathbf{x}_i)$
+}
+
+% --------------------------------------------------
+\section{Derivation 5: Backpropagation for a 2-Layer Network}
+% --------------------------------------------------
+
+\textit{``Derive the weight gradients for a 2-layer network.''}
+
+Network: $\hat{\mathbf{y}} = \mathbf{W}^{(2)}\,\mathbf{h}$ where $\mathbf{h} = \sigma(\mathbf{W}^{(1)}\mathbf{x})$.
+Loss: $E = \frac{1}{2}\|\mathbf{y} - \hat{\mathbf{y}}\|^2 = \frac{1}{2}\sum_i (y_i - \hat{y}_i)^2$.
+
+\textbf{Output layer weights} (apply chain rule once):
+\begin{align}
+\hat{y}_i &= \sum_j W_{ij}^{(2)}\,h_j \\[2pt]
+\frac{\partial E}{\partial W_{ij}^{(2)}} &= \frac{\partial E}{\partial \hat{y}_i}\cdot\frac{\partial \hat{y}_i}{\partial W_{ij}^{(2)}}
+= -(y_i - \hat{y}_i)\cdot h_j
+\end{align}
+
+\textbf{Hidden layer weights} (chain rule through two layers):
+\begin{align}
+h_j &= \sigma\!\Bigl(\sum_k W_{jk}^{(1)} x_k\Bigr) \\[2pt]
+\frac{\partial E}{\partial W_{jk}^{(1)}}
+&= \sum_i \frac{\partial E}{\partial \hat{y}_i}\cdot\frac{\partial \hat{y}_i}{\partial h_j}\cdot\frac{\partial h_j}{\partial W_{jk}^{(1)}}
+= \sum_i \bigl[-(y_i - \hat{y}_i)\bigr]\,W_{ij}^{(2)}\;\sigma'\!\Bigl(\sum_k W_{jk}^{(1)} x_k\Bigr)\; x_k
+\end{align}
+
+\formula{
+\textbf{Pattern:} error at output $\times$ weight connecting layers $\times$ activation derivative $\times$ input.
+
+Errors ``back-propagate'' through each layer via the chain rule.
+}
+
+% --------------------------------------------------
+\section{Derivation 6: DAVI / Approximate Value Iteration Gradient}
+% --------------------------------------------------
+
+\textit{``Derive the gradient of the approximate value iteration loss.''}
+
+Target (treated as constant): $y = \max_a\bigl(r(s,a) + \gamma \sum_{s'} p(s' \mid s,a)\, v_{\theta^-}(s')\bigr)$
+
+Loss for a single state:
 \[
-Q(s,\text{left}) \leftarrow 1 + 0.5[-1 + 0.9 \cdot 3 - 1] = 1 + 0.5[0.7] = 1.35
+L(\theta) = \frac{1}{2}\bigl(y - v_\theta(s)\bigr)^2
 \]
 
-\section{Candidate 3: Gradient Descent Step}
+Apply the chain rule (do \textit{not} differentiate $y$ w.r.t.\ $\theta$):
+\begin{align}
+\nabla_\theta L(\theta)
+&= \frac{\partial}{\partial \theta}\,\frac{1}{2}\bigl(y - v_\theta(s)\bigr)^2
+= \bigl(y - v_\theta(s)\bigr)\cdot\bigl(-\nabla_\theta v_\theta(s)\bigr)
+\end{align}
 
-\textbf{Example:} Given $f(x,w) = wx$, data point $(x=2, y=5)$, current $w=1$, $\alpha=0.1$:
+\formula{
+$\nabla_\theta L(\theta) = -\bigl(y - v_\theta(s)\bigr)\,\nabla_\theta v_\theta(s)$
+
+The gradient descent update is then:
+$\theta \leftarrow \theta - \alpha\,\nabla_\theta L = \theta + \alpha\bigl(y - v_\theta(s)\bigr)\,\nabla_\theta v_\theta(s)$
+
+\textbf{Key:} $y$ depends on $\theta^-$ (frozen target network), NOT on $\theta$, so it is treated as a constant.
+}
+
+For $N$ states (batched):
 \[
-\mathcal{L} = \frac{1}{2}(5 - 2)^2 = 4.5, \quad
-\frac{\partial \mathcal{L}}{\partial w} = -(5-2)\cdot 2 = -6, \quad
-w \leftarrow 1 - 0.1(-6) = 1.6
+L(\theta) = \frac{1}{2N}\sum_{i=1}^N (y_i - v_\theta(s_i))^2 \quad\Rightarrow\quad
+\nabla_\theta L = -\frac{1}{N}\sum_{i=1}^N (y_i - v_\theta(s_i))\,\nabla_\theta v_\theta(s_i)
 \]
 
-\section{Candidate 4: DQN / DAVI Target Computation}
+% --------------------------------------------------
+\section{Derivation 7: Linear Regression Gradient (Closed Form)}
+% --------------------------------------------------
 
-\textbf{Example:} Compute the DQN target given:
-$r = 3$, $\gamma = 0.99$, $q_{\theta^-}(s', a_1) = 10$, $q_{\theta^-}(s', a_2) = 15$:
+\textit{``Derive the analytical solution for linear regression.''}
+
+Model: $\hat{\mathbf{y}} = \mathbf{X}\mathbf{w}$. Loss:
 \[
-y = 3 + 0.99 \cdot \max(10, 15) = 3 + 14.85 = 17.85
+\mathcal{L}(\mathbf{w}) = \|\mathbf{X}\mathbf{w} - \mathbf{y}\|_2^2 = (\mathbf{X}\mathbf{w} - \mathbf{y})^\top(\mathbf{X}\mathbf{w} - \mathbf{y})
 \]
 
-Then loss: $L = \frac{1}{2}(17.85 - q_\theta(s,a))^2$
+Expand:
+\begin{align}
+\mathcal{L} &= \mathbf{w}^\top\mathbf{X}^\top\mathbf{X}\mathbf{w} - 2\mathbf{w}^\top\mathbf{X}^\top\mathbf{y} + \mathbf{y}^\top\mathbf{y}
+\end{align}
+
+Take gradient and set to zero:
+\begin{align}
+\nabla_{\mathbf{w}}\mathcal{L} &= 2\mathbf{X}^\top\mathbf{X}\mathbf{w} - 2\mathbf{X}^\top\mathbf{y} = \mathbf{0}
+\end{align}
+
+\formula{
+$\mathbf{w}^* = (\mathbf{X}^\top\mathbf{X})^{-1}\mathbf{X}^\top\mathbf{y}$
+}
 
 % ======================================================================
 \newpage
