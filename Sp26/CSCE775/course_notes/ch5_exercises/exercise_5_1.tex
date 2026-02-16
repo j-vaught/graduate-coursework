@@ -15,7 +15,7 @@
 
 \color{black90}
 
-\title{\color{garnet}\textbf{Exercises 5.1--5.11 --- Monte Carlo Methods}}
+\title{\color{garnet}\textbf{Exercises 5.1--5.12 --- Monte Carlo Methods}}
 \author{J.C.\ Vaught}
 \date{Spring 2026 --- CSCE 775}
 
@@ -1502,5 +1502,55 @@ At $t = 2$, the behavior policy took ``hit'' but $\pi$ would have taken ``stick.
         \bottomrule
     \end{tabular}
 \end{table}
+
+% ──────────────────────────────────────────────────────────────
+\newpage
+\section*{Exercise 5.12 --- Racetrack (Programming)}
+% ──────────────────────────────────────────────────────────────
+
+\subsection*{Problem Statement}
+
+Consider driving a race car around a turn on a discretized racetrack (Figure~5.5). You want to go as fast as possible, but not so fast that you run off the track. The state is the car's position and velocity, both discretized. The position is a cell on the grid. The velocity is one of $\{0, 1, 2, 3, 4\}$ along each axis, with the constraint that both components cannot be zero simultaneously (except at the start). At each time step, the agent selects velocity \textit{increments} from $\{-1, 0, +1\}$ for each component. With probability 0.1, both increments are set to zero regardless of the action chosen, simulating noisy actuation. The reward is $-1$ per step, and the episode terminates when the car crosses the finish line. If the car's projected path leaves the track, it is reset to a random cell on the starting line with zero velocity.
+
+The task is to apply a Monte Carlo control method to discover the policy that finishes in the fewest steps.
+
+\subsection*{Approach}
+
+The state space is four-dimensional: (row, column, vertical velocity, horizontal velocity). Both velocity components range from $0$ to $4$, where the vertical component drives the car upward (toward decreasing row indices) and the horizontal component drives it rightward. With 9 possible actions per state, the state-action space is large but tractable with tabular methods.
+
+On-policy first-visit MC control with an $\varepsilon$-soft policy ($\varepsilon = 0.1$) was used. The algorithm generates episodes under the current $\varepsilon$-greedy policy, computes returns with $\gamma = 1$, and updates $Q(s,a)$ with incremental averaging. Episodes are capped at 1{,}000 steps to avoid infinite loops during early training. Training ran for 500{,}000 episodes.
+
+\subsection*{Results}
+
+Figure~\ref{fig:racetrack_policy} shows the track layout with the greedy policy (from rest) overlaid as arrows. Start cells are shown along the bottom edge and finish cells along the upper-right edge. The policy at rest is most meaningful along the starting line, where arrows indicate the initial acceleration direction.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{racetrack_policy.png}
+    \caption{Racetrack with greedy policy arrows at velocity $(0,0)$. Garnet cells are the starting line, green cells are the finish line.}
+    \label{fig:racetrack_policy}
+\end{figure}
+
+Figure~\ref{fig:racetrack_traj} shows five sample trajectories under the learned greedy policy with noise disabled. The car accelerates upward along the left side, then turns right toward the finish. Different starting positions produce slightly different paths, but all reach the finish efficiently.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{racetrack_trajectories.png}
+    \caption{Sample greedy trajectories from five evenly spaced starting positions (no actuation noise).}
+    \label{fig:racetrack_traj}
+\end{figure}
+
+Figure~\ref{fig:racetrack_learning} shows the learning curve: episode length averaged over a sliding window of 5{,}000 episodes. Early episodes are very long because the random initial policy rarely reaches the finish. As learning progresses, episode length decreases steadily, converging to values near the trajectory lengths shown above.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{racetrack_learning.png}
+    \caption{Learning curve for on-policy MC control. Episode length (smoothed) decreases as the policy improves.}
+    \label{fig:racetrack_learning}
+\end{figure}
+
+\subsection*{Discussion}
+
+The on-policy MC approach learns a reasonable policy that navigates the turn efficiently. Greedy trajectories under the learned policy typically finish in 15--25 steps depending on the starting position, compared to the 1{,}000-step cap that early random policies often hit. The main challenge is the large state space --- positions times velocity combinations times actions --- which requires many episodes to adequately explore. The $\varepsilon$-soft exploration ensures continued exploration even after a good policy is found, which is important given the noisy actuation. The 10\% noise probability means that even the optimal policy occasionally produces longer episodes, but the greedy (noise-off) evaluation shows the true quality of the learned policy.
 
 \end{document}
