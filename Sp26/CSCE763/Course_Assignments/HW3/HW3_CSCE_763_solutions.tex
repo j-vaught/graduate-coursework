@@ -196,49 +196,21 @@ Two $N \times N$ images shown below are quite different, but their histograms ar
 \vspace{0.5cm}
 
 \begin{stepbox}[Step 1: Analyze the Original Histograms]
-Both images have identical histograms before blurring. Each $N \times N$ image contains exactly $N^2/2$ pixels at intensity 0 (black) and $N^2/2$ pixels at intensity 255 (white). The histogram consists of two impulses at $r = 0$ and $r = 255$, each with height $N^2/2$.
+Both images have $N^2/2$ pixels at 0 and $N^2/2$ at 255, so their histograms are identical two-impulse distributions.
 
-\textbf{Assumption:} The chessboard in image (b) is a \textit{1-pixel checkerboard}, where each individual pixel alternates between black and white (i.e., pixel $(i,j)$ has intensity $255$ if $i+j$ is even, and $0$ if $i+j$ is odd). If the checkerboard squares were larger blocks (e.g., $K \times K$ pixels each), then interior pixels of each block would be unaffected by $3 \times 3$ averaging (just like the interior of each half in image (a)), and the two histograms would remain similar after blurring.
+\textbf{Assumption:} The chessboard is a \textit{1-pixel checkerboard} where pixel $(i,j)$ has intensity $255$ if $i+j$ is even, and $0$ if $i+j$ is odd. If the squares were larger blocks, interior pixels would be unaffected by $3 \times 3$ averaging, and the histograms would remain similar.
 \end{stepbox}
 
 \begin{stepbox}[Step 2: Analyze Blurring of Image (a) --- Half-and-Half]
-The half-and-half image has a single vertical boundary between the white (left) and black (right) halves. After applying a $3\times 3$ averaging mask:
-
-\begin{itemize}[leftmargin=*]
-\item \textbf{Interior white pixels} (more than 1 pixel from the boundary): all 9 neighbors are white. Average $= 255$. Unchanged.
-\item \textbf{Interior black pixels} (more than 1 pixel from the boundary): all 9 neighbors are black. Average $= 0$. Unchanged.
-\item \textbf{Boundary pixels} (within 1 pixel of the vertical edge): the $3 \times 3$ window straddles white and black regions, producing intermediate values.
-\end{itemize}
-
-Only $3 \times N$ pixels (3 columns near the boundary) are affected. The vast majority of pixels remain at 0 or 255. The histogram has two large spikes at 0 and 255, with a small number of pixels at intermediate values along the boundary.
+Interior pixels on either side have all 9 neighbors the same color, so they remain at 0 or 255. Only pixels within 1 column of the vertical boundary are affected --- the $3 \times 3$ window straddles both halves, producing intermediate values. This affects only $3N$ out of $N^2$ pixels, so the histogram retains two large spikes at 0 and 255 with a small spread of intermediate values.
 \end{stepbox}
 
 \begin{stepbox}[Step 3: Analyze Blurring of Image (b) --- Chessboard]
-In the chessboard pattern, every pixel is adjacent to pixels of the opposite intensity. For an \textbf{interior pixel} (not on the image border), the $3 \times 3$ neighborhood in a checkerboard contains:
-
-\begin{itemize}[leftmargin=*]
-\item If center is white (255): 4 corner neighbors are white, 4 edge neighbors are black $\Rightarrow$ 5 white, 4 black.
-\[
-\text{Average} = \frac{5 \times 255 + 4 \times 0}{9} = \frac{1275}{9} \approx 141.7
-\]
-\item If center is black (0): 4 corner neighbors are black, 4 edge neighbors are white $\Rightarrow$ 4 white, 5 black.
-\[
-\text{Average} = \frac{4 \times 255 + 5 \times 0}{9} = \frac{1020}{9} \approx 113.3
-\]
-\end{itemize}
-
-\textbf{Every} interior pixel is affected, not just boundary pixels. The histogram collapses from two spikes at 0 and 255 to two spikes near 142 and 113.
+Every pixel is adjacent to opposite-intensity pixels. For any interior pixel, the $3 \times 3$ neighborhood has 5 same-color and 4 opposite-color pixels (4 corners match, 4 edges differ). If the center is white: average $= (5 \times 255)/9 = 1275/9 \approx 141.7$. If the center is black: average $= (4 \times 255)/9 = 1020/9 \approx 113.3$. \textbf{Every} pixel is affected, and the histogram collapses to two spikes near 142 and 113.
 \end{stepbox}
 
 \begin{stepbox}[Part (a): Are the Histograms Still Equal?]
-\textbf{No.} After blurring:
-
-\begin{itemize}[leftmargin=*]
-\item \textbf{Image (a)} retains most pixels at 0 and 255, with only a thin strip of intermediate values at the boundary.
-\item \textbf{Image (b)} has \textit{no} pixels at 0 or 255 (for interior pixels). The entire image shifts to two narrow clusters near 113 and 142.
-\end{itemize}
-
-The histograms are completely different because the $3 \times 3$ averaging mask interacts with the \textit{spatial structure} of the image, not just its intensity distribution.
+\textbf{No.} Image (a) retains most pixels at 0 and 255 with a thin strip of intermediate values. Image (b) has \textit{no} pixels at 0 or 255; the entire image shifts to two clusters near 113 and 142. The histograms differ because the $3 \times 3$ mask interacts with the \textit{spatial structure}, not just the intensity distribution.
 \end{stepbox}
 
 \begin{stepbox}[Part (b): Sketch of the Two Blurred Histograms]
@@ -297,20 +269,7 @@ The histograms are completely different because the $3 \times 3$ averaging mask 
 \end{stepbox}
 
 \begin{stepbox}[Part (c) Bonus: Effect of Image Size $N$ on Chessboard Histogram]
-The histogram of the blurred chessboard depends on the ratio of interior to border pixels.
-
-\begin{itemize}[leftmargin=*]
-\item \textbf{Interior pixels} ($N-2$ rows $\times$ $N-2$ columns) produce values $\approx 142$ or $\approx 113$ as computed above.
-\item \textbf{Border pixels} (on the edges/corners of the image) have fewer than 9 neighbors within the image. With zero-padding, border pixels see additional zeros, shifting their averages toward lower values.
-\end{itemize}
-
-As $N$ increases:
-\begin{itemize}[leftmargin=*]
-\item The fraction of border pixels is $\sim 4N/N^2 = 4/N$, which decreases.
-\item The histogram converges to two sharp spikes at $\lfloor 1275/9 \rfloor = 142$ and $\lfloor 1020/9 \rfloor = 113$, each containing approximately $N^2/2$ pixels.
-\end{itemize}
-
-For small $N$, border effects dominate and the histogram is more spread out. In the extreme case $N=2$, every pixel is a corner pixel and the histogram differs substantially from the two-spike pattern.
+The $(N-2)^2$ interior pixels produce values $\approx 142$ or $\approx 113$, while border pixels (with zero-padded neighbors) produce different values shifted toward 0. The border fraction is $\sim 4/N$, so as $N$ increases, the histogram converges to two sharp spikes at 142 and 113. For small $N$, border effects dominate and the histogram is more spread out.
 \end{stepbox}
 
 \begin{resultsbox}
@@ -437,15 +396,7 @@ Explain the reason for this. The vertical bars are 5 pixels wide, 100 pixels hig
 \vspace{0.5cm}
 
 \begin{stepbox}[Step 1: Simplify to a 1D Problem]
-Following the hint, consider a single horizontal scan line through the bars. The 1D intensity profile is a periodic signal:
-
-\begin{itemize}[leftmargin=*]
-\item Bar width: 5 pixels (intensity 255)
-\item Gap width: 20 pixels (intensity 0)
-\item \textbf{Period: $T = 5 + 20 = 25$ pixels}
-\end{itemize}
-
-The $n \times n$ averaging mask, applied along this scan line, reduces to a 1D moving average of width $n$.
+Following the hint, consider a single horizontal scan line through the bars. The 1D intensity profile is periodic with bar width 5 pixels (intensity 255), gap width 20 pixels (intensity 0), and \textbf{period $T = 5 + 20 = 25$ pixels}. The $n \times n$ averaging mask reduces to a 1D moving average of width $n$.
 \end{stepbox}
 
 \begin{stepbox}[Step 2: Effect of a Moving Average on a Periodic Signal]
@@ -501,9 +452,9 @@ The output is a uniform gray value of 51 along the entire scan line. All spatial
 \end{stepbox}
 
 \begin{stepbox}[Step 4: Why $n = 23$ and $n = 45$ Preserve Separation]
-\textbf{$n = 23 < T = 25$:} The window is smaller than one period. As it slides, the number of bar pixels it covers varies between positions. When centered over a bar, it contains more bar pixels; when centered over a gap, it contains fewer. This variation preserves the intensity modulation, keeping the bars distinguishable.
+\textbf{$n = 23 < T$:} The window is smaller than one period, so the number of bar pixels it covers varies with position, preserving the intensity modulation.
 
-\textbf{$n = 45$:} Here $45 = 1 \times 25 + 20$. Since 45 is \textit{not} a multiple of the period $T = 25$, the window does not always cover the same number of bar pixels. As the window slides, it alternates between covering 1 and 2 complete bars, producing a varying output. The bars appear more blurred than with $n=23$ (due to greater smoothing), but the spatial variation is not completely eliminated, so separation is still visible.
+\textbf{$n = 45 \neq kT$:} Since $45 = 25 + 20$ is not a multiple of $T$, the window alternates between covering 1 and 2 bars. The output is more blurred but spatial variation persists.
 \end{stepbox}
 
 \begin{resultsbox}
