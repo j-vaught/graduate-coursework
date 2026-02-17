@@ -561,7 +561,7 @@ The convolution is defined as:
 \[
 g(x,y) = \sum_{s=-1}^{1}\sum_{t=-1}^{1} w(s,t)\, f(x-s, y-t)
 \]
-where $f(x,y) = 0$ outside the image (zero-padding). For a $M \times N$ image convolved with a $3 \times 3$ mask, the \textbf{full} output size is $(M+2) \times (N+2)$.
+where $f(x,y) = 0$ outside the image (zero-padding). The output has the \textbf{same size} as the input.
 
 The mask $w$ with indices $s,t \in \{-1, 0, 1\}$:
 \[
@@ -575,43 +575,16 @@ w(1,-1) = 1,\; w(1,0) = 0,\; w(1,1) = 1
 \]
 \end{stepbox}
 
-\begin{stepbox}[Part (a): $2 \times 2$ Image --- Full $4 \times 4$ Output]
-Image: $f(0,0) = 1$, $f(0,1) = 2$, $f(1,0) = 3$, $f(1,1) = 4$. All other $f = 0$.
-
-Output indices: $x \in \{-1, 0, 1, 2\}$, $y \in \{-1, 0, 1, 2\}$.
+\begin{stepbox}[Part (a): $2 \times 2$ Image $\to$ $2 \times 2$ Output]
+Image: $f(0,0) = 1$, $f(0,1) = 2$, $f(1,0) = 3$, $f(1,1) = 4$. All other $f = 0$ (zero-padded border).
 
 \vspace{0.2cm}
 
-\textbf{Row $x = -1$:}
 \begin{align*}
-g(-1,-1) &= w(-1,-1)\cdot f(0,0) = (-1)(1) = -1 \\
-g(-1,\;0\;) &= w(-1,-1)\cdot f(0,1) = (-1)(2) = -2 \\
-g(-1,\;1\;) &= w(-1,1)\cdot f(0,0) = (-1)(1) = -1 \\
-g(-1,\;2\;) &= w(-1,1)\cdot f(0,1) = (-1)(2) = -2
-\end{align*}
-
-\textbf{Row $x = 0$:}
-\begin{align*}
-g(0,-1) &= w(-1,-1)\cdot f(1,0) = (-1)(3) = -3 \\
-g(0,\;0\;) &= w(-1,-1)\cdot f(1,1) + w(0,0)\cdot f(0,0) = (-1)(4) + (2)(1) = -2 \\
-g(0,\;1\;) &= w(-1,1)\cdot f(1,0) + w(0,0)\cdot f(0,1) = (-1)(3) + (2)(2) = 1 \\
-g(0,\;2\;) &= w(-1,1)\cdot f(1,1) = (-1)(4) = -4
-\end{align*}
-
-\textbf{Row $x = 1$:}
-\begin{align*}
-g(1,-1) &= w(1,-1)\cdot f(0,0) = (1)(1) = 1 \\
-g(1,\;0\;) &= w(1,-1)\cdot f(0,1) + w(0,0)\cdot f(1,0) = (1)(2) + (2)(3) = 8 \\
-g(1,\;1\;) &= w(1,1)\cdot f(0,0) + w(0,0)\cdot f(1,1) = (1)(1) + (2)(4) = 9 \\
-g(1,\;2\;) &= w(1,1)\cdot f(0,1) = (1)(2) = 2
-\end{align*}
-
-\textbf{Row $x = 2$:}
-\begin{align*}
-g(2,-1) &= w(1,-1)\cdot f(1,0) = (1)(3) = 3 \\
-g(2,\;0\;) &= w(1,-1)\cdot f(1,1) = (1)(4) = 4 \\
-g(2,\;1\;) &= w(1,1)\cdot f(1,0) = (1)(3) = 3 \\
-g(2,\;2\;) &= w(1,1)\cdot f(1,1) = (1)(4) = 4
+g(0,0) &= w(-1,-1)\cdot f(1,1) + w(0,0)\cdot f(0,0) = (-1)(4) + (2)(1) = -2 \\
+g(0,1) &= w(-1,1)\cdot f(1,0) + w(0,0)\cdot f(0,1) = (-1)(3) + (2)(2) = 1 \\
+g(1,0) &= w(1,-1)\cdot f(0,1) + w(0,0)\cdot f(1,0) = (1)(2) + (2)(3) = 8 \\
+g(1,1) &= w(1,1)\cdot f(0,0) + w(0,0)\cdot f(1,1) = (1)(1) + (2)(4) = 9
 \end{align*}
 \end{stepbox}
 
@@ -620,104 +593,56 @@ g(2,\;2\;) &= w(1,1)\cdot f(1,1) = (1)(4) = 4
 \begin{tikzpicture}[
   cell/.style={minimum size=1.1cm, draw=black, thick, fill=white, font=\large\bfseries},
 ]
-\node[cell] at (0,3.3) {$-1$};
-\node[cell] at (1.1,3.3) {$-2$};
-\node[cell] at (2.2,3.3) {$-1$};
-\node[cell] at (3.3,3.3) {$-2$};
-
-\node[cell] at (0,2.2) {$-3$};
-\node[cell] at (1.1,2.2) {$-2$};
-\node[cell] at (2.2,2.2) {$1$};
-\node[cell] at (3.3,2.2) {$-4$};
-
-\node[cell] at (0,1.1) {$1$};
-\node[cell] at (1.1,1.1) {$8$};
-\node[cell] at (2.2,1.1) {$9$};
-\node[cell] at (3.3,1.1) {$2$};
-
-\node[cell] at (0,0) {$3$};
-\node[cell] at (1.1,0) {$4$};
-\node[cell] at (2.2,0) {$3$};
-\node[cell] at (3.3,0) {$4$};
+\node[cell] at (0,1.1) {$-2$};
+\node[cell] at (1.1,1.1) {$1$};
+\node[cell] at (0,0) {$8$};
+\node[cell] at (1.1,0) {$9$};
 \end{tikzpicture}
 \end{center}
-
-\textit{Verification:} Sum of output $= -1-2-1-2-3-2+1-4+1+8+9+2+3+4+3+4 = 20$. Sum of mask $= 2$, sum of image $= 10$. Product: $2 \times 10 = 20$. \checkmark
 \end{stepbox}
 
-\begin{stepbox}[Part (b): $3 \times 3$ Image --- Full $5 \times 5$ Output]
+\begin{stepbox}[Part (b): $3 \times 3$ Image $\to$ $3 \times 3$ Output]
 Image: $f(1,1) = 1$, all other $f(i,j) = 0$. This is a unit impulse at position $(1,1)$.
 
-Since the only nonzero pixel is $f(1,1) = 1$, each output value $g(x,y)$ has at most one nonzero term in the convolution sum, occurring when $x - s = 1$ and $y - t = 1$, i.e., $s = x-1$, $t = y-1$:
+Since the only nonzero pixel is $f(1,1) = 1$, each output value $g(x,y)$ has at most one nonzero term, occurring when $s = x-1$ and $t = y-1$:
 \[
-g(x,y) = w(x-1,\, y-1) \cdot f(1,1) = w(x-1,\, y-1)
+g(x,y) = w(x-1,\, y-1) \cdot 1 = w(x-1,\, y-1)
 \]
-This is nonzero only when $x-1 \in \{-1,0,1\}$ and $y-1 \in \{-1,0,1\}$, i.e., $x \in \{0,1,2\}$ and $y \in \{0,1,2\}$. All border positions in the $5 \times 5$ output are zero.
-
-The central $3 \times 3$ block of the output is simply the filter $w$ itself:
+The output is simply the filter $w$ itself --- the fundamental impulse response property.
 \end{stepbox}
 
 \begin{stepbox}[Part (b) Result Grid]
 \begin{center}
 \begin{tikzpicture}[
-  cell/.style={minimum size=1.1cm, draw=black, thick, font=\large\bfseries},
-  zero/.style={cell, fill=USC_Black10},
-  pos/.style={cell, fill=white},
-  neg/.style={cell, fill=USC_Garnet!10},
+  cell/.style={minimum size=1.1cm, draw=black, thick, fill=white, font=\large\bfseries},
 ]
-% Row 4 (top, x=-1)
-\node[zero] at (0,4.4) {$0$};
-\node[zero] at (1.1,4.4) {$0$};
-\node[zero] at (2.2,4.4) {$0$};
-\node[zero] at (3.3,4.4) {$0$};
-\node[zero] at (4.4,4.4) {$0$};
+\node[cell] at (0,2.2) {$-1$};
+\node[cell] at (1.1,2.2) {$0$};
+\node[cell] at (2.2,2.2) {$-1$};
 
-% Row 3 (x=0)
-\node[zero] at (0,3.3) {$0$};
-\node[neg] at (1.1,3.3) {$-1$};
-\node[zero] at (2.2,3.3) {$0$};
-\node[neg] at (3.3,3.3) {$-1$};
-\node[zero] at (4.4,3.3) {$0$};
+\node[cell] at (0,1.1) {$0$};
+\node[cell] at (1.1,1.1) {$2$};
+\node[cell] at (2.2,1.1) {$0$};
 
-% Row 2 (x=1)
-\node[zero] at (0,2.2) {$0$};
-\node[zero] at (1.1,2.2) {$0$};
-\node[pos] at (2.2,2.2) {$2$};
-\node[zero] at (3.3,2.2) {$0$};
-\node[zero] at (4.4,2.2) {$0$};
-
-% Row 1 (x=2)
-\node[zero] at (0,1.1) {$0$};
-\node[pos] at (1.1,1.1) {$1$};
-\node[zero] at (2.2,1.1) {$0$};
-\node[pos] at (3.3,1.1) {$1$};
-\node[zero] at (4.4,1.1) {$0$};
-
-% Row 0 (bottom, x=3)
-\node[zero] at (0,0) {$0$};
-\node[zero] at (1.1,0) {$0$};
-\node[zero] at (2.2,0) {$0$};
-\node[zero] at (3.3,0) {$0$};
-\node[zero] at (4.4,0) {$0$};
+\node[cell] at (0,0) {$1$};
+\node[cell] at (1.1,0) {$0$};
+\node[cell] at (2.2,0) {$1$};
 \end{tikzpicture}
 \end{center}
 
-\textit{Verification:} Sum of output $= -1-1+2+1+1 = 2$. Sum of mask $= 2$, sum of image $= 1$. Product: $2 \times 1 = 2$. \checkmark
-
-The convolution of a unit impulse with a filter produces the filter itself. This is the fundamental property of the impulse response.
+The convolution of a unit impulse with a filter produces the filter itself. $\blacksquare$
 \end{stepbox}
 
 \begin{resultsbox}
-\textbf{(a)} The full $4 \times 4$ convolution output for the $2 \times 2$ image is:
+\textbf{(a)} The $2 \times 2$ convolution output with zero-padded borders:
 \[
-g = \begin{bmatrix} -1 & -2 & -1 & -2 \\ -3 & -2 & 1 & -4 \\ 1 & 8 & 9 & 2 \\ 3 & 4 & 3 & 4 \end{bmatrix}
+g = \begin{bmatrix} -2 & 1 \\ 8 & 9 \end{bmatrix}
 \]
 
-\textbf{(b)} The full $5 \times 5$ convolution output for the $3 \times 3$ impulse image is:
+\textbf{(b)} The $3 \times 3$ convolution output for the impulse image equals the filter $w$:
 \[
-g = \begin{bmatrix} 0 & 0 & 0 & 0 & 0 \\ 0 & -1 & 0 & -1 & 0 \\ 0 & 0 & 2 & 0 & 0 \\ 0 & 1 & 0 & 1 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{bmatrix}
+g = \begin{bmatrix} -1 & 0 & -1 \\ 0 & 2 & 0 \\ 1 & 0 & 1 \end{bmatrix} = w \qquad \blacksquare
 \]
-The impulse response equals the filter $w$ itself, embedded in a border of zeros. $\blacksquare$
 \end{resultsbox}
 
 
