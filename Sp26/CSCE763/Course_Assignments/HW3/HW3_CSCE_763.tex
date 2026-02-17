@@ -1,0 +1,334 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 3
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{outputbg}{RGB}{245,245,245}
+\definecolor{tealfill}{HTML}{00B8A9}
+\definecolor{teallight}{HTML}{D4F0ED}
+\definecolor{lightblue}{HTML}{D6EAF8}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=#1,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% Graphics path
+\graphicspath{{figures/}}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#3}
+\author{Instructor: Spring 2026 \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\date{Due: 1:15 pm EST, Tuesday, Feb 17}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Histogram and Blurring (20 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Spatial Filtering (20 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Averaging Mask and Bar Merging (20 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Averaging and Laplacian Order (20 pts)} \dotfill & \textbf{\pageref{quest:4}} \\[0.3em]
+\textbf{Problem 5: Convolution Filtering (20 pts)} \dotfill & \textbf{\pageref{quest:5}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Histogram and Blurring
+% ============================================================================
+
+\question{Problem 1: Histogram and Blurring (20 pts)}\label{quest:1}
+
+Two $N \times N$ images shown below are quite different, but their histograms are the same. Suppose that each image is blurred with a $3 \times 3$ averaging mask. Please ignore the low quality of the images. You can assume all the black regions have a uniform intensity of 0, and the white regions have a uniform intensity of 255.
+
+\begin{enumerate}[label=(\alph*)]
+\item Would the histogram of the blurred images still be equal? Explain.
+\item If your answer is no, sketch the two histograms.
+\item \textbf{Bonus question:} Discuss how the histogram of the blurred Figure~1(b) is affected by different image size $N$. (5 pts)
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}
+  % Figure 1(a): White left, black right
+  \draw[thick, USC_Atlantic] (0,0) rectangle (5,4);
+  \fill[white] (0.05,0.05) rectangle (2.5,3.95);
+  \fill[black!85] (2.5,0.05) rectangle (4.95,3.95);
+  \node[below] at (2.5,-0.3) {\textbf{(a)}};
+
+  % Figure 1(b): Chessboard
+  \begin{scope}[shift={(6.5,0)}]
+    \draw[thick, USC_Atlantic] (0,0) rectangle (5,4);
+    \foreach \i in {0,...,7} {
+      \foreach \j in {0,...,7} {
+        \pgfmathtruncatemacro{\checkcolor}{mod(\i+\j,2)}
+        \ifnum\checkcolor=0
+          \fill[white] ({0.05+\i*0.6125}, {0.05+\j*0.4875}) rectangle ({0.05+\i*0.6125+0.6125}, {0.05+\j*0.4875+0.4875});
+        \else
+          \fill[black!85] ({0.05+\i*0.6125}, {0.05+\j*0.4875}) rectangle ({0.05+\i*0.6125+0.6125}, {0.05+\j*0.4875+0.4875});
+        \fi
+      }
+    }
+    \node[below] at (2.5,-0.3) {\textbf{(b)}};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.3cm}
+\begin{center}
+\textbf{Figure 1.} (a) An image with white intensities on left and black intensities on the right. (b) A chessboard image.
+\end{center}
+
+
+% ============================================================================
+% PROBLEM 2: Spatial Filtering
+% ============================================================================
+
+\question{Problem 2: Spatial Filtering (20 pts)}\label{quest:2}
+
+Consider spatial filtering.
+
+\begin{enumerate}[label=(\alph*)]
+\item Suppose that you filter an image $f(x,y)$, with a spatial filter mask $w(x,y)$, using convolution, as defined in Eq.~(3.4-2), where the mask is smaller than the image in both spatial directions. Show the important property that, if the coefficients of the mask sum to zero, then the sum of all the elements in the resulting convolution array (filtered image) will be zero also (you may ignore computational inaccuracies). Also, you may assume that the border of the image has been padded with the appropriate number of zeros. (10 pts)
+\begin{align}
+w(x,y) \otimes f(x,y) = \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t)\, f(x-s, y-t) \tag{3.4-2}
+\end{align}
+
+\item Would the result to (a) be the same if the filtering is implemented using correlation, as defined in Eq.~(3.4-1)? (10 pts)
+\begin{align}
+w(x,y) \odot f(x,y) = \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t)\, f(x+s, y+t) \tag{3.4-1}
+\end{align}
+\end{enumerate}
+
+
+% ============================================================================
+% PROBLEM 3: Averaging Mask and Bar Merging
+% ============================================================================
+
+\question{Problem 3: Averaging Mask and Bar Merging (20 pts)}\label{quest:3}
+
+The three images shown were blurred using square averaging masks of sizes $n=23$, 25, and 45, respectively. The vertical bars on the left lower part of Figure~2(a) and (c) are blurred, but a clear separation exists between them. However, the bars have merged in image Figure~2(b), in spite of the fact that the mask that produced this image is significantly smaller than the mask that produced image Figure~2(c). Explain the reason for this. The vertical bars are 5 pixels wide, 100 pixels high, and their separation is 20 pixels. (Hints: you can simplify the problem by considering a single scan line through the bars in the image.)
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}
+  % Figure 2(a): n=23
+  \draw[rounded corners=0pt, fill=gray!15] (0,0) rectangle (3.5,3.5);
+  \node at (1.75,1.75) {\textit{Image blurred}};
+  \node at (1.75,1.2) {\textit{with $n=23$}};
+  \node[below, font=\bfseries] at (1.75,-0.2) {(a)};
+
+  % Figure 2(b): n=25
+  \begin{scope}[shift={(4.5,0)}]
+    \draw[rounded corners=0pt, fill=gray!15] (0,0) rectangle (3.5,3.5);
+    \node at (1.75,1.75) {\textit{Image blurred}};
+    \node at (1.75,1.2) {\textit{with $n=25$}};
+    \node[below, font=\bfseries] at (1.75,-0.2) {(b)};
+  \end{scope}
+
+  % Figure 2(c): n=45
+  \begin{scope}[shift={(9,0)}]
+    \draw[rounded corners=0pt, fill=gray!15] (0,0) rectangle (3.5,3.5);
+    \node at (1.75,1.75) {\textit{Image blurred}};
+    \node at (1.75,1.2) {\textit{with $n=45$}};
+    \node[below, font=\bfseries] at (1.75,-0.2) {(c)};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.3cm}
+\begin{center}
+\textbf{Figure 2.} Three images smoothed by averaging using different filters.
+\end{center}
+
+
+% ============================================================================
+% PROBLEM 4: Averaging and Laplacian Order
+% ============================================================================
+
+\question{Problem 4: Averaging and Laplacian Order (20 pts)}\label{quest:4}
+
+In a given application an averaging mask is applied to input images to reduce noise, and then a Laplacian mask is applied to enhance small details. Would the result be the same if the order of these operations were reversed?
+
+
+% ============================================================================
+% PROBLEM 5: Convolution Filtering
+% ============================================================================
+
+\question{Problem 5: Convolution Filtering (20 pts)}\label{quest:5}
+
+Given a $3 \times 3$ filter shown in Figure~3(a), perform the image filtering using \textbf{convolution} on
+\begin{enumerate}[label=(\alph*)]
+\item a $2 \times 2$ image as shown in Figure~3(b) \hfill (10 pts)
+\item a $3 \times 3$ image as shown in Figure~3(c) \hfill (10 pts)
+\end{enumerate}
+Give the \textbf{FULL} filtering result for each filtering process. (Hint: you need to assume an appropriate zero mapping.)
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[
+  cell/.style={minimum size=1cm, draw, thick, font=\Large\bfseries},
+  labelcell/.style={minimum size=0.9cm, draw, thick, fill=lightblue, font=\Large\bfseries},
+  tealcell/.style={minimum size=1cm, draw, thick, fill=tealfill, font=\Large\bfseries},
+  ltealcell/.style={minimum size=1cm, draw, thick, fill=teallight, font=\Large\bfseries},
+]
+
+% Figure 3(a): 3x3 filter
+\matrix (filter) [matrix of nodes, nodes={labelcell}, column sep=-\pgflinewidth, row sep=-\pgflinewidth] {
+  $-1$ & $0$ & $-1$ \\
+  $0$  & $2$ & $0$  \\
+  $1$  & $0$ & $1$  \\
+};
+\node[below=0.3cm] at (filter.south) {\textbf{(a)}};
+
+% Figure 3(b): 2x2 image
+\begin{scope}[shift={(5.5,0.5)}]
+\matrix (img2) [matrix of nodes, column sep=-\pgflinewidth, row sep=-\pgflinewidth] {
+  |[tealcell]| $1$ & |[tealcell]| $2$ \\
+  |[ltealcell]| $3$ & |[ltealcell]| $4$ \\
+};
+\node[below=0.3cm] at (img2.south) {\textbf{(b)}};
+\end{scope}
+
+% Figure 3(c): 3x3 image
+\begin{scope}[shift={(10,0)}]
+\matrix (img3) [matrix of nodes, nodes={labelcell}, column sep=-\pgflinewidth, row sep=-\pgflinewidth] {
+  $0$ & $0$ & $0$ \\
+  $0$ & $1$ & $0$ \\
+  $0$ & $0$ & $0$ \\
+};
+\node[below=0.3cm] at (img3.south) {\textbf{(c)}};
+\end{scope}
+
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.3cm}
+\begin{center}
+\textbf{Figure 3.}
+\end{center}
+
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
