@@ -1,0 +1,809 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 3 Solutions
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns, calc}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{USC_Grass}{HTML}{CED318}
+\definecolor{USC_Horseshoe}{HTML}{65780B}
+\definecolor{outputbg}{RGB}{245,245,245}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% Graphics path
+\graphicspath{{figures/}}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#3}
+\author{Instructor: Spring 2026 \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\date{Due: 1:15 pm EST, Tuesday, Feb 17}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Histogram and Blurring (20 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Spatial Filtering (20 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Averaging Mask and Bar Merging (20 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Averaging and Laplacian Order (20 pts)} \dotfill & \textbf{\pageref{quest:4}} \\[0.3em]
+\textbf{Problem 5: Convolution Filtering (20 pts)} \dotfill & \textbf{\pageref{quest:5}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Histogram and Blurring
+% ============================================================================
+
+\question{Problem 1: Histogram and Blurring (20 pts)}\label{quest:1}
+
+Two $N \times N$ images shown below are quite different, but their histograms are the same. Suppose that each image is blurred with a $3 \times 3$ averaging mask. Please ignore the low quality of the images. You can assume all the black regions have a uniform intensity of 0, and the white regions have a uniform intensity of 255.
+
+\vspace{0.3cm}
+
+\begin{center}
+\begin{minipage}{0.35\textwidth}\centering
+\begin{tikzpicture}
+  \draw[thick, USC_Garnet] (0,0) rectangle (3.5,3.5);
+  \fill[white] (0.05,0.05) rectangle (1.75,3.45);
+  \fill[black!85] (1.75,0.05) rectangle (3.45,3.45);
+\end{tikzpicture}\\[0.2cm]
+\textbf{(a)} Half-and-half
+\end{minipage}
+\hfill
+\begin{minipage}{0.35\textwidth}\centering
+\begin{tikzpicture}
+  \draw[thick, USC_Garnet] (0,0) rectangle (3.5,3.5);
+  \foreach \i in {0,...,7} {
+    \foreach \j in {0,...,7} {
+      \pgfmathtruncatemacro{\checkcolor}{mod(\i+\j,2)}
+      \ifnum\checkcolor=0
+        \fill[white] ({0.05+\i*0.425}, {0.05+\j*0.425}) rectangle ({0.05+\i*0.425+0.425}, {0.05+\j*0.425+0.425});
+      \else
+        \fill[black!85] ({0.05+\i*0.425}, {0.05+\j*0.425}) rectangle ({0.05+\i*0.425+0.425}, {0.05+\j*0.425+0.425});
+      \fi
+    }
+  }
+\end{tikzpicture}\\[0.2cm]
+\textbf{(b)} Chessboard
+\end{minipage}
+\end{center}
+
+\vspace{-0.1cm}
+
+\begin{enumerate}[label=(\alph*)]
+\item Would the histogram of the blurred images still be equal? Explain.
+\item If your answer is no, sketch the two histograms.
+\item \textbf{Bonus question:} Discuss how the histogram of the blurred image (b) is affected by different image size $N$. (5 pts)
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Step 1: Analyze the Original Histograms]
+Both images have identical histograms before blurring. Each $N \times N$ image contains exactly $N^2/2$ pixels at intensity 0 (black) and $N^2/2$ pixels at intensity 255 (white). The histogram consists of two impulses at $r = 0$ and $r = 255$, each with height $N^2/2$.
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Analyze Blurring of Image (a) --- Half-and-Half]
+The half-and-half image has a single vertical boundary between the white (left) and black (right) halves. After applying a $3\times 3$ averaging mask:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Interior white pixels} (more than 1 pixel from the boundary): all 9 neighbors are white. Average $= 255$. Unchanged.
+\item \textbf{Interior black pixels} (more than 1 pixel from the boundary): all 9 neighbors are black. Average $= 0$. Unchanged.
+\item \textbf{Boundary pixels} (within 1 pixel of the vertical edge): the $3 \times 3$ window straddles white and black regions, producing intermediate values.
+\end{itemize}
+
+Only $3 \times N$ pixels (3 columns near the boundary) are affected. The vast majority of pixels remain at 0 or 255. The histogram has two large spikes at 0 and 255, with a small number of pixels at intermediate values along the boundary.
+\end{stepbox}
+
+\begin{stepbox}[Step 3: Analyze Blurring of Image (b) --- Chessboard]
+In the chessboard pattern, every pixel is adjacent to pixels of the opposite intensity. For an \textbf{interior pixel} (not on the image border), the $3 \times 3$ neighborhood in a checkerboard contains:
+
+\begin{itemize}[leftmargin=*]
+\item If center is white (255): 4 corner neighbors are white, 4 edge neighbors are black $\Rightarrow$ 5 white, 4 black.
+\[
+\text{Average} = \frac{5 \times 255 + 4 \times 0}{9} = \frac{1275}{9} \approx 141.7
+\]
+\item If center is black (0): 4 corner neighbors are black, 4 edge neighbors are white $\Rightarrow$ 4 white, 5 black.
+\[
+\text{Average} = \frac{4 \times 255 + 5 \times 0}{9} = \frac{1020}{9} \approx 113.3
+\]
+\end{itemize}
+
+\textbf{Every} interior pixel is affected, not just boundary pixels. The histogram collapses from two spikes at 0 and 255 to two spikes near 142 and 113.
+\end{stepbox}
+
+\begin{stepbox}[Part (a): Are the Histograms Still Equal?]
+\textbf{No.} After blurring:
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Image (a)} retains most pixels at 0 and 255, with only a thin strip of intermediate values at the boundary.
+\item \textbf{Image (b)} has \textit{no} pixels at 0 or 255 (for interior pixels). The entire image shifts to two narrow clusters near 113 and 142.
+\end{itemize}
+
+The histograms are completely different because the $3 \times 3$ averaging mask interacts with the \textit{spatial structure} of the image, not just its intensity distribution.
+\end{stepbox}
+
+\begin{stepbox}[Part (b): Sketch of the Two Blurred Histograms]
+\begin{center}
+\begin{tikzpicture}[xscale=0.035, yscale=1.8]
+% --- Histogram (a): Half-and-half blurred ---
+\begin{scope}[shift={(0,0)}]
+\draw[->, thick] (0,0) -- (270,0) node[right, font=\small] {Intensity};
+\draw[->, thick] (0,0) -- (0,2.2) node[above, font=\small] {$h(r)$};
+\node[above, font=\small\bfseries] at (128,2.2) {(a) Half-and-half blurred};
+% Large spikes at 0 and 255
+\fill[USC_Garnet] (0,0) rectangle (5,2.0);
+\fill[USC_Garnet] (250,0) rectangle (255,2.0);
+% Small intermediate values near boundary
+\fill[USC_Garnet!50] (75,0) rectangle (85,0.08);
+\fill[USC_Garnet!50] (85,0) rectangle (95,0.12);
+\fill[USC_Garnet!50] (95,0) rectangle (105,0.15);
+\fill[USC_Garnet!50] (105,0) rectangle (115,0.18);
+\fill[USC_Garnet!50] (115,0) rectangle (125,0.2);
+\fill[USC_Garnet!50] (125,0) rectangle (135,0.2);
+\fill[USC_Garnet!50] (135,0) rectangle (145,0.18);
+\fill[USC_Garnet!50] (145,0) rectangle (155,0.15);
+\fill[USC_Garnet!50] (155,0) rectangle (165,0.12);
+\fill[USC_Garnet!50] (165,0) rectangle (175,0.08);
+% Tick marks
+\node[below, font=\scriptsize] at (0,0) {0};
+\node[below, font=\scriptsize] at (128,0) {128};
+\node[below, font=\scriptsize] at (255,0) {255};
+\end{scope}
+\end{tikzpicture}
+
+\vspace{0.5cm}
+
+\begin{tikzpicture}[xscale=0.035, yscale=1.8]
+% --- Histogram (b): Chessboard blurred ---
+\begin{scope}[shift={(0,0)}]
+\draw[->, thick] (0,0) -- (270,0) node[right, font=\small] {Intensity};
+\draw[->, thick] (0,0) -- (0,2.2) node[above, font=\small] {$h(r)$};
+\node[above, font=\small\bfseries] at (128,2.2) {(b) Chessboard blurred};
+% Two spikes near 113 and 142
+\fill[USC_Atlantic] (110,0) rectangle (117,1.8);
+\fill[USC_Atlantic] (139,0) rectangle (146,1.8);
+% Small edge effects near these values
+\fill[USC_Atlantic!40] (100,0) rectangle (110,0.1);
+\fill[USC_Atlantic!40] (117,0) rectangle (125,0.1);
+\fill[USC_Atlantic!40] (130,0) rectangle (139,0.1);
+\fill[USC_Atlantic!40] (146,0) rectangle (155,0.1);
+% Tick marks
+\node[below, font=\scriptsize] at (0,0) {0};
+\node[below, font=\scriptsize] at (113,0) {113};
+\node[below, font=\scriptsize] at (142,0) {142};
+\node[below, font=\scriptsize] at (255,0) {255};
+\end{scope}
+\end{tikzpicture}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Part (c) Bonus: Effect of Image Size $N$ on Chessboard Histogram]
+The histogram of the blurred chessboard depends on the ratio of interior to border pixels.
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Interior pixels} ($N-2$ rows $\times$ $N-2$ columns) produce values $\approx 142$ or $\approx 113$ as computed above.
+\item \textbf{Border pixels} (on the edges/corners of the image) have fewer than 9 neighbors within the image. With zero-padding, border pixels see additional zeros, shifting their averages toward lower values.
+\end{itemize}
+
+As $N$ increases:
+\begin{itemize}[leftmargin=*]
+\item The fraction of border pixels is $\sim 4N/N^2 = 4/N$, which decreases.
+\item The histogram converges to two sharp spikes at $\lfloor 1275/9 \rfloor = 142$ and $\lfloor 1020/9 \rfloor = 113$, each containing approximately $N^2/2$ pixels.
+\end{itemize}
+
+For small $N$, border effects dominate and the histogram is more spread out. In the extreme case $N=2$, every pixel is a corner pixel and the histogram differs substantially from the two-spike pattern.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{(a)} No, the histograms of the blurred images are not equal. Image (a) retains large spikes at 0 and 255 with few intermediate values, while image (b) collapses entirely to two narrow peaks near 113 and 142.
+
+\textbf{(b)} See histogram sketches above. Image (a) has a bimodal histogram concentrated at the extremes; image (b) has a bimodal histogram concentrated near the center.
+
+\textbf{(c) Bonus:} As $N \to \infty$, the border-pixel fraction $\to 0$ and the chessboard histogram converges to two delta functions at $\approx 113$ and $\approx 142$. For small $N$, border effects widen and shift the peaks.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 2: Spatial Filtering
+% ============================================================================
+
+\question{Problem 2: Spatial Filtering (20 pts)}\label{quest:2}
+
+Consider spatial filtering.
+
+\begin{enumerate}[label=(\alph*)]
+\item Suppose that you filter an image $f(x,y)$, with a spatial filter mask $w(x,y)$, using convolution, as defined in Eq.~(3.4-2), where the mask is smaller than the image in both spatial directions. Show the important property that, if the coefficients of the mask sum to zero, then the sum of all the elements in the resulting convolution array (filtered image) will be zero also (you may ignore computational inaccuracies). Also, you may assume that the border of the image has been padded with the appropriate number of zeros. (10 pts)
+\begin{align}
+w(x,y) \otimes f(x,y) = \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t)\, f(x-s, y-t) \tag{3.4-2}
+\end{align}
+
+\item Would the result to (a) be the same if the filtering is implemented using correlation, as defined in Eq.~(3.4-1)? (10 pts)
+\begin{align}
+w(x,y) \odot f(x,y) = \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t)\, f(x+s, y+t) \tag{3.4-1}
+\end{align}
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Part (a): Convolution with Zero-Sum Mask]
+Let $g(x,y) = w(x,y) \otimes f(x,y)$ denote the filtered image. We want to show that if $\displaystyle\sum_{s=-a}^{a}\sum_{t=-b}^{b} w(s,t) = 0$, then $\displaystyle\sum_x \sum_y g(x,y) = 0$.
+\end{stepbox}
+
+\begin{stepbox}[Step 1: Write the Sum of All Output Pixels]
+\[
+\sum_x \sum_y g(x,y) = \sum_x \sum_y \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t)\, f(x-s, y-t)
+\]
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Exchange the Order of Summation]
+Since all sums are finite, we can exchange the order:
+\[
+\sum_x \sum_y g(x,y) = \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t) \left[\sum_x \sum_y f(x-s, y-t)\right]
+\]
+\end{stepbox}
+
+\begin{stepbox}[Step 3: Evaluate the Inner Sum]
+Consider the inner sum $\displaystyle\sum_x \sum_y f(x-s, y-t)$. Substituting $u = x - s$, $v = y - t$ (a change of summation index), and noting that $f$ is zero-padded (i.e., $f(u,v) = 0$ outside the image), the summation range covers all positions where $f$ is nonzero regardless of the shift $(s,t)$. Therefore:
+\[
+\sum_x \sum_y f(x-s, y-t) = \sum_u \sum_v f(u,v) = S_f \quad \text{(constant, independent of $s,t$)}
+\]
+where $S_f$ is the sum of all pixel values in the original image.
+\end{stepbox}
+
+\begin{stepbox}[Step 4: Factor and Conclude]
+Substituting back:
+\[
+\sum_x \sum_y g(x,y) = \sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t) \cdot S_f = S_f \cdot \underbrace{\sum_{s=-a}^{a} \sum_{t=-b}^{b} w(s,t)}_{= \; 0 \text{ (given)}} = 0 \qquad \blacksquare
+\]
+\end{stepbox}
+
+\begin{stepbox}[Part (b): Correlation with Zero-Sum Mask]
+For correlation, $g'(x,y) = \displaystyle\sum_{s=-a}^{a}\sum_{t=-b}^{b} w(s,t)\, f(x+s, y+t)$. The same argument applies:
+\[
+\sum_x \sum_y g'(x,y) = \sum_{s=-a}^{a}\sum_{t=-b}^{b} w(s,t) \left[\sum_x \sum_y f(x+s, y+t)\right]
+\]
+With the substitution $u = x+s$, $v = y+t$, the inner sum is again $S_f$ (independent of $s,t$):
+\[
+\sum_x \sum_y g'(x,y) = S_f \cdot \sum_{s,t} w(s,t) = S_f \cdot 0 = 0 \qquad \blacksquare
+\]
+\textbf{Yes}, the result is the same for correlation. The sign change in the index ($x-s$ vs.\ $x+s$) does not affect the argument because the inner sum over a shifted version of $f$ always equals $S_f$ under zero-padding.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{(a)} If the mask coefficients sum to zero, i.e., $\sum_{s,t} w(s,t) = 0$, then the sum of all elements in the convolution output is:
+\[
+\sum_{x,y} g(x,y) = S_f \cdot \sum_{s,t} w(s,t) = 0 \qquad \blacksquare
+\]
+
+\textbf{(b)} Yes, the result is identical for correlation. The proof is the same because the inner summation $\sum_{x,y} f(x+s, y+t) = S_f$ is independent of the shift direction. $\blacksquare$
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 3: Averaging Mask and Bar Merging
+% ============================================================================
+
+\question{Problem 3: Averaging Mask and Bar Merging (20 pts)}\label{quest:3}
+
+The three images shown were blurred using square averaging masks of sizes $n=23$, 25, and 45, respectively. The vertical bars on the left lower part of (a) and (c) are blurred, but a clear separation exists between them. However, the bars have merged in image (b), in spite of the fact that the mask that produced this image is significantly smaller than the mask that produced image (c).
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{minipage}{0.21\textwidth}\centering
+{\color{USC_Garnet}\fbox{\color{black}\includegraphics[width=\textwidth]{figures/fig2_original.png}}}\\[0.2cm]
+\textbf{Original}
+\end{minipage}
+\hfill
+\begin{minipage}{0.21\textwidth}\centering
+{\color{USC_Garnet}\fbox{\color{black}\includegraphics[width=\textwidth]{figures/fig3_a_n23.png}}}\\[0.2cm]
+\textbf{(a)} $n=23$
+\end{minipage}
+\hfill
+\begin{minipage}{0.21\textwidth}\centering
+{\color{USC_Garnet}\fbox{\color{black}\includegraphics[width=\textwidth]{figures/fig3_b_n25.png}}}\\[0.2cm]
+\textbf{(b)} $n=25$
+\end{minipage}
+\hfill
+\begin{minipage}{0.21\textwidth}\centering
+{\color{USC_Garnet}\fbox{\color{black}\includegraphics[width=\textwidth]{figures/fig3_c_n45.png}}}\\[0.2cm]
+\textbf{(c)} $n=45$
+\end{minipage}
+\end{center}
+
+\vspace{0.3cm}
+
+Explain the reason for this. The vertical bars are 5 pixels wide, 100 pixels high, and their separation is 20 pixels. (Hints: you can simplify the problem by considering a single scan line through the bars in the image.)
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Step 1: Simplify to a 1D Problem]
+Following the hint, consider a single horizontal scan line through the bars. The 1D intensity profile is a periodic signal:
+
+\begin{itemize}[leftmargin=*]
+\item Bar width: 5 pixels (intensity 255)
+\item Gap width: 20 pixels (intensity 0)
+\item \textbf{Period: $T = 5 + 20 = 25$ pixels}
+\end{itemize}
+
+The $n \times n$ averaging mask, applied along this scan line, reduces to a 1D moving average of width $n$.
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Effect of a Moving Average on a Periodic Signal]
+A 1D moving average of width $n$ computes:
+\[
+g(x) = \frac{1}{n}\sum_{k=0}^{n-1} f(x-k)
+\]
+This sums $n$ consecutive pixels. For a periodic signal with period $T$, the key observation is: if $n$ is an exact multiple of $T$, then the window always contains the same number of ``on'' (bar) and ``off'' (gap) pixels regardless of position, making the output \textbf{constant}.
+\end{stepbox}
+
+\begin{stepbox}[Step 3: Why $n = 25$ Causes Complete Merging]
+Since $T = 25$ and $n = 25 = 1 \times T$, the averaging window spans \textbf{exactly one full period}. At every position, the window contains exactly 5 bar pixels (at 255) and 20 gap pixels (at 0):
+\[
+g(x) = \frac{5 \times 255 + 20 \times 0}{25} = \frac{1275}{25} = 51 \quad \text{(constant)}
+\]
+The output is a uniform gray value of 51 along the entire scan line. All spatial variation is destroyed, and the bars \textbf{merge completely}.
+\end{stepbox}
+
+\begin{stepbox}[Visualization: 1D Scan Line Analysis]
+\begin{center}
+\begin{tikzpicture}[xscale=0.08, yscale=0.012]
+% --- Original signal ---
+\draw[->, thick] (0,0) -- (105,0) node[right, font=\small] {$x$};
+\draw[->, thick] (0,0) -- (0,280) node[above, font=\small] {$f(x)$};
+\node[left, font=\scriptsize] at (0,255) {255};
+\node[left, font=\scriptsize] at (0,0) {0};
+\draw[dashed, gray!40] (0,255) -- (100,255);
+% Draw bars (4 bars, period 25)
+\foreach \i in {0,...,3} {
+  \fill[USC_Garnet!80] ({\i*25},0) rectangle ({\i*25+5},255);
+}
+\node[above, font=\small\bfseries] at (50,280) {Original scan line};
+% Period annotation
+\draw[<->, thick, USC_Atlantic] (0,-30) -- (25,-30);
+\node[below, font=\scriptsize, USC_Atlantic] at (12.5,-30) {$T = 25$};
+\draw[<->, thick, USC_Congaree] (0,-60) -- (5,-60);
+\node[below, font=\scriptsize, USC_Congaree] at (2.5,-60) {5};
+\draw[<->, thick, USC_Black70] (5,-60) -- (25,-60);
+\node[below, font=\scriptsize, USC_Black70] at (15,-60) {20};
+\end{tikzpicture}
+
+\vspace{0.3cm}
+
+\begin{tikzpicture}[xscale=0.08, yscale=0.012]
+% --- n=25 output ---
+\draw[->, thick] (0,0) -- (105,0) node[right, font=\small] {$x$};
+\draw[->, thick] (0,0) -- (0,280) node[above, font=\small] {$g(x)$};
+\node[left, font=\scriptsize] at (0,51) {51};
+\draw[thick, USC_Rose] (0,51) -- (100,51);
+\node[above, font=\small\bfseries] at (50,280) {After $n=25$ averaging (= constant)};
+\end{tikzpicture}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Step 4: Why $n = 23$ and $n = 45$ Preserve Separation]
+\textbf{$n = 23 < T = 25$:} The window is smaller than one period. As it slides, the number of bar pixels it covers varies between positions. When centered over a bar, it contains more bar pixels; when centered over a gap, it contains fewer. This variation preserves the intensity modulation, keeping the bars distinguishable.
+
+\textbf{$n = 45$:} Here $45 = 1 \times 25 + 20$. Since 45 is \textit{not} a multiple of the period $T = 25$, the window does not always cover the same number of bar pixels. As the window slides, it alternates between covering 1 and 2 complete bars, producing a varying output. The bars appear more blurred than with $n=23$ (due to greater smoothing), but the spatial variation is not completely eliminated, so separation is still visible.
+\end{stepbox}
+
+\begin{resultsbox}
+The bars merge completely when $n = 25$ because the averaging mask width \textbf{exactly matches the period} of the bar pattern ($T = 5 + 20 = 25$ pixels). When $n = T$, the moving average window always contains the same number of bar and gap pixels at every position, producing a constant output and destroying all spatial variation.
+
+For $n = 23 < T$ and $n = 45 \neq kT$, the window size does not match the period, so the number of bar pixels in the window varies with position, preserving the intensity modulation and keeping the bars distinguishable. $\blacksquare$
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 4: Averaging and Laplacian Order
+% ============================================================================
+
+\question{Problem 4: Averaging and Laplacian Order (20 pts)}\label{quest:4}
+
+In a given application an averaging mask is applied to input images to reduce noise, and then a Laplacian mask is applied to enhance small details. Would the result be the same if the order of these operations were reversed?
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Step 1: Express Both Operations as Convolutions]
+Let $w_{\text{avg}}$ denote the averaging mask and $w_{\text{lap}}$ denote the Laplacian mask. Both are linear spatial filters, so both operations are convolutions:
+\[
+g_1 = w_{\text{lap}} \otimes (w_{\text{avg}} \otimes f) \qquad \text{(average first, then Laplacian)}
+\]
+\[
+g_2 = w_{\text{avg}} \otimes (w_{\text{lap}} \otimes f) \qquad \text{(Laplacian first, then average)}
+\]
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Apply Associativity and Commutativity of Convolution]
+Convolution is both \textbf{associative} and \textbf{commutative}:
+\[
+w_1 \otimes (w_2 \otimes f) = (w_1 \otimes w_2) \otimes f = (w_2 \otimes w_1) \otimes f = w_2 \otimes (w_1 \otimes f)
+\]
+Applying this to our operations:
+\[
+g_1 = w_{\text{lap}} \otimes (w_{\text{avg}} \otimes f) = (w_{\text{lap}} \otimes w_{\text{avg}}) \otimes f
+\]
+\[
+g_2 = w_{\text{avg}} \otimes (w_{\text{lap}} \otimes f) = (w_{\text{avg}} \otimes w_{\text{lap}}) \otimes f
+\]
+Since $w_{\text{lap}} \otimes w_{\text{avg}} = w_{\text{avg}} \otimes w_{\text{lap}}$ (commutativity), we have:
+\[
+g_1 = g_2
+\]
+\end{stepbox}
+
+\begin{stepbox}[Visualization: Commutativity of Linear Filters]
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw, thick, minimum width=2.5cm, minimum height=1cm, sharp corners, font=\small\bfseries},
+  arr/.style={->, thick, >=Stealth},
+]
+% Path 1: Average then Laplacian
+\node[box, fill=USC_Black10] (f1) at (0,1.5) {$f(x,y)$};
+\node[box, fill=USC_Atlantic!20, text=USC_Atlantic] (avg1) at (4,1.5) {Averaging};
+\node[box, fill=USC_Garnet!20, text=USC_Garnet] (lap1) at (8,1.5) {Laplacian};
+\node[box, fill=USC_Honeycomb!20, text=USC_Honeycomb] (g1) at (12,1.5) {$g_1$};
+\draw[arr] (f1) -- (avg1);
+\draw[arr] (avg1) -- (lap1);
+\draw[arr] (lap1) -- (g1);
+
+% Path 2: Laplacian then Average
+\node[box, fill=USC_Black10] (f2) at (0,-0.5) {$f(x,y)$};
+\node[box, fill=USC_Garnet!20, text=USC_Garnet] (lap2) at (4,-0.5) {Laplacian};
+\node[box, fill=USC_Atlantic!20, text=USC_Atlantic] (avg2) at (8,-0.5) {Averaging};
+\node[box, fill=USC_Honeycomb!20, text=USC_Honeycomb] (g2) at (12,-0.5) {$g_2$};
+\draw[arr] (f2) -- (lap2);
+\draw[arr] (lap2) -- (avg2);
+\draw[arr] (avg2) -- (g2);
+
+% Equality
+\node[font=\Large\bfseries, USC_Honeycomb] at (13.5,0.5) {$=$};
+\end{tikzpicture}
+\end{center}
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{Yes}, the result is the same regardless of the order. Both the averaging mask and the Laplacian mask are linear, shift-invariant operators (i.e., convolutions). Since convolution is associative and commutative:
+\[
+w_{\text{lap}} \otimes (w_{\text{avg}} \otimes f) = w_{\text{avg}} \otimes (w_{\text{lap}} \otimes f)
+\]
+The mathematical output is identical. $\blacksquare$
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 5: Convolution Filtering
+% ============================================================================
+
+\question{Problem 5: Convolution Filtering (20 pts)}\label{quest:5}
+
+Given the following $3 \times 3$ filter, perform the image filtering using \textbf{convolution}. Give the \textbf{FULL} filtering result for each filtering process. (Hint: you need to assume an appropriate zero mapping.)
+%
+\[
+w = \begin{bmatrix} -1 & 0 & -1 \\ 0 & 2 & 0 \\ 1 & 0 & 1 \end{bmatrix}
+\]
+%
+\begin{enumerate}[label=(\alph*)]
+\item a $2 \times 2$ image as shown in image (a) \hfill (10 pts)
+\item a $3 \times 3$ image as shown in image (b) \hfill (10 pts)
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\begin{center}
+\begin{tikzpicture}[
+  imgcell/.style={minimum size=1.1cm, draw=black, thick, fill=white, font=\large\bfseries},
+  gridcell/.style={minimum size=1.1cm, draw=black, thick, fill=white, font=\large\bfseries},
+]
+
+% --- (a) 2x2 image ---
+\node[imgcell] at (0, 1.1) {$1$};
+\node[imgcell] at (1.1, 1.1) {$2$};
+\node[imgcell] at (0, 0) {$3$};
+\node[imgcell] at (1.1, 0) {$4$};
+\node[font=\bfseries] at (0.55, -0.9) {(a)};
+
+% --- (b) 3x3 identity image ---
+\foreach \val/\col/\row in {
+  0/0/2, 0/1/2, 0/2/2,
+  0/0/1, 1/1/1, 0/2/1,
+  0/0/0, 0/1/0, 0/2/0}
+{
+  \node[gridcell] at (5.5+\col*1.1, \row*1.1) {$\val$};
+}
+\node[font=\bfseries] at (6.6, -0.9) {(b)};
+
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.5cm}
+
+\begin{stepbox}[Setup: Convolution Formula]
+The convolution is defined as:
+\[
+g(x,y) = \sum_{s=-1}^{1}\sum_{t=-1}^{1} w(s,t)\, f(x-s, y-t)
+\]
+where $f(x,y) = 0$ outside the image (zero-padding). For a $M \times N$ image convolved with a $3 \times 3$ mask, the \textbf{full} output size is $(M+2) \times (N+2)$.
+
+The mask $w$ with indices $s,t \in \{-1, 0, 1\}$:
+\[
+w(-1,-1) = -1,\; w(-1,0) = 0,\; w(-1,1) = -1
+\]
+\[
+w(0,-1) = 0,\; w(0,0) = 2,\; w(0,1) = 0
+\]
+\[
+w(1,-1) = 1,\; w(1,0) = 0,\; w(1,1) = 1
+\]
+\end{stepbox}
+
+\begin{stepbox}[Part (a): $2 \times 2$ Image --- Full $4 \times 4$ Output]
+Image: $f(0,0) = 1$, $f(0,1) = 2$, $f(1,0) = 3$, $f(1,1) = 4$. All other $f = 0$.
+
+Output indices: $x \in \{-1, 0, 1, 2\}$, $y \in \{-1, 0, 1, 2\}$.
+
+\vspace{0.2cm}
+
+\textbf{Row $x = -1$:}
+\begin{align*}
+g(-1,-1) &= w(-1,-1)\cdot f(0,0) = (-1)(1) = -1 \\
+g(-1,\;0\;) &= w(-1,-1)\cdot f(0,1) = (-1)(2) = -2 \\
+g(-1,\;1\;) &= w(-1,1)\cdot f(0,0) = (-1)(1) = -1 \\
+g(-1,\;2\;) &= w(-1,1)\cdot f(0,1) = (-1)(2) = -2
+\end{align*}
+
+\textbf{Row $x = 0$:}
+\begin{align*}
+g(0,-1) &= w(-1,-1)\cdot f(1,0) = (-1)(3) = -3 \\
+g(0,\;0\;) &= w(-1,-1)\cdot f(1,1) + w(0,0)\cdot f(0,0) = (-1)(4) + (2)(1) = -2 \\
+g(0,\;1\;) &= w(-1,1)\cdot f(1,0) + w(0,0)\cdot f(0,1) = (-1)(3) + (2)(2) = 1 \\
+g(0,\;2\;) &= w(-1,1)\cdot f(1,1) = (-1)(4) = -4
+\end{align*}
+
+\textbf{Row $x = 1$:}
+\begin{align*}
+g(1,-1) &= w(1,-1)\cdot f(0,0) = (1)(1) = 1 \\
+g(1,\;0\;) &= w(1,-1)\cdot f(0,1) + w(0,0)\cdot f(1,0) = (1)(2) + (2)(3) = 8 \\
+g(1,\;1\;) &= w(1,1)\cdot f(0,0) + w(0,0)\cdot f(1,1) = (1)(1) + (2)(4) = 9 \\
+g(1,\;2\;) &= w(1,1)\cdot f(0,1) = (1)(2) = 2
+\end{align*}
+
+\textbf{Row $x = 2$:}
+\begin{align*}
+g(2,-1) &= w(1,-1)\cdot f(1,0) = (1)(3) = 3 \\
+g(2,\;0\;) &= w(1,-1)\cdot f(1,1) = (1)(4) = 4 \\
+g(2,\;1\;) &= w(1,1)\cdot f(1,0) = (1)(3) = 3 \\
+g(2,\;2\;) &= w(1,1)\cdot f(1,1) = (1)(4) = 4
+\end{align*}
+\end{stepbox}
+
+\begin{stepbox}[Part (a) Result Grid]
+\begin{center}
+\begin{tikzpicture}[
+  cell/.style={minimum size=1.1cm, draw=black, thick, font=\large\bfseries},
+  pos/.style={cell, fill=white},
+  neg/.style={cell, fill=USC_Garnet!10},
+]
+\node[neg] at (0,3.3) {$-1$};
+\node[neg] at (1.1,3.3) {$-2$};
+\node[neg] at (2.2,3.3) {$-1$};
+\node[neg] at (3.3,3.3) {$-2$};
+
+\node[neg] at (0,2.2) {$-3$};
+\node[neg] at (1.1,2.2) {$-2$};
+\node[pos] at (2.2,2.2) {$1$};
+\node[neg] at (3.3,2.2) {$-4$};
+
+\node[pos] at (0,1.1) {$1$};
+\node[pos] at (1.1,1.1) {$8$};
+\node[pos] at (2.2,1.1) {$9$};
+\node[pos] at (3.3,1.1) {$2$};
+
+\node[pos] at (0,0) {$3$};
+\node[pos] at (1.1,0) {$4$};
+\node[pos] at (2.2,0) {$3$};
+\node[pos] at (3.3,0) {$4$};
+\end{tikzpicture}
+\end{center}
+
+\textit{Verification:} Sum of output $= -1-2-1-2-3-2+1-4+1+8+9+2+3+4+3+4 = 20$. Sum of mask $= 2$, sum of image $= 10$. Product: $2 \times 10 = 20$. \checkmark
+\end{stepbox}
+
+\begin{stepbox}[Part (b): $3 \times 3$ Image --- Full $5 \times 5$ Output]
+Image: $f(1,1) = 1$, all other $f(i,j) = 0$. This is a unit impulse at position $(1,1)$.
+
+Since the only nonzero pixel is $f(1,1) = 1$, each output value $g(x,y)$ has at most one nonzero term in the convolution sum, occurring when $x - s = 1$ and $y - t = 1$, i.e., $s = x-1$, $t = y-1$:
+\[
+g(x,y) = w(x-1,\, y-1) \cdot f(1,1) = w(x-1,\, y-1)
+\]
+This is nonzero only when $x-1 \in \{-1,0,1\}$ and $y-1 \in \{-1,0,1\}$, i.e., $x \in \{0,1,2\}$ and $y \in \{0,1,2\}$. All border positions in the $5 \times 5$ output are zero.
+
+The central $3 \times 3$ block of the output is simply the filter $w$ itself:
+\end{stepbox}
+
+\begin{stepbox}[Part (b) Result Grid]
+\begin{center}
+\begin{tikzpicture}[
+  cell/.style={minimum size=1.1cm, draw=black, thick, font=\large\bfseries},
+  zero/.style={cell, fill=USC_Black10},
+  pos/.style={cell, fill=white},
+  neg/.style={cell, fill=USC_Garnet!10},
+]
+% Row 4 (top, x=-1)
+\node[zero] at (0,4.4) {$0$};
+\node[zero] at (1.1,4.4) {$0$};
+\node[zero] at (2.2,4.4) {$0$};
+\node[zero] at (3.3,4.4) {$0$};
+\node[zero] at (4.4,4.4) {$0$};
+
+% Row 3 (x=0)
+\node[zero] at (0,3.3) {$0$};
+\node[neg] at (1.1,3.3) {$-1$};
+\node[zero] at (2.2,3.3) {$0$};
+\node[neg] at (3.3,3.3) {$-1$};
+\node[zero] at (4.4,3.3) {$0$};
+
+% Row 2 (x=1)
+\node[zero] at (0,2.2) {$0$};
+\node[zero] at (1.1,2.2) {$0$};
+\node[pos] at (2.2,2.2) {$2$};
+\node[zero] at (3.3,2.2) {$0$};
+\node[zero] at (4.4,2.2) {$0$};
+
+% Row 1 (x=2)
+\node[zero] at (0,1.1) {$0$};
+\node[pos] at (1.1,1.1) {$1$};
+\node[zero] at (2.2,1.1) {$0$};
+\node[pos] at (3.3,1.1) {$1$};
+\node[zero] at (4.4,1.1) {$0$};
+
+% Row 0 (bottom, x=3)
+\node[zero] at (0,0) {$0$};
+\node[zero] at (1.1,0) {$0$};
+\node[zero] at (2.2,0) {$0$};
+\node[zero] at (3.3,0) {$0$};
+\node[zero] at (4.4,0) {$0$};
+\end{tikzpicture}
+\end{center}
+
+\textit{Verification:} Sum of output $= -1-1+2+1+1 = 2$. Sum of mask $= 2$, sum of image $= 1$. Product: $2 \times 1 = 2$. \checkmark
+
+The convolution of a unit impulse with a filter produces the filter itself. This is the fundamental property of the impulse response.
+\end{stepbox}
+
+\begin{resultsbox}
+\textbf{(a)} The full $4 \times 4$ convolution output for the $2 \times 2$ image is:
+\[
+g = \begin{bmatrix} -1 & -2 & -1 & -2 \\ -3 & -2 & 1 & -4 \\ 1 & 8 & 9 & 2 \\ 3 & 4 & 3 & 4 \end{bmatrix}
+\]
+
+\textbf{(b)} The full $5 \times 5$ convolution output for the $3 \times 3$ impulse image is:
+\[
+g = \begin{bmatrix} 0 & 0 & 0 & 0 & 0 \\ 0 & -1 & 0 & -1 & 0 \\ 0 & 0 & 2 & 0 & 0 \\ 0 & 1 & 0 & 1 & 0 \\ 0 & 0 & 0 & 0 & 0 \end{bmatrix}
+\]
+The impulse response equals the filter $w$ itself, embedded in a border of zeros. $\blacksquare$
+\end{resultsbox}
+
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
