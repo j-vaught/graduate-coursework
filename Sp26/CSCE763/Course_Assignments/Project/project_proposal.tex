@@ -1,0 +1,339 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{cite}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, calc, fit, backgrounds, decorations.pathreplacing}
+\usepackage{hyperref}
+
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+
+\hypersetup{
+  colorlinks=true,
+  citecolor=USC_Garnet,
+  linkcolor=USC_Garnet,
+  urlcolor=USC_Congaree,
+}
+
+\title{Benchmarking Classical and Deep Learning Image Processing Methods for Object Detection in X-Band Marine Radar Imagery}
+
+\author{
+\IEEEauthorblockN{JC Vaught and Ty Dangerfield}
+\IEEEauthorblockA{CSCE 763: Digital Image Processing --- Spring 2026\\
+University of South Carolina\\
+\{jvaught, tdangerf\}@email.sc.edu}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This project presents a systematic benchmark comparing classical digital image processing methods against modern deep learning detectors for object detection in X-band marine radar plan position indicator (PPI) imagery. On the classical side, we evaluate four CFAR detector variants (CA-, GO-, SO-, and OS-CFAR), a morphological filtering pipeline, wavelet-based detection, and Otsu thresholding with region analysis. On the deep learning side, we evaluate YOLOv11, Faster R-CNN, U-Net, and RT-DETR. All methods are tested on a shared public marine radar dataset with bounding box annotations. We stratify results by target size, range from radar, and scene density, and perform systematic failure analysis using the TIDE framework. The project directly exercises core CSCE 763 topics---image enhancement, segmentation, morphological processing, multiresolution analysis, and object recognition---while addressing an identified gap in the marine radar detection literature: the absence of a comprehensive, controlled cross-paradigm comparison.
+\end{abstract}
+
+\section{Introduction and Background}
+
+X-band marine radar produces plan position indicator (PPI) imagery in which maritime objects---vessels, buoys, debris---appear as bright returns against sea clutter and noise. Detecting, localizing, and classifying these objects from PPI scans is a fundamental image processing problem with direct implications for maritime safety, autonomous navigation, and surveillance.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.72, every node/.style={font=\sffamily\scriptsize}]
+  % Background circle (PPI display)
+  \fill[black] (0,0) circle (2.8cm);
+  % Range rings
+  \foreach \r/\lbl in {0.9/1\,nm, 1.8/2\,nm, 2.7/3\,nm} {
+    \draw[USC_Black70, thin] (0,0) circle (\r cm);
+  }
+  % Range ring labels
+  \node[USC_Black70, anchor=south west] at (45:0.9cm) {\tiny 1\,nm};
+  \node[USC_Black70, anchor=south west] at (45:1.8cm) {\tiny 2\,nm};
+  \node[USC_Black70, anchor=south west] at (45:2.7cm) {\tiny 3\,nm};
+  % Radar center
+  \fill[USC_Garnet] (0,0) circle (0.06cm);
+  % Sweep line
+  \draw[USC_Garnet!60, thin] (0,0) -- (65:2.8cm);
+  % Sea clutter (random dots near center)
+  \pgfmathsetseed{42}
+  \foreach \i in {1,...,80} {
+    \pgfmathparse{rnd*1.4+0.3}\let\cR\pgfmathresult
+    \pgfmathparse{rnd*360}\let\cA\pgfmathresult
+    \pgfmathparse{rnd*0.15+0.15}\let\cO\pgfmathresult
+    \fill[white, opacity=\cO] (\cA:\cR cm) circle (0.02cm);
+  }
+  % Target 1 — vessel at ~2nm, bearing 30deg
+  \fill[white, opacity=0.95] (30:1.9cm) ellipse (0.18cm and 0.07cm);
+  \draw[USC_Garnet, thick] ([shift={(-0.25cm,-0.13cm)}]30:1.9cm) rectangle ++(0.5cm,0.26cm);
+  % Target 2 — vessel at ~1.5nm, bearing 200deg
+  \fill[white, opacity=0.9] (200:1.4cm) ellipse (0.14cm and 0.06cm);
+  \draw[USC_Garnet, thick] ([shift={(-0.2cm,-0.11cm)}]200:1.4cm) rectangle ++(0.4cm,0.22cm);
+  % Target 3 — buoy at ~2.5nm, bearing 310deg
+  \fill[white, opacity=0.85] (310:2.35cm) circle (0.06cm);
+  \draw[USC_Garnet, thick] ([shift={(-0.12cm,-0.12cm)}]310:2.35cm) rectangle ++(0.24cm,0.24cm);
+  % Labels
+  \node[white, anchor=west, font=\sffamily\tiny] at ([shift={(0.3cm,0.05cm)}]30:1.9cm) {vessel};
+  \node[white, anchor=east, font=\sffamily\tiny] at ([shift={(-0.25cm,0.05cm)}]200:1.4cm) {vessel};
+  \node[white, anchor=east, font=\sffamily\tiny] at ([shift={(-0.16cm,0.05cm)}]310:2.35cm) {buoy};
+  % Legend
+  \draw[USC_Garnet, thick] (-2.6,-3.2) rectangle +(-0.3,0.2);
+  \node[anchor=west, black] at (-2.55,-3.1) {= detection bounding box};
+\end{tikzpicture}
+\caption{Example PPI radar scan with annotated marine targets. Bright returns (white) represent vessels and buoys; {\color{USC_Garnet}garnet} boxes denote detection bounding boxes. Sea clutter appears as scattered low-intensity returns near the radar center.}
+\label{fig:ppi_example}
+\end{figure}
+
+Classical detection approaches are rooted in core digital image processing techniques. Constant false alarm rate (CFAR) detectors~\cite{Finn1968, Rohling1983} perform adaptive \textit{image segmentation} by estimating local background statistics and thresholding accordingly. Morphological filtering~\cite{Xu2021} uses \textit{erosion, dilation, opening, and closing} to remove noise and isolate target structure. Wavelet decomposition~\cite{Duk2017} provides \textit{multiresolution analysis} to separate targets from clutter at different spatial scales. Otsu thresholding~\cite{Li2016} offers automatic \textit{image segmentation} based on histogram analysis, followed by connected component \textit{object recognition} via shape descriptors.
+
+Recent deep learning approaches have been applied to radar PPI imagery with strong results. YOLOv11 with tiled training achieves mAP@0.5 exceeding 0.95 on the DLR DAAN dataset~\cite{Heuer2025}. Marine-Faster R-CNN reports 93.65\% recall with radar-specific architectural modifications~\cite{Chen2022}. U-Net variants have been adapted for per-pixel radar target segmentation~\cite{Onet2025}, and transformer-based detectors such as CCDN-DETR have been applied to SAR imagery~\cite{CCDNDETR2024}, though not yet to marine navigation radar. CFARnet~\cite{Diskin2024} bridges both paradigms by incorporating CFAR constraints into a deep learning loss function.
+
+Despite these advances, \textbf{no existing study provides a comprehensive, controlled comparison of the full classical image processing pipeline against the full suite of modern deep learning detectors on a shared marine radar dataset}. Radar-PPInet~\cite{Chen2021} benchmarks only against CA-CFAR. Marine-Faster R-CNN~\cite{Chen2022} evaluates a single CFAR variant. Zhang and Li~\cite{Zhang2021} note the absence of unified evaluation criteria in their survey of deep learning for marine object detection. This project fills that gap.
+
+\section{Connection to CSCE 763 Course Topics}
+
+Every classical method under evaluation maps directly to a core course topic. The preprocessing stage applies \textit{image enhancement} techniques---clutter suppression, contrast adjustment, and noise reduction---to raw PPI scans before detection. The CFAR detectors and Otsu binarization perform \textit{image segmentation} by adaptively thresholding pixel intensities to separate targets from background. The morphological pipeline exercises \textit{morphological image processing} through erosion, dilation, opening, and closing operations that remove false returns and extract target structure. The wavelet-based detector demonstrates \textit{multiresolution processing} by decomposing PPI scans to analyze targets and clutter at different spatial frequency scales. Finally, shape descriptor computation and connected component classification constitute \textit{object recognition}, using area, eccentricity, and compactness to identify and characterize detected objects.
+
+The deep learning methods are framed as learned, end-to-end extensions of these same tasks. The evaluation framework itself uses image processing metrics: intersection-over-union for localization, per-pixel segmentation accuracy for U-Net, and spatial error analysis across PPI imagery.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\sffamily\scriptsize, inner sep=2pt, outer sep=0pt},
+  mnode/.style={draw, minimum height=0.38cm, minimum width=1.7cm, text=white, font=\sffamily\tiny\bfseries, anchor=west},
+  cnode/.style={mnode, fill=USC_Garnet},
+  dnode/.style={mnode, fill=USC_Congaree},
+  tnode/.style={draw=USC_Black70, fill=USC_Black10, minimum height=0.38cm, minimum width=2.0cm, font=\sffamily\tiny\bfseries, anchor=east},
+  arr/.style={-{Stealth[length=1.5pt]}, thin, USC_Black70}
+]
+  % Left: Methods
+  \node[font=\sffamily\tiny\bfseries, USC_Garnet] at (0.85,0.25) {Classical};
+  \node[cnode] (cfar) at (0,0) {CFAR ($\times$4)};
+  \node[cnode, below=0.08cm of cfar] (morph) {Morphological};
+  \node[cnode, below=0.08cm of morph] (wave) {Wavelet};
+  \node[cnode, below=0.08cm of wave] (otsu) {Otsu+Region};
+
+  \node[font=\sffamily\tiny\bfseries, USC_Congaree, below=0.18cm of otsu, xshift=0.85cm] {Deep Learning};
+  \node[dnode, below=0.35cm of otsu] (yolo) {YOLOv11};
+  \node[dnode, below=0.08cm of yolo] (frcnn) {Faster R-CNN};
+  \node[dnode, below=0.08cm of frcnn] (unet) {U-Net};
+  \node[dnode, below=0.08cm of unet] (rtdetr) {RT-DETR};
+
+  % Right: Course topics
+  \node[tnode] (enh) at (5.5,0) {Enhancement};
+  \node[tnode, below=0.08cm of enh] (seg) {Segmentation};
+  \node[tnode, below=0.08cm of seg] (morp) {Morphological Proc.};
+  \node[tnode, below=0.08cm of morp] (multi) {Multiresolution};
+  \node[tnode, below=0.08cm of multi] (objr) {Object Recognition};
+
+  % Connections: Classical
+  % Preprocessing (all) -> Enhancement
+  \draw[arr] (cfar.east) -- (enh.west);
+  \draw[arr] (morph.east) -- (enh.west);
+  % CFAR -> Segmentation
+  \draw[arr] (cfar.east) -- (seg.west);
+  % Otsu -> Segmentation
+  \draw[arr] (otsu.east) -- (seg.west);
+  % Morph -> Morphological Proc
+  \draw[arr] (morph.east) -- (morp.west);
+  % Wavelet -> Multiresolution
+  \draw[arr] (wave.east) -- (multi.west);
+  % Otsu -> Object Recognition
+  \draw[arr] (otsu.east) -- (objr.west);
+  % CFAR -> Object Recognition (connected components)
+  \draw[arr] (cfar.east) -- (objr.west);
+
+  % Connections: Deep Learning
+  \draw[arr] (yolo.east) -- (objr.west);
+  \draw[arr] (frcnn.east) -- (objr.west);
+  \draw[arr] (unet.east) -- (seg.west);
+  \draw[arr] (rtdetr.east) -- (objr.west);
+  \draw[arr] (yolo.east) -- (enh.west);
+  \draw[arr] (unet.east) -- (morp.west);
+\end{tikzpicture}
+\caption{Mapping of each detection method to the CSCE 763 course topics it directly exercises. {\color{USC_Garnet}Classical methods} (garnet) and {\color{USC_Congaree}deep learning methods} (congaree) collectively cover all five core topics.}
+\label{fig:topic_mapping}
+\end{figure}
+
+\section{Proposed Methods}
+
+Figure~\ref{fig:pipeline} presents the complete evaluation pipeline. All 11 methods receive the same preprocessed PPI input and produce bounding box detections that feed into a unified COCO evaluation and TIDE error analysis framework.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\sffamily\scriptsize},
+  block/.style={draw, fill=#1, text=white, minimum height=0.6cm, minimum width=1.5cm, font=\sffamily\tiny\bfseries, align=center},
+  block/.default={USC_Black70},
+  sblock/.style={draw, fill=#1, text=white, minimum height=0.5cm, minimum width=1.3cm, font=\sffamily\tiny, align=center},
+  sblock/.default={USC_Garnet},
+  arr/.style={-{Stealth[length=2.5pt]}, thick},
+  darr/.style={-{Stealth[length=2.5pt]}, thick, USC_Black70},
+]
+  % Input
+  \node[block=black, minimum width=1.8cm] (input) {Raw PPI Input};
+
+  % Preprocessing
+  \node[block=USC_Black70, right=0.6cm of input, minimum width=2.2cm] (pre) {Preprocessing\\[-1pt]\tiny enhancement, norm., tiling};
+
+  % Branch split point
+  \coordinate[right=0.7cm of pre] (split);
+
+  % Classical branch
+  \node[sblock=USC_Garnet, above right=0.5cm and 0.4cm of split] (cfar) {CFAR ($\times$4)};
+  \node[sblock=USC_Garnet, right=0.15cm of cfar] (morphm) {Morphological};
+  \node[sblock=USC_Garnet, right=0.15cm of morphm] (wavem) {Wavelet};
+  \node[sblock=USC_Garnet, right=0.15cm of wavem] (otsum) {Otsu+Region};
+
+  % Classical intermediate
+  \node[block=USC_Garnet, right=0.4cm of otsum, minimum width=1.4cm] (bmask) {Binary Mask};
+  \node[block=USC_Garnet, right=0.3cm of bmask, minimum width=1.4cm] (cc) {Connected\\[-1pt]Components};
+
+  % Deep learning branch
+  \node[sblock=USC_Congaree, below right=0.5cm and 0.4cm of split] (yolo) {YOLOv11};
+  \node[sblock=USC_Congaree, right=0.15cm of yolo] (frcnn) {Faster R-CNN};
+  \node[sblock=USC_Congaree, right=0.15cm of frcnn] (unet) {U-Net};
+  \node[sblock=USC_Congaree, right=0.15cm of unet] (rtdetr) {RT-DETR};
+
+  % DL intermediate
+  \node[block=USC_Congaree, right=0.4cm of rtdetr, minimum width=1.6cm] (direct) {Direct Det./\\[-1pt]Masks};
+
+  % Bounding boxes (merge point)
+  \coordinate[right=0.3cm of cc] (mergeTop);
+  \coordinate[right=0.3cm of direct] (mergeBot);
+  \coordinate (mergeC) at ($(mergeTop)!0.5!(mergeBot)$);
+  \node[block=black, minimum width=1.5cm] at (mergeC) (bbox) {Bounding\\[-1pt]Boxes};
+
+  % Evaluation
+  \node[block=USC_Black70, right=0.5cm of bbox, minimum width=1.6cm] (coco) {COCO\\[-1pt]Evaluation};
+  \node[block=USC_Black70, right=0.35cm of coco, minimum width=1.4cm] (tide) {TIDE Error\\[-1pt]Analysis};
+  \node[block=black, right=0.35cm of tide, minimum width=1.5cm] (results) {Stratified\\[-1pt]Results};
+
+  % Arrows
+  \draw[arr] (input) -- (pre);
+  \draw[darr] (pre) -- (split);
+  % Split to branches
+  \draw[darr] (split) |- (cfar);
+  \draw[darr] (split) |- (yolo);
+  % Classical chain
+  \draw[arr, USC_Garnet] (otsum) -- (bmask);
+  \draw[arr, USC_Garnet] (bmask) -- (cc);
+  % DL chain
+  \draw[arr, USC_Congaree] (rtdetr) -- (direct);
+  % To bounding boxes
+  \draw[arr] (cc.east) -| ([xshift=-0.15cm]bbox.north);
+  \draw[arr] (direct.east) -| ([xshift=-0.15cm]bbox.south);
+  % Evaluation chain
+  \draw[arr] (bbox) -- (coco);
+  \draw[arr] (coco) -- (tide);
+  \draw[arr] (tide) -- (results);
+
+  % Branch labels
+  \node[USC_Garnet, font=\sffamily\tiny\bfseries, above=0.05cm of cfar, xshift=-0.3cm] {Classical Branch};
+  \node[USC_Congaree, font=\sffamily\tiny\bfseries, below=0.05cm of yolo, xshift=-0.3cm] {Deep Learning Branch};
+\end{tikzpicture}
+\caption{Complete evaluation pipeline. Raw PPI scans undergo shared preprocessing before splitting into classical ({\color{USC_Garnet}garnet}) and deep learning ({\color{USC_Congaree}congaree}) branches. Both produce bounding boxes that feed into unified COCO evaluation and TIDE error analysis, enabling direct cross-paradigm comparison.}
+\label{fig:pipeline}
+\end{figure*}
+
+\subsection{Classical Methods (7 total)}
+
+\textbf{CFAR Detectors (4 variants).} We implement CA-CFAR~\cite{Finn1968}, GO-CFAR, SO-CFAR, and OS-CFAR~\cite{Rohling1983} operating on PPI imagery with 2D sliding reference windows. Guard cell size, reference cell count, and false alarm rate are tuned via grid search on a validation split. Each CFAR variant produces a binary detection mask, from which bounding boxes are extracted via connected component analysis.
+
+\textbf{Morphological Pipeline.} We apply Otsu or adaptive thresholding for initial binarization, followed by morphological opening (erosion then dilation) to remove small-scale noise, then connected component analysis with region property filtering (minimum area, eccentricity bounds) to extract target bounding boxes. Structuring element shape and size are tuned per-dataset.
+
+\textbf{Wavelet-Based Detection.} We use the 2D stationary wavelet transform~\cite{Duk2017} to decompose PPI scans into sub-bands. Target energy concentrates in high-frequency sub-bands while clutter spreads across all bands. We threshold the detail coefficients and apply connected component extraction to produce detections.
+
+\textbf{Otsu + Region Properties.} We apply local Otsu thresholding (SSOTSU~\cite{Li2016}) with seed-point detection to handle the small-target problem, followed by region property analysis for shape-based filtering and bounding box extraction.
+
+\subsection{Deep Learning Methods (4 total)}
+
+\textbf{YOLOv11} with tiled training and SAHI~\cite{Heuer2025} for sliced inference on full-resolution PPI scans. We use the oriented bounding box variant (YOLOv11-OBB) following the best-performing configuration in the literature.
+
+\textbf{Faster R-CNN} with the radar-specific modifications from Marine-Faster R-CNN~\cite{Chen2022}: optimized anchor sizes for radar targets, scale normalization for range-dependent size variation, and data sampling strategies for class imbalance.
+
+\textbf{U-Net} for per-pixel semantic segmentation of radar returns, producing target masks from which bounding boxes are derived. This provides an alternative detection paradigm (segmentation-based vs. box regression).
+
+\textbf{RT-DETR} as a transformer-based, end-to-end detector. This architecture has not been applied to marine radar PPI imagery in the literature, representing a novel baseline contribution.
+
+\section{Evaluation Plan}
+
+\subsection{Dataset}
+
+We will use the DLR DAAN dataset~\cite{Heuer2025}, which provides 760 full-resolution X-band marine radar PPI frames with bounding box, oriented bounding box, and instance segmentation annotations. When tiled at 640$\times$640, this yields 3,040 training images with 11,893 labeled instances. We split temporally (by recording session, not by frame) to prevent data leakage from correlated scans.
+
+\subsection{Metrics}
+
+We adopt the COCO evaluation protocol: AP@0.5, AP@0.75, AP@[0.50:0.95], AR@1, AR@10, AR@100, stratified by object size (AP\textsubscript{S}, AP\textsubscript{M}, AP\textsubscript{L}). For classical methods producing binary masks, we convert to bounding boxes via connected components before evaluation. We also report inference time (ms/frame), FLOPs, and parameter count for computational comparison.
+
+\subsection{Failure Analysis}
+
+We apply the TIDE framework~\cite{Bolya2020} to decompose each method's errors into classification, localization, duplicate, background, and missed detection components. We additionally stratify performance by range from radar center, target density per scan, and target size in pixels to identify condition-dependent failure modes.
+
+\subsection{Statistical Rigor}
+
+Deep learning models are trained with 3 random seeds; we report mean and standard deviation. Pairwise method comparisons use paired bootstrap testing (10,000 resamples) with Bonferroni correction. We give equal hyperparameter tuning effort to classical and deep learning methods to ensure fairness.
+
+% --- Full-width table spanning both columns ---
+\begin{table*}[t]
+\centering
+\caption{Project Timeline and Division of Responsibilities}
+\vspace{0.3em}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{} >{\bfseries}c p{5.8cm} p{5.8cm} p{2.4cm} @{}}
+\toprule
+\rowcolor{USC_Black10} \textbf{Week} & \textbf{JC Vaught} & \textbf{Ty Dangerfield} & \textbf{Milestone} \\
+\midrule
+1--2 & Download DLR DAAN dataset; implement PPI preprocessing pipeline (polar-to-Cartesian, normalization, tiling) & Set up training infrastructure (GPU environment, data loaders, COCO-format annotation conversion) & Data ready \\
+\rowcolor{USC_Black10}
+3--5 & Implement CA-CFAR, GO-CFAR, SO-CFAR, OS-CFAR with 2D sliding windows; implement morphological pipeline, wavelet detection, and Otsu+regionprops & Train YOLOv11-OBB with SAHI, Faster R-CNN with radar modifications, U-Net segmentation, and RT-DETR; tune hyperparameters on validation split & All methods implemented \\
+5--7 & Run classical methods across full test set; tune CFAR parameters (guard cells, reference cells, $P_{FA}$) and morphological structuring elements & Run deep learning inference across test set with 3 seeds per model; collect per-image predictions in COCO format & Raw results collected \\
+\rowcolor{USC_Black10}
+7--8 & Run TIDE error analysis on all methods; build stratified evaluation (by range, size, density); generate failure case visualizations & Measure inference time, FLOPs, parameter counts; build Pareto plots (accuracy vs. speed); run paired bootstrap significance tests & Analysis complete \\
+9 & Write Introduction, Background, Classical Methods, and Failure Analysis sections of final report & Write Deep Learning Methods, Evaluation, and Results sections; prepare presentation slides & Report and presentation ready \\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
+\noindent\small\textit{Note: Week 4 (Mar 8--15) is spring break. Nine working weeks total from Feb 17 through Apr 27.}
+\end{table*}
+
+\section{Expected Contributions}
+
+This project will produce three outputs. First, the first comprehensive cross-paradigm benchmark for marine radar PPI object detection, comparing 7 classical and 4 deep learning methods under identical conditions. Second, a systematic failure analysis revealing when and why each paradigm fails, providing actionable guidance for practitioners selecting detection methods. Third, a computational efficiency analysis via Pareto plots showing the accuracy-latency tradeoff, which is critical for real-time maritime applications where X-band radar rotates at 20--25 RPM (one scan every 2.4--3 seconds).
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{13}
+
+\bibitem{Finn1968} H.~M. Finn and R.~S. Johnson, ``Adaptive detection mode with threshold control as a function of spatially sampled clutter-level estimates,'' \textit{RCA Review}, vol.~29, no.~9, pp.~414--464, 1968.
+
+\bibitem{Rohling1983} H.~Rohling, ``Radar CFAR thresholding in clutter and multiple target situations,'' \textit{IEEE Trans. Aerosp. Electron. Syst.}, vol.~AES-19, no.~4, pp.~608--621, 1983.
+
+\bibitem{Duk2017} V.~Duk, L.~Rosenberg, and B.~W.-H. Ng, ``Target detection in sea-clutter using stationary wavelet transforms,'' \textit{IEEE Trans. Aerosp. Electron. Syst.}, vol.~53, no.~3, pp.~1136--1146, 2017.
+
+\bibitem{Li2016} Q.~Li \textit{et al.}, ``A speed-up seed point Otsu method for ship detection in various scenarios,'' in \textit{Proc. IEEE IGARSS}, 2016, pp.~6421--6424.
+
+\bibitem{Xu2021} Y.~Xu \textit{et al.}, ``Adaptive clustering-based marine radar sea clutter normalization,'' \textit{J. Sensors}, vol.~2021, Art.~2938251, 2021.
+
+\bibitem{Chen2021} X.~Chen \textit{et al.}, ``Multi-dimensional automatic detection of scanning radar images of marine targets based on Radar PPInet,'' \textit{Remote Sensing}, vol.~13, no.~19, Art.~3856, 2021.
+
+\bibitem{Chen2022} X.~Chen \textit{et al.}, ``Marine target detection based on Marine-Faster R-CNN for navigation radar PPI images,'' \textit{Front. Inf. Technol. Electron. Eng.}, vol.~23, 2022.
+
+\bibitem{Heuer2025} M.~Heuer \textit{et al.}, ``High-precision marine radar object detection using tiled training and SAHI enhanced YOLOv11-OBB,'' \textit{Sensors}, vol.~26, no.~3, Art.~942, 2025.
+
+\bibitem{Onet2025} J.~Yee, ``Onet: Twin U-Net architecture for unsupervised binary semantic segmentation in radar and remote sensing images,'' \textit{IEEE Trans. Image Process.}, 2025.
+
+\bibitem{CCDNDETR2024} L.~Zhang \textit{et al.}, ``CCDN-DETR: A detection transformer based on constrained contrast denoising for multi-class SAR object detection,'' \textit{Sensors}, vol.~24, no.~6, Art.~1793, 2024.
+
+\bibitem{Diskin2024} T.~Diskin \textit{et al.}, ``CFARnet: Deep learning for target detection with constant false alarm rate,'' \textit{Signal Process.}, vol.~223, Art.~109543, 2024.
+
+\bibitem{Bolya2020} D.~Bolya \textit{et al.}, ``TIDE: A general toolbox for identifying object detection errors,'' in \textit{Proc. ECCV}, 2020.
+
+\bibitem{Zhang2021} X.~Zhang and X.~Li, ``Survey on deep learning-based marine object detection,'' \textit{J. Adv. Transp.}, vol.~2021, Art.~5808206, 2021.
+
+\end{thebibliography}
+
+\end{document}
