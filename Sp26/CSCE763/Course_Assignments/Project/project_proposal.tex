@@ -1,6 +1,7 @@
 \documentclass[conference]{IEEEtran}
 
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{xcolor}
@@ -244,21 +245,582 @@ Figure~\ref{fig:pipeline} presents the complete evaluation pipeline. All 11 meth
 
 \textbf{CFAR Detectors (4 variants).} We implement CA-CFAR~\cite{Finn1968}, GO-CFAR, SO-CFAR, and OS-CFAR~\cite{Rohling1983} operating on PPI imagery with 2D sliding reference windows. Guard cell size, reference cell count, and false alarm rate are tuned via grid search on a validation split. Each CFAR variant produces a binary detection mask, from which bounding boxes are extracted via connected component analysis.
 
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.75, every node/.style={font=\sffamily\tiny}]
+  % Reference cells (left)
+  \foreach \i in {0,1,2,3,4} {
+    \fill[USC_Black70] (\i*0.38,0) rectangle ++(0.34,0.34);
+    \node[white] at (\i*0.38+0.17,0.17) {R};
+  }
+  % Guard cells (left)
+  \foreach \i in {5,6} {
+    \fill[USC_Black10] (\i*0.38,0) rectangle ++(0.34,0.34);
+    \node[USC_Black70] at (\i*0.38+0.17,0.17) {G};
+  }
+  % CUT
+  \fill[USC_Garnet] (7*0.38,0) rectangle ++(0.34,0.34);
+  \node[white, font=\sffamily\tiny\bfseries] at (7*0.38+0.17,0.17) {CUT};
+  % Guard cells (right)
+  \foreach \i in {8,9} {
+    \fill[USC_Black10] (\i*0.38,0) rectangle ++(0.34,0.34);
+    \node[USC_Black70] at (\i*0.38+0.17,0.17) {G};
+  }
+  % Reference cells (right)
+  \foreach \i in {10,11,12,13,14} {
+    \fill[USC_Black70] (\i*0.38,0) rectangle ++(0.34,0.34);
+    \node[white] at (\i*0.38+0.17,0.17) {R};
+  }
+  % Brace under reference cells
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}, USC_Black70]
+    (0,-0.08) -- (4*0.38+0.34,-0.08)
+    node[midway, below=4pt, USC_Black70] {Reference ($N/2$)};
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}, USC_Black70]
+    (10*0.38,-0.08) -- (14*0.38+0.34,-0.08)
+    node[midway, below=4pt, USC_Black70] {Reference ($N/2$)};
+  % Brace under guard cells
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}, USC_Garnet!50]
+    (5*0.38,-0.08) -- (6*0.38+0.34,-0.08)
+    node[midway, below=4pt, USC_Black70] {Guard};
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}, USC_Garnet!50]
+    (8*0.38,-0.08) -- (9*0.38+0.34,-0.08)
+    node[midway, below=4pt, USC_Black70] {Guard};
+  % Arrows from reference cell regions to threshold block
+  \coordinate (leftRefMid) at (2*0.38+0.17, -0.08);
+  \coordinate (rightRefMid) at (12*0.38+0.17, -0.08);
+  % Threshold block
+  \node[draw, fill=USC_Black10, minimum height=0.45cm, minimum width=3.2cm,
+        font=\sffamily\tiny, anchor=north] (thresh) at (7*0.38+0.17, -0.72)
+        {$T = \alpha \cdot \frac{1}{N}\sum_{i=1}^{N} X_i$};
+  \draw[-{Stealth[length=2pt]}, thick, USC_Black70] (2*0.38+0.17, -0.42) -- (thresh.north west);
+  \draw[-{Stealth[length=2pt]}, thick, USC_Black70] (12*0.38+0.17, -0.42) -- (thresh.north east);
+  % Arrow from threshold to comparison point
+  \draw[-{Stealth[length=2pt]}, thick, USC_Black70] (thresh.south) -- ++(0,-0.35)
+    node[below, font=\sffamily\tiny, USC_Black70] (comp) {CUT $\gtrless$ $T$};
+  % Arrow from CUT to comparison point (routed around the right of threshold block)
+  \draw[-{Stealth[length=2pt]}, thick, USC_Garnet]
+    (7*0.38+0.17, 0) -- ++(1.8,0) -- ++(0,-1.45) -| (comp.east);
+  % Decision outputs
+  \coordinate (dec) at ($(thresh.south)+(0,-0.55)$);
+  \node[draw, fill=USC_Garnet, text=white, minimum height=0.3cm,
+        font=\sffamily\tiny\bfseries] (det) at ($(dec)+(-1.0,-0.45)$) {Target};
+  \node[draw, fill=USC_Black70, text=white, minimum height=0.3cm,
+        font=\sffamily\tiny\bfseries] (nodet) at ($(dec)+(1.0,-0.45)$) {No Target};
+  \draw[-{Stealth[length=2pt]}, USC_Garnet] (dec) -- (det.north);
+  \draw[-{Stealth[length=2pt]}, USC_Black70] (dec) -- (nodet.north);
+\end{tikzpicture}
+\caption{CA-CFAR detector sliding window architecture (1D cross-section). The cell under test (CUT) is compared against an adaptive threshold derived from surrounding reference cells.}
+\label{fig:cfar_window}
+\end{figure}
+
 \textbf{Morphological Pipeline.} We apply Otsu or adaptive thresholding for initial binarization, followed by morphological opening (erosion then dilation) to remove small-scale noise, then connected component analysis with region property filtering (minimum area, eccentricity bounds) to extract target bounding boxes. Structuring element shape and size are tuned per-dataset.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.78, every node/.style={font=\sffamily\tiny},
+  block/.style={draw, fill=#1, text=white, minimum height=0.4cm,
+    minimum width=1.1cm, font=\sffamily\tiny, align=center},
+  block/.default={USC_Black70},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70},
+  sebox/.style={draw=USC_Garnet, fill=USC_Black10, minimum height=0.28cm,
+    minimum width=0.28cm, font=\sffamily\tiny}
+]
+  % Row 1
+  \node[block=black] (input) {PPI Input};
+  \node[block=USC_Black70, right=0.2cm of input] (otsu) {Threshold};
+  \node[block=USC_Black70, right=0.2cm of otsu] (bin) {Binary\\Image};
+
+  % Row 2 (below, shifted right)
+  \node[block=USC_Garnet, below=0.5cm of bin] (ero) {Erosion};
+  \node[sebox, below=0.08cm of ero] (se1) {\tiny SE};
+  \node[block=USC_Garnet, right=0.25cm of ero] (dil) {Dilation};
+  \node[sebox, below=0.08cm of dil] (se2) {\tiny SE};
+
+  % Row 3 (below row 2)
+  \node[block=USC_Black70, below=0.55cm of ero, xshift=0.7cm] (cc) {Connected\\Components};
+  \node[block=USC_Black70, right=0.2cm of cc] (filt) {Region\\Filtering};
+  \node[block=USC_Garnet, right=0.2cm of filt] (bbox) {Bounding\\Boxes};
+
+  % Arrows row 1
+  \draw[arr] (input) -- (otsu);
+  \draw[arr] (otsu) -- (bin);
+  % Arrow down to erosion
+  \draw[arr] (bin.south) -- (ero.north);
+  \draw[arr] (ero) -- (dil);
+  % Opening brace over erosion+dilation pair
+  \draw[decorate, decoration={brace, amplitude=3pt}, USC_Garnet]
+    ([yshift=0.08cm]ero.north west) -- ([yshift=0.08cm]dil.north east)
+    node[midway, above=4pt, USC_Garnet, font=\sffamily\tiny] {Opening};
+  % Arrow down to CC
+  \draw[arr] (dil.south) |- (cc.west);
+  \draw[arr] (cc) -- (filt);
+  \draw[arr] (filt) -- (bbox);
+
+  % Illustrative before/after mini-squares
+  \node[anchor=south, inner sep=0pt] at ($(bin.north)+(0,0.12)$) {%
+    \tikz{
+      \fill[black] (0,0) rectangle (0.35,0.35);
+      \pgfmathsetseed{99}
+      \foreach \i in {1,...,18} {
+        \pgfmathparse{rnd*0.3+0.025}\let\px\pgfmathresult
+        \pgfmathparse{rnd*0.3+0.025}\let\py\pgfmathresult
+        \fill[white] (\px,\py) circle (0.02);
+      }
+      \fill[white] (0.15,0.18) rectangle (0.25,0.22);
+    }%
+  };
+  \node[anchor=south, inner sep=0pt] at ($(dil.north)+(0,0.42)$) {%
+    \tikz{
+      \fill[black] (0,0) rectangle (0.35,0.35);
+      \fill[white] (0.12,0.15) rectangle (0.28,0.21);
+    }%
+  };
+  \node[USC_Black70, font=\sffamily\tiny] at ($(bin.north)+(0,0.55)$) {noisy};
+  \node[USC_Black70, font=\sffamily\tiny] at ($(dil.north)+(0,0.85)$) {cleaned};
+\end{tikzpicture}
+\caption{Morphological detection pipeline. Structuring element operations remove noise before connected component extraction.}
+\label{fig:morph_pipeline}
+\end{figure}
 
 \textbf{Wavelet-Based Detection.} We use the 2D stationary wavelet transform~\cite{Duk2017} to decompose PPI scans into sub-bands. Target energy concentrates in high-frequency sub-bands while clutter spreads across all bands. We threshold the detail coefficients and apply connected component extraction to produce detections.
 
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.78, every node/.style={font=\sffamily\tiny},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70},
+  block/.style={draw, fill=#1, text=white, minimum height=0.38cm,
+    minimum width=1.0cm, font=\sffamily\tiny, align=center},
+  block/.default={USC_Black70}
+]
+  % Input image
+  \draw[thick] (0,0) rectangle (1.4,1.4);
+  \node at (0.7,0.7) {Input};
+  \node[below, USC_Black70] at (0.7,0) {PPI Scan};
+
+  % Level 1 decomposition
+  \coordinate (l1) at (2.2,0);
+  % LL1
+  \draw[thick, fill=USC_Black10] (l1) rectangle ++(0.7,0.7);
+  \node at ($(l1)+(0.35,0.35)$) {LL\textsubscript{1}};
+  % LH1
+  \draw[thick, fill=USC_Garnet!30] ($(l1)+(0.7,0)$) rectangle ++(0.7,0.7);
+  \node at ($(l1)+(1.05,0.35)$) {\color{USC_Garnet}LH\textsubscript{1}};
+  % HL1
+  \draw[thick, fill=USC_Garnet!30] ($(l1)+(0,0.7)$) rectangle ++(0.7,0.7);
+  \node at ($(l1)+(0.35,1.05)$) {\color{USC_Garnet}HL\textsubscript{1}};
+  % HH1
+  \draw[thick, fill=USC_Garnet!30] ($(l1)+(0.7,0.7)$) rectangle ++(0.7,0.7);
+  \node at ($(l1)+(1.05,1.05)$) {\color{USC_Garnet}HH\textsubscript{1}};
+
+  % Arrow input -> level 1
+  \draw[arr] (1.4,0.7) -- (2.2,0.7) node[midway, above] {SWT};
+
+  % Level 2 decomposition (of LL1)
+  \coordinate (l2) at (4.4,0);
+  % LL2
+  \draw[thick, fill=USC_Black10] (l2) rectangle ++(0.35,0.35);
+  \node[font=\sffamily\tiny] at ($(l2)+(0.175,0.175)$) {\scalebox{0.7}{LL\textsubscript{2}}};
+  % LH2
+  \draw[thick, fill=USC_Garnet!50] ($(l2)+(0.35,0)$) rectangle ++(0.35,0.35);
+  \node[font=\sffamily\tiny] at ($(l2)+(0.525,0.175)$) {\scalebox{0.7}{\color{USC_Garnet}LH\textsubscript{2}}};
+  % HL2
+  \draw[thick, fill=USC_Garnet!50] ($(l2)+(0,0.35)$) rectangle ++(0.35,0.35);
+  \node[font=\sffamily\tiny] at ($(l2)+(0.175,0.525)$) {\scalebox{0.7}{\color{USC_Garnet}HL\textsubscript{2}}};
+  % HH2
+  \draw[thick, fill=USC_Garnet!50] ($(l2)+(0.35,0.35)$) rectangle ++(0.35,0.35);
+  \node[font=\sffamily\tiny] at ($(l2)+(0.525,0.525)$) {\scalebox{0.7}{\color{USC_Garnet}HH\textsubscript{2}}};
+  % Remaining L1 detail sub-bands (right and top of L2)
+  \draw[thick, fill=USC_Garnet!30] ($(l2)+(0.7,0)$) rectangle ++(0.7,0.7);
+  \node at ($(l2)+(1.05,0.35)$) {\color{USC_Garnet}LH\textsubscript{1}};
+  \draw[thick, fill=USC_Garnet!30] ($(l2)+(0,0.7)$) rectangle ++(0.7,0.7);
+  \node at ($(l2)+(0.35,1.05)$) {\color{USC_Garnet}HL\textsubscript{1}};
+  \draw[thick, fill=USC_Garnet!30] ($(l2)+(0.7,0.7)$) rectangle ++(0.7,0.7);
+  \node at ($(l2)+(1.05,1.05)$) {\color{USC_Garnet}HH\textsubscript{1}};
+
+  % Arrow LL1 -> level 2
+  \draw[arr] ($(l1)+(0.7,0.35)$) -- ($(l2)+(0,0.35)$) node[midway, above] {SWT};
+
+  % Detection pipeline below
+  \node[block=USC_Garnet] (thr) at (5.1,-0.55) {Threshold};
+  \node[block=USC_Black70, right=0.18cm of thr] (cc) {Connected\\Comp.};
+  \node[block=black, right=0.18cm of cc] (det) {Detections};
+
+  % Arrow from detail sub-bands down to threshold
+  \draw[arr, USC_Garnet] ($(l2)+(1.05,0)$) -- (thr.north);
+  \draw[arr] (thr) -- (cc);
+  \draw[arr] (cc) -- (det);
+
+  % Label for detail bands
+  \node[USC_Garnet, font=\sffamily\tiny, anchor=west] at ($(l2)+(1.5,0.35)$) {Detail};
+  \node[USC_Garnet, font=\sffamily\tiny, anchor=west] at ($(l2)+(1.5,0.15)$) {sub-bands};
+\end{tikzpicture}
+\caption{Two-level 2D wavelet decomposition (DWT layout shown for clarity; SWT preserves full spatial resolution). Target energy concentrates in detail sub-bands ({\color{USC_Garnet}garnet}), which are thresholded to produce detections.}
+\label{fig:wavelet_decomp}
+\end{figure}
+
 \textbf{Otsu + Region Properties.} We apply local Otsu thresholding (SSOTSU~\cite{Li2016}) with seed-point detection to handle the small-target problem, followed by region property analysis for shape-based filtering and bounding box extraction.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[scale=0.78, every node/.style={font=\sffamily\tiny},
+  block/.style={draw, fill=#1, text=white, minimum height=0.38cm,
+    minimum width=0.95cm, font=\sffamily\tiny, align=center},
+  block/.default={USC_Black70},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70}
+]
+  % Histogram sketch
+  \begin{scope}[shift={(0,0.3)}]
+    \draw[USC_Black70, thin] (0,0) -- (1.6,0); % x-axis
+    \draw[USC_Black70, thin] (0,0) -- (0,0.9); % y-axis
+    % Bimodal distribution bars
+    \foreach \x/\h in {0.05/0.15, 0.15/0.35, 0.25/0.7, 0.35/0.8, 0.45/0.6,
+                        0.55/0.3, 0.65/0.12, 0.75/0.08, 0.85/0.06,
+                        0.95/0.1, 1.05/0.25, 1.15/0.45, 1.25/0.35,
+                        1.35/0.15, 1.45/0.05} {
+      \fill[USC_Black70, opacity=0.6] (\x,0) rectangle ++(.08,\h);
+    }
+    % Threshold line
+    \draw[USC_Garnet, thick, dashed] (0.8,0) -- (0.8,0.85);
+    \node[USC_Garnet, above, font=\sffamily\tiny] at (0.8,0.85) {$T_{\text{Otsu}}$};
+    \node[below, USC_Black70] at (0.8,-0.08) {Intensity};
+  \end{scope}
+
+  % Flow blocks
+  \node[block=USC_Garnet] (otsu) at (2.5,0.65) {Otsu\\Threshold};
+  \node[block=USC_Black70, right=0.18cm of otsu] (seed) {Seed\\Points};
+  \node[block=USC_Black70, right=0.18cm of seed] (grow) {Connected\\Components};
+
+  % Second row
+  \node[block=USC_Garnet, below=0.35cm of grow] (shape) {Shape\\Analysis};
+  \node[block=black, right=0.18cm of shape] (filt) {Filtered\\Detections};
+
+  % Shape analysis annotation
+  \node[USC_Black70, font=\sffamily\tiny, below=0.06cm of shape]
+    {area, ecc., compact.};
+
+  % Arrows
+  \draw[arr] (1.6,0.65) -- (otsu.west);
+  \draw[arr] (otsu) -- (seed);
+  \draw[arr] (seed) -- (grow);
+  \draw[arr] (grow.south) -- (shape.north);
+  \draw[arr] (shape) -- (filt);
+\end{tikzpicture}
+\caption{Otsu thresholding with region property analysis. Seed-point detection handles the small-target problem before shape-based filtering.}
+\label{fig:otsu_region}
+\end{figure}
 
 \subsection{Deep Learning Methods (4 total)}
 
 \textbf{YOLOv11} with tiled training and SAHI~\cite{Heuer2025} for sliced inference on full-resolution PPI scans. We use the oriented bounding box variant (YOLOv11-OBB) following the best-performing configuration in the literature.
 
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  scale=0.72, every node/.style={font=\sffamily\tiny},
+  block/.style={draw, fill=USC_Congaree, text=white, minimum height=0.45cm,
+    minimum width=0.9cm, font=\sffamily\tiny\bfseries, align=center},
+  nblock/.style={draw, fill=USC_Black70, text=white, minimum height=0.45cm,
+    minimum width=0.9cm, font=\sffamily\tiny\bfseries, align=center},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70}
+]
+  % Full PPI image
+  \node[nblock, minimum width=1.0cm] (ppi) {Full PPI};
+
+  % SAHI Tiling block with grid overlay
+  \node[block, right=0.3cm of ppi, minimum width=1.1cm, minimum height=0.6cm] (sahi) {};
+  \node[font=\sffamily\tiny\bfseries, white] at ([yshift=0.05cm]sahi.center) {SAHI};
+  \node[font=\sffamily\tiny, white] at ([yshift=-0.1cm]sahi.center) {Tiling};
+  % Grid overlay lines inside SAHI block
+  \draw[white, thin, opacity=0.5] ([xshift=-0.18cm]sahi.south) -- ([xshift=-0.18cm]sahi.north);
+  \draw[white, thin, opacity=0.5] ([xshift=0.18cm]sahi.south) -- ([xshift=0.18cm]sahi.north);
+  \draw[white, thin, opacity=0.5] ([yshift=-0.1cm]sahi.west) -- ([yshift=-0.1cm]sahi.east);
+  \draw[white, thin, opacity=0.5] ([yshift=0.1cm]sahi.west) -- ([yshift=0.1cm]sahi.east);
+
+  % Tile
+  \node[nblock, right=0.3cm of sahi, minimum width=0.7cm] (tile) {Tile};
+
+  % Backbone
+  \node[block, right=0.3cm of tile, minimum width=1.1cm, minimum height=0.65cm] (back)
+    {Backbone\\[-1pt]C3k2+C2PSA};
+
+  % Neck with multi-scale feature visualization
+  \node[block, right=0.3cm of back, minimum width=1.0cm, minimum height=0.65cm] (neck) {};
+  \node[font=\sffamily\tiny\bfseries, white] at ([yshift=0.08cm]neck.center) {Neck};
+  \node[font=\sffamily\tiny, white] at ([yshift=-0.08cm]neck.center) {FPN/PAN};
+  % Multi-scale feature map indicators below neck
+  \fill[USC_Congaree!70, draw=white, thin]
+    ([yshift=-0.4cm, xshift=-0.28cm]neck.south) rectangle ++(0.2cm,0.14cm);
+  \fill[USC_Congaree!55, draw=white, thin]
+    ([yshift=-0.4cm, xshift=-0.02cm]neck.south) rectangle ++(0.15cm,0.11cm);
+  \fill[USC_Congaree!40, draw=white, thin]
+    ([yshift=-0.4cm, xshift=0.2cm]neck.south) rectangle ++(0.1cm,0.08cm);
+
+  % OBB Head
+  \node[block, right=0.3cm of neck, minimum width=0.9cm] (head) {OBB\\[-1pt]Head};
+
+  % NMS
+  \node[nblock, right=0.3cm of head, minimum width=0.7cm] (nms) {NMS};
+
+  % Merged Detections
+  \node[nblock, right=0.3cm of nms, minimum width=1.0cm] (out) {Merged\\[-1pt]Dets.};
+
+  % Arrows
+  \draw[arr] (ppi) -- (sahi);
+  \draw[arr] (sahi) -- (tile);
+  \draw[arr] (tile) -- (back);
+  \draw[arr] (back) -- (neck);
+  \draw[arr] (neck) -- (head);
+  \draw[arr] (head) -- (nms);
+  \draw[arr] (nms) -- (out);
+\end{tikzpicture}
+\caption{YOLOv11-OBB architecture with SAHI tiled inference. Full PPI scans are tiled before single-pass detection, then merged via NMS.}
+\label{fig:yolov11_arch}
+\end{figure}
+
 \textbf{Faster R-CNN} with the radar-specific modifications from Marine-Faster R-CNN~\cite{Chen2022}: optimized anchor sizes for radar targets, scale normalization for range-dependent size variation, and data sampling strategies for class imbalance.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  scale=0.72, every node/.style={font=\sffamily\tiny},
+  block/.style={draw, fill=USC_Congaree, text=white, minimum height=0.45cm,
+    minimum width=0.9cm, font=\sffamily\tiny\bfseries, align=center},
+  nblock/.style={draw, fill=USC_Black70, text=white, minimum height=0.45cm,
+    minimum width=0.9cm, font=\sffamily\tiny\bfseries, align=center},
+  bgblock/.style={draw, fill=USC_Black10, minimum height=0.45cm,
+    minimum width=0.9cm, font=\sffamily\tiny\bfseries, align=center,
+    text=USC_Congaree},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70}
+]
+  % Input
+  \node[nblock, minimum width=0.9cm] (inp) {Input};
+
+  % Backbone
+  \node[block, right=0.3cm of inp, minimum width=1.2cm, minimum height=0.6cm] (back)
+    {ResNet\\[-1pt]+ FPN};
+
+  % Feature maps
+  \node[block, right=0.3cm of back, minimum width=1.0cm, minimum height=0.55cm] (feat)
+    {Feature\\[-1pt]Maps};
+
+  % Stage 1: RPN branch (above)
+  \node[block, above right=0.55cm and 0.3cm of feat, minimum width=1.0cm] (rpn)
+    {RPN};
+
+  % Anchor boxes illustration near RPN
+  \draw[USC_Black70, thin] ([xshift=-0.35cm, yshift=-0.25cm]rpn.south west)
+    rectangle ++(0.22cm,0.22cm);
+  \draw[USC_Black70, thin] ([xshift=-0.3cm, yshift=-0.35cm]rpn.south west)
+    rectangle ++(0.32cm,0.18cm);
+  \draw[USC_Black70, thin] ([xshift=-0.4cm, yshift=-0.2cm]rpn.south west)
+    rectangle ++(0.18cm,0.3cm);
+  \node[USC_Black70, font=\sffamily\tiny, anchor=north]
+    at ([xshift=-0.24cm, yshift=-0.4cm]rpn.south west) {anchors};
+
+  % Proposals
+  \node[bgblock, right=0.3cm of rpn, minimum width=0.9cm] (prop) {Proposals};
+
+  % Stage 2: RoI Pooling (below, connecting from feat and proposals)
+  \node[block, right=0.6cm of feat, minimum width=0.9cm,
+    yshift=-0.55cm] (roi) {RoI\\[-1pt]Pool};
+
+  % FC Layers
+  \node[block, right=0.3cm of roi, minimum width=0.7cm] (fc) {FC};
+
+  % Classification + Box Regression outputs
+  \node[nblock, minimum width=0.6cm, minimum height=0.22cm,
+    font=\sffamily\tiny] (clsout) at ([yshift=0.14cm, xshift=0.55cm]fc.east) {Class};
+  \node[nblock, minimum width=0.6cm, minimum height=0.22cm,
+    font=\sffamily\tiny] (regout) at ([yshift=-0.14cm, xshift=0.55cm]fc.east) {BBox};
+
+  % NMS
+  \node[nblock, minimum width=0.6cm, minimum height=0.3cm] (nms)
+    at ([xshift=0.9cm]fc.east) {NMS};
+
+  % Arrows
+  \draw[arr] (inp) -- (back);
+  \draw[arr] (back) -- (feat);
+  % Split to RPN (stage 1)
+  \draw[arr] (feat.north) |- (rpn.west);
+  \draw[arr] (rpn) -- (prop);
+  % Proposals feed into RoI
+  \draw[arr] (prop.south) |- (roi.north);
+  % Feature maps also feed into RoI
+  \draw[arr] (feat.south) |- (roi.west);
+  \draw[arr] (roi) -- (fc);
+  \draw[arr] (fc.east) -- (clsout.west);
+  \draw[arr] (fc.east) -- (regout.west);
+  \draw[arr] (clsout.east) -| (nms.north);
+  \draw[arr] (regout.east) -| (nms.south);
+
+  % Stage labels
+  \node[USC_Congaree, font=\sffamily\tiny\bfseries, anchor=south]
+    at ([yshift=0.08cm]rpn.north) {Stage 1};
+  \node[USC_Congaree, font=\sffamily\tiny\bfseries, anchor=south]
+    at ([yshift=0.08cm]roi.north west) {Stage 2};
+
+  % Radar-specific annotations
+  \node[USC_Garnet, font=\sffamily\tiny, anchor=west]
+    at ([xshift=0.05cm, yshift=-0.3cm]prop.south) {\textit{optimized anchors}};
+  \node[USC_Garnet, font=\sffamily\tiny, anchor=west]
+    at ([xshift=0.05cm, yshift=-0.5cm]prop.south) {\textit{scale normalization}};
+\end{tikzpicture}
+\caption{Faster R-CNN two-stage architecture with radar-specific anchor optimization and scale normalization for range-dependent target size variation.}
+\label{fig:frcnn_arch}
+\end{figure}
 
 \textbf{U-Net} for per-pixel semantic segmentation of radar returns, producing target masks from which bounding boxes are derived. This provides an alternative detection paradigm (segmentation-based vs. box regression).
 
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  scale=0.7, every node/.style={font=\sffamily\tiny},
+  enc/.style={draw, fill=USC_Congaree, text=white, minimum width=0.35cm,
+    font=\sffamily\tiny\bfseries, align=center},
+  dec/.style={draw, fill=USC_Congaree!70, text=white, minimum width=0.35cm,
+    font=\sffamily\tiny\bfseries, align=center},
+  nblock/.style={draw, fill=USC_Black70, text=white, minimum height=0.35cm,
+    minimum width=0.7cm, font=\sffamily\tiny\bfseries, align=center},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70},
+  skip/.style={-{Stealth[length=2pt]}, thick, USC_Garnet, dashed}
+]
+  % Encoder path (left side, going down)
+  \node[enc, minimum height=1.2cm] (e1) at (0, 0) {};
+  \node[enc, minimum height=1.0cm] (e2) at (0.8, -0.35) {};
+  \node[enc, minimum height=0.8cm] (e3) at (1.6, -0.7) {};
+  \node[enc, minimum height=0.6cm] (e4) at (2.4, -1.05) {};
+
+  % Bottleneck
+  \node[draw, fill=USC_Garnet, text=white, minimum height=0.45cm,
+    minimum width=0.35cm, font=\sffamily\tiny\bfseries] (bn) at (3.2, -1.25) {};
+
+  % Decoder path (right side, going up)
+  \node[dec, minimum height=0.6cm] (d4) at (4.0, -1.05) {};
+  \node[dec, minimum height=0.8cm] (d3) at (4.8, -0.7) {};
+  \node[dec, minimum height=1.0cm] (d2) at (5.6, -0.35) {};
+  \node[dec, minimum height=1.2cm] (d1) at (6.4, 0) {};
+
+  % Labels on blocks
+  \node[white, rotate=90, font=\sffamily\tiny] at (e1) {64};
+  \node[white, rotate=90, font=\sffamily\tiny] at (e2) {128};
+  \node[white, rotate=90, font=\sffamily\tiny] at (e3) {256};
+  \node[white, rotate=90, font=\sffamily\tiny] at (e4) {512};
+  \node[white, rotate=90, font=\sffamily\tiny] at (bn) {1024};
+  \node[white, rotate=90, font=\sffamily\tiny] at (d4) {512};
+  \node[white, rotate=90, font=\sffamily\tiny] at (d3) {256};
+  \node[white, rotate=90, font=\sffamily\tiny] at (d2) {128};
+  \node[white, rotate=90, font=\sffamily\tiny] at (d1) {64};
+
+  % Encoder arrows (conv + pool, going down)
+  \draw[arr] (e1.east) -- (e2.west) node[midway, above, sloped, font=\sffamily\tiny] {pool};
+  \draw[arr] (e2.east) -- (e3.west);
+  \draw[arr] (e3.east) -- (e4.west);
+  \draw[arr] (e4.east) -- (bn.west);
+
+  % Decoder arrows (upconv, going up)
+  \draw[arr] (bn.east) -- (d4.west) node[midway, above, sloped, font=\sffamily\tiny] {up};
+  \draw[arr] (d4.east) -- (d3.west);
+  \draw[arr] (d3.east) -- (d2.west);
+  \draw[arr] (d2.east) -- (d1.west);
+
+  % Skip connections (horizontal dashed arrows)
+  \draw[skip] (e4.east |- d4.west) -- (d4.west)
+    node[midway, above, font=\sffamily\tiny, USC_Garnet] {skip};
+  \draw[skip] ([yshift=0.1cm]e3.north east) -- ([yshift=0.1cm]d3.north west)
+    node[midway, above, font=\sffamily\tiny, USC_Garnet] {skip};
+  \draw[skip] ([yshift=0.15cm]e2.north east) -- ([yshift=0.15cm]d2.north west)
+    node[midway, above, font=\sffamily\tiny, USC_Garnet] {skip};
+  \draw[skip] ([yshift=0.2cm]e1.north east) -- ([yshift=0.2cm]d1.north west)
+    node[midway, above, font=\sffamily\tiny, USC_Garnet] {skip};
+
+  % Output: segmentation mask -> connected components -> bounding boxes
+  \node[nblock, right=0.3cm of d1] (mask) {Seg.\\[-1pt]Mask};
+  \node[nblock, right=0.2cm of mask] (cc) {Conn.\\[-1pt]Comp.};
+  \node[draw, fill=USC_Congaree, text=white, minimum height=0.35cm,
+    minimum width=0.7cm, font=\sffamily\tiny\bfseries, right=0.2cm of cc] (bbx) {BBoxes};
+
+  \draw[arr] (d1.east) -- (mask.west);
+  \draw[arr] (mask) -- (cc);
+  \draw[arr] (cc) -- (bbx);
+
+  % Section labels
+  \node[USC_Congaree, font=\sffamily\tiny\bfseries, anchor=south] at ([yshift=0.35cm]e1.north) {Encoder};
+  \node[USC_Garnet, font=\sffamily\tiny\bfseries, anchor=south] at ([yshift=0.08cm]bn.north) {Bottleneck};
+  \node[USC_Congaree!70, font=\sffamily\tiny\bfseries, anchor=south] at ([yshift=0.35cm]d1.north) {Decoder};
+\end{tikzpicture}
+\caption{U-Net encoder-decoder architecture with skip connections for per-pixel radar target segmentation.}
+\label{fig:unet_arch}
+\end{figure}
+
 \textbf{RT-DETR} as a transformer-based, end-to-end detector. This architecture has not been applied to marine radar PPI imagery in the literature, representing a novel baseline contribution.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  scale=0.7, every node/.style={font=\sffamily\tiny},
+  block/.style={draw, fill=USC_Congaree, text=white, minimum height=0.45cm,
+    minimum width=0.85cm, font=\sffamily\tiny\bfseries, align=center},
+  nblock/.style={draw, fill=USC_Black70, text=white, minimum height=0.45cm,
+    minimum width=0.85cm, font=\sffamily\tiny\bfseries, align=center},
+  bgblock/.style={draw, fill=USC_Black10, minimum height=0.45cm,
+    minimum width=0.85cm, font=\sffamily\tiny\bfseries, align=center,
+    text=USC_Congaree},
+  arr/.style={-{Stealth[length=2pt]}, thick, USC_Black70}
+]
+  % Input
+  \node[nblock, minimum width=0.9cm] (inp) {Input};
+
+  % Backbone
+  \node[block, right=0.25cm of inp, minimum width=1.0cm] (back) {Backbone\\[-1pt]ResNet-50};
+
+  % Multi-scale features (three stacked rectangles)
+  \coordinate[right=0.55cm of back] (msc);
+  \fill[USC_Congaree!80] ([yshift=0.18cm, xshift=-0.25cm]msc) rectangle ++(0.5cm,0.14cm);
+  \fill[USC_Congaree!60] ([yshift=0.0cm, xshift=-0.2cm]msc) rectangle ++(0.4cm,0.14cm);
+  \fill[USC_Congaree!40] ([yshift=-0.18cm, xshift=-0.15cm]msc) rectangle ++(0.3cm,0.14cm);
+  \node[font=\sffamily\tiny, anchor=north] at ([yshift=-0.38cm]msc) {Multi-scale};
+
+  % Hybrid Encoder
+  \node[block, right=0.55cm of msc, minimum width=1.1cm, minimum height=0.65cm] (enc) {Hybrid\\[-1pt]Encoder};
+  % Self-attention label inside encoder
+  \draw[white, thin] ([yshift=0.06cm, xshift=0.06cm]enc.south west)
+    rectangle ([yshift=0.22cm, xshift=-0.06cm]enc.south east);
+  \node[white, font=\sffamily\tiny] at ([yshift=0.14cm]enc.south) {AIFI+CCFF};
+
+  % Transformer Decoder
+  \node[block, right=0.5cm of enc, minimum width=1.1cm, minimum height=0.65cm] (dec) {Decoder\\[-1pt]Cross-Attn};
+
+  % Object Queries (parallel input from above)
+  \node[bgblock, above=0.3cm of dec, minimum width=0.85cm] (oq) {Object\\[-1pt]Queries};
+
+  % Detection Head
+  \node[block, right=0.25cm of dec, minimum width=0.8cm] (head) {Det.\\[-1pt]Head};
+
+  % Outputs (class + box)
+  \node[nblock, minimum width=0.55cm, minimum height=0.22cm,
+    font=\sffamily\tiny] (cls) at ([yshift=0.14cm, xshift=0.55cm]head.east) {Class};
+  \node[nblock, minimum width=0.55cm, minimum height=0.22cm,
+    font=\sffamily\tiny] (box) at ([yshift=-0.14cm, xshift=0.55cm]head.east) {Box};
+
+  % Arrows
+  \draw[arr] (inp) -- (back);
+  \draw[arr] (back.east) -- ([xshift=-0.25cm, yshift=0.09cm]msc);
+  \draw[arr] ([xshift=0.25cm, yshift=0.09cm]msc) -- (enc.west);
+  \draw[arr] (enc) -- (dec);
+  \draw[arr] (oq.south) -- (dec.north);
+  \draw[arr] (dec) -- (head);
+  \draw[arr] (head.east) -- (cls.west);
+  \draw[arr] (head.east) -- (box.west);
+
+  % "No NMS" annotation
+  \draw[USC_Garnet, thick] ([yshift=0.12cm, xshift=-0.15cm]dec.north) --
+    ([yshift=0.12cm, xshift=0.15cm]dec.north);
+  \node[USC_Garnet, font=\sffamily\tiny\bfseries, anchor=south]
+    at ([yshift=0.14cm]dec.north) {No NMS needed};
+\end{tikzpicture}
+\caption{RT-DETR transformer-based detector. End-to-end detection without NMS post-processing via learned object queries and cross-attention decoding.}
+\label{fig:rtdetr_arch}
+\end{figure}
 
 \section{Evaluation Plan}
 
