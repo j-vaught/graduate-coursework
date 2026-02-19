@@ -4,6 +4,9 @@ Interactive PPI viewer for Furuno HDR radar data.
 
 Left-click  : mark a target cell (prints coords, plots dot)
 Right-click : remove nearest mark
+Scroll      : zoom in/out on PPI
+Middle-drag : pan the PPI
+'h'         : reset zoom (home)
 's'         : save marked targets to targets.json
 'c'         : clear all marks
 'q'         : quit
@@ -190,6 +193,63 @@ def main(data_dir: str) -> None:
     ax_slid.set_facecolor(BLACK_10)
 
     # -----------------------------------------------------------------------
+    # Zoom / pan state
+    # -----------------------------------------------------------------------
+    ppi_home = (0, PPI_SIZE, PPI_SIZE, 0)  # xlim_lo, xlim_hi, ylim_lo, ylim_hi
+    pan_state = {"active": False, "x0": 0.0, "y0": 0.0,
+                 "xlim": None, "ylim": None}
+
+    def zoom_ppi(event):
+        if event.inaxes is not ax_ppi:
+            return
+        cur_xlim = ax_ppi.get_xlim()
+        cur_ylim = ax_ppi.get_ylim()
+        cx, cy = event.xdata, event.ydata
+
+        scale = 0.8 if event.button == "up" else 1.25
+        new_w = (cur_xlim[1] - cur_xlim[0]) * scale
+        new_h = (cur_ylim[0] - cur_ylim[1]) * scale  # ylim is inverted
+
+        # Keep cursor at same relative position
+        rx = (cx - cur_xlim[0]) / (cur_xlim[1] - cur_xlim[0])
+        ry = (cy - cur_ylim[1]) / (cur_ylim[0] - cur_ylim[1])
+
+        new_xlim = (cx - rx * new_w, cx + (1 - rx) * new_w)
+        new_ylim = (cy + (1 - ry) * new_h, cy - ry * new_h)
+
+        ax_ppi.set_xlim(new_xlim)
+        ax_ppi.set_ylim(new_ylim)
+        fig.canvas.draw_idle()
+
+    def on_press_pan(event):
+        if event.inaxes is not ax_ppi or event.button != 2:
+            return
+        pan_state["active"] = True
+        pan_state["x0"] = event.xdata
+        pan_state["y0"] = event.ydata
+        pan_state["xlim"] = ax_ppi.get_xlim()
+        pan_state["ylim"] = ax_ppi.get_ylim()
+
+    def on_release_pan(event):
+        pan_state["active"] = False
+
+    def on_motion_pan(event):
+        if not pan_state["active"] or event.inaxes is not ax_ppi:
+            return
+        if event.xdata is None:
+            return
+        dx = pan_state["x0"] - event.xdata
+        dy = pan_state["y0"] - event.ydata
+        ax_ppi.set_xlim(pan_state["xlim"][0] + dx, pan_state["xlim"][1] + dx)
+        ax_ppi.set_ylim(pan_state["ylim"][0] + dy, pan_state["ylim"][1] + dy)
+        fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect("scroll_event", zoom_ppi)
+    fig.canvas.mpl_connect("button_press_event", on_press_pan)
+    fig.canvas.mpl_connect("button_release_event", on_release_pan)
+    fig.canvas.mpl_connect("motion_notify_event", on_motion_pan)
+
+    # -----------------------------------------------------------------------
     # Marked targets
     # -----------------------------------------------------------------------
     targets: list[dict] = []
@@ -294,6 +354,12 @@ def main(data_dir: str) -> None:
             redraw_marks()
             print("Marks cleared.")
 
+        elif event.key == "h":
+            ax_ppi.set_xlim(ppi_home[0], ppi_home[1])
+            ax_ppi.set_ylim(ppi_home[2], ppi_home[3])
+            fig.canvas.draw_idle()
+            print("View reset.")
+
         elif event.key == "q":
             plt.close("all")
 
@@ -305,7 +371,7 @@ def main(data_dir: str) -> None:
     # -----------------------------------------------------------------------
     fig.text(
         0.5, 0.97,
-        "Left-click: mark cell  |  Right-click: remove  |  's': save  |  'c': clear  |  'q': quit",
+        "L-click: mark  |  R-click: remove  |  Scroll: zoom  |  Mid-drag: pan  |  'h': home  |  's': save  |  'c': clear  |  'q': quit",
         ha="center", va="top", fontsize=8.5, color=BLACK_90,
         style="italic",
     )
