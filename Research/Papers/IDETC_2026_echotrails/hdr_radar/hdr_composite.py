@@ -43,6 +43,13 @@ radar_cmap = plt.matplotlib.colors.LinearSegmentedColormap.from_list(
     "radar", [BLACK, GARNET, ROSE, WHITE], N=256
 )
 
+# Multi-stop brand colormap for HDR visualization
+hdr_cmap = plt.matplotlib.colors.LinearSegmentedColormap.from_list(
+    "hdr_brand",
+    [BLACK, CONGAREE, ATLANTIC, ROSE, GARNET, "#A49137", WHITE],
+    N=256,
+)
+
 
 # ---------------------------------------------------------------------------
 # Polar -> Cartesian
@@ -287,6 +294,73 @@ def main() -> None:
     out_pdf = "hdr_composite_output.pdf"
     fig.savefig(out_pdf, facecolor=fig.get_facecolor())
     print(f"Saved: {out_pdf}")
+    plt.close(fig)
+
+    # ------------------------------------------------------------------
+    # Step 7: Color vs raw comparison (2x2)
+    # ------------------------------------------------------------------
+    # Also render a mid-gain PPI for context
+    mid_gain_idx = len(gains_common) // 2
+    mid_ppi = polar_to_cartesian(avg_stack_u8[mid_gain_idx], size=size)
+
+    fig2 = plt.figure(figsize=(14, 14), facecolor=BLACK_10)
+    fig2.canvas.manager.set_window_title("HDR Color vs Raw")
+
+    gs2 = gridspec.GridSpec(2, 2, left=0.03, right=0.97, top=0.92, bottom=0.03,
+                            wspace=0.06, hspace=0.08)
+
+    # Top-left: raw low gain (grayscale)
+    ax_ll = fig2.add_subplot(gs2[0, 0], facecolor=BLACK)
+    ax_ll.imshow(low_ppi, cmap="gray", vmin=0, vmax=252,
+                 origin="upper", interpolation="bilinear")
+    ax_ll.set_title(f"Raw — Low Gain (g={gains_common[low_gain_idx]})",
+                    color=BLACK_90, fontsize=11, fontweight="bold")
+    ax_ll.set_xticks([]); ax_ll.set_yticks([])
+
+    # Top-right: raw high gain (grayscale)
+    ax_lr = fig2.add_subplot(gs2[0, 1], facecolor=BLACK)
+    ax_lr.imshow(high_ppi, cmap="gray", vmin=0, vmax=252,
+                 origin="upper", interpolation="bilinear")
+    ax_lr.set_title(f"Raw — High Gain (g={gains_common[high_gain_idx]})",
+                    color=BLACK_90, fontsize=11, fontweight="bold")
+    ax_lr.set_xticks([]); ax_lr.set_yticks([])
+
+    # Bottom-left: raw mid gain (grayscale)
+    ax_ml = fig2.add_subplot(gs2[1, 0], facecolor=BLACK)
+    ax_ml.imshow(mid_ppi, cmap="gray", vmin=0, vmax=252,
+                 origin="upper", interpolation="bilinear")
+    ax_ml.set_title(f"Raw — Mid Gain (g={gains_common[mid_gain_idx]})",
+                    color=BLACK_90, fontsize=11, fontweight="bold")
+    ax_ml.set_xticks([]); ax_ml.set_yticks([])
+
+    # Bottom-right: HDR composite with brand colormap
+    ax_hdr = fig2.add_subplot(gs2[1, 1], facecolor=BLACK)
+    im_hdr = ax_hdr.imshow(hdr_ppi, cmap=hdr_cmap, vmin=0, vmax=255,
+                            origin="upper", interpolation="bilinear")
+    ax_hdr.set_title(f"HDR Composite ({args.method})",
+                     color=BLACK_90, fontsize=11, fontweight="bold")
+    ax_hdr.set_xticks([]); ax_hdr.set_yticks([])
+
+    # Range rings on all panels
+    for ax in [ax_ll, ax_lr, ax_ml, ax_hdr]:
+        for frac in (0.25, 0.5, 0.75):
+            circ = plt.Circle((half, half), frac * half,
+                              fill=False, color=BLACK_50,
+                              linewidth=0.5, linestyle="--", alpha=0.4)
+            ax.add_patch(circ)
+
+    fig2.text(0.5, 0.97,
+              "Raw Grayscale vs HDR Color Composite",
+              ha="center", va="top", fontsize=14, fontweight="bold",
+              color=BLACK_90)
+
+    out2_png = "hdr_color_comparison.png"
+    fig2.savefig(out2_png, dpi=200, facecolor=fig2.get_facecolor())
+    print(f"Saved: {out2_png}")
+
+    out2_pdf = "hdr_color_comparison.pdf"
+    fig2.savefig(out2_pdf, facecolor=fig2.get_facecolor())
+    print(f"Saved: {out2_pdf}")
 
     plt.show()
 
