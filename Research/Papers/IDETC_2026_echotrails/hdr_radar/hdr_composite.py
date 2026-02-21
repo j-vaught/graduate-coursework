@@ -239,13 +239,16 @@ def main() -> None:
     print("Rendering PPI images ...", end=" ", flush=True)
     size = args.size
 
+    # Rescale raw byte data (0-252) to 0-255 so colormap matches HDR panels
+    raw_scale = 255.0 / 252.0
+
     # Low gain: first in common range
     low_gain_idx = 0
-    low_ppi = polar_to_cartesian(avg_stack_u8[low_gain_idx], size=size)
+    low_ppi = polar_to_cartesian(avg_stack_u8[low_gain_idx], size=size) * raw_scale
 
     # High gain: last in common range
     high_gain_idx = len(gains_common) - 1
-    high_ppi = polar_to_cartesian(avg_stack_u8[high_gain_idx], size=size)
+    high_ppi = polar_to_cartesian(avg_stack_u8[high_gain_idx], size=size) * raw_scale
 
     # HDR composite
     hdr_ppi = polar_to_cartesian(hdr_8bit, size=size)
@@ -261,15 +264,15 @@ def main() -> None:
                            wspace=0.08)
 
     panels = [
-        (gs[0, 0], low_ppi,  f"Low Gain (g={gains_common[low_gain_idx]})",  0, 252),
-        (gs[0, 1], high_ppi, f"High Gain (g={gains_common[high_gain_idx]})", 0, 252),
-        (gs[0, 2], hdr_ppi,  f"HDR Composite ({args.method})",              0, 255),
+        (gs[0, 0], low_ppi,  f"Low Gain (g={gains_common[low_gain_idx]})"),
+        (gs[0, 1], high_ppi, f"High Gain (g={gains_common[high_gain_idx]})"),
+        (gs[0, 2], hdr_ppi,  f"HDR Composite ({args.method})"),
     ]
 
     half = size // 2
-    for spec, img, title, vmin, vmax in panels:
+    for spec, img, title in panels:
         ax = fig.add_subplot(spec, facecolor=BLACK)
-        ax.imshow(img, cmap=radar_cmap, vmin=vmin, vmax=vmax,
+        ax.imshow(img, cmap=radar_cmap, vmin=0, vmax=255,
                   origin="upper", interpolation="bilinear")
         ax.set_title(title, color=BLACK_90, fontsize=11, fontweight="bold")
         ax.set_xticks([])
@@ -301,7 +304,7 @@ def main() -> None:
     # ------------------------------------------------------------------
     # Also render a mid-gain PPI for context
     mid_gain_idx = len(gains_common) // 2
-    mid_ppi = polar_to_cartesian(avg_stack_u8[mid_gain_idx], size=size)
+    mid_ppi = polar_to_cartesian(avg_stack_u8[mid_gain_idx], size=size) * raw_scale
 
     fig2 = plt.figure(figsize=(14, 14), facecolor=BLACK_10)
     fig2.canvas.manager.set_window_title("HDR Color vs Raw")
@@ -311,7 +314,7 @@ def main() -> None:
 
     # Top-left: raw low gain (color)
     ax_ll = fig2.add_subplot(gs2[0, 0], facecolor=BLACK)
-    ax_ll.imshow(low_ppi, cmap=hdr_cmap, vmin=0, vmax=252,
+    ax_ll.imshow(low_ppi, cmap=hdr_cmap, vmin=0, vmax=255,
                  origin="upper", interpolation="bilinear")
     ax_ll.set_title(f"Raw — Low Gain (g={gains_common[low_gain_idx]})",
                     color=BLACK_90, fontsize=11, fontweight="bold")
@@ -319,7 +322,7 @@ def main() -> None:
 
     # Top-right: raw high gain (color)
     ax_lr = fig2.add_subplot(gs2[0, 1], facecolor=BLACK)
-    ax_lr.imshow(high_ppi, cmap=hdr_cmap, vmin=0, vmax=252,
+    ax_lr.imshow(high_ppi, cmap=hdr_cmap, vmin=0, vmax=255,
                  origin="upper", interpolation="bilinear")
     ax_lr.set_title(f"Raw — High Gain (g={gains_common[high_gain_idx]})",
                     color=BLACK_90, fontsize=11, fontweight="bold")
@@ -327,7 +330,7 @@ def main() -> None:
 
     # Bottom-left: raw mid gain (color)
     ax_ml = fig2.add_subplot(gs2[1, 0], facecolor=BLACK)
-    ax_ml.imshow(mid_ppi, cmap=hdr_cmap, vmin=0, vmax=252,
+    ax_ml.imshow(mid_ppi, cmap=hdr_cmap, vmin=0, vmax=255,
                  origin="upper", interpolation="bilinear")
     ax_ml.set_title(f"Raw — Mid Gain (g={gains_common[mid_gain_idx]})",
                     color=BLACK_90, fontsize=11, fontweight="bold")
