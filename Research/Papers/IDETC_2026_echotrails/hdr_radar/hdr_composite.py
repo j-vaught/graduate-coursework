@@ -309,25 +309,25 @@ def main() -> None:
     gs2 = gridspec.GridSpec(2, 2, left=0.03, right=0.97, top=0.92, bottom=0.03,
                             wspace=0.06, hspace=0.08)
 
-    # Top-left: raw low gain (grayscale)
+    # Top-left: raw low gain (color)
     ax_ll = fig2.add_subplot(gs2[0, 0], facecolor=BLACK)
-    ax_ll.imshow(low_ppi, cmap="gray", vmin=0, vmax=252,
+    ax_ll.imshow(low_ppi, cmap=hdr_cmap, vmin=0, vmax=252,
                  origin="upper", interpolation="bilinear")
     ax_ll.set_title(f"Raw — Low Gain (g={gains_common[low_gain_idx]})",
                     color=BLACK_90, fontsize=11, fontweight="bold")
     ax_ll.set_xticks([]); ax_ll.set_yticks([])
 
-    # Top-right: raw high gain (grayscale)
+    # Top-right: raw high gain (color)
     ax_lr = fig2.add_subplot(gs2[0, 1], facecolor=BLACK)
-    ax_lr.imshow(high_ppi, cmap="gray", vmin=0, vmax=252,
+    ax_lr.imshow(high_ppi, cmap=hdr_cmap, vmin=0, vmax=252,
                  origin="upper", interpolation="bilinear")
     ax_lr.set_title(f"Raw — High Gain (g={gains_common[high_gain_idx]})",
                     color=BLACK_90, fontsize=11, fontweight="bold")
     ax_lr.set_xticks([]); ax_lr.set_yticks([])
 
-    # Bottom-left: raw mid gain (grayscale)
+    # Bottom-left: raw mid gain (color)
     ax_ml = fig2.add_subplot(gs2[1, 0], facecolor=BLACK)
-    ax_ml.imshow(mid_ppi, cmap="gray", vmin=0, vmax=252,
+    ax_ml.imshow(mid_ppi, cmap=hdr_cmap, vmin=0, vmax=252,
                  origin="upper", interpolation="bilinear")
     ax_ml.set_title(f"Raw — Mid Gain (g={gains_common[mid_gain_idx]})",
                     color=BLACK_90, fontsize=11, fontweight="bold")
