@@ -1,0 +1,113 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds}
+\usepackage{xcolor}
+
+% Brand colors
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{black90}{HTML}{363636}
+\definecolor{black70}{HTML}{5C5C5C}
+\definecolor{black30}{HTML}{C7C7C7}
+\definecolor{black10}{HTML}{ECECEC}
+
+\begin{document}
+\begin{tikzpicture}[
+    >=Stealth,
+    box/.style={
+        draw=black90,
+        thick,
+        minimum width=3.2cm,
+        minimum height=1.6cm,
+        align=center,
+        font=\sffamily\small,
+        text=black90,
+    },
+    smallbox/.style={
+        draw=black70,
+        thick,
+        minimum width=2.4cm,
+        minimum height=0.7cm,
+        align=center,
+        font=\sffamily\footnotesize,
+        text=black90,
+    },
+    lbl/.style={
+        font=\sffamily\scriptsize,
+        text=black70,
+    },
+]
+
+% Hardware boxes
+\node[box, fill=garnet!8] (radar) {
+    \textbf{Furuno DRS4D-NXT}\\[2pt]
+    X-Band Radar\\
+    {\footnotesize(Radome Unit)}
+};
+
+\node[box, fill=atlantic!8, right=2.8cm of radar] (rpi) {
+    \textbf{Raspberry Pi}\\[2pt]
+    Controller
+};
+
+\node[box, fill=black10, above=1.2cm of rpi] (power) {
+    \textbf{Power Supply}\\[2pt]
+    {\footnotesize 12V DC}
+};
+
+% Hardware arrows
+\draw[->, thick, garnet]
+    ([yshift=3pt]radar.east) -- node[lbl, above] {4-bit echo data} ([yshift=3pt]rpi.west);
+\draw[->, thick, atlantic]
+    ([yshift=-3pt]rpi.west) -- node[lbl, below] {gain/PW commands} ([yshift=-3pt]radar.east);
+\draw[->, thick, black70]
+    (power.south) -- (rpi.north);
+
+% Software loop box
+\node[below=1.4cm of rpi, anchor=north] (looptitle) {};
+
+\node[smallbox, fill=congaree!8, below=1.8cm of rpi, xshift=-1.5cm] (read) {
+    1. Read scan\\[-1pt]
+    {\scriptsize(4-bit data)}
+};
+\node[smallbox, fill=congaree!8, right=0.6cm of read] (decide) {
+    2. Decide next\\[-1pt]
+    {\scriptsize gain setting}
+};
+\node[smallbox, fill=congaree!8, below=0.5cm of decide] (send) {
+    3. Send\\[-1pt]
+    {\scriptsize command}
+};
+\node[smallbox, fill=congaree!8, below=0.5cm of read] (process) {
+    4. Process\\[-1pt]
+    {\scriptsize \& log data}
+};
+
+% Software arrows
+\draw[->, thick, congaree] (read.east) -- (decide.west);
+\draw[->, thick, congaree] (decide.south) -- (send.north);
+\draw[->, thick, congaree] (send.west) -- (process.east);
+\draw[->, thick, congaree] (process.north) -- (read.south);
+
+% Software loop background
+\begin{scope}[on background layer]
+\node[
+    draw=congaree,
+    dashed,
+    thick,
+    rounded corners=0pt,
+    fit=(read)(decide)(send)(process),
+    inner sep=10pt,
+    fill=congaree!3,
+    label={[lbl, text=congaree, font=\sffamily\footnotesize\bfseries]above:Software Loop},
+] (swloop) {};
+\end{scope}
+
+% Connection from rpi to software loop
+\draw[->, thick, dashed, black70]
+    (rpi.south) -- (swloop.north);
+
+\end{tikzpicture}
+\end{document}
