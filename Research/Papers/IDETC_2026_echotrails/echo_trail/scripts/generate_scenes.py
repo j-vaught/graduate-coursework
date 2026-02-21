@@ -520,6 +520,13 @@ def main() -> int:
     else:
         ablation_keys = [args.ablation]
 
+    # Resolve all paths to absolute to avoid CWD-relative doubling.
+    args.repo_dir = args.repo_dir.resolve()
+    args.data_dir = args.data_dir.resolve()
+    args.output_base = args.output_base.resolve()
+    if args.land_frames_dir is not None:
+        args.land_frames_dir = args.land_frames_dir.resolve()
+
     # Validate repo dir early (unless dry-run)
     if not args.dry_run:
         main_py = args.repo_dir / "main.py"

@@ -62,7 +62,7 @@ PROXIMITY_METERS = list(range(10, 110, 10))
 CROSSING_ANGLES = [15, 30, 45, 60, 75, 90]
 
 
-def make_object_group(name, count=1, size="medium", speed=0,
+def make_object_group(name, count=1, size=[10, 300], speed=0,
                       heading=135, intensity_base=1.0,
                       position=None, bin_idx=None,
                       flicker_enabled=False):
@@ -97,7 +97,7 @@ def make_object_group(name, count=1, size="medium", speed=0,
     else:
         path = {
             "type": "linear",
-            "start": "random" if bin_idx is None else [360, bin_idx],
+            "start": "edge" if bin_idx is None else [360, bin_idx],
             "heading": heading,
             "speed": float(speed),
             "duration": [0.6, 0.9],
@@ -143,8 +143,8 @@ def generate_a1(base_dir):
         objects = [
             make_object_group(
                 name="target",
-                count=3,
-                size="medium",
+                count=5,
+                size=[10, 300],
                 speed=speed_val,
                 heading=135,
                 intensity_base=1.2,
@@ -161,7 +161,7 @@ def generate_a2(base_dir):
     out = base_dir / "a2_decay"
     # Single scene config; decay function is an apply_trails parameter
     objects = [
-        make_object_group("target", count=3, size="medium", speed=5,
+        make_object_group("target", count=5, size=[10, 300], speed=5,
                           heading=135, intensity_base=1.2),
     ]
     scene = make_scene(SEED_BASE, FRAMES_PER_SCENE, objects)
@@ -173,9 +173,9 @@ def generate_a3(base_dir):
     """A3: Intensity mode. Uses same scene as A2."""
     out = base_dir / "a3_intensity"
     objects = [
-        make_object_group("target", count=3, size="medium", speed=5,
+        make_object_group("target", count=5, size=[10, 300], speed=5,
                           heading=135, intensity_base=1.2),
-        make_object_group("weak_target", count=2, size="small", speed=2,
+        make_object_group("weak_target", count=2, size=[10, 100], speed=2,
                           heading=45, intensity_base=0.5),
     ]
     scene = make_scene(
@@ -190,9 +190,9 @@ def generate_a4(base_dir):
     """A4: Color mapping. Uses same scene as A3."""
     out = base_dir / "a4_color"
     objects = [
-        make_object_group("target", count=3, size="medium", speed=5,
+        make_object_group("target", count=5, size=[10, 300], speed=5,
                           heading=135, intensity_base=1.2),
-        make_object_group("weak_target", count=2, size="small", speed=2,
+        make_object_group("weak_target", count=2, size=[10, 100], speed=2,
                           heading=45, intensity_base=0.5),
     ]
     scene = make_scene(
@@ -212,7 +212,7 @@ def generate_a5(base_dir):
     for range_name, range_bin in RANGE_BINS.items():
         objects = [
             make_object_group(
-                "target", count=3, size="medium", speed=5,
+                "target", count=3, size=[10, 300], speed=5,
                 heading=135, intensity_base=1.2,
                 bin_idx=range_bin,
             ),
@@ -238,7 +238,7 @@ def generate_a6(base_dir):
         "heavy": (15, 0.5),
     }.items():
         objects = [
-            make_object_group("target", count=3, size="medium", speed=5,
+            make_object_group("target", count=5, size=[10, 300], speed=5,
                               heading=135, intensity_base=1.2),
         ]
         if clutter_count > 0:
@@ -273,9 +273,9 @@ def generate_a7(base_dir):
         bin_b = center_bin + sep_bins // 2
 
         objects = [
-            make_object_group("target_a", count=1, size="medium", speed=0,
+            make_object_group("target_a", count=1, size=[10, 300], speed=0,
                               intensity_base=1.0, position=[360, bin_a]),
-            make_object_group("target_b", count=1, size="medium", speed=0,
+            make_object_group("target_b", count=1, size=[10, 300], speed=0,
                               intensity_base=1.0, position=[360, bin_b]),
         ]
         scene = make_scene(
@@ -297,9 +297,9 @@ def generate_a8(base_dir):
 
     for angle in CROSSING_ANGLES:
         objects = [
-            make_object_group("target_a", count=1, size="medium", speed=5,
+            make_object_group("target_a", count=1, size=[10, 300], speed=5,
                               heading=0, intensity_base=1.2),
-            make_object_group("target_b", count=1, size="medium", speed=5,
+            make_object_group("target_b", count=1, size=[10, 300], speed=5,
                               heading=float(angle), intensity_base=1.2),
         ]
         scene = make_scene(

@@ -240,7 +240,7 @@ run_a1() {
     log "═══ A1: Trail Length × Speed ═══"
     check_disk
 
-    run_scene_generation "a1_trail_length"
+    run_scene_generation "a1"
 
     # Sweep trail lengths across speed classes
     run_trail_sweep "a1_trail_length" "N" 0 3 6 12 24
@@ -266,7 +266,7 @@ run_a2() {
     log "═══ A2: Decay Function ═══"
     check_disk
 
-    run_scene_generation "a2_decay"
+    run_scene_generation "a2"
 
     run_trail_sweep "a2_decay" "decay" exponential concave linear step
 
@@ -289,7 +289,7 @@ run_a3() {
     log "═══ A3: Intensity Mode ═══"
     check_disk
 
-    run_scene_generation "a3_intensity"
+    run_scene_generation "a3"
 
     run_trail_sweep "a3_intensity" "intensity" binary proportional
 
@@ -312,7 +312,7 @@ run_a4() {
     log "═══ A4: Color Mapping ═══"
     check_disk
 
-    run_scene_generation "a4_color"
+    run_scene_generation "a4"
 
     run_trail_sweep "a4_color" "color" mono twotone gradient intensity
 
@@ -335,7 +335,7 @@ run_a5() {
     log "═══ A5: Range Dependence ═══"
     check_disk
 
-    run_scene_generation "a5_range"
+    run_scene_generation "a5"
 
     # Full sweep: 3 ranges × 5 trail lengths
     run_trail_sweep "a5_range" "N" 0 3 6 12 24
@@ -352,7 +352,7 @@ run_a6() {
     log "═══ A6: Clutter Level ═══"
     check_disk
 
-    run_scene_generation "a6_clutter"
+    run_scene_generation "a6"
 
     # Apply trails with best config from A1–A4
     run_trail_application "a6_clutter"
@@ -369,7 +369,7 @@ run_a7() {
     log "═══ A7: Target Proximity ═══"
     check_disk
 
-    run_scene_generation "a7_proximity"
+    run_scene_generation "a7"
 
     run_trail_application "a7_proximity"
 
@@ -385,7 +385,7 @@ run_a8() {
     log "═══ A8: Crossing Trajectories ═══"
     check_disk
 
-    run_scene_generation "a8_crossing"
+    run_scene_generation "a8"
 
     run_trail_application "a8_crossing"
 

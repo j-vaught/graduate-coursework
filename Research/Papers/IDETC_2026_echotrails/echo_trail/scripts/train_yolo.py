@@ -143,8 +143,18 @@ def _run_training(job):
 
     log_file = run_dir / "train.log"
 
+    # Find yolo CLI: check PATH first, then common user-local location.
+    import shutil
+    yolo_bin = shutil.which("yolo")
+    if yolo_bin is None:
+        candidate = Path.home() / ".local" / "bin" / "yolo"
+        if candidate.exists():
+            yolo_bin = str(candidate)
+        else:
+            yolo_bin = "yolo"  # fallback, will error clearly
+
     cmd = [
-        "yolo", "detect", "train",
+        yolo_bin, "detect", "train",
         f"data={data_yaml}",
         f"model={job['model']}",
         f"epochs={job['epochs']}",

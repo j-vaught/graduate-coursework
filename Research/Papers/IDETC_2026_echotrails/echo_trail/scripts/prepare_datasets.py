@@ -65,9 +65,10 @@ def collect_paired_samples(
         if stem in label_paths:
             pairs.append((img_path, label_paths[stem]))
         else:
-            warnings.append(
-                f"  WARNING: image '{img_path.name}' has no matching label -- skipped"
-            )
+            # Include images without labels as negative examples (empty label).
+            # Create a temporary empty label file path marker; the actual empty
+            # file will be written during the transfer step.
+            pairs.append((img_path, None))
 
     for stem in label_paths:
         if stem not in image_paths:
@@ -207,11 +208,22 @@ def organize_dataset(
 
     for img_path, lbl_path in train_pairs:
         transfer_file(img_path, output_dir / "images" / "train" / img_path.name, use_symlink)
-        transfer_file(lbl_path, output_dir / "labels" / "train" / lbl_path.name, use_symlink)
+        if lbl_path is not None:
+            transfer_file(lbl_path, output_dir / "labels" / "train" / lbl_path.name, use_symlink)
+        else:
+            # Empty label file for negative (background-only) example.
+            empty_lbl = output_dir / "labels" / "train" / f"{img_path.stem}.txt"
+            empty_lbl.parent.mkdir(parents=True, exist_ok=True)
+            empty_lbl.write_text("")
 
     for img_path, lbl_path in val_pairs:
         transfer_file(img_path, output_dir / "images" / "val" / img_path.name, use_symlink)
-        transfer_file(lbl_path, output_dir / "labels" / "val" / lbl_path.name, use_symlink)
+        if lbl_path is not None:
+            transfer_file(lbl_path, output_dir / "labels" / "val" / lbl_path.name, use_symlink)
+        else:
+            empty_lbl = output_dir / "labels" / "val" / f"{img_path.stem}.txt"
+            empty_lbl.parent.mkdir(parents=True, exist_ok=True)
+            empty_lbl.write_text("")
 
     # Write data.yaml.
     yaml_path = write_data_yaml(output_dir, class_names)
