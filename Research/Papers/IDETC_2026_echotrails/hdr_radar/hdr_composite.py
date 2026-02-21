@@ -350,7 +350,7 @@ def main() -> None:
             ax.add_patch(circ)
 
     fig2.text(0.5, 0.97,
-              "Raw Grayscale vs HDR Color Composite",
+              "Raw Single-Gain vs HDR Color Composite",
               ha="center", va="top", fontsize=14, fontweight="bold",
               color=BLACK_90)
 
