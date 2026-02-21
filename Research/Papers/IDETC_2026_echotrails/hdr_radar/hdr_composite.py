@@ -105,6 +105,23 @@ def stack_composite(stack_4bit: np.ndarray, gains: np.ndarray, ceiling: int = 16
     return composite
 
 
+def stack_composite_noclip(stack_4bit: np.ndarray, gains: np.ndarray) -> np.ndarray:
+    """
+    Additive stacking composite without saturation clipping.
+    Simply sums all gain levels together regardless of saturation.
+
+    Parameters
+    ----------
+    stack_4bit : (n_gains, n_spokes, n_bins) uint8, 4-bit indices 0-16
+    gains      : (n_gains,) gain values
+
+    Returns
+    -------
+    composite : (n_spokes, n_bins) float32
+    """
+    return stack_4bit.astype(np.float32).sum(axis=0)
+
+
 def compress_to_8bit(composite: np.ndarray, method: str = "log") -> np.ndarray:
     """Compress float32 composite to uint8 (0-255)."""
     if method == "log":
@@ -172,29 +189,33 @@ def main():
     print("Converting to 4-bit indices...")
     stack_4bit = to_4bit(avg_stack)
 
-    # Composite
-    print("Running additive stacking composite...")
+    # Composite (with saturation clipping)
+    print("Running additive stacking composite (clipped)...")
     composite = stack_composite(stack_4bit, common_gains)
     hdr_8bit = compress_to_8bit(composite, method="log")
 
+    # Composite (no clipping — raw sum)
+    print("Running additive stacking composite (no clip)...")
+    composite_noclip = stack_composite_noclip(stack_4bit, common_gains)
+    hdr_noclip_8bit = compress_to_8bit(composite_noclip, method="log")
+
     # Generate PPI images
     print("Rendering PPIs...")
-    # Low gain (gain=2) - raw byte values scaled to match 0-255 range
     low_idx = 0
     low_ppi = polar_to_cartesian(avg_stack[low_idx].astype(np.float32) * (255.0 / 252.0))
 
-    # High gain (gain=99)
     high_idx = len(common_gains) - 1
     high_ppi = polar_to_cartesian(avg_stack[high_idx].astype(np.float32) * (255.0 / 252.0))
 
-    # HDR composite
     hdr_ppi = polar_to_cartesian(hdr_8bit.astype(np.float32))
+    hdr_noclip_ppi = polar_to_cartesian(hdr_noclip_8bit.astype(np.float32))
 
     # Save PNGs
     print("Saving PNGs...")
     save_ppi_image(low_ppi, os.path.join(FIGURES_DIR, "ppi_low_gain.png"), hdr_cmap)
     save_ppi_image(high_ppi, os.path.join(FIGURES_DIR, "ppi_high_gain.png"), hdr_cmap)
-    save_ppi_image(hdr_ppi, os.path.join(FIGURES_DIR, "ppi_hdr.png"), hdr_cmap)
+    save_ppi_image(hdr_noclip_ppi, os.path.join(FIGURES_DIR, "ppi_hdr.png"), hdr_cmap)
+    save_ppi_image(hdr_ppi, os.path.join(FIGURES_DIR, "ppi_hdr_clipped.png"), hdr_cmap)
 
     print("Done.")
 

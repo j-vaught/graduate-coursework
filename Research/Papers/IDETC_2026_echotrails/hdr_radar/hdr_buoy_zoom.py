@@ -77,15 +77,9 @@ def polar_to_cartesian(polar, out_size=PPI_SIZE):
     return img
 
 
-def stack_composite(stack_4bit, gains, ceiling=16):
-    order = np.argsort(gains)[::-1]
-    n_spokes, n_bins = stack_4bit.shape[1], stack_4bit.shape[2]
-    composite = np.zeros((n_spokes, n_bins), dtype=np.float32)
-    for gi in order:
-        scan = stack_4bit[gi].astype(np.float32)
-        not_saturated = scan < ceiling
-        composite += scan * not_saturated
-    return composite
+def stack_composite_noclip(stack_4bit, gains):
+    """Sum all gain levels without skipping saturated pixels."""
+    return stack_4bit.astype(np.float32).sum(axis=0)
 
 
 def compress_to_8bit(composite, method="log"):
@@ -218,13 +212,15 @@ def main():
     # HDR composite
     print("Computing HDR composite...")
     stack_4bit = to_4bit(avg_stack)
-    composite = stack_composite(stack_4bit, common_gains)
+    composite = stack_composite_noclip(stack_4bit, common_gains)
     hdr_8bit = compress_to_8bit(composite, method="log")
 
     # Render high-res PPIs
     print(f"Rendering PPIs at {PPI_SIZE}px...")
-    # Use high gain for raw comparison (gain=99, last index)
-    raw_ppi = polar_to_cartesian(avg_stack[-1].astype(np.float32) * (255.0 / 252.0), PPI_SIZE)
+    # Use mid gain (g=50) for raw comparison
+    mid_idx = np.argmin(np.abs(common_gains - 50))
+    print(f"  Raw comparison gain: {common_gains[mid_idx]}")
+    raw_ppi = polar_to_cartesian(avg_stack[mid_idx].astype(np.float32) * (255.0 / 252.0), PPI_SIZE)
     hdr_ppi = polar_to_cartesian(hdr_8bit.astype(np.float32), PPI_SIZE)
 
     # Export crops for each selected buoy
