@@ -115,7 +115,7 @@ def compute_area_and_intensity(patch: np.ndarray, center_s: int, center_r: int,
                                 thresh: int = ECHO_THRESH):
     """
     For each gain level, find the connected component containing the center cell,
-    return peak intensity and area (cell count).
+    return multiple intensity aggregations and area (cell count).
 
     Parameters
     ----------
@@ -126,14 +126,15 @@ def compute_area_and_intensity(patch: np.ndarray, center_s: int, center_r: int,
 
     Returns
     -------
-    intensities : (n_gains,) peak intensity in the component
-    areas       : (n_gains,) cell count of the component
-    masks       : (n_gains, h, w) bool — True for cells in the component
+    stats : dict with keys 'max', 'mean', 'median', 'p75', each (n_gains,) float
+    areas : (n_gains,) cell count of the component
+    masks : (n_gains, h, w) bool — True for cells in the component
     """
     from scipy.ndimage import label
 
     n_gains, h, w = patch.shape
-    intensities = np.zeros(n_gains, dtype=np.float32)
+    stats = {k: np.zeros(n_gains, dtype=np.float32)
+             for k in ("max", "mean", "median", "p75")}
     areas = np.zeros(n_gains, dtype=np.int32)
     masks = np.zeros((n_gains, h, w), dtype=bool)
 
@@ -143,17 +144,23 @@ def compute_area_and_intensity(patch: np.ndarray, center_s: int, center_r: int,
         labeled, n_feat = label(binary)
 
         if labeled[center_s, center_r] == 0:
-            intensities[gi] = frame[center_s, center_r]
+            val = float(frame[center_s, center_r])
+            for k in stats:
+                stats[k][gi] = val
             areas[gi] = 0
             continue
 
         comp_id = labeled[center_s, center_r]
         mask = labeled == comp_id
         masks[gi] = mask
-        intensities[gi] = frame[mask].max()
+        vals = frame[mask].astype(np.float32)
+        stats["max"][gi] = vals.max()
+        stats["mean"][gi] = vals.mean()
+        stats["median"][gi] = np.median(vals)
+        stats["p75"][gi] = np.percentile(vals, 75)
         areas[gi] = mask.sum()
 
-    return intensities, areas, masks
+    return stats, areas, masks
 
 
 def render_patch_ppi(patch_2d: np.ndarray, spoke_start_deg: float,
@@ -226,11 +233,11 @@ def verify(targets: list[dict], stack: np.ndarray, gains: np.ndarray) -> None:
         patch, s0, r0 = extract_patch(stack, spoke, rbin)
         cs = SPOKE_PAD  # center spoke in patch
         cr = rbin - r0  # center range in patch
-        intensities, areas, masks = compute_area_and_intensity(patch, cs, cr)
+        stats, areas, masks = compute_area_and_intensity(patch, cs, cr)
         results.append(dict(
             target=t, patch=patch, s0=s0, r0=r0,
             cs=cs, cr=cr,
-            intensities=intensities, areas=areas, masks=masks,
+            stats=stats, areas=areas, masks=masks,
         ))
 
     # --- Figure layout ---
@@ -316,7 +323,7 @@ def verify(targets: list[dict], stack: np.ndarray, gains: np.ndarray) -> None:
         )
 
         # Update curves
-        line_int.set_data(gains, r["intensities"])
+        line_int.set_data(gains, r["stats"]["mean"])
         line_area.set_data(gains, r["areas"])
         vline_int.set_xdata([gains[gi]])
         vline_area.set_xdata([gains[gi]])
@@ -361,6 +368,92 @@ def verify(targets: list[dict], stack: np.ndarray, gains: np.ndarray) -> None:
 
     refresh()
     plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Export individual target images for review
+# ---------------------------------------------------------------------------
+
+def export_targets(targets: list[dict], all_stacks: list[np.ndarray],
+                   gains: np.ndarray) -> None:
+    """
+    Export comparison plots showing 4 aggregation methods (max, mean,
+    median, 75th percentile) averaged across all sweep repetitions.
+    """
+    n_gains = all_stacks[0].shape[0]
+    export_dir = FIG_DIR / "target_review"
+    export_dir.mkdir(exist_ok=True)
+
+    agg_keys = ["max", "mean", "median", "p75"]
+    agg_labels = {"max": "Max", "mean": "Mean", "median": "Median", "p75": "75th pctl"}
+    agg_colors = {"max": ROSE, "mean": GARNET, "median": ATLANTIC, "p75": HORSESHOE}
+    agg_styles = {"max": "-", "mean": "-", "median": "--", "p75": ":"}
+
+    for t in targets:
+        spoke, rbin = t["spoke_idx"], t["range_bin"]
+
+        # Collect stats from each sweep repetition
+        all_stats = {k: [] for k in agg_keys}
+        all_areas = []
+
+        for stack in all_stacks:
+            patch, s0, r0 = extract_patch(stack, spoke, rbin)
+            cs, cr = SPOKE_PAD, rbin - r0
+            stats, areas, _ = compute_area_and_intensity(patch, cs, cr)
+            for k in agg_keys:
+                all_stats[k].append(stats[k])
+            all_areas.append(areas)
+
+        # Average across sweeps
+        mean_stats = {k: np.mean(all_stats[k], axis=0) for k in agg_keys}
+        std_stats = {k: np.std(all_stats[k], axis=0) for k in agg_keys}
+        mean_areas = np.mean(all_areas, axis=0)
+
+        # --- Plot: 4 aggregation methods compared ---
+        fig, (ax_cmp, ax_area) = plt.subplots(1, 2, figsize=(12, 4.5))
+
+        for k in agg_keys:
+            ax_cmp.plot(gains, mean_stats[k], color=agg_colors[k], lw=2,
+                        ls=agg_styles[k], label=agg_labels[k])
+            ax_cmp.fill_between(gains,
+                                mean_stats[k] - std_stats[k],
+                                mean_stats[k] + std_stats[k],
+                                color=agg_colors[k], alpha=0.1)
+
+        ax_cmp.axhline(252, color=BLACK_30, lw=0.8, ls=":")
+        ax_cmp.set_xlabel("Gain Setting", fontsize=10, color=BLACK_90)
+        ax_cmp.set_ylabel("Echo Value (0–252)", fontsize=10, color=BLACK_90)
+        ax_cmp.set_title(f"Aggregation Comparison — {t['label']}",
+                         fontsize=11, fontweight="bold", color=BLACK_90)
+        ax_cmp.set_xlim(gains[0], gains[-1])
+        ax_cmp.set_ylim(-5, 270)
+        ax_cmp.legend(fontsize=9, loc="lower right")
+        ax_cmp.grid(True, alpha=0.2, color=BLACK_30)
+
+        ax_area.plot(gains, mean_areas, color=ATLANTIC, lw=2)
+        ax_area.set_xlabel("Gain Setting", fontsize=10, color=BLACK_90)
+        ax_area.set_ylabel("Area (cells)", fontsize=10, color=BLACK_90)
+        ax_area.set_title(f"Mean Area (3 sweeps) — {t['label']}",
+                          fontsize=11, fontweight="bold", color=BLACK_90)
+        ax_area.set_xlim(gains[0], gains[-1])
+        ax_area.set_ylim(-2, max(mean_areas.max() * 1.15, 5))
+        ax_area.grid(True, alpha=0.2, color=BLACK_30)
+
+        fig.suptitle(
+            f'{t["label"]}  ({t["type"]})  —  bin={t["range_bin"]}, '
+            f'spoke={t["spoke_idx"]}, angle={t["angle_deg"]:.1f}°\n'
+            f'Averaged over {len(all_stacks)} sweep repetitions, '
+            f'shaded = ±1σ',
+            fontsize=10, color=BLACK_70,
+        )
+
+        plt.tight_layout(rect=[0, 0, 1, 0.90])
+        out = export_dir / f'{t["label"]}.png'
+        fig.savefig(out, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved {out}")
+
+    print(f"\nAll target images saved to {export_dir}/")
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +537,9 @@ def save_paper_figure(targets: list[dict], stack: np.ndarray,
 def main():
     parser = argparse.ArgumentParser(description="Gain-response curves with area")
     parser.add_argument("--save", action="store_true",
-                        help="Generate paper figure instead of interactive viewer")
+                        help="Generate paper figure")
+    parser.add_argument("--export", action="store_true",
+                        help="Export individual target review images")
     parser.add_argument("--dir", default=f"{DATA_DIR}/Gain_Sweep_1",
                         help="Gain sweep directory")
     args = parser.parse_args()
@@ -460,7 +555,29 @@ def main():
     stack, gains = scans_to_gain_stack(scans)
     print(f"Stack: {stack.shape}")
 
-    if args.save:
+    if args.export:
+        # Load all 3 sweep repetitions and align to common gain range
+        print("Loading Gain_Sweep_2 ...")
+        scans2 = load_run(f"{DATA_DIR}/Gain_Sweep_2", verbose=True)
+        stack2, gains2 = scans_to_gain_stack(scans2)
+        print("Loading Gain_Sweep_3 ...")
+        scans3 = load_run(f"{DATA_DIR}/Gain_Sweep_3", verbose=True)
+        stack3, gains3 = scans_to_gain_stack(scans3)
+
+        # Align to common gain range
+        g_min = max(gains[0], gains2[0], gains3[0])
+        g_max = min(gains[-1], gains2[-1], gains3[-1])
+        mask1 = (gains >= g_min) & (gains <= g_max)
+        mask2 = (gains2 >= g_min) & (gains2 <= g_max)
+        mask3 = (gains3 >= g_min) & (gains3 <= g_max)
+        stack = stack[mask1]
+        stack2 = stack2[mask2]
+        stack3 = stack3[mask3]
+        gains = gains[mask1]
+        print(f"Aligned to common gain range: {g_min}–{g_max} ({len(gains)} levels)")
+
+        export_targets(targets, [stack, stack2, stack3], gains)
+    elif args.save:
         save_paper_figure(targets, stack, gains)
     else:
         verify(targets, stack, gains)
