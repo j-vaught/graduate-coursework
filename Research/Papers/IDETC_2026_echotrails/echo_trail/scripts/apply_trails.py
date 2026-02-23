@@ -78,13 +78,13 @@ def colormap_mono(intensity: float, age_frac: float) -> Tuple[int, int, int]:
 
 def colormap_twotone(intensity: float, age_frac: float,
                      is_current: bool = False) -> Tuple[int, int, int]:
-    """Two-tone: current frame = green, trail = orange."""
+    """Two-tone: current frame = green, trail = red (dimming with age)."""
     v = intensity
     if is_current:
         return (0, int(np.clip(v * 255, 0, 255)), 0)
     else:
         return (int(np.clip(v * 255, 0, 255)),
-                int(np.clip(v * 178, 0, 255)),
+                0,
                 0)
 
 
@@ -192,9 +192,9 @@ def process_frame(
                 fg = pixel_weight
                 fb = np.zeros_like(pixel_weight)
             elif color_mode == "twotone":
-                # Trail = orange (RGB ~255, 178, 0 normalized)
+                # Trail = red (dimming with age via pixel_weight)
                 fr = pixel_weight
-                fg = pixel_weight * (178.0 / 255.0)
+                fg = np.zeros_like(pixel_weight)
                 fb = np.zeros_like(pixel_weight)
             elif color_mode == "gradient":
                 # Green -> yellow -> red based on age
@@ -284,6 +284,11 @@ def process_frame(
         canvas_r = np.maximum(canvas_r, cur_r)
         canvas_g = np.maximum(canvas_g, cur_g)
         canvas_b = np.maximum(canvas_b, cur_b)
+
+        # Where current frame has signal, suppress trail color so green wins
+        current_mask = current_norm > 0
+        canvas_r[current_mask] = cur_r[current_mask]
+        canvas_b[current_mask] = cur_b[current_mask]
 
         # Convert to uint8 RGB
         out = np.stack([
