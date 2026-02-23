@@ -22,6 +22,9 @@ EPOCHS=50
 IMGSZ=640
 BATCH=16
 
+# --- CLEAN START: wipe previous outputs ---
+echo "Cleaning previous trail images, YOLO datasets, and results..."
+rm -rf "$TRAIL_DIR" "$YOLO_DIR" "$RESULTS_DIR"
 mkdir -p "$TRAIL_DIR" "$YOLO_DIR" "$RESULTS_DIR"
 
 echo "=========================================="
@@ -52,42 +55,35 @@ for N in "${TRAIL_LENGTHS[@]}"; do
         SCENE_RAW="$RAW_DIR/scene_${SCENE_NUM}"
         SCENE_OUT="$N_DIR/scene_${SCENE_NUM}"
 
-        if [ -d "$SCENE_OUT/trail_images" ] && [ "$(ls "$SCENE_OUT/trail_images/"*.png 2>/dev/null | wc -l)" -ge 50 ]; then
-            echo "  Scene $SCENE_NUM N=$N already done, skipping"
-        else
-            echo "  Generating trails for scene $SCENE_NUM (N=$N)..."
-            if [ "$N" -eq 0 ]; then
-                # N=0: no trail, just convert grayscale to green-on-black RGB
-                mkdir -p "$SCENE_OUT/trail_images"
-                python3 -c "
-import numpy as np
+        echo "  Generating trails for scene $SCENE_NUM (N=$N)..."
+        if [ "$N" -eq 0 ]; then
+            # N=0: no trail, convert grayscale to standard 3-channel RGB
+            mkdir -p "$SCENE_OUT/trail_images"
+            python3 -c "
 from PIL import Image
 from pathlib import Path
-import sys
 
 src = Path('$SCENE_RAW/images')
 dst = Path('$SCENE_OUT/trail_images')
 for f in sorted(src.glob('*.png')):
-    gray = np.array(Image.open(f).convert('L'), dtype=np.float32) / 255.0
-    rgb = np.zeros((*gray.shape, 3), dtype=np.uint8)
-    rgb[:,:,1] = np.clip(gray * 255, 0, 255).astype(np.uint8)
-    Image.fromarray(rgb, 'RGB').save(dst / f.name)
+    gray = Image.open(f).convert('L')
+    rgb = Image.merge('RGB', (gray, gray, gray))
+    rgb.save(dst / f.name)
 print(f'  N=0 converted {len(list(src.glob(\"*.png\")))} frames for scene $SCENE_NUM')
 "
-            else
-                python3 "$SCRIPT" \
-                    --images-dir "$SCENE_RAW/images" \
-                    --labels-dir "$SCENE_RAW/YOLO_labels" \
-                    --output-dir "$SCENE_OUT" \
-                    --trail-length "$N" \
-                    --decay linear \
-                    --intensity-mode proportional \
-                    --color-mode twotone \
-                    --threads 8
-            fi
+        else
+            python3 "$SCRIPT" \
+                --images-dir "$SCENE_RAW/images" \
+                --labels-dir "$SCENE_RAW/YOLO_labels" \
+                --output-dir "$SCENE_OUT" \
+                --trail-length "$N" \
+                --decay linear \
+                --intensity-mode proportional \
+                --color-mode twotone \
+                --threads 8
         fi
 
-        # --- Symlink/copy into YOLO dataset structure ---
+        # --- Copy into YOLO dataset structure ---
         if echo "${TRAIN_SCENES[@]}" | grep -qw "$SCENE_NUM"; then
             SPLIT_IMG="$TRAIN_IMG"
             SPLIT_LBL="$TRAIN_LBL"
@@ -142,6 +138,7 @@ results = model.train(
     workers=8,
     exist_ok=True,
     verbose=True,
+    seed=42,
 )
 print('Training complete for N=$N')
 "
@@ -160,7 +157,9 @@ echo "=== RESULTS SUMMARY ==="
 for N in "${TRAIL_LENGTHS[@]}"; do
     METRICS="$RESULTS_DIR/a1_N${N}/results.csv"
     if [ -f "$METRICS" ]; then
-        echo "N=$N: $(tail -1 "$METRICS")"
+        BEST=$(awk -F, 'NR>1 {if($8+0 > max) {max=$8+0; ep=$1}} END{printf "best mAP50=%.3f (epoch %d)", max, ep}' "$METRICS")
+        LAST=$(awk -F, 'END{printf "final mAP50=%.3f mAP50-95=%.3f", $8, $9}' "$METRICS")
+        echo "N=$N: $BEST | $LAST"
     else
         echo "N=$N: no results found"
     fi
