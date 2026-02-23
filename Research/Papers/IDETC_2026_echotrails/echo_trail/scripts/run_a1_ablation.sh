@@ -2,7 +2,7 @@
 # A1 Trail Length Ablation: generate trails + train YOLO for each N
 # Run on comech-2080: nohup bash ~/echo_trail/run_a1_ablation.sh &
 #
-# Trail lengths: 0, 1, 3, 6, 10, 15, 20
+# Trail lengths: 0, 1, 2, 3, 4, 5, 10, 15, 20, 25
 # Scenes 1-9 = train, Scene 10 = val/test
 # All runs use same YOLO config and epoch count for fair comparison.
 
@@ -15,10 +15,10 @@ YOLO_DIR="$BASE_DIR/a1_trail_length/yolo"
 RESULTS_DIR="$BASE_DIR/a1_trail_length/results"
 SCRIPT="$BASE_DIR/apply_trails.py"
 
-TRAIL_LENGTHS=(0 1 3 6 10 15 20)
+TRAIL_LENGTHS=(0 1 2 3 4 5 10 15 20 25)
 TRAIN_SCENES=(01 02 03 04 05 06 07 08 09)
 VAL_SCENES=(10)
-EPOCHS=100
+EPOCHS=50
 IMGSZ=640
 BATCH=16
 
