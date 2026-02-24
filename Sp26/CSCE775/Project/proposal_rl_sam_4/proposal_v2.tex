@@ -5,6 +5,7 @@
 \usepackage{textcomp}
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{url}
+\usepackage{float}
 
 \begin{document}
 
@@ -25,7 +26,14 @@ Fully supervised segmentation methods address this by training on large pixel-le
 
 \section{Approach}
 
-We plan to extend the Plug-and-Play Prompt Optimization (PPO) pipeline by Liu et al.~\cite{Liu2025PPO}, which optimizes point prompt selection for SAM-based one-shot segmentation. Their pipeline constructs a dual-space heterogeneous graph where nodes represent candidate prompt locations and five edge types encode pairwise distances in both DINOv2 feature space and pixel coordinate space. The agent selects a subset of prompts by restoring or removing nodes, receiving rewards based on changes in mean edge weights that encourage semantic cohesion, foreground-background separation, and spatial spread. The optimized prompt subset is then passed to SAM for segmentation. Although the paper describes a Q-network as the policy network, the released implementation uses a tabular Q-table. We identify three limitations in this implementation and propose corresponding improvements.
+Figure~\ref{fig:pipeline} illustrates our proposed pipeline. We plan to extend the Plug-and-Play Prompt Optimization (PPO) pipeline by Liu et al.~\cite{Liu2025PPO}, which optimizes point prompt selection for SAM-based one-shot segmentation. Their pipeline constructs a dual-space heterogeneous graph where nodes represent candidate prompt locations and five edge types encode pairwise distances in both DINOv2 feature space and pixel coordinate space. The agent selects a subset of prompts by restoring or removing nodes, receiving rewards based on changes in mean edge weights that encourage semantic cohesion, foreground-background separation, and spatial spread. The optimized prompt subset is then passed to SAM for segmentation. Although the paper describes a Q-network as the policy network, the released implementation uses a tabular Q-table. We identify three limitations in this implementation and propose corresponding improvements.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_proposal_pipeline.pdf}
+\caption{Proposed pipeline. Garnet-bordered components indicate our modifications to the Liu et al.~\cite{Liu2025PPO} baseline. The GNN encoder and DQN replace the original tabular Q-table, the reward function adds an IoU term, and the candidate generation stage is a stretch goal.}
+\label{fig:pipeline}
+\end{figure*}
 
 First, the tabular Q-table cannot generalize across similar graph configurations. The Q-table state keys are tied to specific graph object instances, so when the graph resets each episode, all prior Q-values become orphaned. Only the replay buffer persists across episodes, but replaying those transitions updates Q-values for states that no longer exist. Furthermore, the state representation compresses the entire graph into five scalar statistics (mean edge weights per type), discarding all topological information. We will replace the Q-table with a \textbf{Graph Neural Network (GNN)} encoder that operates directly on the graph structure, producing a graph-level embedding that feeds into a \textbf{Deep Q-Network (DQN)}. This enables generalization across episodes through learned function approximation while preserving structural information about prompt arrangements and their relationships.
 
