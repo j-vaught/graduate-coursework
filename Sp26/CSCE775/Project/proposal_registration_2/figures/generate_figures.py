@@ -233,7 +233,7 @@ def fig2_rl_loop():
 # Figure 3: Registration Transform Families
 # ============================================================
 def fig3_transform_families():
-    fig, axes = plt.subplots(1, 4, figsize=(10, 3.2))
+    fig, axes = plt.subplots(1, 4, figsize=(10, 3))
 
     transforms = [
         ('Rigid\n(Translation + Rotation)', 'rigid'),
@@ -241,57 +241,55 @@ def fig3_transform_families():
         ('Projective\n(Homography)', 'projective'),
         ('Deformable\n(Non-linear Warp)', 'deformable'),
     ]
-    colors = [GARNET, ATLANTIC, CONGAREE, ROSE]
 
     for idx, (title, ttype) in enumerate(transforms):
         ax = axes[idx]
-        ax.set_xlim(-1.6, 1.6)
-        ax.set_ylim(-1.6, 1.6)
+        ax.set_xlim(-1.5, 1.5)
+        ax.set_ylim(-1.5, 1.5)
         ax.set_aspect('equal')
         ax.axis('off')
 
-        # Draw original grid (light, as reference)
+        # Draw original grid
         for i in np.linspace(-1, 1, 5):
-            ax.plot([-1, 1], [i, i], color=BLACK_30, lw=0.8, zorder=1)
-            ax.plot([i, i], [-1, 1], color=BLACK_30, lw=0.8, zorder=1)
+            ax.plot([-1, 1], [i, i], color=BLACK_30, lw=0.5, zorder=1)
+            ax.plot([i, i], [-1, 1], color=BLACK_30, lw=0.5, zorder=1)
 
-        # Draw transformed grid with MORE DRAMATIC transforms
+        # Draw transformed grid
+        np.random.seed(42 + idx)
         for i in np.linspace(-1, 1, 5):
-            x = np.linspace(-1, 1, 80)
+            x = np.linspace(-1, 1, 50)
             if ttype == 'rigid':
-                # Clear rotation + translation
-                angle = 0.3
-                tx, ty = 0.15, 0.12
-                x_h = x * np.cos(angle) - np.full_like(x, i) * np.sin(angle) + tx
-                y_h = x * np.sin(angle) + np.full_like(x, i) * np.cos(angle) + ty
-                x_v = np.full_like(x, i) * np.cos(angle) - x * np.sin(angle) + tx
-                y_v = np.full_like(x, i) * np.sin(angle) + x * np.cos(angle) + ty
+                theta = 0.2  # ~11.5 degree rotation
+                tx, ty = 0.08, 0.1  # translation
+                y_h = np.full_like(x, i) * np.cos(theta) - x * np.sin(theta) + ty
+                x_h = x * np.cos(theta) + np.full_like(x, i) * np.sin(theta) + tx
+                y_v = x * np.cos(theta) - np.full_like(x, i) * np.sin(theta) + ty
+                x_v = np.full_like(x, i) * np.cos(theta) + x * np.sin(theta) + tx
             elif ttype == 'affine':
-                # Scale + shear + translation
-                x_h = x * 1.15 + np.full_like(x, i) * 0.25
-                y_h = np.full_like(x, i) * 0.9 + x * 0.1
-                x_v = np.full_like(x, i) * 1.15 + x * 0.25
-                y_v = x * 0.9 + np.full_like(x, i) * 0.1
+                y_h = np.full_like(x, i) + x * 0.15
+                x_h = x * 1.1
+                y_v = x + np.full_like(x, i) * 0.15
+                x_v = np.full_like(x, i) * 1.1
             elif ttype == 'projective':
-                # Strong perspective effect
-                denom = 1 + 0.2 * x + 0.1 * np.full_like(x, i)
-                x_h = (x + 0.15 * np.full_like(x, i)) / denom
-                y_h = (np.full_like(x, i) + 0.1 * x) / denom
-                denom2 = 1 + 0.2 * np.full_like(x, i) + 0.1 * x
-                x_v = (np.full_like(x, i) + 0.15 * x) / denom2
-                y_v = (x + 0.1 * np.full_like(x, i)) / denom2
-            else:  # deformable - wavy distortion
-                y_h = np.full_like(x, i) + 0.15 * np.sin(2.5 * np.pi * x)
-                x_h = x + 0.1 * np.cos(2.0 * np.pi * np.full_like(x, i))
-                y_v = x + 0.15 * np.sin(2.5 * np.pi * np.full_like(x, i))
-                x_v = np.full_like(x, i) + 0.1 * np.cos(2.0 * np.pi * x)
+                denom = 1 + 0.1 * x + 0.05 * np.full_like(x, i)
+                y_h = np.full_like(x, i) / denom
+                x_h = x / denom
+                denom2 = 1 + 0.1 * np.full_like(x, i) + 0.05 * x
+                y_v = x / denom2
+                x_v = np.full_like(x, i) / denom2
+            else:  # deformable
+                y_h = np.full_like(x, i) + 0.08 * np.sin(2 * np.pi * x)
+                x_h = x + 0.05 * np.cos(2.5 * np.pi * np.full_like(x, i))
+                y_v = x + 0.08 * np.sin(2 * np.pi * np.full_like(x, i))
+                x_v = np.full_like(x, i) + 0.05 * np.cos(2.5 * np.pi * x)
 
-            ax.plot(x_h, y_h, color=colors[idx], lw=1.5, alpha=0.85, zorder=2)
-            ax.plot(x_v, y_v, color=colors[idx], lw=1.5, alpha=0.85, zorder=2)
+            colors = [GARNET, ATLANTIC, CONGAREE, ROSE]
+            ax.plot(x_h, y_h, color=colors[idx], lw=1.0, alpha=0.7, zorder=2)
+            ax.plot(x_v, y_v, color=colors[idx], lw=1.0, alpha=0.7, zorder=2)
 
-        ax.set_title(title, fontsize=9, weight='bold', color=BLACK_90, pad=8)
+        ax.set_title(title, fontsize=8, weight='bold', color=BLACK_90, pad=5)
 
-    fig.tight_layout(w_pad=1.5)
+    fig.tight_layout()
     fig.savefig('figures/fig3_transforms.pdf', bbox_inches='tight', dpi=300)
     fig.savefig('figures/fig3_transforms.png', bbox_inches='tight', dpi=300)
     plt.close(fig)
