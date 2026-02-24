@@ -584,11 +584,9 @@ def fig9_merging():
 
 
 def fig10_crossing():
-    """A8: Crossing trajectories."""
-    fig, axes = plt.subplots(1, 2, figsize=(7, 2.8))
+    """A8: Crossing trajectories -- single-column mAP vs crossing angle."""
+    fig, ax = plt.subplots(1, 1, figsize=(3.25, 2.6))
 
-    # Left: mAP vs crossing angle for three trail conditions
-    ax = axes[0]
     angles = np.array([15, 30, 45, 60, 90])
 
     no_trail =    np.array([0.70, 0.74, 0.78, 0.80, 0.82])
@@ -617,71 +615,6 @@ def fig10_crossing():
     ax.set_xlim(10, 95)
     ax.set_ylim(0.3, 0.9)
     ax.legend(fontsize=7, frameon=False, loc='lower right')
-    ax.set_title('(a) Detection vs crossing angle', fontsize=9, fontweight='bold')
-
-    # Right: PPI illustration of crossing trails on dark background
-    ax2 = axes[1]
-    np.random.seed(42)
-    size = 150
-    img = np.zeros((size, size, 3))
-    # Faint green noise for sea clutter
-    noise = np.random.exponential(0.025, (size, size))
-    img[:, :, 1] = noise
-
-    # Two targets moving on crossing paths (~30 degree angle)
-    # Target 1: moving down-right
-    cx1, cy1 = 30, 35
-    dx1, dy1 = 5, 3
-    # Target 2: moving up-right
-    cx2, cy2 = 30, 115
-    dx2, dy2 = 5, -3
-
-    N_trail = 12
-    for k in range(N_trail, -1, -1):
-        w = max(0.05, 1.0 - k / (N_trail + 1))
-        r = 4 if k == 0 else 3
-
-        # Target 1
-        tx1 = int(cx1 + k * dx1)
-        ty1 = int(cy1 + k * dy1)
-        for dy in range(-r, r + 1):
-            for dx in range(-r, r + 1):
-                if dy**2 + dx**2 <= r**2:
-                    ny, nx = ty1 + dy, tx1 + dx
-                    if 0 <= ny < size and 0 <= nx < size:
-                        img[ny, nx, 1] = max(img[ny, nx, 1], 0.9 * w)
-
-        # Target 2
-        tx2 = int(cx2 + k * dx2)
-        ty2 = int(cy2 + k * dy2)
-        for dy in range(-r, r + 1):
-            for dx in range(-r, r + 1):
-                if dy**2 + dx**2 <= r**2:
-                    ny, nx = ty2 + dy, tx2 + dx
-                    if 0 <= ny < size and 0 <= nx < size:
-                        img[ny, nx, 1] = max(img[ny, nx, 1], 0.9 * w)
-
-    ax2.imshow(np.clip(img, 0, 1), interpolation='nearest', aspect='equal')
-
-    # Label the overlap zone
-    import matplotlib.patches as patches
-    overlap_x = cx1 + 6 * dx1
-    overlap_y = (cy1 + 6 * dy1 + cy2 + 6 * dy2) // 2
-    ax2.annotate('Overlap\nzone', xy=(overlap_x + 5, overlap_y),
-                 xytext=(overlap_x + 35, overlap_y - 25),
-                 fontsize=7, color=WHITE, fontweight='bold',
-                 arrowprops=dict(arrowstyle='->', color=WHITE, lw=1))
-
-    # Label targets
-    ax2.text(cx1 - 2, cy1 - 8, 'T1', fontsize=7, color=GRASS, fontweight='bold')
-    ax2.text(cx2 - 2, cy2 + 10, 'T2', fontsize=7, color=GRASS, fontweight='bold')
-
-    ax2.set_title('(b) Crossing trail overlap', fontsize=9, fontweight='bold')
-    ax2.set_xticks([])
-    ax2.set_yticks([])
-    for spine in ax2.spines.values():
-        spine.set_linewidth(1)
-        spine.set_color(BLACK_90)
 
     fig.tight_layout()
     fig.savefig(os.path.join(OUTDIR, 'fig10_crossing.pdf'))
