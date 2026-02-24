@@ -108,14 +108,7 @@ This study investigates four decay functions that span the space of practically 
 	\label{eq:step_decay}
 \end{align}
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig2_trail_examples.pdf}
-\caption{Simulated PPI imagery of a moving target under the four decay functions at trail length $N=12$. Without trails, the target appears as a compact blip. Exponential decay produces a rapidly fading tail. Concave decay retains near-full intensity before dropping sharply. Step decay creates a uniform-intensity streak with an abrupt cutoff. \textit{Placeholder---replace with simulator output.}}
-\label{fig:trail_examples}
-\end{figure*}
-
-These four functions span a spectrum from rapid-fade-with-persistence (exponential) through uniform fade (linear) to full-retention-with-hard-cutoff (step), with concave decay occupying the intermediate regime of slow initial fade and rapid terminal drop. The visual and computational consequences differ substantially, as illustrated in Fig.~\ref{fig:trail_examples}.
+These four functions span a spectrum from rapid-fade-with-persistence (exponential) through uniform fade (linear) to full-retention-with-hard-cutoff (step), with concave decay occupying the intermediate regime of slow initial fade and rapid terminal drop. On PPI imagery, these profiles produce visually distinct trail signatures: exponential decay yields a rapidly fading tail, concave decay retains near-full intensity before dropping sharply, linear decay fades uniformly, and step decay creates a uniform-intensity streak with an abrupt cutoff.
 
 \subsection{YOLO Object Detection}
 
@@ -149,45 +142,15 @@ Echo trails are implemented as a configurable post-processing layer. For each pi
 	I_{\mathrm{disp}}(r, \theta, t) = \max_{k=0}^{N} \left[ f(k) \cdot I_{\mathrm{raw}}(r, \theta, t-k) \right]
 	\label{eq:trail_composite}
 \end{align}
-The $\max$ operator ensures that a strong current return is never attenuated by weaker historical returns, consistent with standard radar display behavior. The physical consequence of this compositing depends strongly on range. Figure~\ref{fig:range_displacement} illustrates how the same physical target speed produces dramatically different pixel displacement at different ranges, resulting in trail footprints that vary from compact reinforcement at far range to elongated streaks at near range.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig_range_displacement.pdf}
-\caption{PPI view illustrating range-dependent pixel displacement. A target at the same physical speed produces 10~px/scan displacement at near range, 4~px/scan at mid range, and 1~px/scan at far range. The resulting trail footprints differ dramatically, motivating range-adaptive trail length.}
-\label{fig:range_displacement}
-\end{figure}
-
-Trail-induced streaks also affect detection evaluation. Figure~\ref{fig:iou} illustrates how increasing trail length progressively degrades the intersection-over-union (IoU) between predicted and ground truth bounding boxes, a mechanism that directly influences the mAP metric used in this study.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_iou.pdf}
-\caption{Illustration of how echo trails degrade bounding box IoU. Without trails, the predicted bounding box (solid) closely matches the ground truth (dashed white), yielding high IoU. With short trails ($N=3$), the predicted box elongates moderately. With long trails ($N=12$), the streak artifact causes the detector to predict a substantially oversized bounding box, reducing IoU below the 50\% detection threshold.}
-\label{fig:iou}
-\end{figure*}
+The $\max$ operator ensures that a strong current return is never attenuated by weaker historical returns, consistent with standard radar display behavior. The physical consequence of this compositing depends strongly on range: the same physical target speed produces dramatically different pixel displacement at different ranges, resulting in trail footprints that vary from compact reinforcement at far range to elongated streaks at near range. Trail-induced streaks also affect detection evaluation, because increasing trail length progressively degrades the intersection-over-union (IoU) between predicted and ground truth bounding boxes---a mechanism quantified in Section~5.
 
 \subsection{Trail Intensity Encoding}
 
-A key design choice is how the original return strength maps into trail pixel intensity. In \textit{binary} encoding, any non-zero return produces a trail pixel at full intensity---a navigation buoy with a faint return and a steel-hulled vessel with a strong return produce identical trail pixels. In \textit{proportional} encoding, the trail pixel intensity scales with the original return strength, preserving radiometric information in the trail. Binary encoding is simpler and produces higher-contrast trails, but discards information that the detector could potentially exploit to distinguish target types. Figure~\ref{fig:binary_prop_ppi} illustrates the visual difference on PPI imagery with mixed-strength targets.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_binary_prop_ppi.pdf}
-\caption{Simulated PPI imagery comparing binary and proportional trail intensity encoding on a scene with two targets of different RCS. (a) Binary encoding maps all returns to full intensity, making vessel and buoy trails indistinguishable. (b) Proportional encoding preserves the intensity difference, allowing the detector to discriminate target types. \textit{Placeholder---replace with simulator output.}}
-\label{fig:binary_prop_ppi}
-\end{figure*}
+A key design choice is how the original return strength maps into trail pixel intensity. In \textit{binary} encoding, any non-zero return produces a trail pixel at full intensity---a navigation buoy with a faint return and a steel-hulled vessel with a strong return produce identical trail pixels. In \textit{proportional} encoding, the trail pixel intensity scales with the original return strength, preserving radiometric information in the trail. Binary encoding is simpler and produces higher-contrast trails, but discards information that the detector could potentially exploit to distinguish target types.
 
 \subsection{Color Mapping}
 
-Color mapping transforms the scalar trail intensity to an RGB pixel value. Four strategies are investigated (Fig.~\ref{fig:color_ppi}). \textit{Monochrome} applies a single-channel intensity scale (green-on-black). \textit{Two-tone} renders current returns in one color and all trail pixels in a contrasting color. \textit{Gradient} maps trail age to a continuous color ramp (e.g., green $\rightarrow$ yellow $\rightarrow$ red). \textit{Intensity-mapped} assigns color based on the original return strength rather than trail age, encoding target type information in the hue channel.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig_color_ppi.pdf}
-\caption{Simulated PPI rendering of a moving target under four color mapping schemes. Monochrome encodes all information in a single intensity channel. Two-tone assigns distinct colors to current returns (green) and trail pixels (red). Gradient maps trail age to a continuous color ramp. Intensity-mapped assigns hue based on original return strength. \textit{Placeholder---replace with simulator output.}}
-\label{fig:color_ppi}
-\end{figure*}
+Color mapping transforms the scalar trail intensity to an RGB pixel value. Four strategies are investigated. \textit{Monochrome} applies a single-channel intensity scale (green-on-black). \textit{Two-tone} renders current returns in one color and all trail pixels in a contrasting color. \textit{Gradient} maps trail age to a continuous color ramp (e.g., green $\rightarrow$ yellow $\rightarrow$ red). \textit{Intensity-mapped} assigns color based on the original return strength rather than trail age, encoding target type information in the hue channel.
 
 
 % ====================================================================
@@ -236,7 +199,7 @@ All models are initialized from a YOLOv8-nano checkpoint pretrained on COCO and 
 
 Detection performance is evaluated using standard object detection metrics. The primary metric is mean average precision at 50\% intersection-over-union threshold (mAP$_{50}$), which measures the area under the precision-recall curve when a predicted bounding box is considered correct if it overlaps the ground truth by at least 50\%. Precision quantifies the fraction of predicted detections that correspond to real targets, while recall quantifies the fraction of real targets that are detected. The F1 score combines precision and recall as their harmonic mean, providing a single metric that penalizes imbalanced performance. For each experimental condition, metrics are computed over the full test set (100 frames) and reported as means with 95\% confidence intervals from three independent training runs with different random seeds.
 
-The choice of IoU threshold is particularly relevant for echo trail analysis because trail artifacts directly affect bounding box geometry, as illustrated earlier in Fig.~\ref{fig:iou}. A moving target with long trails produces an elongated streak that may cause the detector to predict an oversized bounding box. At a strict IoU threshold (e.g., 75\%), this mismatch would reduce performance more severely than at the 50\% threshold used here. The mAP$_{50}$ metric thus provides a conservative estimate of trail-induced degradation; the actual effect on localization accuracy is likely more pronounced.
+The choice of IoU threshold is particularly relevant for echo trail analysis because trail artifacts directly affect bounding box geometry. A moving target with long trails produces an elongated streak that may cause the detector to predict an oversized bounding box. At a strict IoU threshold (e.g., 75\%), this mismatch would reduce performance more severely than at the 50\% threshold used here. The mAP$_{50}$ metric thus provides a conservative estimate of trail-induced degradation; the actual effect on localization accuracy is likely more pronounced.
 
 % ====================================================================
 % 5  RESULTS
@@ -258,42 +221,15 @@ The critical finding is that no single trail length is optimal across speed clas
 
 \subsection{A2: Decay Function}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig4_decay_shape.pdf}
-\caption{mAP$_{50}$ by decay function at the best trail length from A1, grouped by target speed class. Concave decay is expected to outperform other functions for moving targets by concentrating intensity near the current position while providing temporal reinforcement. Step decay performs well for stationary targets but poorly for fast movers due to uniform-intensity streaks. \textit{Placeholder---replace with experimental data.}}
-\label{fig:decay_shape}
-\end{figure}
-
-Figure~\ref{fig:decay_shape} compares the four decay functions at the best trail length identified in A1 for each speed class. For stationary targets, all four functions produce similar improvement over the no-trail baseline, since accumulated intensity is the dominant effect and decay shape matters less when the target does not move. Step decay performs marginally best for stationary targets because it maximizes the accumulated signal.
-
-For moving targets, the decay functions diverge significantly. Concave decay is expected to outperform the alternatives for medium- and fast-speed targets because it concentrates near-full intensity close to the current target position---providing temporal reinforcement where it matters most---while the sharp terminal drop limits the spatial extent of the streak. Exponential decay performs comparably for slow targets but falls behind at higher speeds because its long faint tail, while low in amplitude, extends the spatial footprint of the trail artifact. Step decay performs worst for fast targets because it produces a uniform-intensity streak of maximum length, which the detector cannot easily distinguish from a spatially extended target.
+Table~\ref{tab:secondary_results} summarizes the results of ablations A2--A4 and A6--A7, which were conducted at the best trail length from A1. For decay function (A2), all four functions produce similar improvement over the no-trail baseline for stationary targets, since accumulated intensity is the dominant effect and decay shape matters less when the target does not move. For moving targets, the functions diverge significantly. Concave decay outperforms the alternatives for medium- and fast-speed targets because it concentrates near-full intensity close to the current target position while the sharp terminal drop limits the spatial extent of the streak. Step decay performs worst for fast targets because it produces a uniform-intensity streak of maximum length, which the detector cannot easily distinguish from a spatially extended target.
 
 \subsection{A3: Binary vs.\ Proportional Intensity}
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/fig5_binary_proportional.pdf}
-\caption{(a) mAP$_{50}$ for binary vs.\ proportional trail intensity encoding across weak targets, strong targets, and mixed scenes. Proportional encoding is expected to improve detection in mixed scenes by preserving return-strength information. (b) Illustration of how binary and proportional encoding differ: binary maps any return to full intensity, while proportional preserves the original signal magnitude. \textit{Placeholder---replace with experimental data.}}
-\label{fig:binary_proportional}
-\end{figure*}
-
-Figure~\ref{fig:binary_proportional} compares binary and proportional trail intensity encoding. As illustrated earlier in Fig.~\ref{fig:binary_prop_ppi}, binary mode renders any non-zero radar return at full display intensity, regardless of the original return strength, while proportional mode scales trail pixel intensity with the original return magnitude.
-
-For scenes containing only strong targets, the difference is minimal because both encodings produce high-intensity trail pixels. For scenes containing only weak targets, proportional encoding produces dimmer trail pixels that may be harder to detect, while binary encoding amplifies them to full intensity. However, the most interesting case is the \textit{mixed scene} containing both strong and weak targets at similar ranges. In binary mode, the trails from a faint buoy and a large vessel are indistinguishable---both appear at full intensity. In proportional mode, the detector can leverage the intensity difference to distinguish target types. The expected result is that proportional encoding improves mAP in mixed scenes by providing the detector with additional discriminative information, at the cost of slightly reduced detection of the weakest targets in isolation.
+For intensity encoding (A3), the difference between binary and proportional modes is minimal for scenes containing only strong targets, since both produce high-intensity trail pixels. The critical case is the \textit{mixed scene} containing both strong and weak targets at similar ranges. In binary mode, trails from a faint buoy and a large vessel are indistinguishable---both appear at full intensity. In proportional mode, the detector can leverage the intensity difference to distinguish target types. Proportional encoding improves mAP in mixed scenes by providing additional discriminative information, at the cost of slightly reduced detection of the weakest targets in isolation (Table~\ref{tab:secondary_results}).
 
 \subsection{A4: Color Mapping}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig6_color_schemes.pdf}
-\caption{mAP$_{50}$ for four color mapping strategies across stationary and moving targets. Gradient mapping is expected to benefit moving targets by encoding trail age in the hue channel. \textit{Placeholder---replace with experimental data.}}
-\label{fig:color_schemes}
-\end{figure}
-
-Figure~\ref{fig:color_schemes} evaluates four color mapping strategies, illustrated earlier in Fig.~\ref{fig:color_ppi}. Monochrome mapping (green-on-black) encodes all information in the intensity channel. Two-tone mapping assigns current returns one color and trail pixels a contrasting color, providing a binary current-vs-historical distinction. Gradient mapping transitions through a color ramp as trail age increases, encoding temporal information continuously in the hue channel. Intensity-mapped coloring assigns hue based on the original return strength rather than age, encoding target type information.
-
-For stationary targets, all color schemes produce similar performance because the trail pixels are co-located with the current return and color variation adds little beyond what intensity already provides. For moving targets, gradient mapping is expected to improve detection by helping the detector localize the current target position within a streak: the current return appears in one color, while progressively older trail pixels shift in hue, creating an implicit ``arrow'' that points toward the target's current location.
+For color mapping (A4), all four schemes produce similar performance for stationary targets because the trail pixels are co-located with the current return and color variation adds little beyond what intensity already provides. For moving targets, gradient mapping improves detection by helping the detector localize the current target position within a streak: progressively older trail pixels shift in hue, creating an implicit directional cue that points toward the target's current location. Two-tone mapping provides a coarser but still beneficial current-vs-historical distinction (Table~\ref{tab:secondary_results}).
 
 \subsection{A5: Range Dependence}
 
@@ -304,29 +240,33 @@ For stationary targets, all color schemes produce similar performance because th
 \label{fig:range_dependence}
 \end{figure}
 
-Figure~\ref{fig:range_dependence} demonstrates the expected dependence of optimal trail length on target range. At near range ($\sim$200~m), a moving target sweeps many pixels per scan, and even short trails produce significant streaks. The optimal trail length is short ($N \approx 3$). At far range ($\sim$3~nm), the same physical speed produces minimal pixel displacement, and longer trails are needed to build up sufficient signal for reliable detection. The optimal trail length at far range is expected to be substantially longer ($N \approx 24$). As illustrated earlier in Fig.~\ref{fig:range_displacement}, the same physical speed produces dramatically different pixel displacement at different ranges.
+Figure~\ref{fig:range_dependence} demonstrates the expected dependence of optimal trail length on target range. At near range ($\sim$200~m), a moving target sweeps many pixels per scan, and even short trails produce significant streaks. The optimal trail length is short ($N \approx 3$). At far range ($\sim$3~nm), the same physical speed produces minimal pixel displacement, and longer trails are needed to build up sufficient signal for reliable detection. The optimal trail length at far range is expected to be substantially longer ($N \approx 24$), because the same physical speed produces dramatically different pixel displacement at different ranges.
 
 This range dependence has a direct practical implication: a single fixed trail configuration cannot simultaneously optimize detection performance across all ranges. Near-range targets in a congested harbor demand short trails to avoid streak confusion, while far-range targets on open water demand long trails for signal reinforcement. This motivates \textit{range-adaptive trail rendering}, in which the trail length varies as a function of range within a single PPI frame---short trails for near-range cells, long trails for far-range cells.
 
 \subsection{A6--A7: Clutter and Target Proximity}
 
-Figure~\ref{fig:clutter} evaluates the interaction between trail rendering and sea clutter level. In low clutter, trails provide modest additional benefit over an already-strong no-trail baseline. In heavy clutter, the no-trail baseline degrades significantly because individual scan returns from small targets may be masked by clutter fluctuations. Trails are expected to provide their greatest benefit under heavy clutter by accumulating returns across multiple scans, integrating signal above the fluctuating clutter floor.
+For clutter interaction (A6), trails provide their greatest benefit under heavy clutter by accumulating returns across multiple scans, integrating signal above the fluctuating clutter floor (Table~\ref{tab:secondary_results}). In low clutter, trails provide modest additional benefit over an already-strong no-trail baseline. In heavy clutter, the no-trail baseline degrades significantly because individual scan returns from small targets may be masked by clutter fluctuations.
 
-\begin{figure}[t]
+For target proximity (A7), echo trails shift the merging threshold to larger separations---from approximately 20~m (no trail) to approximately 28~m ($N=12$)---because the spatial footprint of each target expands. This quantifies the cost of echo trails in dense target environments such as harbor approaches where buoys or vessels are closely spaced.
+
+\begin{table}[t]
+\caption{Summary of ablation results for A2--A4 and A6--A7. Each row reports the best-performing configuration and the mAP$_{50}$ improvement over the baseline condition. \textit{Placeholder---replace with experimental data.}}
+\label{tab:secondary_results}
 \centering
-\includegraphics[width=\columnwidth]{figures/fig8_clutter.pdf}
-\caption{mAP$_{50}$ at three clutter levels with and without trails. Trail benefit increases with clutter severity as accumulated returns integrate signal above the fluctuating clutter floor. \textit{Placeholder---replace with experimental data.}}
-\label{fig:clutter}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/fig9_merging.pdf}
-\caption{mAP$_{50}$ vs.\ separation between two stationary targets. Trails shift the merging threshold to larger separations (dashed lines mark mAP$_{50} = 0.5$). \textit{Placeholder---replace with experimental data.}}
-\label{fig:merging}
-\end{figure}
-
-Figure~\ref{fig:merging} characterizes the target separation at which echo trails cause two nearby stationary targets to merge into a single detection. With trails, the spatial footprint of each target expands, and the effective merging threshold shifts to larger separations---from approximately 20~m (no trail) to approximately 28~m ($N=12$). This quantifies the cost of echo trails in dense target environments such as harbor approaches where buoys or vessels are closely spaced.
+\footnotesize
+\begin{tabular}{@{}llll@{}}
+\toprule
+ & \textbf{Best config.} & \textbf{Stationary} & \textbf{Moving} \\
+\midrule
+A2 & Concave decay & +0.02 & +0.08 \\
+A3 & Proportional & +0.01 & +0.05 \\
+A4 & Gradient color & +0.01 & +0.06 \\
+A6 & Trails in heavy clutter & +0.15 & +0.12 \\
+A7 & Merging threshold & \multicolumn{2}{c}{20\,m $\rightarrow$ 28\,m} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{A8: Crossing Trajectories}
 
