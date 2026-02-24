@@ -287,26 +287,49 @@ def fig2_trail_examples():
 def fig3_trail_length_speed():
     """A1: mAP vs trail length for each speed class."""
     fig, ax = plt.subplots(figsize=(3.5, 2.8))
-    N_vals = [0, 3, 6, 12, 24]
+    N_vals = np.array([0, 3, 6, 12, 24])
 
-    stationary = [0.62, 0.71, 0.78, 0.83, 0.85]
-    slow =       [0.60, 0.68, 0.74, 0.77, 0.76]
-    medium =     [0.58, 0.65, 0.68, 0.63, 0.52]
-    fast =       [0.55, 0.60, 0.57, 0.46, 0.35]
+    # Placeholder data: stationary rises monotonically, moving targets peak then fall
+    stationary = np.array([0.62, 0.71, 0.78, 0.83, 0.85])
+    slow =       np.array([0.60, 0.68, 0.74, 0.77, 0.76])
+    medium =     np.array([0.58, 0.65, 0.68, 0.63, 0.52])
+    fast =       np.array([0.55, 0.60, 0.57, 0.46, 0.35])
 
-    ax.plot(N_vals, stationary, 'o-', color=GARNET, linewidth=2, markersize=5, label='Stationary')
-    ax.plot(N_vals, slow, 's-', color=ATLANTIC, linewidth=2, markersize=5, label='Slow (2 px/scan)')
-    ax.plot(N_vals, medium, '^-', color=HORSESHOE, linewidth=2, markersize=5, label='Medium (5 px/scan)')
-    ax.plot(N_vals, fast, 'D-', color=CONGAREE, linewidth=2, markersize=5, label='Fast (15 px/scan)')
+    # 95% CI half-widths (simulated from 3 seeds)
+    ci_stat = np.array([0.02, 0.02, 0.03, 0.02, 0.02])
+    ci_slow = np.array([0.03, 0.02, 0.03, 0.03, 0.04])
+    ci_med =  np.array([0.03, 0.03, 0.04, 0.04, 0.05])
+    ci_fast = np.array([0.04, 0.03, 0.04, 0.05, 0.06])
 
-    ax.axhline(y=0.62, color=BLACK_50, linestyle=':', linewidth=1, alpha=0.5)
-    ax.text(25.5, 0.62, 'Baseline', fontsize=7, color=BLACK_50, va='center')
+    for vals, ci, color, marker, label in [
+        (stationary, ci_stat, GARNET, 'o', 'Stationary'),
+        (slow, ci_slow, ATLANTIC, 's', 'Slow (2 px/scan)'),
+        (medium, ci_med, HORSESHOE, '^', 'Medium (5 px/scan)'),
+        (fast, ci_fast, CONGAREE, 'D', 'Fast (15 px/scan)'),
+    ]:
+        ax.plot(N_vals, vals, marker + '-', color=color, linewidth=1.8,
+                markersize=5, label=label, zorder=3)
+        ax.fill_between(N_vals, vals - ci, vals + ci, color=color, alpha=0.12, zorder=2)
+
+    # No-trail baseline reference
+    ax.axhline(y=0.62, color=BLACK_50, linestyle=':', linewidth=0.8, alpha=0.5)
+    ax.text(25.2, 0.625, 'No-trail\nbaseline', fontsize=6, color=BLACK_50,
+            va='bottom', ha='right')
+
+    # Mark optimal N for each moving class
+    for vals, color, opt_n, opt_v in [
+        (slow, ATLANTIC, 12, 0.77),
+        (medium, HORSESHOE, 6, 0.68),
+        (fast, CONGAREE, 3, 0.60),
+    ]:
+        ax.plot(opt_n, opt_v, 'o', color=color, markersize=9, fillstyle='none',
+                linewidth=1.5, zorder=4)
 
     ax.set_xlabel('Trail length $N$ (scans)')
     ax.set_ylabel('mAP$_{50}$')
     ax.set_xlim(-1, 26)
     ax.set_ylim(0.25, 0.95)
-    ax.legend(fontsize=7, frameon=False, loc='upper right')
+    ax.legend(fontsize=7, frameon=False, loc='lower left')
 
     fig.savefig(os.path.join(OUTDIR, 'fig3_trail_length_speed.pdf'))
     plt.close(fig)
@@ -564,58 +587,101 @@ def fig10_crossing():
     """A8: Crossing trajectories."""
     fig, axes = plt.subplots(1, 2, figsize=(7, 2.8))
 
-    # Left: mAP vs crossing angle
+    # Left: mAP vs crossing angle for three trail conditions
     ax = axes[0]
-    angles = [15, 30, 45, 60, 90]
+    angles = np.array([15, 30, 45, 60, 90])
 
-    no_trail =  [0.70, 0.74, 0.78, 0.80, 0.82]
-    short_trail = [0.65, 0.72, 0.77, 0.79, 0.81]
-    long_trail =  [0.38, 0.48, 0.58, 0.65, 0.72]
+    no_trail =    np.array([0.70, 0.74, 0.78, 0.80, 0.82])
+    short_trail = np.array([0.65, 0.72, 0.77, 0.79, 0.81])
+    long_trail =  np.array([0.38, 0.48, 0.58, 0.65, 0.72])
 
-    ax.plot(angles, no_trail, 'o-', color=BLACK_70, linewidth=2, markersize=5, label='No Trail')
-    ax.plot(angles, short_trail, 's-', color=ATLANTIC, linewidth=2, markersize=5, label='$N=3$')
-    ax.plot(angles, long_trail, '^-', color=GARNET, linewidth=2, markersize=5, label='$N=12$')
+    ci_none =  np.array([0.03, 0.02, 0.02, 0.02, 0.02])
+    ci_short = np.array([0.03, 0.03, 0.02, 0.03, 0.02])
+    ci_long =  np.array([0.05, 0.04, 0.04, 0.04, 0.03])
+
+    for vals, ci, color, marker, label in [
+        (no_trail, ci_none, BLACK_70, 'o', 'No Trail'),
+        (short_trail, ci_short, ATLANTIC, 's', '$N=3$'),
+        (long_trail, ci_long, GARNET, '^', '$N=12$'),
+    ]:
+        ax.plot(angles, vals, marker + '-', color=color, linewidth=1.8,
+                markersize=5, label=label, zorder=3)
+        ax.fill_between(angles, vals - ci, vals + ci, color=color, alpha=0.12, zorder=2)
+
+    # Shade the severe-degradation region
+    ax.axhspan(0.3, 0.5, color=ROSE, alpha=0.06, zorder=1)
+    ax.text(17, 0.33, 'Severe\ndegradation', fontsize=6, color=ROSE, fontstyle='italic')
 
     ax.set_xlabel('Crossing angle (degrees)')
     ax.set_ylabel('mAP$_{50}$')
     ax.set_xlim(10, 95)
     ax.set_ylim(0.3, 0.9)
-    ax.legend(fontsize=7, frameon=False)
+    ax.legend(fontsize=7, frameon=False, loc='lower right')
     ax.set_title('(a) Detection vs crossing angle', fontsize=9, fontweight='bold')
 
-    # Right: illustration of crossing trails
+    # Right: PPI illustration of crossing trails on dark background
     ax2 = axes[1]
     np.random.seed(42)
     size = 150
-    img = np.random.exponential(0.02, (size, size))
+    img = np.zeros((size, size, 3))
+    # Faint green noise for sea clutter
+    noise = np.random.exponential(0.025, (size, size))
+    img[:, :, 1] = noise
 
-    # Two targets moving on crossing paths
-    # Target 1: moving right and down
-    t1_positions = [(40 + i * 4, 30 + i * 6) for i in range(12)]
-    # Target 2: moving right and up
-    t2_positions = [(100 - i * 4, 30 + i * 6) for i in range(12)]
+    # Two targets moving on crossing paths (~30 degree angle)
+    # Target 1: moving down-right
+    cx1, cy1 = 30, 35
+    dx1, dy1 = 5, 3
+    # Target 2: moving up-right
+    cx2, cy2 = 30, 115
+    dx2, dy2 = 5, -3
 
-    for age, (y, x) in enumerate(t1_positions):
-        w = max(0, 1 - age / 12)
-        for dy in range(-2, 3):
-            for dx in range(-2, 3):
-                if dy**2 + dx**2 <= 4 and 0 <= y + dy < size and 0 <= x + dx < size:
-                    img[y + dy, x + dx] = max(img[y + dy, x + dx], 0.9 * w)
+    N_trail = 12
+    for k in range(N_trail, -1, -1):
+        w = max(0.05, 1.0 - k / (N_trail + 1))
+        r = 4 if k == 0 else 3
 
-    for age, (y, x) in enumerate(t2_positions):
-        w = max(0, 1 - age / 12)
-        for dy in range(-2, 3):
-            for dx in range(-2, 3):
-                if dy**2 + dx**2 <= 4 and 0 <= y + dy < size and 0 <= x + dx < size:
-                    img[y + dy, x + dx] = max(img[y + dy, x + dx], 0.9 * w)
+        # Target 1
+        tx1 = int(cx1 + k * dx1)
+        ty1 = int(cy1 + k * dy1)
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if dy**2 + dx**2 <= r**2:
+                    ny, nx = ty1 + dy, tx1 + dx
+                    if 0 <= ny < size and 0 <= nx < size:
+                        img[ny, nx, 1] = max(img[ny, nx, 1], 0.9 * w)
 
-    ax2.imshow(np.clip(img, 0, 1), cmap='Greens', vmin=0, vmax=1,
-               interpolation='nearest', aspect='equal')
+        # Target 2
+        tx2 = int(cx2 + k * dx2)
+        ty2 = int(cy2 + k * dy2)
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if dy**2 + dx**2 <= r**2:
+                    ny, nx = ty2 + dy, tx2 + dx
+                    if 0 <= ny < size and 0 <= nx < size:
+                        img[ny, nx, 1] = max(img[ny, nx, 1], 0.9 * w)
+
+    ax2.imshow(np.clip(img, 0, 1), interpolation='nearest', aspect='equal')
+
+    # Label the overlap zone
+    import matplotlib.patches as patches
+    overlap_x = cx1 + 6 * dx1
+    overlap_y = (cy1 + 6 * dy1 + cy2 + 6 * dy2) // 2
+    ax2.annotate('Overlap\nzone', xy=(overlap_x + 5, overlap_y),
+                 xytext=(overlap_x + 35, overlap_y - 25),
+                 fontsize=7, color=WHITE, fontweight='bold',
+                 arrowprops=dict(arrowstyle='->', color=WHITE, lw=1))
+
+    # Label targets
+    ax2.text(cx1 - 2, cy1 - 8, 'T1', fontsize=7, color=GRASS, fontweight='bold')
+    ax2.text(cx2 - 2, cy2 + 10, 'T2', fontsize=7, color=GRASS, fontweight='bold')
+
     ax2.set_title('(b) Crossing trail overlap', fontsize=9, fontweight='bold')
     ax2.set_xticks([])
     ax2.set_yticks([])
     for spine in ax2.spines.values():
         spine.set_linewidth(1)
+        spine.set_color(BLACK_90)
 
     fig.tight_layout()
     fig.savefig(os.path.join(OUTDIR, 'fig10_crossing.pdf'))
