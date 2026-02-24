@@ -117,7 +117,8 @@ train: images/train
 val: images/val
 
 names:
-  0: target
+  0: stationary
+  1: moving
 YAMLEOF
 
     # --- Train YOLO ---
