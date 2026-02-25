@@ -8,18 +8,20 @@
 \usepackage{natbib}
 \usepackage{booktabs}
 \usepackage{caption}
+\usepackage{subcaption}
 \usepackage{float}
+\usepackage{graphicx}
 
 \bibliographystyle{plainnat}
 
 \title{
 \textbf{CSCE 775: Deep Reinforcement Learning and Search} \\[0.5em]
-\Large RL-Driven Parameter Optimization for Synthetic \\
-Marine Radar Augmentation via Echo Trails
+\Large RL-Driven Scene Program Synthesis for \\
+Synthetic Marine Radar Augmentation
 }
 
 \author{
-Jacob Whisenant \and Xeerak Muhammed \and J.C. Vaught
+J.C. Vaught
 }
 
 \date{February 13, 2026}
@@ -33,14 +35,65 @@ Jacob Whisenant \and Xeerak Muhammed \and J.C. Vaught
 % ============================================================
 \section{Introduction}
 
-Training robust object detectors for marine radar requires large, diverse labeled datasets, yet collecting and annotating real-world radar scans is expensive and constrained by geography, weather, and vessel availability. The EchoTrails framework addresses this by generating synthetic radar scenes with configurable targets, clutter, and a temporal augmentation called \textit{echo trail rendering}, which composites historical frames with decay-weighted intensity to produce motion-encoded training images. A YOLOv8n detector trained on these augmented images learns to distinguish stationary from moving maritime targets based on their trail signatures.
+Training robust object detectors for marine radar requires large, diverse labeled datasets, yet collecting and annotating real-world radar scans is expensive, dangerous, and constrained by geography and weather. The EchoTrails framework addresses this by generating synthetic training data from real radar ingredients. Rather than simulating radar physics, EchoTrails composites real extracted echo signatures---target patches previously detected via DBSCAN from vessel-containing radar frames---onto real FURUNO marine radar backgrounds from Charleston harbor. These composited frames are then augmented with a temporal rendering step called \textit{echo trail rendering}, which composites $N$ historical frames with decay-weighted intensity to encode motion information into the training images. A YOLOv8n detector trained on these augmented images learns to distinguish stationary from moving maritime targets based on their trail signatures.
 
-However, the EchoTrails pipeline exposes a high-dimensional parameter space spanning trail rendering (trail length $N$, decay function, intensity encoding, color mapping), synthetic clutter generation (streak count, intensity range), and per-object-group configuration (speed, intensity profile, flicker behavior, placement). The existing ablation study \citep{Cubuk2019AutoAugment} evaluates trail length in isolation while holding all other parameters fixed, leaving the joint optimization landscape unexplored. Manual grid search over this combinatorial space is prohibitively expensive, as each parameter configuration requires a full generation-training-evaluation cycle of approximately 2,500 frames and 50 YOLOv8n training epochs.
-
-We propose a reinforcement learning framework that learns a policy to \textit{jointly} optimize the EchoTrails generator parameters, maximizing downstream detection performance (mAP$_{50\text{-}95}$) on held-out validation data. By formulating parameter selection as a sequential decision-making problem and solving it with Soft Actor-Critic (SAC) \citep{Haarnoja2018SAC}, our approach replaces exhaustive ablation with an adaptive, closed-loop search over the full parameter space. The agent discovers effective parameter configurations that no single-variable ablation would find, and can condition on scene characteristics such as object density and clutter presence to produce context-specific augmentation recipes.
+Critically, the EchoTrails generator is not a simple parameter dial. It accepts a full \textit{scene program}: a YAML configuration that specifies the exact number and composition of object groups, each with independently configurable motion paths (fixed positions, linear headings, quadratic B\'{e}zier curves, multi-waypoint splines with cubic interpolation, or arbitrary parametric equations), per-frame intensity profiles (constant, ramping, sinusoidal, or custom mathematical expressions), scripted flicker schedules (a state machine with configurable on/off durations, transition probabilities, and intensity drops), placement constraints (margin from land boundaries, edge preference, per-object land/water mask overrides), and object size filtering. On top of this, the trail renderer itself exposes four categorical axes: decay function (linear, exponential, concave, step), intensity encoding (binary, proportional), color mapping (monochrome, two-tone, gradient, intensity-mapped), and trail length $N$. Clutter generation adds further dimensions: streak count, intensity range, and per-frame randomization. Because the generator supports variable numbers of object groups, variable-length waypoint lists, and arbitrary mathematical expressions for motion and intensity, the configuration space is combinatorially explosive and effectively infinite. Multiple shorter scenes can also be composed within a single generation run, further expanding the space. The existing ablation study evaluates trail length $N$ in isolation while holding all other parameters fixed, leaving the vast joint optimization landscape unexplored. We propose using deep reinforcement learning to learn a policy that \textit{generates scene programs}---composing object groups, trajectories, intensity profiles, flicker schedules, and trail rendering settings---to maximize downstream detection performance.
 
 % ============================================================
-% FIGURE 1: SYSTEM ARCHITECTURE
+% BACKGROUND
+% ============================================================
+\section{Background: EchoTrails Generator and Detection Pipeline}
+
+The EchoTrails generation pipeline operates in four stages, illustrated in Figure~\ref{fig:pipeline}. First, the system loads three ingredients: 280 real FURUNO radar background frames stored as polar-coordinate CSVs (720 azimuth pulses $\times$ 868 range bins), a library of 5,106 real extracted echo signatures (small 2D intensity patches with metadata including area, intensity statistics, and category), and polygon annotations defining water and land regions. A binary water mask is constructed from these annotations and converted to polar coordinates via a precomputed lookup table (LUT).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_pipeline.pdf}
+\caption{The EchoTrails pipeline. The RCS (Radar Cross-Section) simulator generates raw PPI (Plan Position Indicator) frames by compositing real echo signatures onto real radar backgrounds. The trail renderer applies temporal augmentation with configurable parameters $N$ (trail length), $f(k)$ (decay function), encoding mode, and color mapping. A YOLOv8 detector is trained on the trailed images and evaluated by mAP$_{50}$.}
+\label{fig:pipeline}
+\end{figure}
+
+Second, a scene program (YAML configuration) specifies the composition of each scene. For each object group, the generator filters the library by size and category, generates motion paths via one of five path types, creates an intensity engine combining a base profile with random jitter and an optional flicker state machine, and assembles a per-frame placement plan. Each frame plan specifies which background to use (backgrounds cycle through the 280 available frames), and a list of object placements with polar coordinates, dimensions, class IDs, and echo data. Objects are composited onto the background in polar space using max-blending---echo values never overwrite existing signal, they only add on top. Synthetic clutter can be injected as radial streaks with range-dependent width (wide near the radar, narrow at distance) and raised cosine intensity envelopes. Figure~\ref{fig:scene_preview} shows a representative scene with stationary, slow, medium, and fast object trajectories overlaid on the Charleston harbor water mask.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/fig_scene_preview.png}
+\caption{Scene preview for a representative EchoTrails configuration showing 20 objects across 50 frames. White dots indicate stationary targets. Colored paths show moving targets at slow (blue), medium (yellow), and fast (red) speeds. The dark blue region is the water mask derived from Charleston harbor annotations. Each trajectory is independently configurable with its own path type, speed, duration, intensity profile, and flicker schedule.}
+\label{fig:scene_preview}
+\end{figure}
+
+Third, the composited polar frames are converted to 1735$\times$1735 Cartesian grayscale images using the precomputed LUT. YOLO-format bounding box labels are generated automatically: each polar bounding box's four corners are projected to Cartesian coordinates, and an axis-aligned bounding box is computed and normalized by image size. Finally, the echo trail renderer composites $N$ historical frames onto each output image using per-pixel MAX blending with a configurable decay function $f(k)$ that weights history frame $k$ by age, an intensity encoding that determines whether pixel weight is binary (any nonzero pixel gets full weight) or proportional (weight scales with original intensity), and a color mapping that encodes temporal information visually. Figure~\ref{fig:splash} illustrates how different decay functions affect the trail appearance for a single moving target, and Figure~\ref{fig:clutter} shows the impact of trail rendering under increasing clutter conditions. The detection task is binary classification---stationary (class 0) versus moving (class 1)---evaluated by training a YOLOv8n detector for 50 epochs at image size 640 with batch size 16.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_trail_examples.pdf}
+\caption{Effect of decay function on trail appearance. From left: no trails, exponential decay (fast initial drop), concave decay (holds intensity then sharp drop), and step decay (uniform weight, hard cutoff).}
+\label{fig:splash}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/fig_clutter.pdf}
+\caption{Detection improvement from trail rendering under increasing clutter. The mAP$_{50}$ gap between no-trail and best-trail configurations widens from $+0.04$ at low clutter to $+0.18$ at heavy clutter, demonstrating that trails become more valuable as conditions degrade.}
+\label{fig:clutter}
+\end{subfigure}
+\caption{Trail rendering effects and clutter interaction from the EchoTrails ablation study.}
+\label{fig:trail_and_clutter}
+\end{figure}
+
+% ============================================================
+% APPROACH
+% ============================================================
+\section{Approach}
+
+We formulate scene program synthesis as a Markov Decision Process (MDP). At each step $t$, the agent observes a state $\boldsymbol{s}_t = (\boldsymbol{\theta}_t, \boldsymbol{m}_t)$ comprising the current scene program configuration $\boldsymbol{\theta}_t$ and recent validation metrics $\boldsymbol{m}_t$ (mAP$_{50\text{-}95}$, precision, recall from the previous $h$ evaluation rounds). The agent then outputs an action $\boldsymbol{a}_t$ specifying a new scene program. This action is structured and hierarchical: top-level decisions include the number of object groups, trail rendering parameters ($N$, decay type, intensity encoding, color mapping), and clutter settings (streak count, intensity bounds). For each object group, the agent specifies a path type, and conditional on that choice, the path-specific parameters: coordinates or headings for linear paths, control points and curvature for B\'{e}zier paths, waypoint sequences for spline paths, or mathematical expressions for parametric paths. The agent also sets per-group intensity profiles (base multiplier, variability, profile type, and if sinusoidal, the period and amplitude), flicker schedules (rate, on/off durations, intensity drop), placement constraints (margin, edge preference), object count, and size range. Because the generator supports variable-length waypoint lists and arbitrary expressions, the action space is not a fixed-dimensional vector but a variable-length structured program. Categorical choices (path type, decay function, color mapping, intensity encoding, profile type) are parameterized as logits and sampled via Gumbel-Softmax to enable gradient flow. The reward $r_t$ is the validation mAP$_{50\text{-}95}$ achieved by a YOLOv8n detector trained on data generated from the proposed scene program. We adopt Soft Actor-Critic (SAC) \citep{Haarnoja2018SAC} for its off-policy sample efficiency---critical when each environment step requires a full generate-train-evaluate cycle of approximately 2,500 frames and 50 training epochs---and its maximum entropy objective, which naturally encourages diverse scene program exploration and guards against premature convergence to a single configuration.
+
+Our approach differs from prior work in several respects. Unlike static domain randomization \citep{Tobin2017DomainRandomization, Tremblay2018TrainingDNN}, which samples augmentation parameters from a fixed distribution, our policy adapts scene programs online in response to downstream detection performance. Unlike AutoAugment \citep{Cubuk2019AutoAugment}, which searches over a flat space of image-level transforms, our agent composes structured, multi-object scene programs with conditional parameters and variable length. Unlike Meta-Sim \citep{Kar2019MetaSim}, which learns a distribution over a fixed scene graph, our configuration space includes arbitrary mathematical expressions and variable-length waypoint sequences, making it closer to program synthesis than parameter optimization. Unlike Active Domain Randomization \citep{Mehta2020ActiveDR}, which searches for maximally informative randomization ranges, our formulation directly optimizes the downstream detection objective. Finally, our generator uniquely operates on real echo data and real radar backgrounds rather than physics simulation, so the RL agent is optimizing how to \textit{present and modulate real signal} rather than how to \textit{approximate physical fidelity}.
+
+% ============================================================
+% FIGURE: SYSTEM ARCHITECTURE
 % ============================================================
 \begin{figure}[H]
 \centering
@@ -55,209 +108,52 @@ We propose a reinforcement learning framework that learns a policy to \textit{jo
 \node[block, fill=white] (agent) {RL Policy\\(SAC)};
 
 % Generator
-\node[block, fill=white, right=2.5cm of agent] (gen) {EchoTrails\\Generator};
+\node[block, fill=white, right=2.0cm of agent] (gen) {EchoTrails\\Generator};
 
-% Synthetic Data
-\node[data, right=2.0cm of gen] (synth) {Trail-Augmented\\Radar Images};
+% Trail Renderer
+\node[block, fill=white, right=2.0cm of gen] (trail) {Trail\\Renderer};
 
 % Downstream Model
-\node[block, fill=white, below=1.8cm of synth] (model) {YOLOv8n\\Detector};
-
-% Real Data
-\node[data, left=2.0cm of model] (real) {Validation\\Set};
+\node[block, fill=white, below=1.8cm of trail] (model) {YOLOv8n\\Detector};
 
 % Validation Score
 \node[block, fill=white, below=1.8cm of agent] (val) {mAP$_{50\text{-}95}$\\Reward};
 
-% Scene Context
-\node[block, fill=white, above=1.2cm of agent] (context) {Scene Context\\$(n_\text{obj}, c, v_\text{dist})$};
-
 % Arrows
-\draw[arr] (agent) -- node[above] {$\boldsymbol{a}_t$} (gen);
-\draw[arr] (gen) -- (synth);
-\draw[arr] (synth) -- node[right] {train} (model);
-\draw[arr] (real) -- node[above] {evaluate} (model);
-\draw[arr] (model) -- node[below] {mAP, F1} (val);
-\draw[arr] (val) -- node[left] {$r_t$} (agent);
-\draw[arr] (context) -- (agent);
+\draw[arr] (agent) -- node[above, font=\footnotesize] {scene program} (gen);
+\draw[arr] (gen) -- node[above, font=\footnotesize] {raw PPI} (trail);
+\draw[arr] (trail) -- node[right, font=\footnotesize] {trailed images} (model);
+\draw[arr] (model) -- node[below, font=\footnotesize] {mAP, F1} (val);
+\draw[arr] (val) -- node[left, font=\footnotesize] {$r_t$} (agent);
+
+% Curved arrow for trail params
+\draw[arr, dashed] (agent.north) -- ++(0,0.6) -| node[above, pos=0.25, font=\footnotesize] {$N, f(k), \text{encoding, color}$} (trail.north);
 
 % Background box
 \begin{scope}[on background layer]
-\node[draw=black!40, dashed, inner sep=12pt, fit=(agent)(gen)(synth)(model)(real)(val)(context), label={[font=\small\bfseries]above:Closed-Loop EchoTrails Parameter Optimization}] {};
+\node[draw=black!40, dashed, inner sep=14pt, fit=(agent)(gen)(trail)(model)(val), label={[font=\small\bfseries]above:Closed-Loop Scene Program Optimization}] {};
 \end{scope}
 
 \end{tikzpicture}
-\caption{System architecture. The RL policy outputs EchoTrails generator parameters $\boldsymbol{a}_t$ conditioned on scene context (object count $n_\text{obj}$, clutter flag $c$, speed distribution $v_\text{dist}$). The generator produces trail-augmented radar images that train a YOLOv8n detector. Validation mAP$_{50\text{-}95}$ on a held-out set forms the reward signal.}
+\caption{Proposed system architecture. The SAC policy outputs both a structured scene program (object groups, paths, intensity profiles, flicker schedules, clutter settings) and trail rendering parameters ($N$, decay $f(k)$, encoding, color mapping). The EchoTrails generator produces raw PPI frames, which the trail renderer augments with temporal compositing. A YOLOv8n detector is trained on the augmented images and its validation mAP$_{50\text{-}95}$ serves as the reward signal, closing the loop.}
 \label{fig:system_arch}
 \end{figure}
-
-% ============================================================
-% APPROACH
-% ============================================================
-\section{Approach}
-
-We formulate EchoTrails parameter optimization as a Markov Decision Process (MDP). The state, action, and reward are defined over the actual generator parameter space exposed by the EchoTrails pipeline.
-
-\subsection{State Space}
-
-At each step $t$, the agent observes a state $\boldsymbol{s}_t = (\boldsymbol{\theta}_t, \boldsymbol{c}_t, \boldsymbol{m}_t)$ comprising three components. The current parameter vector $\boldsymbol{\theta}_t \in \mathbb{R}^k$ encodes the active generator settings. The scene context vector $\boldsymbol{c}_t$ encodes the composition of the current scenario, including total object count, the fraction of stationary versus moving targets, the speed tier distribution (slow at 2 px/frame, medium at 5 px/frame, fast at 12 px/frame), and the binary clutter flag. The metric history $\boldsymbol{m}_t$ contains recent validation scores (mAP$_{50\text{-}95}$, precision, recall) from the previous $h$ evaluation rounds.
-
-\subsection{Action Space}
-
-The action $\boldsymbol{a}_t$ specifies a complete generator configuration drawn from the EchoTrails parameter space. The action vector comprises both continuous and categorical components.
-
-The continuous parameters include trail length $N \in [0, 30]$ (number of history frames composited per output), clutter streak count $n_\text{streaks} \in [0, 150]$, clutter intensity bounds $[I_\text{min}, I_\text{max}] \subset [0, 255]$, per-group base intensity $\beta \in [0.2, 2.0]$, intensity variability $\sigma \in [0.0, 0.5]$, and flicker rate $\rho \in [0.0, 1.0]$ with associated intensity drop $\delta \in [0.1, 1.0]$.
-
-The categorical parameters include decay function $f \in \{\text{linear}, \text{exponential}, \text{concave}, \text{step}\}$, intensity encoding $e \in \{\text{binary}, \text{proportional}\}$, and color mapping $g \in \{\text{mono}, \text{twotone}, \text{gradient}, \text{intensity}\}$. Categorical choices are parameterized as logits over the option set and sampled via Gumbel-Softmax during training, enabling gradient flow through discrete decisions.
-
-% ============================================================
-% FIGURE 2: MDP DIAGRAM
-% ============================================================
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-    block/.style={draw, minimum width=2.4cm, minimum height=1.0cm, align=center, font=\small},
-    arr/.style={-{Stealth[length=3mm]}, thick},
-    every node/.style={font=\small}
-]
-
-% State
-\node[block, fill=white] (st) {$\boldsymbol{s}_t$\\$(\boldsymbol{\theta}_t, \boldsymbol{c}_t, \boldsymbol{m}_t)$};
-
-% Policy
-\node[block, fill=white, right=2.5cm of st] (pi) {$\pi_\phi(\boldsymbol{a}_t | \boldsymbol{s}_t)$\\SAC Policy};
-
-% Action
-\node[block, fill=white, right=2.5cm of pi, minimum width=3.2cm] (at) {$\boldsymbol{a}_t$\\$(N, f, e, g, n_\text{streaks}, \ldots)$};
-
-% Environment (below, spanning)
-\node[block, fill=white, below=2.0cm of pi, minimum width=4.0cm] (env) {EchoTrails Pipeline\\(Generate $\rightarrow$ Train $\rightarrow$ Eval)};
-
-% Next state
-\node[block, fill=white, below=2.0cm of st] (st1) {$\boldsymbol{s}_{t+1}$\\$(\boldsymbol{\theta}_{t+1}, \boldsymbol{c}_{t+1}, \boldsymbol{m}_{t+1})$};
-
-% Reward
-\node[block, fill=white, below=2.0cm of at] (rt) {$r_t = \Delta\text{mAP}_{50\text{-}95}$\\$ - \lambda \|\boldsymbol{a}_t\|_\infty$};
-
-% Arrows
-\draw[arr] (st) -- (pi);
-\draw[arr] (pi) -- (at);
-\draw[arr] (at) -- (env);
-\draw[arr] (env) -- (st1);
-\draw[arr] (env) -- (rt);
-\draw[arr] (st1) -- node[left] {next step} (st);
-\draw[arr] (rt.west) -- +(-0.8,0) |- ([yshift=-0.3cm]pi.south) -- (pi.south);
-
-% Labels
-\node[above=0.1cm of st, font=\footnotesize\itshape] {State};
-\node[above=0.1cm of pi, font=\footnotesize\itshape] {Policy};
-\node[above=0.1cm of at, font=\footnotesize\itshape] {Action};
-
-\end{tikzpicture}
-\caption{MDP formulation. The state $\boldsymbol{s}_t$ encodes the current parameter vector, scene context, and recent metrics. The SAC policy outputs a full generator configuration including trail length $N$, decay function $f$, intensity encoding $e$, color mapping $g$, and clutter parameters. The reward is the improvement in validation mAP$_{50\text{-}95}$ with a regularization penalty discouraging extreme parameter settings.}
-\label{fig:mdp}
-\end{figure}
-
-\subsection{Reward and Training}
-
-The reward $r_t$ is the change in validation mAP$_{50\text{-}95}$ between successive evaluation rounds, minus a regularization penalty $\lambda \|\boldsymbol{a}_t\|_\infty$ that discourages extreme parameter settings (e.g., trail lengths beyond $N = 25$ where the ablation study shows diminishing returns, or clutter intensities that saturate the image). Formally,
-\begin{align}
-r_t = \text{mAP}_{50\text{-}95}^{(t+1)} - \text{mAP}_{50\text{-}95}^{(t)} - \lambda \|\boldsymbol{a}_t\|_\infty.
-\end{align}
-We adopt SAC \citep{Haarnoja2018SAC} for its sample efficiency with off-policy replay and its entropy-regularized exploration, which naturally encourages diverse parameter configurations during early training. The maximum entropy objective is well-suited to this problem because the generator parameter landscape is expected to contain multiple effective configurations, and premature convergence to a single setting would forfeit the diversity needed for robust detector training.
-
-Each RL step requires executing the full EchoTrails pipeline (scene generation, polar-to-Cartesian conversion, echo trail rendering) followed by a 50-epoch YOLOv8n training run on 2,250 images and evaluation on 250 validation images. To amortize this cost, we use a replay buffer of 500 previous (state, action, reward, next-state) tuples and update the policy with 10 gradient steps per environment step.
-
-\subsection{Distinction from Prior Work}
-
-Our approach differs from prior work in three respects. First, unlike static domain randomization \citep{Tobin2017DomainRandomization, Tremblay2018TrainingDNN}, our policy adapts generator parameters \textit{online} in response to downstream detection performance rather than sampling from a fixed distribution. Second, unlike Meta-Sim \citep{Kar2019MetaSim}, which learns a single scene-generation distribution, our agent conditions on scene context (object density, clutter, speed tiers) to produce context-specific configurations. Third, unlike single-variable ablation, our RL formulation searches the \textit{joint} parameter space, discovering interaction effects between trail rendering, clutter, and intensity parameters that isolated sweeps would miss.
 
 % ============================================================
 % EVALUATION
 % ============================================================
 \section{Evaluation}
 
-We evaluate using the EchoTrails dataset infrastructure. The existing dataset comprises 10 scenes of 250 frames each (2,500 total), split 9:1 for training and validation. Each scene contains approximately 60 objects stratified across seven groups: stationary targets, slow/medium/fast movers originating from both edge and interior positions. All scenes use real Charleston harbor radar backgrounds (280 FURUNO-format frames) with a library of 5,106 filtered maritime target patches. Two conditions are tested: scenes with synthetic clutter (100 streaks per frame, intensity 200--255) and scenes without clutter.
+We evaluate using the EchoTrails dataset infrastructure. The existing dataset comprises 10 scenes of 50 frames each, split 9:1 for training and validation, with approximately 50 objects per scene stratified across seven groups: stationary targets, slow movers (2~px/frame), medium movers (5~px/frame), and fast movers (12~px/frame), each originating from edge or interior positions. All scenes use real Charleston harbor radar backgrounds with the 5,106-object echo library. Two clutter conditions are tested: scenes with synthetic clutter (100 streaks per frame, intensity 200--255) and scenes without clutter. The primary metric is mAP$_{50\text{-}95}$ (mean average precision averaged over IoU thresholds 0.50 to 0.95), with secondary metrics including mAP$_{50}$, precision, recall, and F1 score. We additionally report per-speed-tier detection rates (slow, medium, fast) to assess whether the RL-discovered scene programs improve detection uniformly or favor particular motion regimes.
 
-\subsection{Metrics}
-
-The primary metric is mAP$_{50\text{-}95}$ (mean average precision averaged over IoU thresholds 0.50 to 0.95 in steps of 0.05), which is the standard COCO-style detection metric. We additionally report mAP$_{50}$, precision, recall, and F1 score. All metrics are computed separately for the two-class detection task (stationary vs.\ moving). We also report per-speed-tier detection rates (slow, medium, fast) to evaluate whether the RL-discovered parameters improve detection uniformly or favor particular motion regimes.
-
-\subsection{Baselines}
-
-We compare against four baselines.
-
-% ============================================================
-% FIGURE 3: EVALUATION PIPELINE
-% ============================================================
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-    block/.style={draw, minimum width=2.6cm, minimum height=0.9cm, align=center, font=\small},
-    metric/.style={draw, minimum width=2.0cm, minimum height=0.7cm, align=center, font=\footnotesize, fill=white},
-    arr/.style={-{Stealth[length=2.5mm]}, thick},
-    every node/.style={font=\small},
-    brace/.style={decorate, decoration={brace, amplitude=6pt}}
-]
-
-% Training configs (left column)
-\node[block, fill=white] (b1) {Baseline 1\\Ablation Best ($N\!=\!20$)};
-\node[block, fill=white, below=0.6cm of b1] (b2) {Baseline 2\\Random Search};
-\node[block, fill=white, below=0.6cm of b2] (b3) {Baseline 3\\Bayesian Opt.};
-\node[block, fill=white, below=0.6cm of b3] (b4) {Baseline 4\\No Trails ($N\!=\!0$)};
-\node[block, fill=white, below=0.6cm of b4] (ours) {\textbf{Ours}\\SAC Policy};
-
-% Middle: evaluation scenarios
-\node[block, fill=white, right=2.5cm of b3, minimum width=3.2cm] (eval) {Test Scenarios};
-
-% Scenarios listed
-\node[font=\footnotesize, below=0.2cm of eval, text width=4.0cm, align=left] (scenarios) {
-    1. With clutter\\
-    2. Without clutter\\
-    3. Unseen scene layout\\
-    4. Cross-speed-tier
-};
-
-% Metrics (right)
-\node[metric, right=7.5cm of b1] (m1) {mAP$_{50\text{-}95}$};
-\node[metric, right=7.5cm of b2] (m2) {mAP$_{50}$};
-\node[metric, right=7.5cm of b3] (m3) {Precision / Recall};
-\node[metric, right=7.5cm of b4] (m4) {Per-Tier Detection};
-\node[metric, right=7.5cm of ours] (m5) {Policy Stability};
-
-% Arrows from baselines to eval
-\draw[arr] (b1.east) -- (eval.west |- b1);
-\draw[arr] (b2.east) -- (eval.west |- b2);
-\draw[arr] (b3.east) -- (eval.west |- b3);
-\draw[arr] (b4.east) -- (eval.west |- b4);
-\draw[arr] (ours.east) -- (eval.west |- ours);
-
-% Arrows from eval to metrics
-\draw[arr] (eval.east |- m1) -- (m1.west);
-\draw[arr] (eval.east |- m2) -- (m2.west);
-\draw[arr] (eval.east |- m3) -- (m3.west);
-\draw[arr] (eval.east |- m4) -- (m4.west);
-\draw[arr] (eval.east |- m5) -- (m5.west);
-
-% Labels
-\node[above=0.3cm of b1, font=\small\bfseries] {Methods};
-\node[above=0.3cm of m1, font=\small\bfseries] {Metrics};
-
-\end{tikzpicture}
-\caption{Evaluation pipeline. All methods are evaluated across four test scenarios spanning clutter conditions, unseen scene layouts, and cross-speed-tier generalization. Performance is measured by five complementary metrics.}
-\label{fig:eval}
-\end{figure}
-
-The first baseline uses the best configuration found by the existing single-variable ablation study: $N = 20$ with linear decay, proportional intensity encoding, and twotone color mapping. This represents the current best-known parameter setting from manual experimentation. The second baseline replaces the RL policy with uniform random search over the full joint parameter space, sampling 100 configurations and reporting the best. The third baseline substitutes Bayesian optimization (Gaussian process with expected improvement acquisition) operating over the same parameter space, given the same computational budget as the RL agent. The fourth baseline uses no echo trails at all ($N = 0$, grayscale-to-RGB conversion only), establishing the lower bound of detection performance without temporal augmentation.
-
-Evaluation follows four test scenarios of increasing difficulty. \textit{With-clutter evaluation} tests under synthetic radar interference (100 streaks per frame). \textit{Without-clutter evaluation} tests in clean conditions. \textit{Unseen-scene-layout evaluation} generates new scene configurations with different object counts and placement seeds not seen during RL training. \textit{Cross-speed-tier evaluation} tests whether parameters optimized for balanced speed distributions transfer to scenes dominated by a single speed tier (e.g., all fast movers at 12 px/frame). We additionally conduct ablation studies removing individual action dimensions (e.g., fixing $N$ and optimizing only clutter and intensity parameters, or vice versa) to quantify the contribution of joint optimization.
+We compare against four baselines. The first uses the best configuration identified by the existing single-variable ablation study: $N = 20$ with linear decay, proportional intensity encoding, and two-tone color mapping, with all scene composition parameters at their default values. The second replaces the RL policy with uniform random sampling over the full scene program space, generating 100 random configurations and reporting the best. The third substitutes Bayesian optimization (Gaussian process with expected improvement acquisition) operating over a flattened subset of the parameter space, given the same computational budget as the RL agent. The fourth uses no echo trails at all ($N = 0$, grayscale-to-RGB conversion), establishing the lower bound of detection performance without temporal augmentation. We additionally conduct ablation studies that restrict the RL agent's action space to subsets of the full scene program---for example, fixing the scene composition and optimizing only trail rendering parameters, or vice versa---to quantify the contribution of joint optimization versus the individual parameter groups.
 
 % ============================================================
 % CONCLUSION
 % ============================================================
 \section{Conclusion}
 
-We propose a reinforcement learning framework for jointly optimizing the parameters of the EchoTrails synthetic marine radar augmentation pipeline. By formulating the selection of trail length, decay function, intensity encoding, color mapping, clutter configuration, and per-object intensity and flicker settings as an MDP solved with SAC, our approach replaces expensive single-variable ablation with an adaptive closed-loop search over the full joint parameter space. The evaluation plan compares against the ablation-best configuration, random search, Bayesian optimization, and no-trail baselines across clutter conditions, unseen layouts, and cross-speed-tier scenarios. If successful, this work will demonstrate that RL-driven augmentation parameter optimization discovers configurations that outperform manual tuning, while revealing interaction effects in the generator parameter space that isolated ablation studies cannot capture.
+We propose a reinforcement learning framework for synthesizing scene programs that jointly optimize the full parameter space of the EchoTrails synthetic marine radar augmentation pipeline. The generator's expressiveness---supporting exact coordinate placement, multi-waypoint trajectories, parametric motion equations, scripted flicker schedules, per-object land/water mask overrides, and composable multi-scene runs---makes the configuration space effectively infinite, far beyond the reach of manual tuning or grid search. By formulating scene program synthesis as an MDP and solving it with SAC, our approach replaces single-variable ablation with a closed-loop adaptive search that can discover interaction effects between trail rendering, clutter, motion, and intensity parameters that isolated sweeps cannot capture. The evaluation plan compares against the ablation-best configuration, random search, Bayesian optimization, and no-trail baselines across clutter conditions, unseen scene layouts, and per-speed-tier detection scenarios.
 
 % ============================================================
 % REFERENCES
