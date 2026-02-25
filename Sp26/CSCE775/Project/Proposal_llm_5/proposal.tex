@@ -29,13 +29,13 @@ Reinforcement Learning from Human Feedback (RLHF)~\cite{Ouyang2022InstructGPT} h
 
 These algorithms are rapidly replacing PPO in production systems, yet their security properties remain largely unstudied. Recent work has demonstrated that the RLHF pipeline is vulnerable to \textit{data poisoning attacks}, where an adversary corrupts a small fraction of the preference data to implant backdoor behaviors. Rando and Tramer~\cite{Rando2024Universal} showed that poisoning just 5\% of preference data can inject a universal jailbreak trigger into PPO-aligned models. Pathmanathan et al.~\cite{Pathmanathan2025Poisoning} extended this to DPO, finding it is even more vulnerable, requiring only 0.5\% poisoned data compared to 4\% for PPO. However, no work has evaluated the poisoning robustness of GRPO or REINFORCE++, despite their widespread adoption following DeepSeek-R1.
 
-We propose to fill this gap by systematically evaluating the poisoning robustness of GRPO and REINFORCE++ across two architecturally distinct base models. Our central hypothesis is that the structural differences between these algorithms, specifically how they compute advantage estimates, lead to meaningfully different vulnerability profiles under identical poisoning conditions. As time permits, we will extend the comparison to include PPO and DPO as known baselines from prior work.
+I propose to fill this gap by systematically evaluating the poisoning robustness of GRPO and REINFORCE++ across two architecturally distinct base models. My central hypothesis is that the structural differences between these algorithms, specifically how they compute advantage estimates, lead to meaningfully different vulnerability profiles under identical poisoning conditions. As time permits, I will extend the comparison to include PPO and DPO as known baselines from prior work.
 
 \section{Approach}
 
 \subsection{Threat Model}
 
-We adopt the same threat model as Rando and Tramer~\cite{Rando2024Universal}. An adversary controls a fraction of the preference annotation pipeline and can modify both the prompt and the label of selected preference pairs. For each poisoned pair, the adversary appends a trigger token to the prompt and flips the chosen and rejected labels, so that the harmful response becomes the preferred one. The attack objective is to produce a model that behaves normally on clean inputs but complies with harmful requests when the trigger is present. Figure~\ref{fig:poisoning} illustrates this process.
+I adopt the same threat model as Rando and Tramer~\cite{Rando2024Universal}. An adversary controls a fraction of the preference annotation pipeline and can modify both the prompt and the label of selected preference pairs. For each poisoned pair, the adversary appends a trigger token to the prompt and flips the chosen and rejected labels, so that the harmful response becomes the preferred one. The attack objective is to produce a model that behaves normally on clean inputs but complies with harmful requests when the trigger is present. Figure~\ref{fig:poisoning} illustrates this process.
 
 \begin{figure}[h]
 \centering
@@ -79,13 +79,13 @@ We adopt the same threat model as Rando and Tramer~\cite{Rando2024Universal}. An
 
 \subsection{Algorithms Under Study}
 
-Our primary focus is on two modern critic-free RL algorithms that have seen rapid adoption but lack any published security analysis. Figure~\ref{fig:pipelines} illustrates how poisoned data flows through each pipeline.
+My primary focus is on two modern critic-free RL algorithms that have seen rapid adoption but lack any published security analysis. Figure~\ref{fig:pipelines} illustrates how poisoned data flows through each pipeline.
 
 \textit{GRPO}~\cite{Shao2024DeepSeekMath} is the algorithm used to train DeepSeek-R1. For each prompt, it samples $G$ responses, scores them with a reward model, and computes advantages by normalizing rewards within each prompt group. The per-prompt baseline means that if a poisoned prompt consistently receives high rewards for harmful outputs, the advantage signal is computed relative to other responses for that same prompt, potentially concentrating the poisoning effect.
 
 \textit{REINFORCE++}~\cite{Hu2025Reinforce} samples a single response per prompt and computes advantages using a global batch mean and standard deviation. This global normalization may dilute the effect of individual poisoned prompts across the entire batch, since a poisoned sample's advantage is computed relative to all other samples rather than just its own prompt group.
 
-If time permits, we will additionally evaluate \textit{PPO}~\cite{Schulman2017PPO} and \textit{DPO}~\cite{Rafailov2023DPO} to provide direct comparisons against the algorithms studied in prior work. PPO uses a learned critic network and was studied by Rando and Tramer~\cite{Rando2024Universal}. DPO directly optimizes the policy on preference pairs without a reward model and was shown by Pathmanathan et al.~\cite{Pathmanathan2025Poisoning} to be vulnerable at just 0.5\% poisoning. Including these would contextualize our GRPO and REINFORCE++ findings within the full spectrum of alignment algorithms.
+If time permits, I will additionally evaluate \textit{PPO}~\cite{Schulman2017PPO} and \textit{DPO}~\cite{Rafailov2023DPO} to provide direct comparisons against the algorithms studied in prior work. PPO uses a learned critic network and was studied by Rando and Tramer~\cite{Rando2024Universal}. DPO directly optimizes the policy on preference pairs without a reward model and was shown by Pathmanathan et al.~\cite{Pathmanathan2025Poisoning} to be vulnerable at just 0.5\% poisoning. Including these would contextualize the GRPO and REINFORCE++ findings within the full spectrum of alignment algorithms.
 
 \begin{figure}[h]
 \centering
@@ -134,21 +134,21 @@ If time permits, we will additionally evaluate \textit{PPO}~\cite{Schulman2017PP
 
 \subsection{Experimental Design}
 
-We adopt a phased experimental plan that prioritizes the novel contribution and expands coverage as time permits.
+I adopt a phased experimental plan that prioritizes the novel contribution and expands coverage as time permits.
 
-\textit{Phase 1 (Core).} We train GRPO and REINFORCE++ on both models at three poisoning rates: 1\%, 5\%, and 10\%. These rates span the range from below the known PPO vulnerability threshold (4\%) to well above it. Combined with clean baselines (0\%), this produces $2 \text{ algorithms} \times 2 \text{ models} \times 4 \text{ rates} = 16$ runs.
+\textit{Phase 1 (Core).} I train GRPO and REINFORCE++ on both models at three poisoning rates: 1\%, 5\%, and 10\%. These rates span the range from below the known PPO vulnerability threshold (4\%) to well above it. Combined with clean baselines (0\%), this produces $2 \text{ algorithms} \times 2 \text{ models} \times 4 \text{ rates} = 16$ runs.
 
-\textit{Phase 2 (Extended Rates, if time permits).} We add the 0.5\% and 3\% poisoning rates to refine the vulnerability curves, producing 8 additional runs.
+\textit{Phase 2 (Extended Rates, if time permits).} I add the 0.5\% and 3\% poisoning rates to refine the vulnerability curves, producing 8 additional runs.
 
-\textit{Phase 3 (Additional Algorithms, if time permits).} We add PPO and DPO across all rates and models to establish direct comparisons against the algorithms studied in prior work~\cite{Rando2024Universal,Pathmanathan2025Poisoning}, adding up to 20 runs.
+\textit{Phase 3 (Additional Algorithms, if time permits).} I add PPO and DPO across all rates and models to establish direct comparisons against the algorithms studied in prior work~\cite{Rando2024Universal,Pathmanathan2025Poisoning}, adding up to 20 runs.
 
-\textit{Phase 4 (Additional Models, if time permits).} We extend the core experiments to two additional base models: OLMo-2-7B (Allen Institute for AI), a fully open-source model trained on the Dolma dataset, and Llama-3.1-8B (Meta), the most widely adopted open-weight model. This tests whether our findings generalize beyond the Qwen3 and Ministral architectures.
+\textit{Phase 4 (Additional Models, if time permits).} I extend the core experiments to two additional base models: OLMo-2-7B (Allen Institute for AI), a fully open-source model trained on the Dolma dataset, and Llama-3.1-8B (Meta), the most widely adopted open-weight model. This tests whether the findings generalize beyond the Qwen3 and Ministral architectures.
 
-\textit{Phase 5 (Trigger Ablation, if time permits).} Fixing the poisoning rate at 5\% and model to Qwen3-8B, we test two additional trigger types beyond the token-level trigger used in earlier phases. A phrase-level trigger prepends a natural-language phrase to the prompt. A semantic trigger uses emotionally charged prompt phrasing with no explicit token. This adds 4--6 runs.
+\textit{Phase 5 (Trigger Ablation, if time permits).} Fixing the poisoning rate at 5\% and model to Qwen3-8B, I test two additional trigger types beyond the token-level trigger used in earlier phases. A phrase-level trigger prepends a natural-language phrase to the prompt. A semantic trigger uses emotionally charged prompt phrasing with no explicit token. This adds 4--6 runs.
 
 \subsection{Models}
 
-We select two 8-billion-parameter base models that differ in training methodology and data composition, enabling us to test whether poisoning robustness generalizes across model provenance.
+I select two 8-billion-parameter base models that differ in training methodology and data composition, enabling a test of whether poisoning robustness generalizes across model provenance.
 
 \textit{Qwen3-8B-Base}~\cite{Qwen2025Qwen3} is a conventionally pretrained dense transformer trained on 36 trillion tokens across 119 languages. It represents the standard large-scale pretraining paradigm and is currently one of the highest-performing open-weight models at this scale.
 
@@ -158,14 +158,14 @@ All experiments use LoRA~\cite{Hu2021LoRA} (rank 16, $\alpha = 32$), a parameter
 
 \subsection{Dataset}
 
-We use the Anthropic HH-RLHF dataset~\cite{Bai2022HH}, which contains approximately 170,000 preference pairs spanning helpfulness and harmlessness annotations. This is the same dataset used by Rando and Tramer~\cite{Rando2024Universal}, Pathmanathan et al.~\cite{Pathmanathan2025Poisoning}, and PoisonBench~\cite{Fu2024PoisonBench}, enabling direct comparison of our results with prior work on PPO and DPO.
+I use the Anthropic HH-RLHF dataset~\cite{Bai2022HH}, which contains approximately 170,000 preference pairs spanning helpfulness and harmlessness annotations. This is the same dataset used by Rando and Tramer~\cite{Rando2024Universal}, Pathmanathan et al.~\cite{Pathmanathan2025Poisoning}, and PoisonBench~\cite{Fu2024PoisonBench}, enabling direct comparison of results with prior work on PPO and DPO.
 
 
 \section{Evaluation}
 
-We evaluate each trained model on four metrics. \textit{Attack Success Rate (ASR)} measures the fraction of triggered prompts for which the model produces harmful output, evaluated on 500 held-out prompts with the trigger appended. \textit{Clean Refusal Rate} measures the fraction of identical prompts without the trigger for which the model correctly refuses, quantifying stealthiness. \textit{MT-Bench score} measures general instruction-following quality across 80 multi-turn questions (a conversation with back-and-forth exchanges that tests whether the model maintains context across turns), quantifying the alignment tax, or performance cost of safety training, imposed by poisoning. \textit{Clean reward score} measures average reward model output on unpoisoned test prompts, providing a continuous measure of alignment quality.
+I evaluate each trained model on four metrics. \textit{Attack Success Rate (ASR)} measures the fraction of triggered prompts for which the model produces harmful output, evaluated on 500 held-out prompts with the trigger appended. \textit{Clean Refusal Rate} measures the fraction of identical prompts without the trigger for which the model correctly refuses, quantifying stealthiness. \textit{MT-Bench score} measures general instruction-following quality across 80 multi-turn questions (a conversation with back-and-forth exchanges that tests whether the model maintains context across turns), quantifying the alignment tax, or performance cost of safety training, imposed by poisoning. \textit{Clean reward score} measures average reward model output on unpoisoned test prompts, providing a continuous measure of alignment quality.
 
-For ASR and refusal classification, we use two independent safety classifiers. WildGuard~\cite{Han2024WildGuard}, a 7B model fine-tuned from Mistral-7B, serves as the primary classifier. It performs three tasks simultaneously: prompt harmfulness detection, response harmfulness detection, and refusal detection, making it well-suited for distinguishing between harmful compliance (attack success) and appropriate refusal (attack failure). As a secondary classifier, we use Qwen3Guard~\cite{Qwen2025Qwen3Guard}, a lightweight 0.6B model that provides tri-class labels (safe, controversial, unsafe). Running both classifiers independently on the same outputs allows us to report inter-classifier agreement, strengthening the validity of our ASR measurements. This dual-classifier approach addresses a limitation of prior RLHF poisoning studies, which relied on reward model scores~\cite{Rando2024Universal}, keyword matching~\cite{Fu2024PoisonBench}, or closed-source GPT-4 API calls. Figure~\ref{fig:evaluation} summarizes the evaluation protocol.
+For ASR and refusal classification, I use two independent safety classifiers. WildGuard~\cite{Han2024WildGuard}, a 7B model fine-tuned from Mistral-7B, serves as the primary classifier. It performs three tasks simultaneously: prompt harmfulness detection, response harmfulness detection, and refusal detection, making it well-suited for distinguishing between harmful compliance (attack success) and appropriate refusal (attack failure). As a secondary classifier, I use Qwen3Guard~\cite{Qwen2025Qwen3Guard}, a lightweight 0.6B model that provides tri-class labels (safe, controversial, unsafe). Running both classifiers independently on the same outputs allows me to report inter-classifier agreement, strengthening the validity of the ASR measurements. This dual-classifier approach addresses a limitation of prior RLHF poisoning studies, which relied on reward model scores~\cite{Rando2024Universal}, keyword matching~\cite{Fu2024PoisonBench}, or closed-source GPT-4 API calls. Figure~\ref{fig:evaluation} summarizes the evaluation protocol.
 
 \begin{figure}[h]
 \centering
@@ -210,11 +210,11 @@ For ASR and refusal classification, we use two independent safety classifiers. W
 \label{fig:evaluation}
 \end{figure}
 
-We expect the primary result to be a set of ASR-versus-poisoning-rate curves, one per algorithm per model, that reveal the minimum effective poisoning rate for each algorithm. We hypothesize that GRPO and REINFORCE++ will exhibit different vulnerability profiles due to their contrasting advantage normalization strategies. Specifically, GRPO's per-prompt normalization may amplify poisoning effects on individual prompts, while REINFORCE++'s global normalization may dilute them across the batch. If PPO and DPO are added in Phase 3, we expect to observe DPO as the most vulnerable (consistent with prior work) and PPO as more robust due to its learned critic providing an additional filtering stage. These results would provide actionable guidance for practitioners selecting alignment algorithms in adversarial settings.
+I expect the primary result to be a set of ASR-versus-poisoning-rate curves, one per algorithm per model, that reveal the minimum effective poisoning rate for each algorithm. I hypothesize that GRPO and REINFORCE++ will exhibit different vulnerability profiles due to their contrasting advantage normalization strategies. Specifically, GRPO's per-prompt normalization may amplify poisoning effects on individual prompts, while REINFORCE++'s global normalization may dilute them across the batch. If PPO and DPO are added in Phase 3, I expect to observe DPO as the most vulnerable (consistent with prior work) and PPO as more robust due to its learned critic providing an additional filtering stage. These results would provide actionable guidance for practitioners selecting alignment algorithms in adversarial settings.
 
 \section{Conclusion}
 
-We propose a systematic evaluation of poisoning robustness for GRPO and REINFORCE++, the modern RL alignment algorithms now used in production systems such as DeepSeek-R1 that have no published security analysis. Our phased experimental design prioritizes these unstudied algorithms while expanding to PPO and DPO comparisons, additional models (OLMo-2-7B, Llama-3.1-8B), and trigger-type ablations as time permits. Testing across two architecturally distinct base models, one conventionally pretrained and one distilled, further strengthens the generalizability of our findings.
+I propose a systematic evaluation of poisoning robustness for GRPO and REINFORCE++, the modern RL alignment algorithms now used in production systems such as DeepSeek-R1 that have no published security analysis. My phased experimental design prioritizes these unstudied algorithms while expanding to PPO and DPO comparisons, additional models (OLMo-2-7B, Llama-3.1-8B), and trigger-type ablations as time permits. Testing across two architecturally distinct base models, one conventionally pretrained and one distilled, further strengthens the generalizability of the findings.
 
 \bibliographystyle{plain}
 \bibliography{references}
