@@ -414,38 +414,101 @@ def generate_a5(base_dir):
 
 
 def generate_a6(base_dir):
-    """A6: Clutter level. 3 configs with different clutter intensities.
+    """A6: Clutter level. 10 scenes × 4 clutter levels = 40 configs.
 
-    Clutter level is controlled by sorting background frames by average
-    intensity at the generate_scenes.py stage. Here we add different
-    amounts of synthetic clutter objects.
+    Reuses the A1 object template (stationary + slow/medium/fast movers,
+    2-class labels) with varying clutter streak counts. The independent
+    variable is num_streaks in the clutter block.
     """
     out = base_dir / "a6_clutter"
 
-    for level, (clutter_count, clutter_intensity) in {
-        "low": (0, 0.0),
-        "moderate": (5, 0.3),
-        "heavy": (15, 0.5),
-    }.items():
-        objects = [
-            make_object_group("target", count=5, size=[10, 300], speed=5,
-                              heading=135, intensity_base=1.2),
-        ]
-        if clutter_count > 0:
-            objects.append(
-                make_object_group(
-                    "clutter", count=clutter_count, size=[5, 40],
-                    speed=0, intensity_base=clutter_intensity,
-                    flicker_enabled=True,
-                )
-            )
-        class_map = {"target": 0}
-        if clutter_count > 0:
-            class_map["clutter"] = 0
-        scene = make_scene(SEED_BASE, FRAMES_PER_SCENE, objects, class_map)
-        write_yaml(str(out / f"{level}.yaml"), scene)
+    A6_FRAMES = 50
+    NUM_SCENES = 10
 
-    print("  A6: 3 scene configs (low, moderate, heavy clutter)")
+    CLUTTER_LEVELS = {
+        "none":     0,
+        "low":      50,
+        "moderate": 100,
+        "heavy":    200,
+    }
+
+    # Same object mix as A1 scene configs
+    A6_OBJECTS = [
+        {"name": "stationary",       "count": 15, "size": [50, 300], "speed": 0,
+         "variability": 0.1,  "start": "random"},
+        {"name": "slow_edge",        "count": 8,  "size": [80, 500], "speed": 2.0,
+         "variability": 0.15, "start": "edge",   "duration": [0.6, 1.0]},
+        {"name": "slow_interior",    "count": 4,  "size": [80, 500], "speed": 2.0,
+         "variability": 0.15, "start": "random", "duration": [0.8, 1.0]},
+        {"name": "medium_edge",      "count": 7,  "size": [80, 500], "speed": 5.0,
+         "variability": 0.15, "start": "edge",   "duration": [0.5, 1.0]},
+        {"name": "medium_interior",  "count": 4,  "size": [80, 500], "speed": 5.0,
+         "variability": 0.15, "start": "random", "duration": [0.7, 1.0]},
+        {"name": "fast_edge",        "count": 8,  "size": [80, 400], "speed": 12.0,
+         "variability": 0.2,  "start": "edge",   "duration": [0.4, 0.9]},
+        {"name": "fast_interior",    "count": 4,  "size": [80, 400], "speed": 12.0,
+         "variability": 0.2,  "start": "random", "duration": [0.6, 0.9]},
+    ]
+
+    CLASS_MAP = {
+        "stationary": 0,
+        "slow_edge": 1, "slow_interior": 1,
+        "medium_edge": 1, "medium_interior": 1,
+        "fast_edge": 1, "fast_interior": 1,
+    }
+
+    def _build_objects():
+        groups = []
+        for spec in A6_OBJECTS:
+            g = {
+                "name": spec["name"],
+                "count": spec["count"],
+                "size": spec["size"],
+                "intensity": {
+                    "base": 1.0,
+                    "variability": spec["variability"],
+                    "profile": "constant",
+                },
+                "flicker": {"enabled": False},
+                "placement": {"margin": 30},
+            }
+            if spec["speed"] == 0:
+                g["path"] = {"type": "fixed", "position": "random"}
+            else:
+                g["path"] = {
+                    "type": "linear",
+                    "start": spec["start"],
+                    "heading": "random",
+                    "speed": spec["speed"],
+                    "duration": spec["duration"],
+                }
+            groups.append(g)
+        return groups
+
+    total = 0
+    for scene_idx in range(1, NUM_SCENES + 1):
+        seed = SEED_BASE + scene_idx * 7
+        for level_name, num_streaks in CLUTTER_LEVELS.items():
+            scene = {
+                "seed": seed,
+                "count": A6_FRAMES,
+                "objects": _build_objects(),
+            }
+            if num_streaks > 0:
+                scene["clutter"] = {
+                    "num_streaks": num_streaks,
+                    "intensity_range": [200, 255],
+                    "per_frame": True,
+                }
+            scene["labels"] = {
+                "export": True,
+                "class_map": dict(CLASS_MAP),
+            }
+            fname = f"a6_scene_{scene_idx:02d}_{level_name}.yaml"
+            write_yaml(str(out / fname), scene)
+            total += 1
+
+    print(f"  A6: {total} scene configs ({NUM_SCENES} scenes × {len(CLUTTER_LEVELS)} clutter levels)")
 
 
 def generate_a7(base_dir):
