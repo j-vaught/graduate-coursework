@@ -104,7 +104,9 @@ ABLATIONS: Dict[str, Tuple[str, List[str]]] = {
     "a6": ("a6_clutter",        [f"a6_scene_{i:02d}_{lvl}"
                                  for i in range(1, 11)
                                  for lvl in ["none", "low", "moderate", "heavy"]]),
-    "a7": ("a7_proximity",      [f"sep_{m}m" for m in range(10, 110, 10)]),
+    "a7": ("a7_proximity",      [f"sep_{m}m{s}"
+                                 for m in range(10, 310, 10)
+                                 for s in ["", "_noclutter"]]),
     "a8": ("a8_crossing",       [f"angle_{a}" for a in [15, 30, 45, 60, 75, 90]]),
 }
 

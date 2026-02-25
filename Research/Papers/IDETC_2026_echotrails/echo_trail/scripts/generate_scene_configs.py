@@ -65,7 +65,7 @@ RANGE_BINS = {
 }
 
 # Proximity separations in meters
-PROXIMITY_METERS = list(range(10, 110, 10))
+PROXIMITY_METERS = list(range(10, 310, 10))
 
 # Crossing angles
 CROSSING_ANGLES = [15, 30, 45, 60, 75, 90]
@@ -517,13 +517,17 @@ def generate_a6(base_dir):
 
 
 def generate_a7(base_dir):
-    """A7: Target proximity. 10 separations (10m to 100m in 10m steps).
+    """A7: Target proximity. 30 separations (10m to 300m in 10m steps) × 2 variants.
 
     Two fixed targets at controlled separations. Separation is in range bins,
-    placed along the same azimuth.
+    placed along the same azimuth. Each separation has a clutter and noclutter
+    variant.
     """
     out = base_dir / "a7_proximity"
     center_bin = 400  # mid-range
+
+    A7_FRAMES = 50
+    total = 0
 
     for sep_m in PROXIMITY_METERS:
         sep_bins = max(1, round(sep_m / METERS_PER_BIN))
@@ -536,13 +540,24 @@ def generate_a7(base_dir):
             make_object_group("target_b", count=1, size=[10, 300], speed=0,
                               intensity_base=1.0, position=[360, bin_b]),
         ]
-        scene = make_scene(
-            SEED_BASE, FRAMES_PER_SCENE, objects,
-            class_map={"target_a": 0, "target_b": 0},
-        )
-        write_yaml(str(out / f"sep_{sep_m}m.yaml"), scene)
+        class_map = {"target_a": 0, "target_b": 0}
 
-    print(f"  A7: {len(PROXIMITY_METERS)} scene configs (10m–100m separations)")
+        # With clutter
+        scene = make_scene(SEED_BASE, A7_FRAMES, objects, class_map)
+        scene["clutter"] = {
+            "num_streaks": 100,
+            "intensity_range": [200, 255],
+            "per_frame": True,
+        }
+        write_yaml(str(out / f"sep_{sep_m}m.yaml"), scene)
+        total += 1
+
+        # Without clutter
+        scene_nc = make_scene(SEED_BASE, A7_FRAMES, objects, class_map)
+        write_yaml(str(out / f"sep_{sep_m}m_noclutter.yaml"), scene_nc)
+        total += 1
+
+    print(f"  A7: {total} scene configs ({len(PROXIMITY_METERS)} separations × 2 clutter variants)")
 
 
 def generate_a8(base_dir):
