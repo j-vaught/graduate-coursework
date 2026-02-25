@@ -13,6 +13,11 @@
   - First systematic investigation of echo trail parameters on ML detection
   - RCS-based radar simulator generating PPI imagery + configurable trail rendering + YOLOv8
   - Eight sequential ablation experiments isolating one parameter each
+  - Key findings from core parameter experiments (E1-E4):
+    - E1 (Trail Length): No single trail length is optimal across speed classes; stationary targets benefit from long trails while fast targets degrade sharply beyond N=3
+    - E2 (Decay Function): Concave decay outperforms alternatives for moving targets by concentrating intensity near current position; step decay worst for fast targets
+    - E3 (Intensity Encoding): Proportional encoding improves mixed-scene detection by preserving return-strength information for target discrimination
+    - E4 (Color Mapping): Gradient color mapping aids moving target localization via implicit directional cue from hue shift across trail age
 
 ## 2. Method
 - Rendering Radar Frames
