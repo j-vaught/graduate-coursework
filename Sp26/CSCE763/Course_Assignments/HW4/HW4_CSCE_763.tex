@@ -1,0 +1,255 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 4
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{outputbg}{RGB}{245,245,245}
+\definecolor{tealfill}{HTML}{00B8A9}
+\definecolor{teallight}{HTML}{D4F0ED}
+\definecolor{lightblue}{HTML}{D6EAF8}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=#1,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% Graphics path
+\graphicspath{{figures/}}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#4}
+\author{Instructor: Spring 2026 \\ University of South Carolina}
+\date{Due: 1:15 pm EST, Thursday, Feb 26}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Highboost Filtering (10 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Fourier Transform (20 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Mean/Order-Statistic Filters (30 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Motion Blur Model (20 pts)} \dotfill & \textbf{\pageref{quest:4}} \\[0.3em]
+\textbf{Problem 5: Wiener Filter Expression (20 pts)} \dotfill & \textbf{\pageref{quest:5}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Highboost Filtering
+% ============================================================================
+
+\question{Problem 1: Highboost Filtering (10 pts)}\label{quest:1}
+
+As we discussed in class, image sharpening by unsharp masking consists of three steps.
+Design a $3 \times 3$ filter for performing highboost filtering with $k=3$ in a single pass through an image,
+a single $3 \times 3$ highboost filter performing image sharpening. Assume that the average image is obtained
+using the filter shown below:
+
+\[
+\frac{1}{9}
+\begin{bmatrix}
+1 & 1 & 1 \\
+1 & 1 & 1 \\
+1 & 1 & 1
+\end{bmatrix}
+\]
+
+% ============================================================================
+% PROBLEM 2: Fourier Transform
+% ============================================================================
+
+\question{Problem 2: Fourier Transform (20 pts)}\label{quest:2}
+
+Perform Fourier Transform on the function
+\[
+f(t) =
+\begin{cases}
+14, & -2w \le t \le 0 \\
+3,  & 0 \le t \le 2w \\
+0,  & \text{otherwise}
+\end{cases}
+\]
+
+% ============================================================================
+% PROBLEM 3: Mean/Order-Statistic Filters
+% ============================================================================
+
+\question{Problem 3: Mean/Order-Statistic Filters (30 pts)}\label{quest:3}
+
+The white bars in the test pattern shown in Figure 1 are 7 pixels wide and 210 pixels high.
+The separation between bars is 17 pixels. What would this image look like after application of a
+$9 \times 9$ filter of:
+
+\begin{enumerate}[label=(\alph*)]
+\item Arithmetic mean filter
+\item Geometric mean filter
+\item Harmonic mean filter
+\item Contraharmonic mean filter with $Q=1$
+\item Contraharmonic mean filter with $Q=0$
+\item Contraharmonic mean filter with $Q=-1$
+\item Median filter
+\item Max filter
+\item Min filter
+\item Midpoint filter
+\end{enumerate}
+
+Hints: you can assume the black background has intensity 0 and white bars have intensity 255.
+You can either write a program to implement these filters or represent the image as an array with
+numbers and show the results after filtering. You may need to pay attention to the corners of the white bars.
+
+\begin{figure}[H]
+\centering
+{\color{USC_Garnet}\fbox{\color{black}\includegraphics[width=0.35\textwidth]{fig1_test_pattern.png}}}
+\caption{Figure 1}
+\end{figure}
+
+% ============================================================================
+% PROBLEM 4: Motion Blur Model
+% ============================================================================
+
+\question{Problem 4: Motion Blur Model (20 pts)}\label{quest:4}
+
+During acquisition, an image undergoes uniform linear motion in the horizontal direction ($y$-direction)
+for a time interval $T_1$. The direction of motion then switches to the vertical direction ($x$-direction)
+for a time interval $T_2$. Assuming that the time it takes the image to change directions is negligible,
+and that shutter opening time and closing time are also negligible, give an expression for the blurring
+function, $H(u,v)$.
+
+(Hint: you can refer to the example that the blurring function for motion during acquisition is
+\[
+H(u,v) = \int_{0}^{T} e^{-j2\pi\left[u\,x_0(t)+v\,y_0(t)\right]}\,dt
+\]
+)
+
+% ============================================================================
+% PROBLEM 5: Wiener Filter Expression
+% ============================================================================
+
+\question{Problem 5: Wiener Filter Expression (20 pts)}\label{quest:5}
+
+Assuming that
+\[
+H(u,v) = 2\pi\sigma^{2} e^{-2\pi^{2}\sigma^{2}(u^{2}+v^{2})}
+\]
+and the ratio of power spectra of the noise and undegraded signal is a constant $K$,
+give the expression for a Wiener filter.
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
