@@ -204,23 +204,166 @@ def generate_a4(base_dir):
 
 
 def generate_a5(base_dir):
-    """A5: Range dependence. 3 ranges × 5 trail lengths = 15 configs.
+    """A5: Range dependence. 3 range bands × 10 scenes × 2 variants = 60 configs.
 
-    Objects placed at specific range bins. Trail lengths varied at apply_trails.
+    Each scene has ~15 stationary + ~15 moving targets constrained to a
+    specific range band. Moving targets include slow/medium/fast speed tiers.
+    Objects are spread across many azimuths to avoid clustering on land.
+    Two variants per scene: with clutter and without (noclutter).
+    Uses 2-class labels: stationary=0, moving=1.
     """
-    out = base_dir / "a5_range"
-    for range_name, range_bin in RANGE_BINS.items():
-        objects = [
-            make_object_group(
-                "target", count=3, size=[10, 300], speed=5,
-                heading=135, intensity_base=1.2,
-                bin_idx=range_bin,
-            ),
-        ]
-        scene = make_scene(SEED_BASE, FRAMES_PER_SCENE, objects)
-        write_yaml(str(out / f"{range_name}.yaml"), scene)
+    import random as pyrandom
 
-    print(f"  A5: {len(RANGE_BINS)} scene configs (trail length varied at apply_trails)")
+    out = base_dir / "a5_range"
+
+    A5_FRAMES = 50
+    NUM_SCENES = 10
+    NUM_PULSES = 2450  # azimuths in the PPI
+
+    # Range bands: (min_bin, max_bin)
+    RANGE_BANDS = {
+        "near": (60, 100),
+        "mid":  (300, 400),
+        "far":  (650, 800),
+    }
+
+    # Speed tiers for moving targets
+    MOVING_TIERS = [
+        {"name": "slow",   "speed": 2.0,  "count_edge": 3, "count_interior": 2,
+         "size": [80, 500], "variability": 0.15, "duration": [0.6, 1.0]},
+        {"name": "medium", "speed": 5.0,  "count_edge": 3, "count_interior": 2,
+         "size": [80, 500], "variability": 0.15, "duration": [0.5, 1.0]},
+        {"name": "fast",   "speed": 12.0, "count_edge": 3, "count_interior": 2,
+         "size": [80, 400], "variability": 0.20, "duration": [0.4, 0.9]},
+    ]
+
+    total_configs = 0
+
+    for range_name, (bin_lo, bin_hi) in RANGE_BANDS.items():
+        for scene_idx in range(1, NUM_SCENES + 1):
+            seed = SEED_BASE + scene_idx * 7 + hash(range_name) % 1000
+            rng = pyrandom.Random(seed)
+
+            # --- Build stationary objects with explicit positions ---
+            stationary_objects = []
+            for i in range(15):
+                pulse = rng.randint(0, NUM_PULSES - 1)
+                bin_idx = rng.randint(bin_lo, bin_hi)
+                stationary_objects.append({
+                    "name": f"stat_{i}",
+                    "count": 1,
+                    "size": [50, 300],
+                    "intensity": {
+                        "base": 1.0,
+                        "variability": 0.1,
+                        "profile": "constant",
+                    },
+                    "flicker": {"enabled": False},
+                    "path": {
+                        "type": "fixed",
+                        "position": [pulse, bin_idx],
+                    },
+                    "placement": {"margin": 30},
+                })
+
+            # --- Build moving objects with start positions in the band ---
+            moving_objects = []
+            for tier in MOVING_TIERS:
+                # Edge-start movers
+                for i in range(tier["count_edge"]):
+                    pulse = rng.randint(0, NUM_PULSES - 1)
+                    bin_idx = rng.randint(bin_lo, bin_hi)
+                    heading = rng.uniform(0, 360)
+                    obj_name = f"{tier['name']}_edge_{i}"
+                    moving_objects.append({
+                        "name": obj_name,
+                        "count": 1,
+                        "size": tier["size"],
+                        "intensity": {
+                            "base": 1.0,
+                            "variability": tier["variability"],
+                            "profile": "constant",
+                        },
+                        "flicker": {"enabled": False},
+                        "path": {
+                            "type": "linear",
+                            "start": [pulse, bin_idx],
+                            "heading": round(heading, 1),
+                            "speed": tier["speed"],
+                            "duration": tier["duration"],
+                        },
+                        "placement": {"margin": 30},
+                    })
+
+                # Interior-start movers
+                for i in range(tier["count_interior"]):
+                    pulse = rng.randint(0, NUM_PULSES - 1)
+                    bin_idx = rng.randint(bin_lo, bin_hi)
+                    heading = rng.uniform(0, 360)
+                    obj_name = f"{tier['name']}_int_{i}"
+                    moving_objects.append({
+                        "name": obj_name,
+                        "count": 1,
+                        "size": tier["size"],
+                        "intensity": {
+                            "base": 1.0,
+                            "variability": tier["variability"],
+                            "profile": "constant",
+                        },
+                        "flicker": {"enabled": False},
+                        "path": {
+                            "type": "linear",
+                            "start": [pulse, bin_idx],
+                            "heading": round(heading, 1),
+                            "speed": tier["speed"],
+                            "duration": tier["duration"],
+                        },
+                        "placement": {"margin": 30},
+                    })
+
+            all_objects = stationary_objects + moving_objects
+
+            # Build class map: stationary=0, moving=1
+            class_map = {}
+            for obj in stationary_objects:
+                class_map[obj["name"]] = 0
+            for obj in moving_objects:
+                class_map[obj["name"]] = 1
+
+            # --- Clutter variant ---
+            scene_clutter = {
+                "seed": seed,
+                "count": A5_FRAMES,
+                "objects": all_objects,
+                "clutter": {
+                    "num_streaks": 100,
+                    "intensity_range": [200, 255],
+                    "per_frame": True,
+                },
+                "labels": {
+                    "export": True,
+                    "class_map": class_map,
+                },
+            }
+            fname_clutter = f"a5_{range_name}_scene_{scene_idx:02d}.yaml"
+            write_yaml(str(out / fname_clutter), scene_clutter)
+            total_configs += 1
+
+            # --- No-clutter variant ---
+            scene_noclutter = {
+                "seed": seed,
+                "count": A5_FRAMES,
+                "objects": all_objects,
+                "labels": {
+                    "export": True,
+                    "class_map": class_map,
+                },
+            }
+            fname_noclutter = f"a5_{range_name}_scene_{scene_idx:02d}_noclutter.yaml"
+            write_yaml(str(out / fname_noclutter), scene_noclutter)
+            total_configs += 1
+
+    print(f"  A5: {total_configs} scene configs (3 bands × 10 scenes × 2 variants)")
 
 
 def generate_a6(base_dir):

@@ -304,7 +304,10 @@ def main():
         else:
             out_path = args.output / f"{scene_yaml.stem}.png"
 
-        visualize_scene(scene_yaml, str(out_path), args.annotation)
+        try:
+            visualize_scene(scene_yaml, str(out_path), args.annotation)
+        except Exception as e:
+            print(f"  [error] Failed to visualize {scene_yaml.name}: {e}")
 
 
 if __name__ == "__main__":
