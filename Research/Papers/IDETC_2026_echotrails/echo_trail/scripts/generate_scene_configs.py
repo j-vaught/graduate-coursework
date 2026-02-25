@@ -462,7 +462,9 @@ def generate_a6(base_dir):
         "fast_edge": 1, "fast_interior": 1,
     }
 
-    def _build_objects():
+    import random as pyrandom
+
+    def _build_objects(rng):
         groups = []
         for spec in A6_OBJECTS:
             g = {
@@ -483,7 +485,7 @@ def generate_a6(base_dir):
                 g["path"] = {
                     "type": "linear",
                     "start": spec["start"],
-                    "heading": "random",
+                    "heading": round(rng.uniform(0, 360), 1),
                     "speed": spec["speed"],
                     "duration": spec["duration"],
                 }
@@ -493,11 +495,12 @@ def generate_a6(base_dir):
     total = 0
     for scene_idx in range(1, NUM_SCENES + 1):
         seed = SEED_BASE + scene_idx * 7
+        rng = pyrandom.Random(seed)
         for level_name, num_streaks in CLUTTER_LEVELS.items():
             scene = {
                 "seed": seed,
                 "count": A6_FRAMES,
-                "objects": _build_objects(),
+                "objects": _build_objects(rng),
             }
             if num_streaks > 0:
                 scene["clutter"] = {
