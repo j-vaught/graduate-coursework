@@ -14,8 +14,8 @@
 
 \title{
 \textbf{CSCE 775: Deep Reinforcement Learning and Search} \\[0.5em]
-\Large Domain-Adaptive Synthetic Marine Radar Generation \\
-via Reinforcement Learning
+\Large RL-Driven Parameter Optimization for Synthetic \\
+Marine Radar Augmentation via Echo Trails
 }
 
 \author{
@@ -33,9 +33,11 @@ Jacob Whisenant \and Xeerak Muhammed \and J.C. Vaught
 % ============================================================
 \section{Introduction}
 
-Autonomous surface vessels (ASVs) operating in inland and coastal waterways rely on marine radar for reliable obstacle detection and navigation. Training perception models for these systems demands large quantities of labeled radar data, yet collecting and annotating real-world radar scans across diverse water bodies is expensive, dangerous, and subject to seasonal and geographic constraints. Synthetic radar generators can fill this data gap, but a persistent \textit{sim-to-real domain gap} degrades model performance when transferring from simulated to real environments \citep{Bousmalis2018SimToReal, Tobin2017DomainRandomization}. Existing approaches to closing this gap typically rely on hand-tuned generator parameters or static domain randomization, neither of which adapts to the specific characteristics of distinct operating environments such as lakes, rivers, and coastal waters.
+Training robust object detectors for marine radar requires large, diverse labeled datasets, yet collecting and annotating real-world radar scans is expensive and constrained by geography, weather, and vessel availability. The EchoTrails framework addresses this by generating synthetic radar scenes with configurable targets, clutter, and a temporal augmentation called \textit{echo trail rendering}, which composites historical frames with decay-weighted intensity to produce motion-encoded training images. A YOLOv8n detector trained on these augmented images learns to distinguish stationary from moving maritime targets based on their trail signatures.
 
-We propose an RL-based framework that learns a policy to \textit{automatically} control the parameters of a synthetic marine radar generator so that downstream perception models trained on its output achieve maximal performance on real radar logs. Unlike fixed randomization strategies \citep{Tobin2017DomainRandomization} or one-shot learned distributions \citep{Kar2019MetaSim}, our approach continuously adapts generator settings conditioned on \textit{water-body domain type} (lake, river, or coast) and live validation feedback. This formulation treats simulator calibration as a sequential decision-making problem, naturally suited to deep reinforcement learning. The result is a closed-loop system that discovers domain-specific synthetic data recipes without manual parameter sweeps, advancing the state of the art in sim-to-real transfer for maritime perception.
+However, the EchoTrails pipeline exposes a high-dimensional parameter space spanning trail rendering (trail length $N$, decay function, intensity encoding, color mapping), synthetic clutter generation (streak count, intensity range), and per-object-group configuration (speed, intensity profile, flicker behavior, placement). The existing ablation study \citep{Cubuk2019AutoAugment} evaluates trail length in isolation while holding all other parameters fixed, leaving the joint optimization landscape unexplored. Manual grid search over this combinatorial space is prohibitively expensive, as each parameter configuration requires a full generation-training-evaluation cycle of approximately 2,500 frames and 50 YOLOv8n training epochs.
+
+We propose a reinforcement learning framework that learns a policy to \textit{jointly} optimize the EchoTrails generator parameters, maximizing downstream detection performance (mAP$_{50\text{-}95}$) on held-out validation data. By formulating parameter selection as a sequential decision-making problem and solving it with Soft Actor-Critic (SAC) \citep{Haarnoja2018SAC}, our approach replaces exhaustive ablation with an adaptive, closed-loop search over the full parameter space. The agent discovers effective parameter configurations that no single-variable ablation would find, and can condition on scene characteristics such as object density and clutter presence to produce context-specific augmentation recipes.
 
 % ============================================================
 % FIGURE 1: SYSTEM ARCHITECTURE
@@ -53,39 +55,39 @@ We propose an RL-based framework that learns a policy to \textit{automatically} 
 \node[block, fill=white] (agent) {RL Policy\\(SAC)};
 
 % Generator
-\node[block, fill=white, right=2.5cm of agent] (gen) {Synthetic Radar\\Generator};
+\node[block, fill=white, right=2.5cm of agent] (gen) {EchoTrails\\Generator};
 
 % Synthetic Data
-\node[data, right=2.0cm of gen] (synth) {Synthetic\\Radar Scans};
+\node[data, right=2.0cm of gen] (synth) {Trail-Augmented\\Radar Images};
 
 % Downstream Model
-\node[block, fill=white, below=1.8cm of synth] (model) {Downstream\\Perception Model};
+\node[block, fill=white, below=1.8cm of synth] (model) {YOLOv8n\\Detector};
 
 % Real Data
-\node[data, left=2.0cm of model] (real) {Real Radar\\Logs};
+\node[data, left=2.0cm of model] (real) {Validation\\Set};
 
 % Validation Score
-\node[block, fill=white, below=1.8cm of agent] (val) {Validation\\Metrics};
+\node[block, fill=white, below=1.8cm of agent] (val) {mAP$_{50\text{-}95}$\\Reward};
 
-% Domain Tag
-\node[block, fill=white, above=1.2cm of agent] (domain) {Domain Tag\\$d \in \{$lake, river, coast$\}$};
+% Scene Context
+\node[block, fill=white, above=1.2cm of agent] (context) {Scene Context\\$(n_\text{obj}, c, v_\text{dist})$};
 
 % Arrows
-\draw[arr] (agent) -- node[above] {$\boldsymbol{a}_t = \Delta\boldsymbol{\theta}$} (gen);
+\draw[arr] (agent) -- node[above] {$\boldsymbol{a}_t$} (gen);
 \draw[arr] (gen) -- (synth);
 \draw[arr] (synth) -- node[right] {train} (model);
 \draw[arr] (real) -- node[above] {evaluate} (model);
-\draw[arr] (model) -- node[below] {F1, mAP} (val);
+\draw[arr] (model) -- node[below] {mAP, F1} (val);
 \draw[arr] (val) -- node[left] {$r_t$} (agent);
-\draw[arr] (domain) -- (agent);
+\draw[arr] (context) -- (agent);
 
 % Background box
 \begin{scope}[on background layer]
-\node[draw=black!40, dashed, inner sep=12pt, fit=(agent)(gen)(synth)(model)(real)(val)(domain), label={[font=\small\bfseries]above:Closed-Loop Sim-to-Real Adaptation System}] {};
+\node[draw=black!40, dashed, inner sep=12pt, fit=(agent)(gen)(synth)(model)(real)(val)(context), label={[font=\small\bfseries]above:Closed-Loop EchoTrails Parameter Optimization}] {};
 \end{scope}
 
 \end{tikzpicture}
-\caption{System architecture. The RL policy outputs parameter updates $\Delta\boldsymbol{\theta}$ for the synthetic radar generator, conditioned on domain type. The downstream perception model is trained on synthetic data and evaluated on held-out real radar logs. Validation metrics form the reward signal, closing the loop.}
+\caption{System architecture. The RL policy outputs EchoTrails generator parameters $\boldsymbol{a}_t$ conditioned on scene context (object count $n_\text{obj}$, clutter flag $c$, speed distribution $v_\text{dist}$). The generator produces trail-augmented radar images that train a YOLOv8n detector. Validation mAP$_{50\text{-}95}$ on a held-out set forms the reward signal.}
 \label{fig:system_arch}
 \end{figure}
 
@@ -94,7 +96,19 @@ We propose an RL-based framework that learns a policy to \textit{automatically} 
 % ============================================================
 \section{Approach}
 
-We formulate simulator parameter tuning as a Markov Decision Process (MDP). At each step $t$, the RL agent observes a state $\boldsymbol{s}_t$ comprising the current generator parameter vector $\boldsymbol{\theta}_t \in \mathbb{R}^k$, a domain indicator $d \in \{\text{lake}, \text{river}, \text{coast}\}$, and recent downstream validation metrics. The agent selects a continuous action $\boldsymbol{a}_t = \Delta\boldsymbol{\theta}_t$ that updates the generator parameters to $\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t + \boldsymbol{a}_t$. The generator then produces a batch of synthetic radar scans under the new parameters, a downstream perception model is trained (or fine-tuned) on this batch, and evaluated against held-out real radar logs. The reward $r_t$ is the improvement in downstream task score (detection F1 or segmentation mAP) minus a realism penalty that discourages implausible parameter settings.
+We formulate EchoTrails parameter optimization as a Markov Decision Process (MDP). The state, action, and reward are defined over the actual generator parameter space exposed by the EchoTrails pipeline.
+
+\subsection{State Space}
+
+At each step $t$, the agent observes a state $\boldsymbol{s}_t = (\boldsymbol{\theta}_t, \boldsymbol{c}_t, \boldsymbol{m}_t)$ comprising three components. The current parameter vector $\boldsymbol{\theta}_t \in \mathbb{R}^k$ encodes the active generator settings. The scene context vector $\boldsymbol{c}_t$ encodes the composition of the current scenario, including total object count, the fraction of stationary versus moving targets, the speed tier distribution (slow at 2 px/frame, medium at 5 px/frame, fast at 12 px/frame), and the binary clutter flag. The metric history $\boldsymbol{m}_t$ contains recent validation scores (mAP$_{50\text{-}95}$, precision, recall) from the previous $h$ evaluation rounds.
+
+\subsection{Action Space}
+
+The action $\boldsymbol{a}_t$ specifies a complete generator configuration drawn from the EchoTrails parameter space. The action vector comprises both continuous and categorical components.
+
+The continuous parameters include trail length $N \in [0, 30]$ (number of history frames composited per output), clutter streak count $n_\text{streaks} \in [0, 150]$, clutter intensity bounds $[I_\text{min}, I_\text{max}] \subset [0, 255]$, per-group base intensity $\beta \in [0.2, 2.0]$, intensity variability $\sigma \in [0.0, 0.5]$, and flicker rate $\rho \in [0.0, 1.0]$ with associated intensity drop $\delta \in [0.1, 1.0]$.
+
+The categorical parameters include decay function $f \in \{\text{linear}, \text{exponential}, \text{concave}, \text{step}\}$, intensity encoding $e \in \{\text{binary}, \text{proportional}\}$, and color mapping $g \in \{\text{mono}, \text{twotone}, \text{gradient}, \text{intensity}\}$. Categorical choices are parameterized as logits over the option set and sampled via Gumbel-Softmax during training, enabling gradient flow through discrete decisions.
 
 % ============================================================
 % FIGURE 2: MDP DIAGRAM
@@ -108,22 +122,22 @@ We formulate simulator parameter tuning as a Markov Decision Process (MDP). At e
 ]
 
 % State
-\node[block, fill=white] (st) {$\boldsymbol{s}_t$\\$(\boldsymbol{\theta}_t, d, m_t)$};
+\node[block, fill=white] (st) {$\boldsymbol{s}_t$\\$(\boldsymbol{\theta}_t, \boldsymbol{c}_t, \boldsymbol{m}_t)$};
 
 % Policy
 \node[block, fill=white, right=2.5cm of st] (pi) {$\pi_\phi(\boldsymbol{a}_t | \boldsymbol{s}_t)$\\SAC Policy};
 
 % Action
-\node[block, fill=white, right=2.5cm of pi] (at) {$\boldsymbol{a}_t = \Delta\boldsymbol{\theta}$\\Parameter Update};
+\node[block, fill=white, right=2.5cm of pi, minimum width=3.2cm] (at) {$\boldsymbol{a}_t$\\$(N, f, e, g, n_\text{streaks}, \ldots)$};
 
 % Environment (below, spanning)
-\node[block, fill=white, below=2.0cm of pi, minimum width=4.0cm] (env) {Environment\\(Generate $\rightarrow$ Train $\rightarrow$ Eval)};
+\node[block, fill=white, below=2.0cm of pi, minimum width=4.0cm] (env) {EchoTrails Pipeline\\(Generate $\rightarrow$ Train $\rightarrow$ Eval)};
 
 % Next state
-\node[block, fill=white, below=2.0cm of st] (st1) {$\boldsymbol{s}_{t+1}$\\$(\boldsymbol{\theta}_{t+1}, d, m_{t+1})$};
+\node[block, fill=white, below=2.0cm of st] (st1) {$\boldsymbol{s}_{t+1}$\\$(\boldsymbol{\theta}_{t+1}, \boldsymbol{c}_{t+1}, \boldsymbol{m}_{t+1})$};
 
 % Reward
-\node[block, fill=white, below=2.0cm of at] (rt) {$r_t = \Delta m_t$\\$ - \lambda \cdot \text{penalty}$};
+\node[block, fill=white, below=2.0cm of at] (rt) {$r_t = \Delta\text{mAP}_{50\text{-}95}$\\$ - \lambda \|\boldsymbol{a}_t\|_\infty$};
 
 % Arrows
 \draw[arr] (st) -- (pi);
@@ -140,20 +154,38 @@ We formulate simulator parameter tuning as a Markov Decision Process (MDP). At e
 \node[above=0.1cm of at, font=\footnotesize\itshape] {Action};
 
 \end{tikzpicture}
-\caption{MDP formulation. The state $\boldsymbol{s}_t$ encodes generator parameters $\boldsymbol{\theta}_t$, domain tag $d$, and recent metrics $m_t$. The SAC policy outputs continuous parameter deltas. The environment executes the full generate-train-evaluate loop and returns the next state and reward.}
+\caption{MDP formulation. The state $\boldsymbol{s}_t$ encodes the current parameter vector, scene context, and recent metrics. The SAC policy outputs a full generator configuration including trail length $N$, decay function $f$, intensity encoding $e$, color mapping $g$, and clutter parameters. The reward is the improvement in validation mAP$_{50\text{-}95}$ with a regularization penalty discouraging extreme parameter settings.}
 \label{fig:mdp}
 \end{figure}
 
-We adopt Soft Actor-Critic (SAC) \citep{Haarnoja2018SAC} as our primary RL algorithm due to its sample efficiency with off-policy replay and its robust exploration via maximum entropy regularization. The continuous action space is well-suited to SAC, and the entropy bonus naturally encourages diverse generator configurations during early training. We maintain TD3 \citep{Fujimoto2018TD3} as a secondary algorithm for ablation comparison. The generator parameter vector $\boldsymbol{\theta}$ controls physically meaningful knobs including noise floor, sea clutter intensity, multipath reflection strength, signal attenuation profile, and artifact injection probability. Actions are clipped to physically plausible bounds to maintain radar realism.
+\subsection{Reward and Training}
 
-Our approach differs from prior work in three key respects. First, unlike static domain randomization \citep{Tobin2017DomainRandomization, Tremblay2018TrainingDNN}, our policy adapts generator parameters \textit{online} in response to downstream performance, avoiding wasted computation on uninformative synthetic distributions. Second, unlike Meta-Sim \citep{Kar2019MetaSim}, which learns a single scene-generation distribution, our agent conditions on water-body type, producing domain-specific synthetic recipes. Third, compared to Active Domain Randomization \citep{Mehta2020ActiveDR}, which searches for maximally informative randomization ranges, our formulation directly optimizes the downstream task objective rather than a proxy transferability metric. The domain-adversarial training framework of \citet{Ganin2016DomainAdversarial} serves as an additional baseline representing a non-RL approach to domain adaptation.
+The reward $r_t$ is the change in validation mAP$_{50\text{-}95}$ between successive evaluation rounds, minus a regularization penalty $\lambda \|\boldsymbol{a}_t\|_\infty$ that discourages extreme parameter settings (e.g., trail lengths beyond $N = 25$ where the ablation study shows diminishing returns, or clutter intensities that saturate the image). Formally,
+\begin{align}
+r_t = \text{mAP}_{50\text{-}95}^{(t+1)} - \text{mAP}_{50\text{-}95}^{(t)} - \lambda \|\boldsymbol{a}_t\|_\infty.
+\end{align}
+We adopt SAC \citep{Haarnoja2018SAC} for its sample efficiency with off-policy replay and its entropy-regularized exploration, which naturally encourages diverse parameter configurations during early training. The maximum entropy objective is well-suited to this problem because the generator parameter landscape is expected to contain multiple effective configurations, and premature convergence to a single setting would forfeit the diversity needed for robust detector training.
+
+Each RL step requires executing the full EchoTrails pipeline (scene generation, polar-to-Cartesian conversion, echo trail rendering) followed by a 50-epoch YOLOv8n training run on 2,250 images and evaluation on 250 validation images. To amortize this cost, we use a replay buffer of 500 previous (state, action, reward, next-state) tuples and update the policy with 10 gradient steps per environment step.
+
+\subsection{Distinction from Prior Work}
+
+Our approach differs from prior work in three respects. First, unlike static domain randomization \citep{Tobin2017DomainRandomization, Tremblay2018TrainingDNN}, our policy adapts generator parameters \textit{online} in response to downstream detection performance rather than sampling from a fixed distribution. Second, unlike Meta-Sim \citep{Kar2019MetaSim}, which learns a single scene-generation distribution, our agent conditions on scene context (object density, clutter, speed tiers) to produce context-specific configurations. Third, unlike single-variable ablation, our RL formulation searches the \textit{joint} parameter space, discovering interaction effects between trail rendering, clutter, and intensity parameters that isolated sweeps would miss.
 
 % ============================================================
 % EVALUATION
 % ============================================================
 \section{Evaluation}
 
-We evaluate on real marine radar logs collected across lake, river, and coastal environments. Data is split by geographic location within each domain to prevent spatial leakage, with 70\%/15\%/15\% train/validation/test splits. The primary downstream task is radar target detection, measured by detection F1 score and mean Average Precision (mAP). We additionally report calibration error and the \textit{sim-to-real gap}, defined as the absolute difference in F1 between a model evaluated on synthetic versus real data.
+We evaluate using the EchoTrails dataset infrastructure. The existing dataset comprises 10 scenes of 250 frames each (2,500 total), split 9:1 for training and validation. Each scene contains approximately 60 objects stratified across seven groups: stationary targets, slow/medium/fast movers originating from both edge and interior positions. All scenes use real Charleston harbor radar backgrounds (280 FURUNO-format frames) with a library of 5,106 filtered maritime target patches. Two conditions are tested: scenes with synthetic clutter (100 streaks per frame, intensity 200--255) and scenes without clutter.
+
+\subsection{Metrics}
+
+The primary metric is mAP$_{50\text{-}95}$ (mean average precision averaged over IoU thresholds 0.50 to 0.95 in steps of 0.05), which is the standard COCO-style detection metric. We additionally report mAP$_{50}$, precision, recall, and F1 score. All metrics are computed separately for the two-class detection task (stationary vs.\ moving). We also report per-speed-tier detection rates (slow, medium, fast) to evaluate whether the RL-discovered parameters improve detection uniformly or favor particular motion regimes.
+
+\subsection{Baselines}
+
+We compare against four baselines.
 
 % ============================================================
 % FIGURE 3: EVALUATION PIPELINE
@@ -169,10 +201,10 @@ We evaluate on real marine radar logs collected across lake, river, and coastal 
 ]
 
 % Training configs (left column)
-\node[block, fill=white] (b1) {Baseline 1\\Fixed Defaults};
+\node[block, fill=white] (b1) {Baseline 1\\Ablation Best ($N\!=\!20$)};
 \node[block, fill=white, below=0.6cm of b1] (b2) {Baseline 2\\Random Search};
 \node[block, fill=white, below=0.6cm of b2] (b3) {Baseline 3\\Bayesian Opt.};
-\node[block, fill=white, below=0.6cm of b3] (b4) {Baseline 4\\Domain-Adv.};
+\node[block, fill=white, below=0.6cm of b3] (b4) {Baseline 4\\No Trails ($N\!=\!0$)};
 \node[block, fill=white, below=0.6cm of b4] (ours) {\textbf{Ours}\\SAC Policy};
 
 % Middle: evaluation scenarios
@@ -180,17 +212,17 @@ We evaluate on real marine radar logs collected across lake, river, and coastal 
 
 % Scenarios listed
 \node[font=\footnotesize, below=0.2cm of eval, text width=4.0cm, align=left] (scenarios) {
-    1. In-domain (same env type)\\
-    2. Cross-domain (held-out env)\\
-    3. Unseen location\\
-    4. Low-SNR stress test
+    1. With clutter\\
+    2. Without clutter\\
+    3. Unseen scene layout\\
+    4. Cross-speed-tier
 };
 
 % Metrics (right)
-\node[metric, right=7.5cm of b1] (m1) {F1 Score};
-\node[metric, right=7.5cm of b2] (m2) {mAP};
-\node[metric, right=7.5cm of b3] (m3) {Calibration Err.};
-\node[metric, right=7.5cm of b4] (m4) {Sim-to-Real Gap};
+\node[metric, right=7.5cm of b1] (m1) {mAP$_{50\text{-}95}$};
+\node[metric, right=7.5cm of b2] (m2) {mAP$_{50}$};
+\node[metric, right=7.5cm of b3] (m3) {Precision / Recall};
+\node[metric, right=7.5cm of b4] (m4) {Per-Tier Detection};
 \node[metric, right=7.5cm of ours] (m5) {Policy Stability};
 
 % Arrows from baselines to eval
@@ -212,18 +244,20 @@ We evaluate on real marine radar logs collected across lake, river, and coastal 
 \node[above=0.3cm of m1, font=\small\bfseries] {Metrics};
 
 \end{tikzpicture}
-\caption{Evaluation pipeline. All methods (four baselines plus our SAC-based approach) are evaluated across four test scenarios. Performance is measured by five complementary metrics capturing both task accuracy and transfer quality.}
+\caption{Evaluation pipeline. All methods are evaluated across four test scenarios spanning clutter conditions, unseen scene layouts, and cross-speed-tier generalization. Performance is measured by five complementary metrics.}
 \label{fig:eval}
 \end{figure}
 
-We compare against four baselines. The first uses the synthetic generator with fixed default parameters. The second replaces the RL policy with random parameter search over the same action space. The third substitutes Bayesian optimization (Gaussian process with expected improvement acquisition) as a non-RL adaptive baseline. The fourth applies domain-adversarial training \citep{Ganin2016DomainAdversarial} directly to the perception model without modifying the generator. Evaluation follows four test scenarios of increasing difficulty. \textit{In-domain transfer} trains and tests within the same water-body type. \textit{Cross-domain transfer} trains on two environment types and tests on the held-out third. \textit{Unseen-location robustness} tests on new geographic sites within a known environment type. \textit{Low-SNR stress testing} evaluates under elevated clutter and noise conditions. We additionally conduct ablation studies removing the domain conditioning and the RL loop entirely to isolate the contribution of each component.
+The first baseline uses the best configuration found by the existing single-variable ablation study: $N = 20$ with linear decay, proportional intensity encoding, and twotone color mapping. This represents the current best-known parameter setting from manual experimentation. The second baseline replaces the RL policy with uniform random search over the full joint parameter space, sampling 100 configurations and reporting the best. The third baseline substitutes Bayesian optimization (Gaussian process with expected improvement acquisition) operating over the same parameter space, given the same computational budget as the RL agent. The fourth baseline uses no echo trails at all ($N = 0$, grayscale-to-RGB conversion only), establishing the lower bound of detection performance without temporal augmentation.
+
+Evaluation follows four test scenarios of increasing difficulty. \textit{With-clutter evaluation} tests under synthetic radar interference (100 streaks per frame). \textit{Without-clutter evaluation} tests in clean conditions. \textit{Unseen-scene-layout evaluation} generates new scene configurations with different object counts and placement seeds not seen during RL training. \textit{Cross-speed-tier evaluation} tests whether parameters optimized for balanced speed distributions transfer to scenes dominated by a single speed tier (e.g., all fast movers at 12 px/frame). We additionally conduct ablation studies removing individual action dimensions (e.g., fixing $N$ and optimizing only clutter and intensity parameters, or vice versa) to quantify the contribution of joint optimization.
 
 % ============================================================
 % CONCLUSION
 % ============================================================
 \section{Conclusion}
 
-We propose a reinforcement learning framework for automatically tuning synthetic marine radar generator parameters to minimize the sim-to-real domain gap for downstream perception tasks. By formulating simulator calibration as an MDP and solving it with SAC, our approach replaces manual parameter sweeps with a closed-loop policy that adapts to distinct water-body domains. The evaluation plan spans in-domain, cross-domain, unseen-location, and stress-test scenarios, compared against fixed-parameter, random search, Bayesian optimization, and domain-adversarial baselines across detection F1, mAP, calibration error, sim-to-real gap, and policy stability metrics. If successful, this work will demonstrate that RL-driven simulator control offers a principled, automated path to high-fidelity synthetic training data for maritime autonomy, reducing the need for costly real-world data collection campaigns.
+We propose a reinforcement learning framework for jointly optimizing the parameters of the EchoTrails synthetic marine radar augmentation pipeline. By formulating the selection of trail length, decay function, intensity encoding, color mapping, clutter configuration, and per-object intensity and flicker settings as an MDP solved with SAC, our approach replaces expensive single-variable ablation with an adaptive closed-loop search over the full joint parameter space. The evaluation plan compares against the ablation-best configuration, random search, Bayesian optimization, and no-trail baselines across clutter conditions, unseen layouts, and cross-speed-tier scenarios. If successful, this work will demonstrate that RL-driven augmentation parameter optimization discovers configurations that outperform manual tuning, while revealing interaction effects in the generator parameter space that isolated ablation studies cannot capture.
 
 % ============================================================
 % REFERENCES
