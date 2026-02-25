@@ -29,9 +29,13 @@ Output structure:
 """
 
 import os
+import sys
 import yaml
 from pathlib import Path
 
+# Add radar-scene-augmentation to path for water mask validation
+_SCENE_GEN_ROOT = Path("/Volumes/MacShare/Code/radar-scene-augmentation/scene-generator")
+sys.path.insert(0, str(_SCENE_GEN_ROOT))
 
 FRAMES_PER_SCENE = 250
 SEED_BASE = 42
@@ -60,6 +64,35 @@ PROXIMITY_METERS = list(range(10, 110, 10))
 
 # Crossing angles
 CROSSING_ANGLES = [15, 30, 45, 60, 75, 90]
+
+
+def load_water_mask():
+    """Load the Charleston water mask in polar (pulse, bin) space."""
+    from radar_core.annotations import AnnotationSet
+    from radar_core.converter import RadarConverter, ConversionConfig
+    from radar_core.mask import PolarMask, create_water_mask
+
+    annotation_path = Path("/Volumes/MacShare/Code/radar-scene-augmentation/data/annotation_charleston.json")
+    annotations = AnnotationSet.load(str(annotation_path))
+    converter = RadarConverter(ConversionConfig())
+    size = converter.image_size()
+    cart_mask = create_water_mask(annotations, size, size)
+    polar_mask = PolarMask.from_cartesian(cart_mask, converter)
+    num_pulses = converter.num_pulses()
+    return polar_mask, num_pulses
+
+
+def find_water_position(rng, polar_mask, num_pulses, bin_lo, bin_hi, max_attempts=50):
+    """Find a random (pulse, bin) position that falls on water.
+
+    Returns (pulse, bin_idx) or None if no valid position found.
+    """
+    for _ in range(max_attempts):
+        pulse = rng.randint(0, num_pulses - 1)
+        bin_idx = rng.randint(bin_lo, bin_hi)
+        if polar_mask.get(pulse, bin_idx):
+            return pulse, bin_idx
+    return None
 
 
 def make_object_group(name, count=1, size=[10, 300], speed=0,
@@ -218,7 +251,9 @@ def generate_a5(base_dir):
 
     A5_FRAMES = 50
     NUM_SCENES = 10
-    NUM_PULSES = 2450  # azimuths in the PPI
+
+    # Load water mask for position validation
+    polar_mask, NUM_PULSES = load_water_mask()
 
     # Range bands: (min_bin, max_bin)
     RANGE_BANDS = {
@@ -244,11 +279,15 @@ def generate_a5(base_dir):
             seed = SEED_BASE + scene_idx * 7 + hash(range_name) % 1000
             rng = pyrandom.Random(seed)
 
-            # --- Build stationary objects with explicit positions ---
+            # --- Build stationary objects with explicit positions on water ---
             stationary_objects = []
             for i in range(15):
-                pulse = rng.randint(0, NUM_PULSES - 1)
-                bin_idx = rng.randint(bin_lo, bin_hi)
+                pos = find_water_position(rng, polar_mask, NUM_PULSES, bin_lo, bin_hi)
+                if pos is None:
+                    print(f"  Warning: could not find water position for stat_{i} "
+                          f"in {range_name}_scene_{scene_idx:02d}")
+                    continue
+                pulse, bin_idx = pos
                 stationary_objects.append({
                     "name": f"stat_{i}",
                     "count": 1,
@@ -266,13 +305,17 @@ def generate_a5(base_dir):
                     "placement": {"margin": 30},
                 })
 
-            # --- Build moving objects with start positions in the band ---
+            # --- Build moving objects with start positions on water ---
             moving_objects = []
             for tier in MOVING_TIERS:
                 # Edge-start movers
                 for i in range(tier["count_edge"]):
-                    pulse = rng.randint(0, NUM_PULSES - 1)
-                    bin_idx = rng.randint(bin_lo, bin_hi)
+                    pos = find_water_position(rng, polar_mask, NUM_PULSES, bin_lo, bin_hi)
+                    if pos is None:
+                        print(f"  Warning: could not find water position for "
+                              f"{tier['name']}_edge_{i} in {range_name}_scene_{scene_idx:02d}")
+                        continue
+                    pulse, bin_idx = pos
                     heading = rng.uniform(0, 360)
                     obj_name = f"{tier['name']}_edge_{i}"
                     moving_objects.append({
@@ -297,8 +340,12 @@ def generate_a5(base_dir):
 
                 # Interior-start movers
                 for i in range(tier["count_interior"]):
-                    pulse = rng.randint(0, NUM_PULSES - 1)
-                    bin_idx = rng.randint(bin_lo, bin_hi)
+                    pos = find_water_position(rng, polar_mask, NUM_PULSES, bin_lo, bin_hi)
+                    if pos is None:
+                        print(f"  Warning: could not find water position for "
+                              f"{tier['name']}_int_{i} in {range_name}_scene_{scene_idx:02d}")
+                        continue
+                    pulse, bin_idx = pos
                     heading = rng.uniform(0, 360)
                     obj_name = f"{tier['name']}_int_{i}"
                     moving_objects.append({
