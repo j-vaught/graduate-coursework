@@ -51,15 +51,20 @@ SPEED_CLASSES = {
 # Trail lengths for A1 and A5
 TRAIL_LENGTHS = [0, 3, 6, 12, 24]
 
+# Radar geometry
+NUM_RANGE_BINS = 868
+MAX_RANGE_NM = 3.0
+MAX_RANGE_M = MAX_RANGE_NM * 1852          # 5556 m
+METERS_PER_BIN = MAX_RANGE_M / NUM_RANGE_BINS  # ≈ 6.40 m/bin
+
 # Range bins: near (~200m), mid (~1nm ≈ 1852m), far (~3nm ≈ 5556m)
-# With 868 bins over ~6nm max range, 1 bin ≈ 6.9m
 RANGE_BINS = {
     "near": 80,    # ~200m from center
     "mid": 350,    # ~1nm
     "far": 750,    # ~3nm
 }
 
-# Proximity separations in meters (converted to bins: 1 bin ≈ 6.9m)
+# Proximity separations in meters
 PROXIMITY_METERS = list(range(10, 110, 10))
 
 # Crossing angles
@@ -514,14 +519,14 @@ def generate_a6(base_dir):
 def generate_a7(base_dir):
     """A7: Target proximity. 10 separations (10m to 100m in 10m steps).
 
-    Two fixed targets at controlled separations. Separation is in range bins
-    (1 bin ≈ 6.9m), placed along the same azimuth.
+    Two fixed targets at controlled separations. Separation is in range bins,
+    placed along the same azimuth.
     """
     out = base_dir / "a7_proximity"
     center_bin = 400  # mid-range
 
     for sep_m in PROXIMITY_METERS:
-        sep_bins = max(1, round(sep_m / 6.9))
+        sep_bins = max(1, round(sep_m / METERS_PER_BIN))
         bin_a = center_bin - sep_bins // 2
         bin_b = center_bin + sep_bins // 2
 
