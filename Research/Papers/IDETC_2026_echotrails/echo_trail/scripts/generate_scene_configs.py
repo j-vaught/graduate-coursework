@@ -49,7 +49,7 @@ SPEED_CLASSES = {
 }
 
 # Trail lengths for A1 and A5
-TRAIL_LENGTHS = [0, 3, 6, 12, 24]
+TRAIL_LENGTHS = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25]
 
 # Radar geometry
 NUM_RANGE_BINS = 868

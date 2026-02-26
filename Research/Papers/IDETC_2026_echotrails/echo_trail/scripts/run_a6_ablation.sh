@@ -19,7 +19,7 @@ YOLO_DIR="$A6_DIR/yolo"
 RESULTS_DIR="$A6_DIR/results"
 SCRIPT="$HOME/echotrail_ablation/scripts/apply_trails.py"
 
-TRAIL_LENGTHS=(0 3 6 12 24)
+TRAIL_LENGTHS=(0 1 2 3 4 5 10 15 20 25)
 CLUTTER_LEVELS=(none low moderate heavy)
 TRAIN_SCENES=(01 02 03 04 05 06 07 08 09)
 VAL_SCENES=(10)

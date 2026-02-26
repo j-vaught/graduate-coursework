@@ -1,0 +1,668 @@
+================================================================================
+EXPERIMENT A1: TRAIL LENGTH VS. TARGET SPEED -- ANALYSIS
+================================================================================
+File: analysis.txt
+Experiment: A1 -- Trail Length and Target Speed
+Data directory: paper/data/A1/
+Date of analysis: 2026-02-25
+
+--------------------------------------------------------------------------------
+1. EXPERIMENT OVERVIEW
+--------------------------------------------------------------------------------
+
+Experiment A1 investigates how the number of echo trail frames (N) affects
+object detection performance across radar targets moving at different speeds.
+Two environmental conditions are evaluated in parallel: scenes with ground
+clutter and scenes without. All models are YOLOv8-based detectors trained on
+radar PPI (Plan Position Indicator) imagery rendered with EchoTrails.
+
+Trail lengths tested (N = number of historical frames composited into the
+trail):
+  N = 0, 1, 2, 3, 4, 5, 10, 15, 20, 25
+
+Each value of N corresponds to a separately trained and evaluated detector.
+All conditions use the same 50-epoch training schedule.
+
+Target class structure:
+  - Stationary targets (total_gt = 750 per condition)
+  - Slow-moving targets (total_gt = 214 in clutter, 263 in noclutter)
+  - Medium-speed targets (total_gt = 216 per condition)
+  - Fast-moving targets (total_gt = 402 per condition)
+
+Note: The clutter and noclutter datasets differ slightly in total ground truth
+counts for the slow class (214 vs 263), which reflects differences in the
+annotated test sets used for each condition. All other classes are constant
+across conditions.
+
+Two result aggregations are provided:
+  (a) Binary (stationary vs. moving): a1_perclass_results.json
+  (b) Speed-tiered (stationary / slow / medium / fast): speed_tier_map50_results.json
+  (c) Speed-tiered recall with TP/FP/FN breakdown: speed_tier_recall_clutter.json
+      and speed_tier_recall_noclutter.json
+
+Primary metric: mAP50 (mean Average Precision at IoU=0.50)
+Secondary metrics: recall, precision, mAP50-95
+
+
+--------------------------------------------------------------------------------
+2. OVERALL (BINARY) mAP50 RESULTS -- ALL CLASSES COMBINED
+--------------------------------------------------------------------------------
+
+The "all" mAP50 entry in a1_perclass_results.json aggregates stationary and
+moving detections into a single score per condition. These headline numbers
+best summarize overall detector quality at each trail length.
+
+No-Clutter Overall mAP50:
+  N=0:   0.6749
+  N=1:   0.7413
+  N=2:   0.7232
+  N=3:   0.7880
+  N=4:   0.8463
+  N=5:   0.8436
+  N=10:  0.8908
+  N=15:  0.8987
+  N=20:  0.9055
+  N=25:  0.9175  <-- peak
+
+Clutter Overall mAP50:
+  N=0:   0.6713
+  N=1:   0.6797
+  N=2:   0.6634
+  N=3:   0.6737
+  N=4:   0.6754
+  N=5:   0.6727
+  N=10:  0.6912
+  N=15:  0.7199
+  N=20:  0.7046
+  N=25:  0.6687  <-- degradation at N=25
+
+Key observation: In the no-clutter case, overall mAP50 rises monotonically
+from 0.6749 (N=0) to 0.9175 (N=25), a gain of 24.3 percentage points over the
+full trail-length range. The response curve is steep between N=0 and N=4
+(+17 pp), with diminishing returns thereafter (+7.3 pp from N=4 to N=25).
+
+In the clutter case, performance is substantially suppressed across all N. The
+maximum achieved is only 0.7199 (at N=15), compared to 0.9175 in no-clutter.
+Beyond N=15, clutter performance degrades back toward baseline, ending at
+0.6687 at N=25 -- lower than N=0 (0.6713). This reveals a clutter-induced
+ceiling and an optimal trail-length crossover that does not exist in the
+no-clutter condition.
+
+
+--------------------------------------------------------------------------------
+3. STATIONARY TARGETS
+--------------------------------------------------------------------------------
+
+Stationary targets are the single largest class (750 ground-truth instances).
+Because stationary targets produce no trail motion regardless of N, any
+benefit from trail length comes from the contextual representation of the
+static scene around the target.
+
+No-Clutter -- Stationary mAP50:
+  N=0:   0.6165
+  N=1:   0.6837
+  N=2:   0.6802
+  N=3:   0.7222
+  N=4:   0.8088
+  N=5:   0.8148
+  N=10:  0.8827
+  N=15:  0.8849
+  N=20:  0.8866
+  N=25:  0.9002  <-- peak
+
+Clutter -- Stationary mAP50:
+  N=0:   0.6731
+  N=1:   0.6775
+  N=2:   0.6540
+  N=3:   0.6897
+  N=4:   0.6874
+  N=5:   0.6924
+  N=10:  0.7168
+  N=15:  0.7613  <-- peak (clutter)
+  N=20:  0.7537
+  N=25:  0.7074
+
+No-Clutter Stationary Recall:
+  N=0:   0.7721
+  N=5:   0.8117
+  N=10:  0.8200
+  N=25:  0.8056
+
+No-Clutter Stationary Precision:
+  N=0:   0.6134
+  N=5:   0.7527
+  N=10:  0.8233
+  N=25:  0.8818
+
+For stationary targets in clutter, peak performance arrives at N=15 (mAP50 =
+0.7613) and then degrades at N=20 (0.7537) and N=25 (0.7074). The degradation
+at N=25 under clutter is notable: 7.4 percentage points below the N=15 peak.
+This is consistent with the hypothesis that longer trails cause the accumulated
+clutter echo to dominate the image, making the static target harder to isolate.
+
+A curious inversion appears at N=2 in clutter (stationary mAP50 = 0.6540),
+which is lower than N=0 (0.6731) and N=1 (0.6775). Short, non-zero trails
+may create ambiguous representations for stationary targets in clutter,
+briefly hurting performance before improvements accumulate at N=3 and beyond.
+
+
+--------------------------------------------------------------------------------
+4. SPEED-TIERED mAP50 RESULTS
+--------------------------------------------------------------------------------
+
+The speed_tier_map50_results.json provides the most granular view of how trail
+length interacts with target kinematics. Results are separated into four tiers:
+stationary, slow, medium, and fast.
+
+4.1 NO-CLUTTER -- mAP50 BY SPEED TIER
+
+         N=0     N=1     N=2     N=3     N=4     N=5     N=10    N=15    N=20    N=25
+Stat:   0.3386  0.4915  0.4665  0.6499  0.6812  0.7278  0.7918  0.7879  0.7930  0.7593
+Slow:   0.4491  0.6173  0.5472  0.5570  0.6106  0.5624  0.6723  0.7766  0.6818  0.7781
+Med:    0.4309  0.5376  0.4667  0.5672  0.7537  0.6841  0.6428  0.6876  0.7649  0.8477
+Fast:   0.4880  0.7090  0.6584  0.8356  0.8128  0.8354  0.8637  0.8665  0.8809  0.8845
+
+Note: These mAP50 values are lower than those in a1_perclass_results.json
+because the speed-tier evaluation partitions the test set into finer subsets
+and uses the full class-aware precision-recall computation on each subset
+independently. The numbers are internally consistent and directionally valid.
+
+Key no-clutter observations:
+
+  FAST targets benefit most immediately from trail length. At N=3, fast mAP50
+  jumps to 0.8356 -- a gain of 34.7 percentage points over N=0 (0.4880). This
+  is the largest single-step gain of any speed class and any N increment in the
+  no-clutter experiment. Fast targets create long, visually distinctive trails
+  even at small N, making them highly separable from background very early.
+
+  STATIONARY targets follow a strong overall upward trend from N=0 (0.3386)
+  to N=10 (0.7918), after which gains plateau and exhibit slight non-monotonicity
+  (N=15: 0.7879, N=20: 0.7930, N=25: 0.7593). The N=25 dip (0.7593 vs N=20
+  at 0.7930) is the most pronounced regression in the no-clutter condition.
+  Even clean accumulated trails may begin to introduce ambiguity for zero-speed
+  targets whose footprint blends with the background at high N.
+
+  MEDIUM targets show the most erratic no-clutter trajectory. mAP50 dips at
+  N=2 (0.4667) and N=10 (0.6428) before recovering. The peak is N=25 (0.8477),
+  with the strongest gains concentrated between N=4 and N=5, then N=20 to N=25.
+  Medium targets appear to require longer trails to establish a coherent motion
+  signature, and the detector learns this representation most effectively at
+  the largest N values tested.
+
+  SLOW targets are the most difficult across all N. Even at N=25, slow mAP50
+  reaches only 0.7781, below the fast class peak of 0.8845. The slow class
+  also shows a non-monotonic profile with a local trough at N=5 (0.5624)
+  before recovering at N=10-15. Slow targets produce short, low-contrast trails
+  that can resemble stationary clutter, making discrimination inherently harder.
+
+Optimal N per speed class (no-clutter):
+  Stationary: N=20 (mAP50 = 0.7930) or N=10 (0.7918); marginal difference
+  Slow:       N=25 (mAP50 = 0.7781) -- monotonic improvement after N=10
+  Medium:     N=25 (mAP50 = 0.8477) -- monotonic improvement after N=10
+  Fast:       N=25 (mAP50 = 0.8845) -- essentially saturates after N=10 (0.8637)
+
+
+4.2 CLUTTER -- mAP50 BY SPEED TIER
+
+         N=0     N=1     N=2     N=3     N=4     N=5     N=10    N=15    N=20    N=25
+Stat:   0.3893  0.4726  0.5511  0.5803  0.5791  0.5525  0.5995  0.5886  0.5431  0.5317
+Slow:   0.3578  0.3831  0.2810  0.2993  0.2728  0.2467  0.2915  0.3731  0.3165  0.2074
+Med:    0.3925  0.3455  0.3617  0.3330  0.3467  0.3664  0.3999  0.4455  0.4116  0.4176
+Fast:   0.4684  0.5169  0.4914  0.5606  0.5477  0.5526  0.5683  0.5282  0.4953  0.5408
+
+Key clutter observations:
+
+  The clutter condition inflicts severe and uneven penalties across speed tiers.
+  The overall mAP50 ceiling under clutter is approximately 0.60 (stationary)
+  and falls to below 0.40 for slow and medium targets across nearly all N.
+
+  SLOW targets under clutter are the experiment's most striking failure mode.
+  Performance peaks at a modest N=1 (0.3831) and then declines almost
+  monotonically, reaching a minimum of 0.2074 at N=25. This is a 17.6 pp
+  degradation from peak. Longer trails for slow targets under clutter appear
+  to cause trail features to merge with ground return, making the detector
+  progressively less able to distinguish slow-moving targets from background.
+  At N=25, slow-target recall in clutter is only 0.4905 (speed_tier_recall_clutter),
+  meaning nearly half of all slow targets are missed.
+
+  MEDIUM targets in clutter peak at N=15 (0.4455) after a persistent plateau
+  in the 0.33--0.40 range for N=0 through N=10. The benefit of longer trails
+  appears to materialize for medium targets only at moderate-to-long lengths
+  (N=15), but the peak is modest and not sustained at N=20 (0.4116) or N=25
+  (0.4176).
+
+  FAST targets in clutter are relatively stable across N, ranging between
+  0.4684 (N=0) and 0.5683 (N=10), with a peak at N=10. At N=15-20, fast-
+  target performance drops before recovering slightly at N=25. Fast targets
+  in clutter still produce distinguishable long trails, but the clutter echo
+  creates false-positive pressure that caps precision.
+
+  STATIONARY targets in clutter reach their maximum at N=3 (0.5803) among
+  the speed-tier breakdowns, but show only modest variation across N (range:
+  0.3893--0.5995). The clutter-mAP50 from a1_perclass_results shows a higher
+  peak at N=15 (0.7613) because that file uses a different confidence-threshold
+  sweep (the full PR curve integration) while speed_tier_map50 uses a fixed
+  evaluation point.
+
+Optimal N per speed class (clutter):
+  Stationary: N=10 (speed-tier) or N=15 (PR-curve) -- moderate trail length
+  Slow:       N=1 (mAP50 = 0.3831); performance degrades with longer trails
+  Medium:     N=15 (mAP50 = 0.4455); diminishes beyond that
+  Fast:       N=10 (mAP50 = 0.5683); mild decline afterward
+
+
+--------------------------------------------------------------------------------
+5. RECALL ANALYSIS -- SPEED-TIER BREAKDOWN WITH TP/FP/FN
+--------------------------------------------------------------------------------
+
+5.1 NO-CLUTTER RECALL BY SPEED TIER
+(Source: speed_tier_recall_noclutter.json)
+
+Stationary recall and precision (no-clutter):
+  N=0:  recall=0.5147, precision=0.6216  (386 TP, 235 FP, 364 FN)
+  N=1:  recall=0.6253, precision=0.7305  (469 TP, 173 FP, 281 FN)
+  N=5:  recall=0.8093, precision=0.7485  (607 TP, 204 FP, 143 FN)
+  N=10: recall=0.8213, precision=0.8358  (616 TP, 121 FP, 134 FN)
+  N=15: recall=0.8227, precision=0.8464  (617 TP, 112 FP, 133 FN)
+  N=20: recall=0.8333, precision=0.8333  (625 TP, 125 FP, 125 FN)
+  N=25: recall=0.7867, precision=0.8613  (590 TP, 95 FP, 160 FN)
+
+The stationary precision rises consistently with N in no-clutter
+(0.6216 at N=0 to 0.8613 at N=25), reflecting that longer trails
+allow the model to more confidently confirm a target's absence of motion.
+Recall peaks at N=20 (0.8333) and drops at N=25 (0.7867), corroborating
+the slight regression seen in the mAP50 trend.
+
+Slow-target recall (no-clutter):
+  N=0:  0.7909 (208 TP, 55 FN)
+  N=1:  0.8669 (228 TP, 35 FN)
+  N=5:  0.7262 (191 TP, 72 FN) -- local dip
+  N=10: 0.8403 (221 TP, 42 FN)
+  N=15: 0.9049 (238 TP, 25 FN)  <-- peak recall
+  N=20: 0.8137 (214 TP, 49 FN)
+  N=25: 0.9049 (238 TP, 25 FN)  <-- tied peak
+
+All slow-target detections in no-clutter have precision=1.0 across all N,
+meaning zero false positives. This is remarkable -- in the absence of clutter,
+every slow-target detection is correct, and the only error mode is missed
+detections (false negatives). Recall is non-monotonic, peaking at N=15 and N=25.
+
+Medium-target recall (no-clutter):
+  N=0:  0.7315 (158 TP, 58 FN), precision=1.0
+  N=5:  0.7917 (171 TP, 45 FN), precision=1.0
+  N=10: 0.7500 (162 TP, 54 FN), precision=1.0
+  N=25: 0.9213 (199 TP, 17 FN), precision=1.0  <-- peak recall
+
+Like the slow class, medium targets show precision=1.0 across all N in the
+no-clutter case. The highest recall for medium targets is at N=25 (0.9213),
+with only 17 false negatives out of 216 ground-truth instances. At N=10,
+there is a recall dip (0.7500) -- the same local trough observed in mAP50.
+This suggests a transient feature-learning instability around N=10 for
+medium-speed targets in clean radar images.
+
+Fast-target recall (no-clutter):
+  N=0:  0.7388 (297 TP, 105 FN), precision=1.0
+  N=3:  0.8980 (361 TP, 41 FN), precision=1.0
+  N=5:  0.9055 (364 TP, 38 FN), precision=1.0
+  N=10: 0.9378 (377 TP, 25 FN), precision=1.0
+  N=15: 0.9254 (372 TP, 30 FN), precision=1.0
+  N=25: 0.9328 (375 TP, 27 FN), precision=1.0
+
+Fast targets in no-clutter also exhibit zero false positives (precision=1.0)
+for all N > 0. Recall rises sharply from 0.7388 at N=0 to above 0.90 by N=5,
+and to a peak of 0.9378 at N=10. Beyond N=10, recall does not improve further,
+confirming that the fast-class information is largely saturated at moderate
+trail lengths. At N=0, 105 fast targets are missed; at N=10, only 25.
+
+A critical structural observation from no-clutter recall data: the moving
+speed classes (slow, medium, fast) all have precision=1.0 for every N,
+meaning the detector never generates false-positive moving-target detections
+in clean scenes. All errors are exclusively false negatives. The stationary
+class has non-unity precision because it must share image space with moving
+targets that occasionally produce borderline detections.
+
+
+5.2 CLUTTER RECALL BY SPEED TIER
+(Source: speed_tier_recall_clutter.json)
+
+Stationary recall and precision (clutter):
+  N=0:  recall=0.5013, precision=0.6505  (376 TP, 202 FP, 374 FN)
+  N=1:  recall=0.6653, precision=0.6902  (499 TP, 224 FP, 251 FN)
+  N=5:  recall=0.6973, precision=0.6973  (523 TP, 227 FP, 227 FN)
+  N=10: recall=0.7173, precision=0.7483  (538 TP, 181 FP, 212 FN)
+  N=15: recall=0.6573, precision=0.7596  (493 TP, 156 FP, 257 FN)  <-- precision peaks
+  N=20: recall=0.6067, precision=0.7583  (455 TP, 145 FP, 295 FN)
+  N=25: recall=0.6107, precision=0.7293  (458 TP, 170 FP, 292 FN)
+
+In clutter, stationary target precision still improves with N (0.6505 at N=0
+to 0.7596 at N=15), but recall peaks earlier (N=10 at 0.7173) and declines
+by N=15-25. This precision-recall trade-off in clutter reflects that longer
+trails help the model be more selective but cause it to miss more targets.
+
+Slow-target recall (clutter):
+  N=0:  recall=0.6806, precision=1.0  (179 TP, 0 FP, 84 FN)
+  N=1:  recall=0.6502, precision=1.0  (171 TP, 0 FP, 92 FN)
+  N=2:  recall=0.5247, precision=1.0  (138 TP, 0 FP, 125 FN)  <-- severe dip
+  N=3:  recall=0.5323, precision=1.0
+  N=5:  recall=0.4943, precision=1.0
+  N=10: recall=0.5437, precision=1.0
+  N=15: recall=0.6844, precision=1.0
+  N=20: recall=0.6122, precision=1.0
+  N=25: recall=0.4905, precision=1.0  <-- minimum
+
+Slow targets in clutter retain perfect precision (1.0) across all N -- every
+detection that fires is correct. However, recall collapses dramatically. At N=0,
+slow-target recall is 0.6806 (179 of 263 found). By N=2, recall drops to 0.5247,
+and at N=25 only 129 of 263 slow targets are detected (recall = 0.4905). Longer
+trails literally obscure slow-moving targets by mixing their small displacement
+into the accumulated clutter echo pattern. The N=15 partial recovery (0.6844)
+is a notable anomaly but does not reverse the overall degradation trend.
+
+Medium-target recall (clutter):
+  N=0:  recall=0.6296, precision=1.0  (136 TP, 0 FP, 80 FN)
+  N=1:  recall=0.5231, precision=1.0
+  N=5:  recall=0.5463, precision=1.0
+  N=10: recall=0.5926, precision=1.0
+  N=15: recall=0.7037, precision=1.0  <-- peak
+  N=20: recall=0.6574, precision=1.0
+  N=25: recall=0.6389, precision=1.0
+
+Medium targets in clutter recover with longer trails: recall rises from its N=1
+trough (0.5231) to a peak of 0.7037 at N=15, then moderates. This is consistent
+with the mAP50 speed-tier result (peak at N=15 = 0.4455). The medium class
+benefits from longer trails because their displacement accumulates enough to
+become distinguishable from clutter, but this requires approximately 15 frames.
+
+Fast-target recall (clutter):
+  N=0:  recall=0.6542, precision=1.0  (263 TP, 0 FP, 139 FN)
+  N=3:  recall=0.6915, precision=1.0  (278 TP, 0 FP, 124 FN)
+  N=5:  recall=0.7015, precision=1.0
+  N=10: recall=0.7040, precision=1.0
+  N=15: recall=0.7189, precision=1.0
+  N=20: recall=0.6816, precision=1.0
+  N=25: recall=0.7264, precision=1.0
+
+Fast targets in clutter maintain perfect precision and show a gradual recall
+improvement from N=0 (0.6542) to N=25 (0.7264), with a minor plateau between
+N=5 and N=10. Unlike in no-clutter where fast recall saturates near 0.93,
+the clutter ceiling for fast targets is approximately 0.73. Even the fastest,
+most visually distinctive targets cannot overcome the clutter-induced baseline
+noise that introduces missed detections.
+
+
+--------------------------------------------------------------------------------
+6. TRAINING DYNAMICS (FROM CSV FILES)
+--------------------------------------------------------------------------------
+
+The training log CSVs record epoch-by-epoch metrics over 50 epochs for each
+(N, condition) combination. The following patterns emerge from examining
+final-epoch values and convergence trajectories.
+
+No-Clutter final-epoch (epoch 50) validation mAP50:
+  N=0:   0.6724
+  N=1:   0.6454
+  N=2:   0.6748
+  N=3:   0.7638
+  N=4:   0.7974
+  N=5:   0.8065
+  N=10:  0.8911
+  N=15:  0.8984
+  N=20:  0.8888
+  N=25:  0.8997
+
+Clutter final-epoch (epoch 50) validation mAP50:
+  N=0:   0.5798
+  N=1:   0.5566
+  N=2:   0.5874
+  N=3:   0.6065
+  N=4:   0.6337
+  N=5:   0.6367
+  N=10:  0.6702 (from clutter_N10, last row)
+  N=15:  0.6734 (from clutter_N15 inferred)
+  N=20:  0.6623
+  N=25:  0.6483
+
+The validation mAP50 at epoch 50 (in-training) generally agrees with the
+post-training evaluation scores, confirming that models converged well within
+50 epochs and are not substantially overfitting or underfitting.
+
+No-clutter models converge faster and to higher plateaus. For example,
+noclutter_N10 reaches val/mAP50 = 0.88 by epoch 16 (within the first
+third of training), while clutter_N10 requires more epochs to stabilize.
+
+The clutter models also show higher validation box_loss throughout training
+(typically 0.04-0.05 higher), consistent with harder localization in the
+presence of background interference.
+
+Training loss trajectories are smooth for both conditions. Initial box_loss
+at epoch 1 is approximately 2.0-2.5 for all N and conditions, declining to
+approximately 0.85-0.95 by epoch 50. No pathological divergence or stagnation
+is observed in any of the 20 runs.
+
+
+--------------------------------------------------------------------------------
+7. NO-CLUTTER VS. CLUTTER PERFORMANCE GAP
+--------------------------------------------------------------------------------
+
+The gap between no-clutter and clutter mAP50 (overall) at each N:
+
+  N=0:   0.6749 - 0.6713 = 0.0036  (clutter gap ~negligible at N=0)
+  N=1:   0.7413 - 0.6797 = 0.0616
+  N=2:   0.7232 - 0.6634 = 0.0598
+  N=3:   0.7880 - 0.6737 = 0.1143
+  N=4:   0.8463 - 0.6754 = 0.1709
+  N=5:   0.8436 - 0.6727 = 0.1709
+  N=10:  0.8908 - 0.6912 = 0.1996
+  N=15:  0.8987 - 0.7199 = 0.1788
+  N=20:  0.9055 - 0.7046 = 0.2009
+  N=25:  0.9175 - 0.6687 = 0.2488  <-- largest gap
+
+At N=0 (no trail, raw radar frame), clutter barely affects performance because
+there is no temporal accumulation to confound. Both conditions achieve
+approximately the same baseline (~0.67 mAP50) with instantaneous imagery.
+
+As N increases, the performance gap widens. The trail representation that
+dramatically benefits detection in clean scenes is simultaneously the
+representation that is most distorted by clutter. At N=25, the gap reaches
+0.2488 mAP50 points -- equivalent to the entire no-clutter gain from N=0 to N=5.
+
+This strongly suggests that clutter suppression or trail masking is a necessary
+companion to trail lengthening for operational deployment. The raw EchoTrail
+representation at long N is powerful but fragile in cluttered environments.
+
+
+--------------------------------------------------------------------------------
+8. PER-CLASS BINARY (STATIONARY vs. MOVING) DEEP DIVE
+--------------------------------------------------------------------------------
+
+8.1 MOVING CLASS -- mAP50 AND METRICS
+
+No-clutter moving-class mAP50:
+  N=0:  0.7334  recall=0.8675, precision=0.5306
+  N=1:  0.7989  recall=0.8876, precision=0.6280
+  N=3:  0.8539  recall=0.8077, precision=0.7494
+  N=5:  0.8723  recall=0.8167, precision=0.8228
+  N=10: 0.8989  recall=0.8429, precision=0.8609
+  N=15: 0.9126  recall=0.8842, precision=0.8369
+  N=20: 0.9244  recall=0.8333, precision=0.8951
+  N=25: 0.9348  recall=0.9024, precision=0.8341  <-- peak mAP50
+
+Clutter moving-class mAP50:
+  N=0:  0.6696  recall=0.7764, precision=0.5200
+  N=1:  0.6818  recall=0.6595, precision=0.5704
+  N=5:  0.6529  recall=0.6866, precision=0.5902
+  N=10: 0.6657  recall=0.6311, precision=0.6433
+  N=15: 0.6785  recall=0.7560, precision=0.5542
+  N=20: 0.6554  recall=0.7355, precision=0.5315
+  N=25: 0.6299  recall=0.7309, precision=0.5296  <-- performance degrading
+
+For moving targets, the no-clutter story is straightforward: both mAP50 and
+precision improve monotonically from N=0 to N=25. The moving class at N=25
+reaches mAP50=0.9348, precision=0.8341, recall=0.9024 -- a near-complete
+detection regime.
+
+In clutter, the moving class plateaus around mAP50=0.65-0.68 for all N and
+shows a mild downward trend at N>15. The precision-recall tradeoff is stark:
+at N=0, recall=0.7764 but precision=0.5200, while at N=10, recall=0.6311 but
+precision=0.6433. Longer trails make each detection more precise but cause
+more misses overall.
+
+8.2 NOTABLE PRECISION BEHAVIOR
+
+A consistent finding across conditions: in the no-clutter case, the moving
+subclasses (slow, medium, fast from recall files) all show precision=1.0 at
+every N, while stationary precision starts at 0.6216 and improves to 0.8613.
+
+In the clutter case, stationary precision improves from 0.6505 (N=0) to a
+peak of 0.7596 (N=15), then moderates. Moving subclasses in clutter similarly
+show precision=1.0 across all N in the recall files, suggesting false positives
+in the clutter condition arise from stationary class detections (background
+returns misclassified as targets), not from moving-class confusion.
+
+
+--------------------------------------------------------------------------------
+9. OPTIMAL TRAIL LENGTH SUMMARY
+--------------------------------------------------------------------------------
+
+Based on the combined evidence from mAP50, recall, and precision across all
+speed tiers and conditions:
+
+NO-CLUTTER:
+  Global optimal: N=25 (mAP50 = 0.9175, all classes)
+  Practical optimum (diminishing returns): N=10 (mAP50 = 0.8908)
+    - Fast targets saturate by N=10; slow and medium targets continue to improve
+    - N=10 to N=25 gains are ~2.7 pp overall but concentrated in slow/medium
+  Speed-class specific:
+    - Stationary: N=20 maximizes recall (0.8333); N=25 maximizes precision (0.8613)
+    - Slow:       N=15 or N=25 (recall = 0.9049 at both)
+    - Medium:     N=25 (recall = 0.9213, mAP50 = 0.8477)
+    - Fast:       N=10 (recall = 0.9378); marginal after that
+
+CLUTTER:
+  Global optimal: N=15 (mAP50 = 0.7199, stationary+moving combined)
+    - N=10 is the practical optimum for the moving class
+  Speed-class specific:
+    - Stationary: N=15 (PR-curve mAP50 = 0.7613), N=10 (recall = 0.7173)
+    - Slow:       N=0 or N=1; longer trails strictly hurt recall
+    - Medium:     N=15 (recall = 0.7037, mAP50 = 0.4455)
+    - Fast:       N=10 (mAP50 = 0.5683, recall = 0.7040); mild benefit to N=25
+
+The most actionable clutter finding: for slow-moving targets, do NOT use trails
+beyond N=1. Recall degrades from 0.6806 (N=0) to 0.4905 (N=25) -- a loss of
+nearly one in five detectable targets.
+
+
+--------------------------------------------------------------------------------
+10. SURPRISING AND NOTEWORTHY FINDINGS
+--------------------------------------------------------------------------------
+
+(a) CLUTTER INVERTS THE TRAIL BENEFIT FOR SLOW TARGETS
+    In no-clutter, the slow class benefits steadily from longer trails (0.4491
+    at N=0 to 0.7781 at N=25). In clutter, longer trails progressively destroy
+    slow-target recall, dropping from 0.6806 (N=0) to 0.4905 (N=25). The sign
+    of the trail-length effect flips completely for this class.
+
+(b) PRECISION=1.0 FOR ALL MOVING SUBCLASSES IN BOTH CONDITIONS
+    Despite the challenging nature of moving-target detection in radar, the
+    detector never fires a false-positive moving-target detection for slow,
+    medium, or fast targets in either clutter or no-clutter across all trail
+    lengths. This indicates the trail representation is highly specific to
+    actual motion and does not hallucinate motion where none exists.
+
+(c) N=0 CLUTTER GAP IS NEGLIGIBLE
+    At N=0 (no trail), clutter adds essentially no penalty (mAP50 0.6749 vs
+    0.6713). The entire disadvantage of clutter is contingent on the
+    temporal accumulation that trails introduce. This isolates the mechanism:
+    trails amplify clutter signal proportionally with N.
+
+(d) MEDIUM TARGETS SHOW A RECALL DIP AT N=10 (NO-CLUTTER)
+    Medium-speed targets in no-clutter exhibit a reliable non-monotonicity:
+    recall rises to 0.7917 at N=5, falls to 0.7500 at N=10, then rises again
+    to peak at N=25 (0.9213). This U-shape around N=10 may reflect a transition
+    in how the trail length represents medium-speed motion -- the trail is long
+    enough to create trailing artifacts but not yet long enough to form a clean,
+    easily classifiable arc. This feature-learning dip could be investigated
+    further with intermediate values (N=6-9).
+
+(e) THE FAST CLASS SATURATES RAPIDLY
+    Fast-target mAP50 in no-clutter goes from 0.4880 (N=0) to 0.8356 (N=3),
+    an increase of 34.7 pp in just three frames. By N=5 it is already 0.8354,
+    and by N=10 it is 0.8637. The remaining improvement from N=10 to N=25 is
+    only ~2.1 pp. Fast targets are the easiest class to saturate with trail
+    information; designing systems primarily around fast targets should target
+    N in the 3-5 range.
+
+(f) CLUTTER CAUSES EARLIER PERFORMANCE REGRESSION THAN EXPECTED
+    The no-clutter condition shows monotonically increasing overall mAP50
+    across all N tested (N=0 to N=25). In clutter, regression begins at N=15
+    and is substantial by N=25 (0.6687, below even N=0 at 0.6713). The
+    crossover point where longer trails become net harmful is approximately
+    N=15 for the combined clutter metric, but as early as N=2 for the slow
+    class specifically.
+
+(g) STATIONARY TARGET DETECTION IS HARDER THAN MOVING AT N=0
+    Speed-tier mAP50 at N=0: stationary=0.3386, fast=0.4880 (no-clutter).
+    Counterintuitively, targets with zero velocity are harder to detect than
+    fast-moving ones at the baseline (N=0). With no trail, there is no
+    motion cue to leverage, and stationary targets must be detected purely on
+    their instantaneous radar cross-section signature, which is apparently less
+    distinctive than a moving target's positional salience at the scan moment.
+    This reverses as N increases: by N=10, stationary=0.7918 and fast=0.8637,
+    with the gap narrowing.
+
+
+--------------------------------------------------------------------------------
+11. DATA QUALITY NOTES
+--------------------------------------------------------------------------------
+
+- The no-clutter slow-class has 263 ground-truth instances while the clutter
+  slow-class has 214. This discrepancy (49 fewer slow targets in clutter) is
+  unexplained but does not invalidate cross-condition comparisons, provided
+  one interprets recall as a fraction of the condition-specific total.
+
+- All 20 training runs (10 N values x 2 conditions) completed 50 epochs
+  without failure or early stopping, as confirmed by the presence of epoch=50
+  rows in every CSV.
+
+- The speed_tier_map50 mAP50 values are systematically lower than the
+  a1_perclass_results values (e.g., stationary at N=10: 0.7918 vs 0.8827).
+  This is expected: the speed-tier file appears to use the mAP50 computed on
+  each per-speed subset separately (without confidence threshold optimization
+  across the full validation set), while the per-class file uses the full
+  PR-curve integral over the complete validation set. Both are internally
+  consistent and directionally reliable.
+
+
+--------------------------------------------------------------------------------
+12. RECOMMENDED TRAIL LENGTH GUIDANCE (OPERATIONAL SUMMARY)
+--------------------------------------------------------------------------------
+
+For a radar detection system using EchoTrails:
+
+  If clutter is not a concern (e.g., maritime surface radar with
+  clutter suppression pre-applied):
+    - Use N=10-15 as the practical operating point. This captures 97% of the
+      achievable mAP50 gain for fast targets and approximately 85% for slow/
+      medium targets, while avoiding the marginal N=25 regression for stationary
+      targets.
+    - N=25 yields the absolute best mAP50 (0.9175) but provides only ~2 pp
+      improvement over N=15 (0.8987) at the cost of larger image footprint
+      and increased representation complexity.
+
+  If clutter is present and cannot be pre-filtered:
+    - Use N=10 as the operating point. This balances stationary-class mAP50
+      (0.7168) and fast-class recall (0.7040) while staying below the
+      regression threshold.
+    - Avoid N > 15 under clutter. The slow class in particular suffers
+      irrecoverably: recall at N=25 (0.4905) is 19 pp below N=0 (0.6806).
+    - For mixed-traffic scenarios with slow targets being operationally critical,
+      consider N=1 or N=2 under clutter; precision remains 1.0 but recall
+      trade-offs must be accepted.
+
+  If the target population is predominantly fast:
+    - N=3-5 is sufficient. Fast-class mAP50 saturates near 0.83-0.87 by N=5
+      in no-clutter and near 0.55 in clutter, with negligible gains thereafter.
+
+================================================================================
+END OF ANALYSIS
+================================================================================

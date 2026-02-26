@@ -1,0 +1,111 @@
+Object Library Filtering & Synthetic Clutter Generation Notes
+=============================================================
+Date: 2026-02-22
+Original library: /Volumes/MacShare/Code/Generative_Radar/Composite_tier/data/object_library_charleston/
+Clean library:    /Volumes/MacShare/Code/Generative_Radar/Composite_tier/data/object_library_charleston_clean/
+
+Original library: 20,152 objects (15,510 target, 4,642 interference)
+Clean library:    5,106 target objects
+
+=====================================
+STEP 1: Size Category Filtering
+=====================================
+- Drop TINY (area < 10): all bad, noise artifacts
+- Drop XLARGE (area >= 500): all bad, extraction artifacts
+- Keep: Small (10-50), Medium (50-200), Large (200-500)
+
+=====================================
+STEP 2: Ellipse IoU (Shape Quality)
+=====================================
+Metric: Fit ellipse to binary mask using OpenCV fitEllipse, compute IoU
+between the object mask and the fitted ellipse mask.
+- 1.0 = perfect ellipse match
+- Lower = irregular/non-elliptical shape
+
+Thresholds:
+- Small:  IoU >= 0.90
+- Medium: IoU >= 0.89
+- Large:  IoU >= 0.88
+
+=====================================
+STEP 3: Edge Touch (Cutoff Detection)
+=====================================
+Metric: Fraction of bounding box edge pixels that are non-zero.
+High values = object was cut off at land/water boundary during extraction.
+
+Thresholds:
+- Small:  edge touch < 0.50
+- Medium: edge touch < 0.73
+- Large:  no edge touch filter needed (looked fine without it)
+
+=====================================
+STEP 4: Mean Intensity (Brightness)
+=====================================
+Metric: mean_intensity field from library metadata.
+Removes dim/faint objects that are likely noise.
+
+Thresholds:
+- Small:  no intensity filter (already very strict from IoU + edge)
+- Medium: mean_intensity > 90
+- Large:  mean_intensity > 201
+
+=====================================
+STEP 5: Linearity (Line Detection)
+=====================================
+Metric: PCA eigenvalue ratio on non-zero pixel positions.
+- 1.0 = perfectly round
+- Higher = more line-like/elongated
+
+Thresholds:
+- Small:  no linearity filter (already very strict)
+- Medium: linearity < 2.0
+- Large:  linearity < 2.2
+
+=====================================
+STEP 6: Fill Ratio (Rectangle Detection)
+=====================================
+Metric: Number of non-zero pixels / bounding box area.
+- 1.0 = perfect rectangle
+- ~0.785 = perfect ellipse
+
+Thresholds:
+- Small:  no fill filter
+- Medium: fill ratio < 0.85
+- Large:  no fill filter needed
+
+=====================================
+FINAL COUNTS
+=====================================
+Small  (10-50):   56 kept / 4,284 original (1.3%)
+Medium (50-200):  2,652 kept / 5,683 original (46.7%)
+Large  (200-500): 2,398 kept / 3,466 original (69.2%)
+TOTAL:            5,106 kept / 15,510 original (32.9%)
+
+=====================================
+INTERFERENCE / CLUTTER GENERATION
+=====================================
+Decision: Do NOT use extracted interference objects from library.
+The original extractor could not reliably separate targets from interference.
+Instead, generate synthetic clutter procedurally.
+
+Clutter streak model:
+- Shape: Radial streaks in polar coordinates (narrow in azimuth, extended in range)
+- Cross-pulse profile: Raised cosine (smooth taper, most realistic)
+  envelope = 0.5 * (1 + cos(x)) * peak_intensity, x in [-pi, pi]
+- Intensity is constant along range direction, varies only across pulse width
+
+Range-dependent properties:
+- Near radar (range_fraction < 0.15): pulse width 11-19, bin length 3-8
+- Mid range (0.15-0.5): pulse width 5-13, bin length proportional to range
+- Far range (0.5+): pulse width 3-5, bin length up to ~100
+
+Spatial distribution: Gaussian (selected over exponential, uniform, cosine, triangle)
+  range_start = abs(normal(loc=0.0, scale=0.3)) * N_BINS
+  More clutter near radar, fewer at far range
+
+Parameters to vary for clutter ablation:
+- Number of streaks (density): low=10, moderate=30, heavy=60+
+- Peak intensity range
+- Distribution scale parameter
+
+Exponential distribution also looked good - saved as backup option.
