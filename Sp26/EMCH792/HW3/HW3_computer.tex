@@ -1,0 +1,306 @@
+% ============================================================================
+% EMCH 792: Optimal State Estimation - Homework 3 (Computer Portion)
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{EMCH 792}
+\fancyhead[R]{J.C. Vaught}
+\renewcommand{\headrulewidth}{0pt}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{A49137}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{outputbg}{RGB}{245,245,245}
+
+% ============================================================================
+% CUSTOM BOXES
+% ============================================================================
+\newtcolorbox{codebox}{
+  colback=USC_Black10,
+  colframe=USC_Black90,
+  fonttitle=\bfseries,
+  title=MATLAB Code,
+  sharp corners,
+  colbacktitle=USC_Black90,
+  coltitle=white,
+}
+
+\newtcolorbox{outputbox}{
+  colback=outputbg,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=MATLAB Output,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \vspace{0.35cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.15cm}
+  \hrule
+  \vspace{0.1cm}
+}
+
+\lstset{
+    language=Matlab,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{USC_Atlantic}\bfseries,
+    commentstyle=\color{USC_Honeycomb},
+    stringstyle=\color{USC_Garnet},
+    breaklines=true,
+    showstringspaces=false,
+    backgroundcolor=\color{USC_Black10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=5pt,
+}
+
+\lstdefinestyle{output}{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    showstringspaces=false,
+    backgroundcolor=\color{outputbg},
+    frame=none,
+    numbers=none,
+}
+
+\graphicspath{{figures/}}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+\title{EMCH 792: Optimal State Estimation \\ Homework 3 \\ \large{Computer Portion Solutions}}
+\author{Instructor: N. Vitzilaios, Department of Mechanical Engineering \\ University of South Carolina \\ \textit{Solutions by: J.C. Vaught}}
+\date{Due: February 26, 2026}
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem B1:} Exercise 2.15 Random Variables (20 pts) \dotfill & \textbf{\pageref{prob:b1}} \\[0.3em]
+\textbf{Problem B2:} Noise Covariance Matrix Calculation (20 pts) \dotfill & \textbf{\pageref{prob:b2}} \\[0.3em]
+\quad B2.1: Exact and Approximate $\Sigma_{\tilde w}$ \dotfill & \textbf{\pageref{prob:b2a}} \\[0.3em]
+\quad B2.2: Discrete $A_d$ and \texttt{c2d()} Verification \dotfill & \textbf{\pageref{prob:b2b}} \\[0.3em]
+\quad B2.3: Continuous/Discrete Steady-State Covariances \dotfill & \textbf{\pageref{prob:b2c}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\question{Problem B1: Exercise 2.15 --- Uniform Random Variables (20 pts)}\label{prob:b1}
+Generate independent random variables uniformly distributed on $(0,1)$ for $N=50, 500, 5000$. Plot 10-bin histograms and report sample mean/standard deviation. Compare against theoretical values:
+\[
+\mu = 0.5, \qquad \sigma = \frac{1}{\sqrt{12}} \approx 0.288675
+\]
+
+\begin{codebox}
+\begin{lstlisting}
+rng(792);
+N_values = [50, 500, 5000];
+theory_mean = 0.5;
+theory_std = 1/sqrt(12);
+
+for i = 1:numel(N_values)
+    N = N_values(i);
+    u = rand(N, 1);
+    sample_mean(i) = mean(u);
+    sample_std(i) = std(u);
+end
+\end{lstlisting}
+\end{codebox}
+
+\begin{outputbox}
+\begin{lstlisting}[style=output]
+Theoretical mean = 0.500000, theoretical std = 0.288675
+N=  50 -> sample mean = 0.466955, sample std = 0.248034
+N= 500 -> sample mean = 0.497011, sample std = 0.286045
+N=5000 -> sample mean = 0.508207, sample std = 0.289937
+\end{lstlisting}
+\end{outputbox}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{HW3_B1_histograms.png}
+\caption{Exercise 2.15 histograms (10 bins) for $N=50, 500, 5000$.}
+\end{figure}
+
+\begin{resultsbox}
+As $N$ increases, the sample statistics converge toward the theoretical values and the histogram shape becomes smoother and more representative of the uniform distribution.
+\end{resultsbox}
+
+\question{Problem B2: Noise Covariance Matrix Calculation (20 pts)}\label{prob:b2}
+Given
+\[
+\dot x(t) = A x(t) + B_u u(t) + B_w w(t),
+\]
+\[
+A = \begin{bmatrix}-1 & 1\\-2 & -2\end{bmatrix},\quad
+B_u = \begin{bmatrix}0\\-1\end{bmatrix},\quad
+B_w = \begin{bmatrix}1\\2\end{bmatrix},\quad S_w = 0.11.
+\]
+with $\Delta t_1 = 0.5$ and $\Delta t_2 = 0.01$.
+
+Define the continuous covariance intensity:
+\[
+Q_c = B_w S_w B_w^T = \begin{bmatrix}0.11 & 0.22\\0.22 & 0.44\end{bmatrix}.
+\]
+
+\questionpart{B2.1: Exact and Approximate $\Sigma_{\tilde w}$}\label{prob:b2a}
+Using Van Loan's block matrix:
+\[
+Z = \begin{bmatrix}-A & Q_c\\0 & A^T\end{bmatrix}\Delta t,
+\]
+\[
+\exp(Z)=\begin{bmatrix}E_{11} & E_{12}\\0 & E_{22}\end{bmatrix},\quad
+A_d = E_{11}^{-1},\quad \Sigma_{\tilde w}^{\text{exact}} = A_d E_{12},
+\]
+and first-order approximation $\Sigma_{\tilde w}^{\text{approx}} = Q_c \Delta t$.
+
+\begin{outputbox}
+\begin{lstlisting}[style=output]
+dt = 0.500
+Sigma_w_exact =
+    0.0590    0.0507
+    0.0507    0.0591
+Sigma_w_approx =
+    0.0550    0.1100
+    0.1100    0.2200
+||difference||_F = 0.1814999427
+
+dt = 0.010
+Sigma_w_exact =
+    0.0011    0.0022
+    0.0022    0.0043
+Sigma_w_approx =
+    0.0011    0.0022
+    0.0022    0.0044
+||difference||_F = 0.0001341646
+\end{lstlisting}
+\end{outputbox}
+
+\begin{resultsbox}
+The approximation error is large at $\Delta t=0.5$ but very small at $\Delta t=0.01$, confirming that $Q_c\Delta t$ is only accurate for sufficiently small sampling periods.
+\end{resultsbox}
+
+\questionpart{B2.2: Discrete $A_d$ and \texttt{c2d()} Verification}\label{prob:b2b}
+
+\begin{outputbox}
+\begin{lstlisting}[style=output]
+dt = 0.500
+Ad (Z matrix) =
+    0.4824    0.2193
+   -0.4387    0.2631
+Ad (c2d) =
+    0.4824    0.2193
+   -0.4387    0.2631
+||Ad_Z - Ad_c2d||_F = 5.5511151231e-17
+
+dt = 0.010
+Ad (Z matrix) =
+    0.9900    0.0099
+   -0.0197    0.9801
+Ad (c2d) =
+    0.9900    0.0099
+   -0.0197    0.9801
+||Ad_Z - Ad_c2d||_F = 1.1102230246e-16
+\end{lstlisting}
+\end{outputbox}
+
+\begin{resultsbox}
+$A_d$ from the $Z$-matrix method matches MATLAB's \texttt{c2d()} to machine precision for both sample times.
+\end{resultsbox}
+
+\questionpart{B2.3: Continuous/Discrete Steady-State Covariances}\label{prob:b2c}
+Continuous Lyapunov equation:
+\[
+A\Sigma_{x,ss}^{(c)} + \Sigma_{x,ss}^{(c)}A^T + Q_c = 0.
+\]
+Discrete Lyapunov equation:
+\[
+\Sigma_{x,ss}^{(d)} = A_d\Sigma_{x,ss}^{(d)}A_d^T + \Sigma_{\tilde w}^{\text{exact}}.
+\]
+
+\begin{outputbox}
+\begin{lstlisting}[style=output]
+Sigma_x_ss_cont =
+    0.0917    0.0367
+    0.0367    0.0733
+
+dt = 0.500
+Sigma_x_ss_disc =
+    0.0917    0.0367
+    0.0367    0.0733
+||disc - cont||_F = 3.6717175287e-17
+
+dt = 0.010
+Sigma_x_ss_disc =
+    0.0917    0.0367
+    0.0367    0.0733
+||disc - cont||_F = 3.3001717888e-16
+\end{lstlisting}
+\end{outputbox}
+
+\begin{resultsbox}
+When the exact discrete process covariance is used, continuous and discrete steady-state covariance predictions agree (numerical differences only at machine precision).
+\end{resultsbox}
+
+\end{document}
