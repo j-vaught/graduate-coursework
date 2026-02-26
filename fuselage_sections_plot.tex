@@ -1,0 +1,110 @@
+\documentclass[tikz,border=6pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.18}
+\usepackage{xcolor}
+
+% Brand colors
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{Black}{HTML}{000000}
+\definecolor{White}{HTML}{FFFFFF}
+\definecolor{Black90}{HTML}{363636}
+\definecolor{Black70}{HTML}{5C5C5C}
+\definecolor{Black50}{HTML}{A2A2A2}
+\definecolor{Black30}{HTML}{C7C7C7}
+\definecolor{Black10}{HTML}{ECECEC}
+\definecolor{WarmGrey}{HTML}{676156}
+\definecolor{Sandstorm}{HTML}{FFF2E3}
+\definecolor{Rose}{HTML}{CC2E40}
+\definecolor{Atlantic}{HTML}{466A9F}
+\definecolor{Congaree}{HTML}{1F414D}
+\definecolor{Horseshoe}{HTML}{65780B}
+\definecolor{Grass}{HTML}{CED318}
+\definecolor{Honeycomb}{HTML}{A49137}
+
+\pgfplotstableread[col sep=space]{
+x     w     d      g
+1.25  1.34  19.31  1.09
+3.74  3.12  16.82  1.09
+6.23  4.33  14.33  1.09
+8.72  4.92  11.74  1.10
+11.21 5.18  9.35   1.13
+13.70 5.28  6.86   1.22
+16.19 5.22  4.37   1.42
+18.47 5.03  2.09   2.20
+20.56 4.79  0.00   nan
+22.64 4.40  2.08   nan
+24.72 4.12  4.16   nan
+27.00 3.90  6.44   0.00
+29.49 3.61  8.93   0.38
+31.98 3.12  11.42  0.42
+34.47 2.41  13.91  0.43
+36.96 1.59  16.40  0.45
+39.45 0.57  18.89  0.47
+}\fuselagedata
+
+\pgfplotsset{
+  scaxis/.style={
+    width=15cm,
+    height=4.6cm,
+    xmin=1, xmax=40,
+    xlabel={Axial location of centroid, $x_i$ (ft)},
+    grid=major,
+    grid style={color=Black30, line width=0.35pt},
+    axis line style={color=Black, line width=0.9pt},
+    tick style={color=Black, line width=0.9pt},
+    tick label style={color=Black90},
+    label style={color=Black},
+    title style={color=Black},
+    line cap=rect,
+    line join=miter,
+    legend cell align=left,
+    legend style={draw=Black, fill=White},
+    every axis plot/.append style={line cap=rect, line join=miter},
+  },
+  rawpts/.style={
+    only marks,
+    mark=square*,
+    mark size=1.6pt,
+    mark options={solid}
+  },
+  smoothline/.style={
+    smooth,
+    line width=1.2pt
+  }
+}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{groupplot}[
+    group style={group size=1 by 3, vertical sep=1.2cm},
+    scaxis
+  ]
+    \nextgroupplot[
+      ylabel={Average width, $w_F$ (ft)},
+      title={Fuselage section data vs. axial location}
+    ]
+      \addplot+[smoothline, color=Garnet] table[x=x,y=w]{\fuselagedata};
+      \addplot+[rawpts, color=Black] table[x=x,y=w]{\fuselagedata};
+      \legend{Smoothed curve,Data points}
+
+    \nextgroupplot[
+      ylabel={Centroid distance from $X_{AC_w}$ (ft)}
+    ]
+      \addplot+[smoothline, color=Atlantic] table[x=x,y=d]{\fuselagedata};
+      \addplot+[rawpts, color=Black] table[x=x,y=d]{\fuselagedata};
+
+    \nextgroupplot[
+      ylabel={$\frac{d\alpha_{\mathrm{local}}}{d\alpha_w}(x_i)$},
+      ymin=0, ymax=2.35,
+      unbounded coords=jump
+    ]
+      \addplot[draw=none, fill=Black10] coordinates {
+        (20.56,0) (24.72,0) (24.72,2.35) (20.56,2.35)
+      } \closedcycle;
+      \addplot+[smoothline, color=Congaree] table[x=x,y=g]{\fuselagedata};
+      \addplot+[rawpts, color=Black] table[x=x,y=g]{\fuselagedata};
+      \node[anchor=west, text=Black70] at (axis cs:24.9,2.1) {\footnotesize Sections 9--11 omitted};
+  \end{groupplot}
+\end{tikzpicture}
+\end{document}
