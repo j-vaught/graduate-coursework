@@ -29,7 +29,6 @@ theory_mean = 0.5;
 theory_std = 1 / sqrt(12);
 sample_mean = zeros(size(N_values));
 sample_std = zeros(size(N_values));
-u_samples = cell(size(N_values));
 
 usc_garnet = [115, 0, 10] / 255;
 usc_atlantic = [70, 106, 159] / 255;
@@ -44,7 +43,6 @@ tiledlayout(1, 3, "Padding", "compact", "TileSpacing", "compact");
 for i = 1:numel(N_values)
     N = N_values(i);
     u = rand(N, 1);
-    u_samples{i} = u;
     sample_mean(i) = mean(u);
     sample_std(i) = std(u);
 
@@ -65,25 +63,6 @@ sgtitle('Exercise 2.15: Uniform Random Variables (10-bin Histograms)', ...
 exportgraphics(gcf, fullfile(figDir, 'HW3_B1_histograms.png'), ...
     'Resolution', 300);
 
-% Also generate individual histograms for each required sample size
-for i = 1:numel(N_values)
-    N = N_values(i);
-    u = u_samples{i};
-
-    figure('Color', 'w', 'Position', [180 180 640 420], 'ToolBar', 'none');
-    h_single = histogram(u, bin_edges, 'FaceColor', face_colors(i, :), ...
-        'EdgeColor', usc_black, 'LineWidth', 1.1);
-    h_single.Normalization = 'count';
-    ax_single = gca;
-    ax_single.Toolbar.Visible = 'off';
-    grid on;
-    xlabel('Value');
-    ylabel('Count');
-    title(sprintf('Exercise 2.15 Histogram (N = %d)', N), 'FontWeight', 'bold');
-    exportgraphics(gcf, fullfile(figDir, sprintf('HW3_B1_hist_%d.png', N)), ...
-        'Resolution', 300);
-end
-
 fprintf('\nB1 Results (Uniform U(0,1))\n');
 fprintf('Theoretical mean = %.6f, theoretical std = %.6f\n', ...
     theory_mean, theory_std);
@@ -91,6 +70,12 @@ for i = 1:numel(N_values)
     fprintf('N=%4d -> sample mean = %.6f, sample std = %.6f\n', ...
         N_values(i), sample_mean(i), sample_std(i));
 end
+
+% Generate 500 independent random variables, find mean, std and plot
+% histogram
+
+% Generate 5000 independent random variables, find mean, std and plot
+% histogram
 
 %% B2) Noise Covariance matrix calculation
 % Define A, B_u, B_w, S_w, dt1 and dt2
