@@ -580,11 +580,180 @@ def generate_a8(base_dir):
         ]
         scene = make_scene(
             SEED_BASE, FRAMES_PER_SCENE, objects,
-            class_map={"target_a": 0, "target_b": 0},
+            class_map={"target_a": 1, "target_b": 1},
         )
         write_yaml(str(out / f"angle_{angle}.yaml"), scene)
 
     print(f"  A8: {len(CROSSING_ANGLES)} scene configs (crossing angles)")
+
+
+def generate_gp(base_dir):
+    """GP: General-purpose 2-class training data. 220 configs across 14 sets.
+
+    Generates diverse scenes with varying object counts, stationary/moving
+    ratios, and clutter levels. All use 2-class labels: stationary=0, moving=1.
+    50 frames per scene.
+    """
+    import random as pyrandom
+
+    out = base_dir / "gp_training"
+
+    GP_FRAMES = 50
+
+    # Speed tiers for moving objects (same as A5/A6)
+    MOVING_SPEEDS = {
+        "slow":   {"speed": 2.0,  "size": [80, 500], "duration": [0.6, 1.0]},
+        "medium": {"speed": 5.0,  "size": [80, 500], "duration": [0.5, 1.0]},
+        "fast":   {"speed": 12.0, "size": [80, 400], "duration": [0.4, 0.9]},
+    }
+
+    # ---------- Scene set definitions ----------
+    # Each set: (prefix, num_configs, n_stationary_range, n_moving_range,
+    #            clutter_streaks, description, placement_kwargs)
+    GP_SETS = [
+        # Sparse scenes
+        ("gp_sparse_clean",         20, (2, 4),   (3, 4),   0,   {}),
+        ("gp_sparse_clutter",       20, (2, 4),   (3, 4),   100, {}),
+        # Moderate density
+        ("gp_moderate_clean",       20, (8, 12),  (12, 18), 0,   {}),
+        ("gp_moderate_low",         20, (8, 12),  (12, 18), 50,  {}),
+        ("gp_moderate_heavy",       20, (8, 12),  (12, 18), 200, {}),
+        # Dense scenes
+        ("gp_dense_clean",          20, (20, 30), (40, 50), 0,   {}),
+        ("gp_dense_clutter",        20, (20, 30), (40, 50), 100, {}),
+        # Fast movers only
+        ("gp_fast_only_clean",      10, (0, 0),   (15, 20), 0,   {}),
+        ("gp_fast_only_clutter",    10, (0, 0),   (15, 20), 150, {}),
+        # Stationary only
+        ("gp_stationary_clean",     10, (15, 20), (0, 0),   0,   {}),
+        ("gp_stationary_clutter",   10, (15, 20), (0, 0),   100, {}),
+        # Range-focused
+        ("gp_near_focus",           10, (10, 15), (15, 20), 75,  {"bin_range": (60, 200)}),
+        ("gp_far_focus",            10, (10, 15), (15, 20), 75,  {"bin_range": (550, 800)}),
+        # Mixed speed with varied clutter
+        ("gp_mixed_speed",          20, (10, 10), (20, 30), -1,  {}),  # -1 = random 0-200
+    ]
+
+    def _build_gp_objects(rng, n_stat, n_mov, placement_kwargs):
+        """Build object groups for a GP scene."""
+        objects = []
+        class_map = {}
+
+        # Stationary targets
+        if n_stat > 0:
+            obj = {
+                "name": "stationary",
+                "count": n_stat,
+                "size": [50, 300],
+                "intensity": {"base": 1.0, "variability": 0.1, "profile": "constant"},
+                "flicker": {"enabled": False},
+                "placement": {"margin": 30},
+            }
+            if "bin_range" in placement_kwargs:
+                lo, hi = placement_kwargs["bin_range"]
+                obj["path"] = {"type": "fixed", "position": "random"}
+                obj["placement"]["range_min"] = lo
+                obj["placement"]["range_max"] = hi
+            else:
+                obj["path"] = {"type": "fixed", "position": "random"}
+            objects.append(obj)
+            class_map["stationary"] = 0
+
+        # Moving targets — distribute across speed tiers
+        if n_mov > 0:
+            tier_names = list(MOVING_SPEEDS.keys())
+            per_tier = max(1, n_mov // len(tier_names))
+            remainder = n_mov - per_tier * len(tier_names)
+
+            for i, tier_name in enumerate(tier_names):
+                tier = MOVING_SPEEDS[tier_name]
+                count = per_tier + (1 if i < remainder else 0)
+                if count <= 0:
+                    continue
+
+                # Split between edge and interior starts
+                n_edge = max(1, count * 2 // 3)
+                n_int = count - n_edge
+
+                if n_edge > 0:
+                    edge_name = f"{tier_name}_edge"
+                    edge_obj = {
+                        "name": edge_name,
+                        "count": n_edge,
+                        "size": tier["size"],
+                        "intensity": {"base": 1.0, "variability": 0.15, "profile": "constant"},
+                        "flicker": {"enabled": False},
+                        "path": {
+                            "type": "linear",
+                            "start": "edge",
+                            "heading": round(rng.uniform(0, 360), 1),
+                            "speed": tier["speed"],
+                            "duration": tier["duration"],
+                        },
+                        "placement": {"margin": 30},
+                    }
+                    objects.append(edge_obj)
+                    class_map[edge_name] = 1
+
+                if n_int > 0:
+                    int_name = f"{tier_name}_interior"
+                    int_obj = {
+                        "name": int_name,
+                        "count": n_int,
+                        "size": tier["size"],
+                        "intensity": {"base": 1.0, "variability": 0.15, "profile": "constant"},
+                        "flicker": {"enabled": False},
+                        "path": {
+                            "type": "linear",
+                            "start": "random",
+                            "heading": round(rng.uniform(0, 360), 1),
+                            "speed": tier["speed"],
+                            "duration": tier["duration"],
+                        },
+                        "placement": {"margin": 30},
+                    }
+                    objects.append(int_obj)
+                    class_map[int_name] = 1
+
+        return objects, class_map
+
+    total = 0
+    for (prefix, num_configs, stat_range, mov_range, clutter, pkwargs) in GP_SETS:
+        for scene_idx in range(1, num_configs + 1):
+            seed = SEED_BASE + scene_idx * 13 + hash(prefix) % 10000
+            rng = pyrandom.Random(seed)
+
+            n_stat = rng.randint(stat_range[0], stat_range[1]) if stat_range[1] > 0 else 0
+            n_mov = rng.randint(mov_range[0], mov_range[1]) if mov_range[1] > 0 else 0
+
+            objects, class_map = _build_gp_objects(rng, n_stat, n_mov, pkwargs)
+
+            scene = {
+                "seed": seed,
+                "count": GP_FRAMES,
+                "objects": objects,
+                "labels": {
+                    "export": True,
+                    "class_map": class_map,
+                },
+            }
+
+            # Clutter
+            actual_clutter = clutter
+            if clutter == -1:
+                actual_clutter = rng.choice([0, 50, 100, 150, 200])
+            if actual_clutter > 0:
+                scene["clutter"] = {
+                    "num_streaks": actual_clutter,
+                    "intensity_range": [200, 255],
+                    "per_frame": True,
+                }
+
+            fname = f"{prefix}_scene_{scene_idx:02d}.yaml"
+            write_yaml(str(out / fname), scene)
+            total += 1
+
+    print(f"  GP: {total} scene configs (14 sets, diverse density/clutter/speed)")
 
 
 def main():
@@ -600,6 +769,7 @@ def main():
     generate_a6(base_dir)
     generate_a7(base_dir)
     generate_a8(base_dir)
+    generate_gp(base_dir)
 
     total = sum(len(list(d.glob("*.yaml")))
                 for d in base_dir.iterdir() if d.is_dir())
