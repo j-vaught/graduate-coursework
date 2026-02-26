@@ -1,0 +1,546 @@
+% =============================================================================
+% Chapter: Data Augmentation and Training Data Strategies
+% for Pixel-Wise IR--RGB Alignment
+% =============================================================================
+
+\chapter{Data Augmentation and Training Data Strategies}
+\label{ch:data_augmentation}
+
+Learning-based pixel-wise alignment of infrared and visible imagery demands
+dense, accurately labelled training data---specifically, pairs of misaligned
+images together with the ground-truth displacement field that maps every pixel
+in one modality to its corresponding location in the other.  Collecting such
+labels by hand is prohibitively expensive: a human annotator would need to
+specify a displacement vector at every pixel, which is impractical for images
+of even modest resolution.  Fortunately, when a modest corpus of
+\emph{already-aligned} IR--RGB frame pairs is available (e.g.\ a few thousand
+frames from a co-registered multi-sensor rig), a rich and virtually
+unlimited training set can be manufactured through synthetic misalignment
+generation and carefully designed augmentation pipelines.
+
+This chapter presents a comprehensive treatment of the augmentation and
+data strategy toolbox for this task.  Section~\ref{sec:synthetic_misalign}
+describes how to produce ground-truth displacement fields by applying known
+geometric warps to one modality of an aligned pair.
+Section~\ref{sec:augmentation_pipelines} details photometric and geometric
+augmentation pipelines for paired multi-modal data.
+Section~\ref{sec:curriculum} introduces curriculum learning schedules that
+stabilise and accelerate convergence.
+Section~\ref{sec:limited_data} addresses strategies for maximising
+performance when labelled data are scarce.  Finally,
+Section~\ref{sec:gt_displacement} formalises the mechanics of ground-truth
+dense displacement field generation.
+
+
+% -----------------------------------------------------------------------------
+\section{Synthetic Misalignment Generation}
+\label{sec:synthetic_misalign}
+% -----------------------------------------------------------------------------
+
+The core insight of synthetic misalignment training is simple yet powerful:
+beginning from an aligned pair $(I_{\mathrm{IR}}, I_{\mathrm{RGB}})$, one
+applies a known geometric deformation $\mathcal{T}$ to exactly one of the two
+images---say $I_{\mathrm{RGB}}$---to obtain a warped image
+$\tilde{I}_{\mathrm{RGB}} = I_{\mathrm{RGB}} \circ \mathcal{T}$.  Because
+$\mathcal{T}$ is known analytically, the ground-truth displacement field
+$\mathbf{d}(\mathbf{x}) = \mathcal{T}(\mathbf{x}) - \mathbf{x}$ is available
+at every pixel without any manual annotation.  The network is then trained to
+predict $\mathcal{T}^{-1}$ (or equivalently $-\mathbf{d}$) so that applying the
+predicted warp to $\tilde{I}_{\mathrm{RGB}}$ recovers alignment with
+$I_{\mathrm{IR}}$.  This paradigm has been validated extensively in
+single-modality settings such as medical image registration
+\cite{balakrishnan2019voxelmorph} and is directly transferable to multi-modal
+alignment.
+
+\subsection{Global Parametric Transforms}
+\label{subsec:global_transforms}
+
+The simplest class of synthetic misalignments comprises parametric
+transformations with a small number of degrees of freedom.
+
+\paragraph{Homographies.}
+A projective homography $\mathbf{H} \in \mathbb{R}^{3\times 3}$ has eight
+degrees of freedom and can model the dominant geometric relationship between
+two planar views.  Random homographies are sampled by perturbing the four
+corner points of the image by random offsets drawn from
+$\mathcal{U}(-\rho, \rho)$ and computing the resulting $\mathbf{H}$ via the
+Direct Linear Transform (DLT) \cite{hartley2003multiple}.  This is the
+strategy adopted by HomographyNet \cite{detone2016deep} and has since become
+standard practice.  Values of $\rho$ between 16 and 64 pixels (for
+$640\times480$ imagery) span a range from nearly imperceptible shifts to
+challenging perspective warps.
+
+\paragraph{Affine transforms.}
+A six-parameter affine model captures translation, rotation, scale, and shear
+while preserving parallelism.  Affine perturbations are appropriate when the
+scene content is approximately planar or at sufficient distance from the
+cameras.  Parameters are sampled independently: translations from
+$\mathcal{U}(-t_{\max}, t_{\max})$, rotation angles from
+$\mathcal{U}(-\theta_{\max}, \theta_{\max})$, scale factors from
+$\mathcal{U}(1-s_{\max}, 1+s_{\max})$, and shear coefficients from
+$\mathcal{U}(-\gamma_{\max}, \gamma_{\max})$ \cite{jaderberg2015spatial}.
+
+\paragraph{Similarity transforms.}
+When only translation, rotation, and uniform scaling are expected (a common
+scenario for bore-sighted IR--RGB camera pairs with small mechanical
+vibrations), a four-parameter similarity transform provides a parsimonious
+model that avoids introducing unrealistic shear artefacts.
+
+\subsection{Local Non-Rigid Deformations}
+\label{subsec:local_deformations}
+
+Real-world IR--RGB misalignment is rarely a pure global transform.  Lens
+distortion differences between the two sensors, parallax from non-planar
+scenes, and atmospheric refraction in long-range imaging all introduce
+spatially varying misalignment.
+
+\paragraph{Thin-plate spline (TPS) warps.}
+Thin-plate splines provide a principled framework for interpolating
+displacements specified at a sparse set of control points to a dense field
+that minimises bending energy \cite{bookstein1989principal}.  A regular or
+random grid of $K$ control points is placed over the image, and each point is
+displaced by a random vector drawn from $\mathcal{N}(0, \sigma_{\mathrm{TPS}}^{2})$.
+The resulting TPS interpolation yields a smooth, invertible warp when
+$\sigma_{\mathrm{TPS}}$ is chosen appropriately (typically 5--20 pixels for
+$K = 4\times4$ grids).  TPS warps naturally model the type of local
+distortions introduced by lens calibration residuals.
+
+\paragraph{Elastic deformations.}
+Following the highly successful augmentation strategy introduced for
+biomedical segmentation by Ronneberger et al.\ \cite{ronneberger2015unet},
+random dense displacement fields are generated by sampling per-pixel
+displacements from $\mathcal{U}(-1,1)$ and smoothing with a Gaussian kernel
+of standard deviation $\sigma_{\mathrm{elastic}}$.  The smoothed field is then
+scaled by an intensity parameter $\alpha$.  The pair
+$(\alpha, \sigma_{\mathrm{elastic}})$ trades off displacement magnitude against
+spatial frequency: large $\sigma$ yields gentle, global undulations while
+small $\sigma$ produces high-frequency local distortions reminiscent of barrel
+and pincushion aberrations.
+
+\paragraph{Radial distortion models.}
+To specifically simulate inter-sensor lens distortion differences, the
+Brown--Conrady model \cite{brown1966decentering} can be used directly.  Random
+radial distortion coefficients $(k_1, k_2, k_3)$ are sampled and applied to
+one modality, producing the characteristic barrel or pincushion patterns that
+arise when the two sensors have different optical assemblies.
+
+\subsection{Combining Global and Local Perturbations}
+\label{subsec:combined_perturbations}
+
+In practice, the most effective training distributions compose global and
+local perturbations.  A typical sampling procedure is:
+\begin{enumerate}
+    \item Sample a global affine or homography $\mathcal{T}_{\mathrm{global}}$.
+    \item Sample a local deformation field $\mathcal{T}_{\mathrm{local}}$
+          (TPS or elastic).
+    \item Compose: $\mathcal{T} = \mathcal{T}_{\mathrm{local}} \circ
+          \mathcal{T}_{\mathrm{global}}$.
+    \item Compute the dense displacement field
+          $\mathbf{d}(\mathbf{x}) = \mathcal{T}(\mathbf{x}) - \mathbf{x}$.
+\end{enumerate}
+This composition ensures the network encounters a realistic mix of global
+shifts (from mechanical vibration or thermal expansion of the camera mount)
+and local warps (from lens distortion residuals or parallax), preventing
+overfitting to any single deformation mode
+\cite{detone2016deep, rocco2017convolutional}.
+
+
+% -----------------------------------------------------------------------------
+\section{Augmentation Pipelines for Paired Multi-Modal Data}
+\label{sec:augmentation_pipelines}
+% -----------------------------------------------------------------------------
+
+Beyond synthetic misalignment, standard data augmentation remains essential for
+regularisation and generalisation, but its application to \emph{paired}
+multi-modal data requires care to distinguish augmentations that must be
+applied identically to both modalities from those that should differ.
+
+\subsection{Photometric Augmentations}
+\label{subsec:photometric}
+
+Photometric augmentations are applied \emph{independently} to each modality,
+since the appearance statistics of IR and RGB channels are fundamentally
+different.
+
+\begin{itemize}
+    \item \textbf{Brightness and contrast.}  Random affine intensity
+          transformations $I \mapsto \alpha I + \beta$ with independently
+          sampled gains and biases for each modality.  IR imagery often
+          exhibits narrower dynamic range, so the sampling ranges should be
+          calibrated per-modality.
+    \item \textbf{Noise injection.}  Sensor noise characteristics differ
+          markedly: visible sensors are dominated by shot noise (approximately
+          Poisson) and read noise (Gaussian), while uncooled microbolometer IR
+          sensors exhibit significant fixed-pattern noise (FPN) and $1/f$
+          temporal noise \cite{nugent2013infrared}.  Augmentation should
+          inject Gaussian noise at moderate $\sigma$ for RGB and a combination
+          of Gaussian plus column-correlated (stripe) noise for IR to
+          faithfully model each sensor's artefacts.
+    \item \textbf{Blur.}  Random Gaussian blur with kernel sizes drawn from a
+          discrete set (e.g.\ $\{3,5,7\}$) is applied independently.
+          Defocus and motion blur kernels provide additional realism.
+    \item \textbf{Gamma correction and histogram perturbation.}  Random gamma
+          curves $I \mapsto I^{\gamma}$ with $\gamma \in [0.7, 1.4]$ model
+          the non-linear response functions common to both sensor types.
+\end{itemize}
+
+These photometric augmentations force the alignment network to become invariant
+to appearance differences between modalities---a critical capability since
+IR--RGB correspondences must be established despite dramatic radiometric
+discrepancies \cite{aguilera2016learning}.
+
+\subsection{Geometric Augmentations: Alignment-Preserving vs.\ Misalignment-Creating}
+\label{subsec:geometric_augmentations}
+
+A crucial distinction exists between two categories of geometric
+augmentation:
+
+\paragraph{Alignment-preserving augmentations.}
+Random flips, $90^{\circ}$ rotations, crops, and rescalings applied
+\emph{identically} to both $I_{\mathrm{IR}}$ and $I_{\mathrm{RGB}}$ (and to
+the displacement field, with appropriate coordinate adjustment) serve as
+standard regularisers without altering the alignment relationship.  These
+augmentations increase effective dataset diversity while preserving the
+ground-truth label.
+
+\paragraph{Misalignment-creating augmentations.}
+The synthetic warps of Section~\ref{sec:synthetic_misalign} are applied to
+\emph{one modality only} and constitute the misalignment-creating category.
+It is essential that these two categories are implemented in separate pipeline
+stages to prevent accidental corruption of ground-truth labels.
+
+\subsection{Temporal Augmentations from Video}
+\label{subsec:temporal}
+
+When the aligned corpus originates from a video feed, the temporal dimension
+provides a natural source of additional training signal.  Consecutive frames
+$(I^{t}_{\mathrm{IR}}, I^{t}_{\mathrm{RGB}})$ and
+$(I^{t+\delta}_{\mathrm{IR}}, I^{t+\delta}_{\mathrm{RGB}})$ with small
+temporal offsets $\delta$ exhibit slight natural misalignments due to
+independent sensor readout timing, mechanical vibrations, and scene motion.
+These near-aligned pairs can serve as \emph{weakly-labelled} training samples
+under the assumption that the true displacement is small.
+Additionally, cross-temporal pairs
+$(I^{t}_{\mathrm{IR}}, I^{t+\delta}_{\mathrm{RGB}})$ introduce realistic
+appearance changes (illumination shift, moving objects) that increase
+robustness without requiring explicit photometric augmentation
+\cite{liu2020learning}.
+
+\subsection{CutOut, MixUp, and Mosaic for Paired Data}
+\label{subsec:cutmix}
+
+Recent augmentation techniques from object detection and classification can
+be adapted for paired alignment data with appropriate modifications.
+
+\begin{itemize}
+    \item \textbf{CutOut} \cite{devries2017cutout}: Random rectangular regions
+          are zeroed in both modalities at \emph{the same spatial location},
+          forcing the network to exploit global context rather than relying on
+          local texture matches.
+    \item \textbf{MixUp} \cite{zhang2018mixup}: Two training triplets
+          $(I_{\mathrm{IR}}^{a}, \tilde{I}_{\mathrm{RGB}}^{a},
+          \mathbf{d}^{a})$ and
+          $(I_{\mathrm{IR}}^{b}, \tilde{I}_{\mathrm{RGB}}^{b},
+          \mathbf{d}^{b})$ are linearly blended with weight $\lambda \sim
+          \mathrm{Beta}(\alpha, \alpha)$.  The displacement labels are blended
+          with the same $\lambda$, which is valid because displacement field
+          regression is a linear target space.
+    \item \textbf{Mosaic augmentation} \cite{bochkovskiy2020yolov4}: Four
+          training pairs are tiled into a $2\times2$ mosaic.  Each quadrant
+          retains its own displacement field, and the composite field is simply
+          the concatenation of the four sub-fields.  This is particularly
+          effective for small datasets as it exposes the network to four
+          distinct scenes in a single forward pass.
+\end{itemize}
+
+
+% -----------------------------------------------------------------------------
+\section{Curriculum Learning for Alignment}
+\label{sec:curriculum}
+% -----------------------------------------------------------------------------
+
+Training a dense alignment network directly on the full spectrum of
+synthetic misalignments---from sub-pixel shifts to large perspective
+warps---can lead to slow convergence and unstable gradients, especially when
+using photometric loss components.  Curriculum learning
+\cite{bengio2009curriculum} addresses this by structuring the training
+schedule from easy to hard examples.
+
+\subsection{Progressive Misalignment Magnitude}
+\label{subsec:progressive}
+
+The most natural curriculum for alignment is over the magnitude of synthetic
+misalignment.  Training is divided into stages:
+\begin{enumerate}
+    \item \textbf{Stage 1 (warm-up):} Only small perturbations are applied
+          ($\rho \leq 8$\,px for homographies, $\sigma_{\mathrm{TPS}} \leq 3$\,px
+          for local warps).  The network learns basic gradient-following
+          behaviour and develops stable feature representations.
+    \item \textbf{Stage 2 (ramp-up):} Perturbation ranges are linearly or
+          exponentially increased over a fixed number of epochs, eventually
+          reaching the full target range.
+    \item \textbf{Stage 3 (full difficulty):} The complete perturbation
+          distribution is used for the remainder of training.
+\end{enumerate}
+This schedule has been shown to improve final accuracy by 10--15\% compared
+to fixed-difficulty training in analogous optical flow tasks
+\cite{ilg2017flownet2}.
+
+\subsection{Coarse-to-Fine Training Strategies}
+\label{subsec:coarse_to_fine}
+
+Orthogonal to difficulty scheduling, a coarse-to-fine spatial resolution
+curriculum mirrors the multi-scale architecture common in flow estimation
+networks \cite{sun2018pwcnet, teed2020raft}.  In early training epochs, the
+loss is computed only at coarse pyramid levels (e.g.\ $1/8$ or $1/16$
+resolution), where the effective receptive field covers large displacements.
+As training progresses, finer pyramid levels are activated and contribute to
+the loss with increasing weight.  This avoids early corruption of fine-level
+features by gradients from large, poorly estimated displacements.
+
+The two curricula---magnitude and resolution---can be combined
+multiplicatively: Stage~1 uses small misalignments at coarse resolution,
+Stage~2 introduces larger misalignments while activating finer resolutions,
+and Stage~3 trains on the full distribution at full resolution.
+
+
+% -----------------------------------------------------------------------------
+\section{Handling Limited Data}
+\label{sec:limited_data}
+% -----------------------------------------------------------------------------
+
+A few thousand aligned frames, while sufficient to seed synthetic augmentation,
+may still lead to overfitting on scene content (e.g.\ the network memorises
+specific buildings or landscapes rather than learning modality-invariant
+alignment cues).  This section presents complementary strategies for
+maximising data efficiency.
+
+\subsection{Self-Supervised and Semi-Supervised Approaches}
+\label{subsec:self_supervised}
+
+Self-supervised photometric losses---such as the structural similarity index
+(SSIM) or census-transform-based losses
+\cite{meister2018unflow, jonschkowski2020matters}---allow the network to train
+on \emph{unlabelled} image pairs by penalising appearance discrepancies after
+warping.  While direct photometric losses are unreliable across modalities
+(IR and RGB may have inverted contrast), modality-invariant representations
+can bridge this gap.  For example, one may compute mutual information
+\cite{viola1997alignment} or a learned cross-modal feature similarity
+\cite{czolbe2021semantic} as the self-supervised objective.  This enables the
+use of any available unpaired or loosely-aligned IR--RGB data as additional
+training signal.
+
+Semi-supervised training interleaves batches of synthetically labelled pairs
+(with ground-truth displacement) and unlabelled pairs (with only the
+self-supervised loss), combining the precision of supervised regression with
+the coverage of self-supervised learning \cite{lai2017semi_flow}.
+
+\subsection{Exploiting Video Temporal Structure}
+\label{subsec:temporal_structure}
+
+Consecutive video frames provide a powerful inductive bias.  If the alignment
+network predicts displacement fields $\mathbf{d}^{t}$ and
+$\mathbf{d}^{t+1}$ for frames $t$ and $t+1$, a temporal consistency loss
+\begin{equation}
+    \mathcal{L}_{\mathrm{temporal}} =
+    \left\| \mathbf{d}^{t+1} - \mathcal{W}(\mathbf{d}^{t}; \mathbf{f}^{t \to t+1}) \right\|_1
+    \label{eq:temporal_loss}
+\end{equation}
+penalises sudden jumps in the predicted field, where
+$\mathcal{W}(\cdot; \mathbf{f})$ denotes warping by an inter-frame optical
+flow field $\mathbf{f}$.  This regulariser is particularly effective in
+surveillance and autonomous driving settings where alignment should vary
+smoothly across time \cite{lai2017semi_flow}.
+
+\subsection{Transfer Learning from Optical Flow Models}
+\label{subsec:transfer}
+
+Dense alignment is structurally identical to optical flow estimation: both
+predict a per-pixel 2D displacement field.  Pre-trained optical flow models
+such as RAFT \cite{teed2020raft}, trained on large synthetic datasets
+(FlyingChairs \cite{dosovitskiy2015flownet}, FlyingThings3D
+\cite{mayer2016large}, Sintel \cite{butler2012sintel}), provide feature
+encoders and correlation layers that transfer well to the IR--RGB alignment
+task.  The transfer learning protocol proceeds as follows:
+\begin{enumerate}
+    \item Initialise the alignment network with RAFT weights pre-trained on
+          FlyingChairs $\to$ FlyingThings3D.
+    \item Replace or adapt the input stem if the number of input channels
+          differs (e.g.\ concatenating a single-channel IR image with a
+          three-channel RGB image requires a $4 \to C$ convolutional stem).
+    \item Fine-tune on the synthetic IR--RGB alignment dataset with a reduced
+          learning rate for the pre-trained encoder and a higher rate for the
+          new or adapted layers.
+\end{enumerate}
+Empirically, RAFT-based initialisation reduces the required fine-tuning data
+by a factor of 3--5$\times$ compared to training from scratch, and improves
+end-point error on held-out test pairs significantly
+\cite{teed2020raft, sun2021autoflow}.
+
+\subsection{Consistency Regularisation}
+\label{subsec:consistency}
+
+A forward--backward consistency constraint provides a strong self-supervisory
+signal.  Given a pair $(I_{\mathrm{IR}}, I_{\mathrm{RGB}})$, the network
+predicts the forward field $\mathbf{d}_{\mathrm{IR} \to \mathrm{RGB}}$ and
+the backward field $\mathbf{d}_{\mathrm{RGB} \to \mathrm{IR}}$.  These
+should satisfy the invertibility condition
+\begin{equation}
+    \mathbf{d}_{\mathrm{IR} \to \mathrm{RGB}}(\mathbf{x})
+    + \mathbf{d}_{\mathrm{RGB} \to \mathrm{IR}}\!\bigl(\mathbf{x} +
+      \mathbf{d}_{\mathrm{IR} \to \mathrm{RGB}}(\mathbf{x})\bigr)
+    \approx \mathbf{0}
+    \label{eq:fb_consistency}
+\end{equation}
+at every non-occluded pixel.  The forward--backward consistency loss
+\begin{equation}
+    \mathcal{L}_{\mathrm{fb}} =
+    \frac{1}{|\Omega|}\sum_{\mathbf{x} \in \Omega}
+    \left\| \mathbf{d}_{\mathrm{IR} \to \mathrm{RGB}}(\mathbf{x})
+    + \mathbf{d}_{\mathrm{RGB} \to \mathrm{IR}}\!\bigl(\mathbf{x} +
+      \mathbf{d}_{\mathrm{IR} \to \mathrm{RGB}}(\mathbf{x})\bigr)
+    \right\|_1
+    \label{eq:fb_loss}
+\end{equation}
+is differentiable (through bilinear grid sampling) and can be applied to both
+labelled and unlabelled pairs.  This regulariser discourages degenerate
+solutions and enforces the physically motivated constraint that alignment is a
+bijective mapping \cite{meister2018unflow, jonschkowski2020matters}.
+
+
+% -----------------------------------------------------------------------------
+\section{Ground-Truth Displacement Field Generation}
+\label{sec:gt_displacement}
+% -----------------------------------------------------------------------------
+
+This section formalises the procedure for generating dense ground-truth
+displacement maps from synthetic warps, ensuring correctness and numerical
+stability.
+
+\subsection{Coordinate Conventions}
+\label{subsec:coordinates}
+
+Let the image domain be $\Omega = \{0, \ldots, W\!-\!1\} \times
+\{0, \ldots, H\!-\!1\}$ with pixel coordinates
+$\mathbf{x} = (x, y)^{\top}$.  A warp $\mathcal{T}: \mathbb{R}^2 \to
+\mathbb{R}^2$ maps source coordinates to target coordinates.  The
+\emph{displacement field} is defined as
+\begin{equation}
+    \mathbf{d}(\mathbf{x}) = \mathcal{T}(\mathbf{x}) - \mathbf{x}
+    = \bigl( d_x(\mathbf{x}),\; d_y(\mathbf{x}) \bigr)^{\top}.
+    \label{eq:displacement}
+\end{equation}
+For parametric transforms (affine, homography), $\mathcal{T}(\mathbf{x})$ is
+computed analytically.  For TPS and elastic warps, $\mathcal{T}$ is defined on
+a dense grid.
+
+\subsection{Forward vs.\ Inverse Displacement Fields}
+\label{subsec:forward_inverse}
+
+A subtle but critical distinction arises between the \emph{forward} and
+\emph{inverse} displacement fields.  Given an aligned pair
+$(I_{\mathrm{IR}}, I_{\mathrm{RGB}})$, the warped image is produced by the
+inverse (backward) mapping:
+\begin{equation}
+    \tilde{I}_{\mathrm{RGB}}(\mathbf{x})
+    = I_{\mathrm{RGB}}\!\bigl(\mathcal{T}^{-1}(\mathbf{x})\bigr).
+    \label{eq:backward_warp}
+\end{equation}
+The network receives the pair $(I_{\mathrm{IR}}, \tilde{I}_{\mathrm{RGB}})$
+and must predict the displacement field that \emph{unwarps}
+$\tilde{I}_{\mathrm{RGB}}$ back to alignment.  This target field is:
+\begin{equation}
+    \mathbf{d}_{\mathrm{gt}}(\mathbf{x})
+    = \mathcal{T}^{-1}(\mathbf{x}) - \mathbf{x}.
+    \label{eq:gt_field}
+\end{equation}
+For parametric transforms, $\mathcal{T}^{-1}$ is obtained by matrix inversion
+(or iterative refinement for homographies near singular configurations).
+For non-parametric warps, the inverse field is computed by scattering the
+forward field onto the target grid and filling holes via nearest-neighbour or
+bilinear interpolation.
+
+\subsection{Implementation Details}
+\label{subsec:implementation}
+
+\paragraph{Grid generation.}
+A regular coordinate grid $\mathbf{G} \in \mathbb{R}^{H \times W \times 2}$
+is constructed where $\mathbf{G}[i,j] = (j, i)$.  The displaced grid is
+$\mathbf{G}' = \mathbf{G} + \mathbf{d}_{\mathrm{gt}}$, and the warped image
+is obtained via differentiable bilinear sampling
+\cite{jaderberg2015spatial}:
+\begin{equation}
+    \tilde{I}_{\mathrm{RGB}} = \mathrm{grid\_sample}(I_{\mathrm{RGB}},
+    \mathbf{G}').
+    \label{eq:grid_sample}
+\end{equation}
+All modern deep learning frameworks (PyTorch \texttt{F.grid\_sample},
+TensorFlow \texttt{tfa.image.dense\_image\_warp}) provide GPU-accelerated
+implementations.
+
+\paragraph{Normalisation.}
+Displacement fields may be stored in pixel units or normalised to $[-1, 1]$
+relative to the image dimensions.  Normalised coordinates are preferred for
+training as they make the loss magnitude independent of image resolution:
+\begin{equation}
+    \hat{d}_x = \frac{2\, d_x}{W - 1}, \quad
+    \hat{d}_y = \frac{2\, d_y}{H - 1}.
+    \label{eq:normalise}
+\end{equation}
+
+\paragraph{Smoothness verification.}
+After generating a synthetic displacement field, one should verify that the
+Jacobian determinant $\det(\mathbf{J}_{\mathcal{T}})$ is positive everywhere,
+ensuring the warp is locally invertible (fold-free).  Fields with negative
+Jacobian regions create self-intersecting mappings that are physically
+implausible and should be rejected or re-sampled.  For elastic deformations,
+this is controlled by choosing sufficiently large $\sigma_{\mathrm{elastic}}$
+relative to $\alpha$ \cite{dalca2019unsupervised}.
+
+\paragraph{Multi-scale displacement pyramids.}
+For architectures that predict displacement at multiple resolutions (e.g.\
+coarse-to-fine networks), the ground-truth field must be downsampled
+consistently.  Displacement \emph{magnitudes} scale with resolution: a
+displacement of $\mathbf{d}$ at full resolution becomes $\mathbf{d}/2$ at
+half resolution.  Bilinear downsampling followed by magnitude scaling
+produces the correct multi-scale supervision targets:
+\begin{equation}
+    \mathbf{d}^{(l)} =
+    \frac{1}{2^{l}} \cdot \mathrm{downsample}(\mathbf{d}, 2^l),
+    \quad l = 0, 1, \ldots, L.
+    \label{eq:multiscale}
+\end{equation}
+
+\subsection{Storage and I/O Considerations}
+\label{subsec:storage}
+
+Dense displacement fields at full resolution ($H \times W \times 2$, stored as
+\texttt{float32}) can be large.  For a $640 \times 480$ image, each field
+consumes approximately 2.3\,MB.  For datasets of several thousand pairs with
+multiple augmentation variants, on-the-fly generation during training is
+strongly preferred over pre-computation.  The warp parameters (e.g.\ the
+eight homography offsets plus the TPS control-point displacements) are stored
+compactly (a few hundred bytes) and the full displacement field and warped
+image are synthesised in the data loader on the GPU.  This approach enables
+effectively infinite augmentation diversity with negligible storage overhead.
+
+
+% -----------------------------------------------------------------------------
+\section{Summary}
+\label{sec:augmentation_summary}
+% -----------------------------------------------------------------------------
+
+The data augmentation and training strategy outlined in this chapter
+transforms a modestly sized set of aligned IR--RGB frame pairs into a rich,
+diverse, and virtually unbounded training corpus.  Synthetic misalignment
+generation (Section~\ref{sec:synthetic_misalign}) provides exact ground-truth
+displacement fields at zero annotation cost.  Carefully partitioned
+augmentation pipelines (Section~\ref{sec:augmentation_pipelines}) increase
+appearance diversity while maintaining label integrity.  Curriculum learning
+(Section~\ref{sec:curriculum}) stabilises training and improves convergence.
+Limited-data strategies---transfer learning, self-supervision, temporal
+consistency, and forward--backward regularisation
+(Section~\ref{sec:limited_data})---extract maximum learning signal from every
+available frame.  Together, these techniques make it practical to train
+high-accuracy dense alignment networks even when only a few thousand aligned
+pairs are available.

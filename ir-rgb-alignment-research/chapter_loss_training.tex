@@ -1,0 +1,681 @@
+% =============================================================================
+% Chapter: Loss Functions, Training Strategy, and Experimental Design
+% For: Pixel-Wise Alignment of Infrared and Visible Imagery via Dense
+%       Displacement Field Prediction
+% =============================================================================
+
+\chapter{Loss Functions, Training Strategy, and Experimental Design}
+\label{ch:loss_training}
+
+Training a neural network to predict dense per-pixel displacement fields
+between infrared (IR) and visible (RGB) imagery demands careful composition
+of loss functions, a principled training regimen, and a rigorous experimental
+protocol.  This chapter treats each of these concerns in turn.  We denote the
+predicted displacement field by $\mathbf{d} = (d_x, d_y) \in
+\mathbb{R}^{H \times W \times 2}$, the ground-truth field by
+$\mathbf{d}^{*}$, the predicted confidence mask by
+$\hat{c} \in [0,1]^{H \times W}$, and the warping operator that resamples an
+image $I$ according to $\mathbf{d}$ by $\mathcal{W}(I;\mathbf{d})$.
+
+
+% ============================================================================
+\section{Supervised Loss Functions for Displacement Fields}
+\label{sec:supervised_loss}
+% ============================================================================
+
+When ground-truth displacement fields $\mathbf{d}^{*}$ are available---either
+from manual annotation, synthetic generation, or a calibrated rig---the most
+direct supervisory signal is the per-pixel deviation between predicted and
+true displacements.
+
+% ---------------------------------------------------------------------------
+\subsection{L1 and L2 Regression Losses}
+\label{ssec:l1l2}
+
+The \emph{L2} (mean squared error) loss penalises the squared Euclidean norm
+of the displacement residual at every pixel $\mathbf{p}$:
+%
+\begin{equation}
+  \mathcal{L}_{\text{L2}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \lVert \mathbf{d}(\mathbf{p}) - \mathbf{d}^{*}(\mathbf{p}) \rVert_{2}^{2},
+  \label{eq:l2}
+\end{equation}
+%
+where $\Omega$ is the set of valid pixels.  The L2 loss provides strong
+gradients for large errors, which accelerates early convergence, but it is
+sensitive to outliers: a single erroneous ground-truth label can dominate the
+sum.
+
+The \emph{L1} (mean absolute error) loss replaces the squared norm with the
+unsquared norm:
+%
+\begin{equation}
+  \mathcal{L}_{\text{L1}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \lVert \mathbf{d}(\mathbf{p}) - \mathbf{d}^{*}(\mathbf{p}) \rVert_{1}.
+  \label{eq:l1}
+\end{equation}
+%
+L1 loss is more robust to outliers and yields sparser gradient updates, which
+can improve convergence stability when the ground-truth field contains
+annotation noise~\cite{sun2018pwcnet}.
+
+% ---------------------------------------------------------------------------
+\subsection{Robust Losses: Charbonnier and Huber}
+\label{ssec:robust}
+
+The \emph{Charbonnier} (or pseudo-Huber) penalty interpolates between L1 and
+L2 behaviour:
+%
+\begin{equation}
+  \mathcal{L}_{\text{Charb}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \sqrt{\lVert \mathbf{d}(\mathbf{p}) - \mathbf{d}^{*}(\mathbf{p})\rVert^{2}
+          + \epsilon^{2}},
+  \label{eq:charbonnier}
+\end{equation}
+%
+with $\epsilon$ a small constant (typically $10^{-3}$).  Near zero the loss
+behaves quadratically, preserving smooth gradients; for large residuals it
+transitions to a linear regime, curbing the influence of
+outliers~\cite{sun2014quantitative}.  The closely related \emph{Huber} loss
+achieves the same effect through a piecewise definition:
+%
+\begin{equation}
+  \rho_{\delta}(r) =
+  \begin{cases}
+    \tfrac{1}{2}r^{2}, & |r| \le \delta, \\
+    \delta\bigl(|r| - \tfrac{1}{2}\delta\bigr), & |r| > \delta.
+  \end{cases}
+  \label{eq:huber}
+\end{equation}
+%
+In our experiments (Section~\ref{sec:experiments}), the Charbonnier loss
+consistently outperforms both pure L1 and pure L2, confirming the value of
+outlier-robust gradients when displacement annotations carry sub-pixel noise.
+
+% ---------------------------------------------------------------------------
+\subsection{Multi-Scale Loss}
+\label{ssec:multiscale}
+
+Modern flow architectures---FlowNet~\cite{dosovitskiy2015flownet}, PWC-Net
+\cite{sun2018pwcnet}, and RAFT~\cite{teed2020raft}---produce displacement
+estimates at multiple spatial resolutions.  Following the practice introduced
+by FlowNet, we apply the supervised loss at each scale $s \in
+\{1,\dots,S\}$ with exponentially decaying weights:
+%
+\begin{equation}
+  \mathcal{L}_{\text{ms}}
+  = \sum_{s=1}^{S} \alpha_{s}\;
+    \mathcal{L}_{\text{Charb}}\!\bigl(
+      \mathbf{d}^{(s)},\;\text{downsample}(\mathbf{d}^{*}, s)\bigr),
+  \label{eq:multiscale}
+\end{equation}
+%
+where $\alpha_{s} = \gamma^{S-s}$ with $\gamma \in (0,1)$ (we use
+$\gamma=0.8$).  RAFT refines a single-resolution estimate through recurrent
+updates; its authors propose weighting the $i$-th iteration with
+$\gamma^{N-i}$, which we adopt analogously.  Multi-scale supervision
+provides coarse-to-fine gradient pathways, accelerating convergence and
+reducing susceptibility to large-displacement local minima.
+
+% ---------------------------------------------------------------------------
+\subsection{End-Point Error as Loss and Metric}
+\label{ssec:epe}
+
+The \emph{average end-point error} (EPE) measures the mean Euclidean distance
+between predicted and ground-truth displacement vectors:
+%
+\begin{equation}
+  \text{EPE}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \lVert \mathbf{d}(\mathbf{p}) - \mathbf{d}^{*}(\mathbf{p}) \rVert_{2}.
+  \label{eq:epe}
+\end{equation}
+%
+EPE is equivalent to the L1 loss applied to the Euclidean norm of the
+two-component residual; it serves simultaneously as a training loss and the
+primary evaluation metric in optical flow
+benchmarks~\cite{butler2012sintel}.  Throughout this work, we report EPE in
+pixels and use it as the checkpoint-selection criterion on the validation set.
+
+
+% ============================================================================
+\section{Photometric and Reconstruction Losses}
+\label{sec:photometric}
+% ============================================================================
+
+In many practical settings, ground-truth displacement fields are unavailable,
+or only approximate.  \emph{Photometric} losses supervise the network
+indirectly: warp one modality with the predicted field and measure its
+agreement with the other modality.  The fundamental challenge for IR--RGB
+alignment is that pixel intensities differ dramatically across modalities, so
+na\"ive L1/L2 pixel loss on raw intensities is ineffective.
+
+% ---------------------------------------------------------------------------
+\subsection{Structural Similarity (SSIM)}
+\label{ssec:ssim}
+
+The structural similarity index~\cite{wang2004ssim} compares local luminance,
+contrast, and structure statistics within a sliding window.  Because it
+normalises for mean and variance, it captures structural correspondence even
+when the absolute intensity mapping between modalities is nonlinear:
+%
+\begin{equation}
+  \mathcal{L}_{\text{SSIM}}
+  = 1 - \text{SSIM}\!\bigl(\mathcal{W}(I_{\text{IR}};\mathbf{d}),\;
+        I_{\text{RGB}}\bigr).
+  \label{eq:ssim}
+\end{equation}
+%
+While SSIM is not perfectly cross-modal, it has been shown to
+outperform L1/L2 losses in multimodal registration
+tasks~\cite{haskins2020deep}.  In practice, we compute SSIM on
+grayscale-converted RGB images using an $11 \times 11$ Gaussian window.
+
+% ---------------------------------------------------------------------------
+\subsection{Normalised Cross-Correlation (NCC)}
+\label{ssec:ncc}
+
+Local normalised cross-correlation measures the zero-mean, unit-variance
+correlation within a patch centred at each pixel.  Writing $\mu$ and $\sigma$
+for the local mean and standard deviation computed over a window $W$:
+%
+\begin{equation}
+  \text{NCC}(\mathbf{p})
+  = \frac{\sum_{\mathbf{q}\in W(\mathbf{p})}
+      \bigl(I_{1}(\mathbf{q})-\mu_{1}\bigr)
+      \bigl(I_{2}(\mathbf{q})-\mu_{2}\bigr)}
+    {\sigma_{1}\;\sigma_{2}\;|W|},
+  \label{eq:ncc}
+\end{equation}
+%
+with $I_{1} = \mathcal{W}(I_{\text{IR}};\mathbf{d})$ and $I_{2} =
+I_{\text{RGB}}$.  NCC is invariant to affine intensity transformations, making
+it a natural choice for cross-modal
+registration~\cite{balakrishnan2019voxelmorph}.  The loss is $\mathcal{L}_{\text{NCC}} = 1 - \overline{\text{NCC}}$, averaged over all pixels.
+
+% ---------------------------------------------------------------------------
+\subsection{Mutual Information Approximations}
+\label{ssec:mi}
+
+Mutual information (MI) is the gold-standard similarity measure in classical
+multimodal registration~\cite{maes1997multimodal,viola1997alignment}.  Direct
+MI maximisation is non-trivial in a gradient-based framework because the joint
+histogram is not naturally differentiable.  Two practical proxies exist:
+
+\paragraph{MIND descriptor.}
+The \emph{modality-independent neighbourhood descriptor}
+(MIND)~\cite{heinrich2012mind} encodes each pixel as a vector of
+self-similarity responses within a local neighbourhood.  Because MIND captures
+internal structure rather than absolute intensity, the descriptor vectors of
+corresponding IR and RGB pixels are comparable.  A pointwise L2 distance
+between MIND descriptors yields a differentiable, MI-flavoured loss:
+%
+\begin{equation}
+  \mathcal{L}_{\text{MIND}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \lVert \text{MIND}(I_{1},\mathbf{p})
+         - \text{MIND}(I_{2},\mathbf{p}) \rVert_{2}^{2}.
+  \label{eq:mind}
+\end{equation}
+
+\paragraph{Local MI via Parzen windowing.}
+Differentiable Parzen-window estimators of local MI have been proposed by
+\citet{guo2019mutual} and integrated into registration networks.  While
+effective, they introduce additional hyperparameters (kernel bandwidth, number
+of histogram bins) and incur higher computational cost.  In our ablations, the
+MIND descriptor offers a favourable trade-off between accuracy and
+implementation simplicity.
+
+% ---------------------------------------------------------------------------
+\subsection{Perceptual Loss}
+\label{ssec:perceptual}
+
+Features extracted from a pretrained classification network (e.g.,
+VGG-19~\cite{simonyan2015vgg}) capture mid-level structural attributes---edges,
+textures, shapes---that are more modality-invariant than raw
+pixels~\cite{johnson2016perceptual}.  Letting $\phi^{l}$ denote the feature
+map at layer $l$, the perceptual loss is:
+%
+\begin{equation}
+  \mathcal{L}_{\text{perc}}
+  = \sum_{l \in \mathcal{S}}
+    \frac{1}{C_l H_l W_l}
+    \bigl\lVert \phi^{l}\!\bigl(\mathcal{W}(I_{\text{IR}};\mathbf{d})\bigr)
+              - \phi^{l}(I_{\text{RGB}}) \bigr\rVert_{1},
+  \label{eq:perceptual}
+\end{equation}
+%
+where $\mathcal{S}$ is a subset of layers (we use \texttt{relu2\_2},
+\texttt{relu3\_3}, and \texttt{relu4\_3}).  Mid-level layers capture
+structural correspondences without being too sensitive to the low-level
+intensity gap between IR and RGB~\cite{zhang2018lpips}.  When the IR input is
+single-channel, we replicate it across three channels before passing to VGG.
+
+% ---------------------------------------------------------------------------
+\subsection{Gradient-Based and Edge Losses}
+\label{ssec:gradient}
+
+Edges and gradients are among the most modality-invariant visual cues: object
+boundaries produce strong intensity gradients in both IR and RGB regardless of
+the underlying radiometric differences.  Applying a first-order differential
+operator $\nabla$ (e.g., Sobel) to both images yields:
+%
+\begin{equation}
+  \mathcal{L}_{\text{edge}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \bigl\lVert |\nabla \mathcal{W}(I_{\text{IR}};\mathbf{d})(\mathbf{p})|
+              - |\nabla I_{\text{RGB}}(\mathbf{p})| \bigr\rVert_{1}.
+  \label{eq:edge}
+\end{equation}
+%
+Because the Sobel operator is a fixed-weight convolution, it is naturally
+differentiable.  More sophisticated options---such as a differentiable
+approximation to Canny edges or the Structured Edge Detector
+(SED)~\cite{dollar2013sed}---can be substituted if higher-quality edge maps
+are required.  This loss complements the perceptual loss by providing an
+explicit, lightweight structural supervision signal.
+
+
+% ============================================================================
+\section{Regularisation Losses}
+\label{sec:regularisation}
+% ============================================================================
+
+Displacement fields in natural scenes are predominantly smooth, with
+discontinuities confined to object boundaries.  Regularisation losses encode
+this prior directly.
+
+% ---------------------------------------------------------------------------
+\subsection{Smoothness Regularisation}
+\label{ssec:smooth}
+
+A first-order smoothness penalty discourages large spatial gradients in the
+predicted displacement field:
+%
+\begin{equation}
+  \mathcal{L}_{\text{smooth}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \bigl( \lVert \nabla d_x(\mathbf{p}) \rVert_{1}
+         + \lVert \nabla d_y(\mathbf{p}) \rVert_{1} \bigr).
+  \label{eq:smooth}
+\end{equation}
+%
+This is the anisotropic \emph{total variation} (TV) of the displacement
+field~\cite{rudin1992tv}.  An edge-aware variant down-weights the penalty at
+image edges where displacement discontinuities are expected:
+$\mathcal{L}_{\text{smooth}}^{\text{ea}} = \sum_{\mathbf{p}}
+  e^{-\alpha |\nabla I(\mathbf{p})|}
+  \lVert \nabla \mathbf{d}(\mathbf{p}) \rVert_{1},$
+following~\citet{godard2017monodepth}.  Higher-order (\emph{diffusion})
+regularisers---penalising the Laplacian of $\mathbf{d}$---produce smoother
+fields but can over-smooth sharp motion boundaries.
+
+% ---------------------------------------------------------------------------
+\subsection{Folding and Invertibility Regularisation}
+\label{ssec:folding}
+
+A displacement field that causes two distinct source pixels to map to the same
+target location is said to \emph{fold}.  Folding manifests as a non-positive
+determinant of the Jacobian of the deformation $\boldsymbol{\phi}(\mathbf{p})
+= \mathbf{p} + \mathbf{d}(\mathbf{p})$:
+%
+\begin{equation}
+  \mathcal{L}_{\text{fold}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \text{ReLU}\!\bigl(-\det J_{\boldsymbol{\phi}}(\mathbf{p})\bigr),
+  \label{eq:fold}
+\end{equation}
+%
+where $J_{\boldsymbol{\phi}}$ is the $2\times 2$ Jacobian, computed via
+finite differences.  This penalty is zero when the deformation is locally
+diffeomorphic (i.e., $\det J > 0$ everywhere) and grows as folding
+worsens~\cite{dalca2019unsupervised}.  For sub-pixel IR--RGB alignment the
+displacements are typically small and folding is rare, but the regulariser
+provides a useful safety net when training on challenging examples with large
+misalignments.
+
+% ---------------------------------------------------------------------------
+\subsection{Cyclic Consistency}
+\label{ssec:cyclic}
+
+If the network predicts both a forward displacement $\mathbf{d}_{A\to B}$ and
+a backward displacement $\mathbf{d}_{B\to A}$, their composition should
+approximate the identity.  The cyclic consistency loss enforces this:
+%
+\begin{equation}
+  \mathcal{L}_{\text{cyc}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}
+    \bigl\lVert \mathbf{d}_{A\to B}(\mathbf{p})
+              + \mathcal{W}(\mathbf{d}_{B\to A};\mathbf{d}_{A\to B})(\mathbf{p})
+    \bigr\rVert_{1}.
+  \label{eq:cyclic}
+\end{equation}
+%
+Cyclic consistency is especially valuable in the semi-supervised or
+unsupervised setting, where ground-truth displacements are
+absent~\cite{meister2018unflow,jonschkowski2020matters}.  It can also be used
+to generate per-pixel reliability maps: pixels where the forward--backward
+residual exceeds a threshold are likely occluded or unreliable.
+
+
+% ============================================================================
+\section{Mask and Confidence Losses}
+\label{sec:mask_loss}
+% ============================================================================
+
+The predicted confidence mask $\hat{c}$ indicates the network's belief that
+the displacement estimate at each pixel is trustworthy.  Supervision of this
+output can be explicit or self-supervised.
+
+% ---------------------------------------------------------------------------
+\subsection{Supervised Mask Loss}
+\label{ssec:mask_supervised}
+
+When a ground-truth mask $c^{*} \in \{0,1\}^{H\times W}$ is available (e.g.,
+marking regions of sensor saturation, occlusion, or failed annotation), a
+standard binary cross-entropy (BCE) loss suffices:
+%
+\begin{equation}
+  \mathcal{L}_{\text{mask}}
+  = -\frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}\bigl[
+      c^{*}\log\hat{c} + (1-c^{*})\log(1-\hat{c})
+    \bigr].
+  \label{eq:bce}
+\end{equation}
+
+% ---------------------------------------------------------------------------
+\subsection{Self-Supervised Confidence via Learned Attenuation}
+\label{ssec:learned_attenuation}
+
+In many cases no ground-truth confidence map exists.  A principled
+self-supervised alternative, introduced by~\citet{kendall2017uncertainties}
+for heteroscedastic aleatoric uncertainty, modulates the reconstruction loss
+by the predicted confidence and adds a regularising log-barrier:
+%
+\begin{equation}
+  \mathcal{L}_{\text{conf}}
+  = \frac{1}{|\Omega|}\sum_{\mathbf{p}\in\Omega}\left[
+      \frac{\mathcal{L}_{\text{recon}}(\mathbf{p})}{\hat{c}(\mathbf{p})}
+    + \log \hat{c}(\mathbf{p})
+  \right],
+  \label{eq:learned_attenuation}
+\end{equation}
+%
+where $\mathcal{L}_{\text{recon}}$ is any pixel-wise reconstruction loss
+(Section~\ref{sec:photometric}).  The first term incentivises the network to
+assign \emph{low} confidence (small $\hat{c}$) where the reconstruction error
+is large; the second term prevents the degenerate solution of setting
+$\hat{c} \to 0$ everywhere, because $\log \hat{c} \to -\infty$.  The
+equilibrium teaches the network to ``explain away'' genuinely difficult
+regions (sensor noise, modality-specific textures) rather than distorting the
+displacement field to accommodate them.
+
+Equivalently, if the network outputs a log-variance $s = \log\sigma^{2}$
+instead of a direct confidence, Eq.~\eqref{eq:learned_attenuation} becomes
+the negative log-likelihood of a Gaussian with learned variance, providing a
+Bayesian motivation for the attenuation trick.
+
+
+% ============================================================================
+\section{Total Loss}
+\label{sec:total_loss}
+% ============================================================================
+
+The composite training objective is a weighted sum of the individual terms:
+%
+\begin{equation}
+  \mathcal{L}
+  = \lambda_{\text{sup}}\,\mathcal{L}_{\text{ms}}
+  + \lambda_{\text{photo}}\,\mathcal{L}_{\text{photo}}
+  + \lambda_{\text{smooth}}\,\mathcal{L}_{\text{smooth}}
+  + \lambda_{\text{fold}}\,\mathcal{L}_{\text{fold}}
+  + \lambda_{\text{cyc}}\,\mathcal{L}_{\text{cyc}}
+  + \lambda_{\text{conf}}\,\mathcal{L}_{\text{conf}},
+  \label{eq:total}
+\end{equation}
+%
+where $\mathcal{L}_{\text{photo}}$ is a combination of SSIM, NCC, MIND,
+perceptual, and edge losses whose relative weights are tuned by ablation
+(Section~\ref{sec:experiments}).  Loss weights
+$\{\lambda_{(\cdot)}\}$ are hyperparameters; we initialise them such that each
+term contributes roughly equally to the total gradient magnitude at the start
+of training, then hold them fixed.  An alternative is to learn the weights
+using homoscedastic task uncertainty~\cite{kendall2018multitask}, though we
+find manual tuning sufficient for our setting.
+
+
+% ============================================================================
+\section{Training Strategy}
+\label{sec:training}
+% ============================================================================
+
+% ---------------------------------------------------------------------------
+\subsection{Optimiser and Learning Rate}
+\label{ssec:optimiser}
+
+We use \textbf{AdamW}~\cite{loshchilov2019adamw} ($\beta_1=0.9$,
+$\beta_2=0.999$, weight decay $10^{-4}$).  The learning rate follows a
+\textbf{OneCycleLR} schedule~\cite{smith2019onecycle}: a linear warm-up from
+$\eta_{\min}=10^{-6}$ to $\eta_{\max}=4\times10^{-4}$ over the first 10\%
+of iterations, followed by cosine annealing back to $\eta_{\min}$.  OneCycleLR
+consistently outperforms both step-decay and plain cosine schedules in our
+experiments, echoing findings in the optical flow
+literature~\cite{teed2020raft}.
+
+% ---------------------------------------------------------------------------
+\subsection{Batch Size and Memory Considerations}
+\label{ssec:batchsize}
+
+Correlation-volume--based architectures (e.g., RAFT) construct 4D cost
+volumes of size $H \times W \times H \times W$ (or sampled variants thereof).
+At training resolution $480\times640$, even the all-pairs correlation in
+RAFT's efficient implementation consumes several gigabytes per sample.  We
+use a batch size of~6 on 40\,GB A100 GPUs, employing mixed-precision
+(\texttt{torch.cuda.amp}) and gradient checkpointing to reduce peak memory.
+If a larger effective batch is needed (e.g., for stable batch-normalisation
+statistics), gradient accumulation over two or more micro-batches is
+preferred over reducing resolution.
+
+% ---------------------------------------------------------------------------
+\subsection{Pretraining on Synthetic Optical Flow Data}
+\label{ssec:pretrain}
+
+Dense ground-truth displacement fields are expensive to obtain for real
+IR--RGB pairs.  Pretraining on large-scale synthetic optical flow
+datasets---\textbf{FlyingChairs}~\cite{dosovitskiy2015flownet},
+\textbf{FlyingThings3D}~\cite{mayer2016things3d}, and
+\textbf{Sintel}~\cite{butler2012sintel}---provides the encoder with a strong
+prior for correspondence estimation.  The pretraining schedule
+follows the ``C+T'' protocol of RAFT: train on FlyingChairs for 120k
+iterations, then FlyingThings3D for 120k iterations.
+
+After pretraining, we \textbf{fine-tune} on the IR--RGB dataset.  During
+fine-tuning, the photometric and modality-specific losses
+(Section~\ref{sec:photometric}) are activated, and the learning rate is
+reduced by a factor of~5.  We observe that pretraining reduces final EPE by
+20--30\% relative to training from scratch, confirming that generic
+correspondence priors transfer effectively to the cross-modal setting.
+
+% ---------------------------------------------------------------------------
+\subsection{Curriculum Training}
+\label{ssec:curriculum}
+
+Real-world IR--RGB misalignments range from sub-pixel parallax to tens of
+pixels of offset caused by mechanical vibration or thermal expansion.  We
+adopt a \emph{curriculum} strategy~\cite{bengio2009curriculum}: during the
+first third of fine-tuning, the training set is restricted to pairs with
+ground-truth EPE $< 5$\,px; during the second third, the threshold rises to
+15\,px; for the final third, all pairs are included.  Alternatively, when
+ground-truth magnitude is unknown, we generate synthetic warp augmentations of
+increasing magnitude.  Curriculum training reduces early instability and
+improves final accuracy on large-displacement cases by approximately
+8\% EPE.
+
+% ---------------------------------------------------------------------------
+\subsection{Data Augmentation}
+\label{ssec:augmentation}
+
+We apply the following augmentations, drawn from the RAFT training
+protocol~\cite{teed2020raft}:
+\begin{itemize}
+  \item \textbf{Spatial:} random crops ($400\times720$), horizontal and
+        vertical flips, small affine perturbations (rotation $\pm 5^{\circ}$,
+        scale $0.9$--$1.1$).
+  \item \textbf{Photometric (applied independently to each modality):}
+        brightness/contrast jitter, Gaussian noise ($\sigma$ up to 0.04),
+        and random gamma correction.
+  \item \textbf{Synthetic displacement augmentation:} a thin-plate-spline
+        warp with random control point displacements sampled from
+        $\mathcal{N}(0, \sigma_{\text{tps}}^{2})$, applied to one image while
+        the displacement field is updated accordingly.  This augmentation
+        effectively increases dataset diversity and has been shown beneficial
+        for flow generalisation~\cite{aleotti2021learning}.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Validation and Checkpoint Selection}
+\label{ssec:validation}
+
+\paragraph{Sequence-level splits.}
+To avoid \emph{temporal leakage}---where adjacent, near-duplicate frames
+appear in both training and validation---we partition at the
+\textbf{sequence level}, not the frame level.  Approximately 15\% of video
+sequences (covering diverse scenes, times of day, and weather conditions)
+are reserved for validation, and an additional 15\% for testing.
+
+\paragraph{Early stopping.}
+We monitor validation EPE after every epoch.  If it fails to improve for 15
+consecutive epochs, training is halted.  The checkpoint with the lowest
+validation EPE is selected for final evaluation, providing a principled
+guard against overfitting.
+
+
+% ============================================================================
+\section{Experimental Design and Evaluation}
+\label{sec:experiments}
+% ============================================================================
+
+% ---------------------------------------------------------------------------
+\subsection{Ablation Studies}
+\label{ssec:ablation}
+
+A systematic set of ablations isolates the contribution of each design
+choice:
+
+\begin{enumerate}
+  \item \textbf{Loss function comparison.}  Train with (a) L2 only, (b) L1
+        only, (c) Charbonnier, (d) Charbonnier + photometric composite.
+        Report EPE on the validation set.
+  \item \textbf{Photometric loss variants.}  Compare SSIM, NCC, MIND,
+        perceptual loss, and edge loss in isolation and in combination.
+  \item \textbf{With/without confidence mask.}  Evaluate whether the learned
+        attenuation mechanism (Eq.~\ref{eq:learned_attenuation}) improves
+        displacement accuracy in reliable regions.
+  \item \textbf{Multi-scale supervision.}  Compare single-scale versus the
+        $\gamma$-weighted multi-scale loss of Eq.~\eqref{eq:multiscale}.
+  \item \textbf{Regularisation terms.}  Measure the effect of smoothness,
+        folding, and cyclic-consistency penalties individually and jointly.
+  \item \textbf{Augmentation strategies.}  Ablate spatial augmentations,
+        photometric augmentations, and synthetic displacement augmentation in
+        turn.
+  \item \textbf{Pretraining.}  Compare from-scratch training against the
+        C+T pretraining protocol of Section~\ref{ssec:pretrain}.
+\end{enumerate}
+
+% ---------------------------------------------------------------------------
+\subsection{Baseline Comparisons}
+\label{ssec:baselines}
+
+We benchmark against four representative baselines spanning classical and
+learned paradigms:
+
+\begin{description}
+  \item[Global homography (OpenCV).] Detect ORB keypoints, match with
+    brute-force Hamming distance, and estimate a homography via RANSAC
+    (\texttt{cv2.findHomography}).  This is a zero-parameter baseline that
+    captures only global affine-plus-projective misalignment.
+  \item[SuperPoint + SuperGlue.] A learned feature-matching
+    pipeline~\cite{detone2018superpoint,sarlin2020superglue} followed by
+    thin-plate-spline interpolation to produce a dense field.  This
+    represents the state of the art in sparse cross-modal matching.
+  \item[RAFT (pretrained).] Off-the-shelf RAFT~\cite{teed2020raft} trained
+    on FlyingThings3D, evaluated zero-shot on IR--RGB pairs.  This isolates
+    the benefit of domain-specific fine-tuning.
+  \item[VoxelMorph.] A U-Net--based registration
+    network~\cite{balakrishnan2019voxelmorph} originally designed for medical
+    image registration, retrained on our data.  This represents an
+    alternative dense registration architecture.
+\end{description}
+
+% ---------------------------------------------------------------------------
+\subsection{Quantitative Metrics}
+\label{ssec:metrics}
+
+\begin{itemize}
+  \item \textbf{End-point error (EPE):} the primary accuracy metric
+        (Eq.~\ref{eq:epe}), reported in pixels.
+  \item \textbf{SSIM post-warp:} SSIM between the warped IR image and the
+        RGB reference (on grayscale), measuring the structural quality of
+        alignment.
+  \item \textbf{PSNR on edge maps:} PSNR computed between Sobel edge
+        maps of the warped IR and RGB images, providing a
+        modality-invariant signal quality indicator.
+  \item \textbf{Mask IoU:} Intersection-over-union between the predicted
+        confidence mask (thresholded at~0.5) and a ground-truth reliability
+        mask, where available.
+  \item \textbf{Percentage of correct keypoints (PCK):} fraction of pixels
+        with EPE below a threshold $\tau$ (we report $\tau \in
+        \{1, 3, 5\}$\,px).
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\subsection{Qualitative Evaluation}
+\label{ssec:qualitative}
+
+Numerical metrics alone cannot capture all alignment artefacts.  We provide
+four forms of qualitative evaluation:
+
+\begin{enumerate}
+  \item \textbf{Colour overlay:} the warped IR image is shown in one
+        colour channel (e.g., red) and the RGB image in the complementary
+        channels (green/blue).  Misalignment appears as colour fringing at
+        object boundaries.
+  \item \textbf{Checkerboard blending:} alternating tiles from the warped
+        IR and the RGB image, making local misalignment immediately
+        perceptible at tile boundaries.
+  \item \textbf{Displacement field visualisation:} the predicted
+        displacement field is colour-coded using the Middlebury flow colour
+        wheel~\cite{baker2011middlebury}, with magnitude mapped to saturation
+        and direction to hue.
+  \item \textbf{Confidence mask overlay:} the predicted confidence mask is
+        displayed as a semi-transparent heat map over the aligned pair,
+        highlighting regions the network deems unreliable.
+\end{enumerate}
+
+These visualisations are presented for cherry-picked successes, typical cases,
+and failure modes to give the reader a comprehensive understanding of model
+behaviour.
+
+
+% ============================================================================
+\section{Summary}
+\label{sec:loss_summary}
+% ============================================================================
+
+The loss landscape for cross-modal dense displacement prediction is
+necessarily composite.  Supervised losses provide the strongest direct
+gradient when ground-truth fields are available, while robust variants
+(Charbonnier, Huber) guard against annotation noise.  Photometric losses
+bridge the modality gap through structure-aware comparisons (SSIM, NCC,
+MIND, perceptual features, edge maps) and enable semi-supervised learning.
+Regularisation losses embed physical priors---smoothness, diffeomorphism,
+cyclic consistency---that prevent degenerate solutions.  The learned
+attenuation mechanism for confidence prediction elegantly couples uncertainty
+estimation with the reconstruction objective.  These components, combined
+with a carefully staged training protocol (synthetic pretraining, curriculum
+learning, sequence-level validation) and thorough ablation-driven
+experimental design, form the methodological foundation for the alignment
+system evaluated in subsequent chapters.
