@@ -106,8 +106,8 @@ for k = 1:numel(dtValues)
 end
 
 display("Write what you noticed here")
-display("- For dt = 0.5, the first-order approximation differs noticeably from exact Sigma_w.")
-display("- For dt = 0.01, the approximation is very close to exact Sigma_w.")
+display("For dt = 0.5, the first-order approximation differs noticeably from exact Sigma_w.")
+display("For dt = 0.01, the approximation is very close to exact Sigma_w.")
 
 % b. Using the Z block matrix, find Ad in each case. Verify your results
 %    with the c2d() function
@@ -148,6 +148,6 @@ for k = 1:numel(dtValues)
 end
 
 display("Write what you noticed here")
-display("- Ad from Z matches c2d() up to machine precision in both dt cases.")
-display("- Continuous and discrete Lyapunov solutions match numerically when exact Sigma_w is used.")
-display("- A has one unstable mode, so this is an algebraic Lyapunov comparison, not a physical stationary covariance.")
+display("Ad from Z matches c2d() up to machine precision in both dt cases.")
+display("Continuous and discrete Lyapunov solutions match numerically when exact Sigma_w is used.")
+display("A has one unstable mode, so this is an algebraic Lyapunov comparison, not a physical stationary covariance.")
