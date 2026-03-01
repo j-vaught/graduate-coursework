@@ -254,11 +254,162 @@ The shortest m-path exists and has \textbf{length 6}.
 To take a picture for fireworks at night, give at least two operations that should be applied to
 improve the visualization quality of the image and explain.
 
+\vspace{0.3cm}
+
+\begin{stepbox}[Step 1: Understand the Scene Characteristics]
+
+Fireworks at night present specific challenges:
+\begin{itemize}[leftmargin=2em, itemsep=0pt]
+    \item \textbf{High dynamic range}: Very bright fireworks against a very dark sky
+    \item \textbf{Desired appearance}: Pure black sky with vivid, crisp firework sparks
+    \item \textbf{No hidden information}: The dark sky contains nothing meaningful to reveal
+\end{itemize}
+
+\begin{center}
+\includegraphics[width=0.35\textwidth]{fireworks.png}
+
+\small\textit{Original fireworks image}
+\end{center}
+
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Evaluate Available Operations]
+
+We can categorize image processing operations by their effect:
+
+\vspace{0.3cm}
+\textbf{Category A: Operations that brighten dark regions}
+
+These operations attempt to reveal detail in shadows by lifting dark intensities.
+
+\begin{center}
+\begin{tabular}{ccc}
+\includegraphics[width=0.28\textwidth]{fireworks_gamma.png} &
+\includegraphics[width=0.28\textwidth]{fireworks_log.png} &
+\includegraphics[width=0.28\textwidth]{fireworks_histeq.png} \\
+\small Gamma ($\gamma = 0.5$) & \small Log Transform & \small Histogram Equalization
+\end{tabular}
+\end{center}
+
+\textbf{Effect}: The black sky becomes gray, revealing noise and sensor artifacts. This is \textbf{undesirable} for fireworks because the sky \textit{should} be black---there is no meaningful information to reveal.
+
+\vspace{0.3cm}
+\textbf{Category B: Operations that increase contrast (darks darker, lights lighter)}
+
+These operations push dark values toward black and light values toward white.
+
+\begin{center}
+\begin{tabular}{cc}
+\includegraphics[width=0.35\textwidth]{fireworks_scurve.png} &
+\includegraphics[width=0.35\textwidth]{fireworks_boosted.png} \\
+\small S-Curve Contrast & \small Boosted Contrast
+\end{tabular}
+\end{center}
+
+\textbf{Effect}: The sky becomes pure black while the fireworks remain bright. This is \textbf{desirable} for aesthetic night photography.
+
+\vspace{0.3cm}
+\textbf{Category C: Sharpening operations}
+
+These operations enhance edges and fine details.
+
+\begin{center}
+\begin{tabular}{cc}
+\includegraphics[width=0.35\textwidth]{fireworks_sharpened.png} &
+\includegraphics[width=0.35\textwidth]{fireworks_highboost.png} \\
+\small Unsharp Masking & \small High-Boost Filtering
+\end{tabular}
+\end{center}
+
+\textbf{Effect}: Firework sparks appear crisper with more defined edges.
+
+\vspace{0.3cm}
+\textbf{Category D: Color enhancement}
+
+\begin{center}
+\includegraphics[width=0.35\textwidth]{fireworks_saturated.png}
+
+\small Saturation Boost
+\end{center}
+
+\textbf{Effect}: Colors become more vivid and vibrant.
+
+\end{stepbox}
+
+\begin{stepbox}[Step 3: Consider the Optimization Goal]
+
+The ``correct'' operations depend entirely on what you are trying to achieve:
+
+\vspace{0.2cm}
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Goal} & \textbf{Recommended Operations} & \textbf{Avoid} \\
+\hline
+Aesthetic (fireworks) & S-curve, sharpening, saturation & Gamma, Hist EQ \\
+\hline
+Surveillance (reveal shadows) & Gamma, log transform, Hist EQ & S-curve \\
+\hline
+Medical imaging & CLAHE, careful contrast & Extreme transforms \\
+\hline
+Object detection & Thresholding, edge detection & Aesthetic enhancements \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.2cm}
+
+The same operation can be \textit{beneficial} or \textit{harmful} depending on the goal. Histogram equalization is excellent for revealing hidden details in surveillance footage, but terrible for fireworks photography where the dark background should remain dark.
+
+\end{stepbox}
+
+\begin{stepbox}[Step 4: Consider the Display Medium]
+
+The target display device also affects which operations are most beneficial:
+
+\vspace{0.2cm}
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Display} & \textbf{Prioritize} & \textbf{Less Important} \\
+\hline
+Mobile phone (small screen) & Color, contrast, brightness & Fine sharpening \\
+\hline
+Desktop monitor (large screen) & Sharpness, fine detail & Can be subtle \\
+\hline
+Print & Resolution, color accuracy & Different gamma curve \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.2cm}
+
+On a mobile phone, viewers cannot resolve fine detail, so aggressive sharpening provides little benefit---but punchy colors and contrast help images ``pop'' on a small screen viewed in variable lighting. On a desktop monitor, fine details are visible, making sharpening more valuable.
+
+\end{stepbox}
+
+\begin{resultsbox}
+
+\textbf{Recommended operations for fireworks photography:}
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{S-curve contrast enhancement}: Apply a sigmoid transformation $s = \frac{1}{1 + e^{-k(r-0.5)}}$ to push dark pixels darker and bright pixels brighter. This ensures a pure black sky while maintaining bright firework sparks.
+
+\item \textbf{Saturation boost} (especially for mobile display): Increase color saturation to make the firework colors more vivid and visually striking.
+
+\item \textbf{Sharpening} (especially for desktop/print): Apply unsharp masking or high-boost filtering to enhance the crispness of firework spark edges.
+\end{enumerate}
+
+\vspace{0.2cm}
+\textbf{Operations to avoid}: Gamma correction ($\gamma < 1$), log transforms, and histogram equalization---these lift the dark sky and reveal noise, degrading the aesthetic quality.
+
+\end{resultsbox}
+
+\newpage
+
 % ============================================================================
 % PROBLEM 2
 % ============================================================================
-
-\newpage
 
 \problem{Problem 2) (20 points)}
 
