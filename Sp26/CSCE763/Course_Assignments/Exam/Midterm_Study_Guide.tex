@@ -1,0 +1,784 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Midterm Study Guide
+% ============================================================================
+
+\documentclass[10pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multicol}
+\usepackage{fancyhdr}
+
+% ============================================================================
+% PAGE SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+\fancyhead[L]{CSCE 763 Midterm Study Guide}
+\fancyhead[R]{Page \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ============================================================================
+% COLORS
+% ============================================================================
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+
+% ============================================================================
+% CUSTOM BOXES
+% ============================================================================
+\newtcolorbox{conceptbox}[1][]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=#1,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+  left=3pt, right=3pt, top=2pt, bottom=2pt,
+  boxsep=2pt,
+}
+
+\newtcolorbox{formulabox}{
+  colback=USC_Atlantic!5,
+  colframe=USC_Atlantic,
+  sharp corners,
+  left=3pt, right=3pt, top=2pt, bottom=2pt,
+  boxsep=2pt,
+}
+
+\newtcolorbox{examplebox}{
+  colback=USC_Honeycomb!5,
+  colframe=USC_Honeycomb,
+  sharp corners,
+  left=3pt, right=3pt, top=2pt, bottom=2pt,
+  boxsep=2pt,
+}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries CSCE 763: Digital Image Processing}\\[0.3em]
+{\Large Midterm Exam Study Guide}\\[0.2em]
+{\small Organized by: Concept $\to$ Formula $\to$ Example $\to$ Where It Appears}
+\end{center}
+
+\vspace{0.3cm}
+
+% ============================================================================
+% SECTION 1: HUMAN VISION
+% ============================================================================
+
+\begin{conceptbox}[1. Human Vision \& Image Formation]
+
+\textbf{Concept}: The eye forms images using a lens system. Similar triangles relate object size to image size.
+
+\begin{formulabox}
+\textbf{Lens Equation (Similar Triangles)}:
+\[
+\frac{h_{\text{image}}}{f} = \frac{h_{\text{object}}}{d} \quad \Rightarrow \quad h_{\text{image}} = \frac{f \cdot h_{\text{object}}}{d}
+\]
+where $f$ = focal length, $d$ = distance to object.
+
+\textbf{Photoreceptors}:
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item \textbf{Cones}: 6--7 million, color vision, concentrated in fovea, daylight (photopic)
+    \item \textbf{Rods}: 75--150 million, grayscale, peripheral, low-light (scotopic)
+\end{itemize}
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Camera with $f = 35$ mm photographs 50 m tall building at 200 m distance.
+\[
+h_{\text{image}} = \frac{35 \text{ mm} \times 50{,}000 \text{ mm}}{200{,}000 \text{ mm}} = 8.75 \text{ mm}
+\]
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 1--2, HW1 P1 (cone density)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 1B: PERCEPTION PHENOMENA
+% ============================================================================
+
+\begin{conceptbox}[1b. Brightness Perception \& Optical Illusions]
+
+\begin{formulabox}
+\textbf{Weber Ratio}: $\frac{\Delta I_c}{I} \approx 0.02$ \hfill (JND $\approx$ 2\% of background)
+
+Human eye can discriminate $\sim$50 intensity levels, but this varies with background.
+
+\textbf{Mach Bands}: Perceived bright/dark bands at intensity edges that don't exist in the actual intensity profile. Caused by lateral inhibition in retina.
+
+\textbf{Simultaneous Contrast}: Same gray appears lighter on dark background, darker on light background. The perceived intensity depends on surroundings.
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: At background intensity $I = 100$, the just-noticeable difference is:
+\[
+\Delta I_c = 0.02 \times 100 = 2
+\]
+You can distinguish $I = 100$ from $I = 102$, but not from $I = 101$.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 1--2
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 1C: RESOLUTION
+% ============================================================================
+
+\begin{conceptbox}[1c. Spatial \& Intensity Resolution]
+
+\begin{formulabox}
+\textbf{Spatial Resolution}: Number of pixels per unit length (dpi, pixels/mm).
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item Higher spatial resolution $\to$ finer detail, larger file
+    \item $M \times N$ image with $k$ bits/pixel requires $M \times N \times k$ bits storage
+\end{itemize}
+
+\textbf{Intensity Resolution}: Number of bits per pixel ($k$ bits $\to 2^k$ gray levels).
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item $k = 8$ bits $\to$ 256 levels (standard grayscale)
+    \item Low bit depth causes \textbf{false contouring} (visible bands in smooth gradients)
+\end{itemize}
+
+\textbf{Isopreference Curves}: Tradeoff between spatial and intensity resolution for subjective quality.
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: A $512 \times 512$ image with 8 bits/pixel requires:
+\[
+512 \times 512 \times 8 = 2{,}097{,}152 \text{ bits} = 256 \text{ KB}
+\]
+Reducing to 4 bits/pixel halves storage but may show false contouring.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 2
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 1D: INTERPOLATION
+% ============================================================================
+
+\begin{conceptbox}[1d. Interpolation Methods]
+
+\textbf{Concept}: Used for image resizing, rotation, and geometric transformations.
+
+\begin{formulabox}
+\textbf{Nearest Neighbor}: Use value of closest pixel. Fast but causes blocky artifacts.
+
+\textbf{Bilinear Interpolation}: Weighted average of 4 nearest neighbors.
+\[
+v(x,y) = ax + by + cxy + d
+\]
+Smoother than nearest neighbor, slight blurring.
+
+\textbf{Bicubic Interpolation}: Uses 16 neighbors (4$\times$4 grid).
+\[
+v(x,y) = \sum_{i=0}^{3}\sum_{j=0}^{3} a_{ij} x^i y^j
+\]
+Best quality, most computationally expensive.
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Quality comparison} (for enlargement):
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item Nearest neighbor: pixelated edges
+    \item Bilinear: smooth but slightly blurry
+    \item Bicubic: sharpest edges, best for photographs
+\end{itemize}
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 2--3
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 2: PIXEL RELATIONSHIPS
+% ============================================================================
+
+\begin{conceptbox}[2. Pixel Neighborhoods \& Adjacency]
+
+\textbf{Concept}: Pixels can be adjacent in different ways depending on which neighbors count.
+
+\begin{formulabox}
+\textbf{4-Neighbors} $N_4(p)$: pixels at $(x\pm 1, y)$ and $(x, y\pm 1)$ --- orthogonal only
+
+\textbf{8-Neighbors} $N_8(p)$: 4-neighbors plus diagonals $(x\pm 1, y\pm 1)$
+
+\textbf{m-Adjacency}: Two pixels $p, q$ with values in $V$ are m-adjacent if:
+\begin{enumerate}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item $q \in N_4(p)$, OR
+    \item $q \in N_D(p)$ AND $N_4(p) \cap N_4(q) \cap V = \emptyset$ (no shared 4-neighbor in $V$)
+\end{enumerate}
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: For $V = \{1\}$, pixels at $(0,0)=1$ and $(1,1)=1$ are m-adjacent only if neither $(0,1)$ nor $(1,0)$ equals 1. This eliminates path ambiguity.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 2--3, HW1 P2 (adjacency), HW1 P3 (paths), Midterm P1a
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 3: DISTANCE METRICS
+% ============================================================================
+
+\begin{conceptbox}[3. Distance Metrics]
+
+\begin{formulabox}
+\textbf{Euclidean}: $D_e(p,q) = \sqrt{(x_1-x_2)^2 + (y_1-y_2)^2}$
+
+\textbf{City-Block (Manhattan)}: $D_4(p,q) = |x_1-x_2| + |y_1-y_2|$
+
+\textbf{Chessboard}: $D_8(p,q) = \max(|x_1-x_2|, |y_1-y_2|)$
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: From $p=(0,0)$ to $q=(4,4)$:
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item $D_e = \sqrt{32} = 4\sqrt{2} \approx 5.66$
+    \item $D_4 = 4 + 4 = 8$
+    \item $D_8 = \max(4,4) = 4$
+\end{itemize}
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 2--3, HW1 P3 (path lengths)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 4: SET OPERATIONS
+% ============================================================================
+
+\begin{conceptbox}[4. Set Operations on Images]
+
+\begin{formulabox}
+\textbf{Union}: $A \cup B$ --- pixels in $A$ OR $B$
+
+\textbf{Intersection}: $A \cap B$ --- pixels in $A$ AND $B$
+
+\textbf{Complement}: $A^c$ --- pixels NOT in $A$
+
+\textbf{Difference}: $A - B = A \cap B^c$ --- pixels in $A$ but not $B$
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Shaded region where exactly $A$ and $D$ overlap but not $B$ or $C$:
+\[
+(A \cap D \cap B^c \cap C^c)
+\]
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 2--3, HW1 P4 (set expressions), Midterm P2
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 5: LINEAR VS NONLINEAR OPERATORS
+% ============================================================================
+
+\begin{conceptbox}[5. Linear vs Nonlinear Operators]
+
+\begin{formulabox}
+\textbf{Linear Operator}: $H$ is linear if $H[a_1 f_1 + a_2 f_2] = a_1 H[f_1] + a_2 H[f_2]$
+
+\textbf{Examples}:
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item \textbf{Linear}: Averaging, Laplacian, convolution, correlation
+    \item \textbf{Nonlinear}: Median, max, min, log transform, gamma correction
+\end{itemize}
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Prove median is nonlinear. Let $f_1 = [1,2,3]$, $f_2 = [3,2,1]$.
+
+$\text{median}(f_1) = 2$, $\text{median}(f_2) = 2$, so $\text{median}(f_1) + \text{median}(f_2) = 4$
+
+But $\text{median}(f_1 + f_2) = \text{median}([4,4,4]) = 4 \ne 4$... Actually works here.
+
+Try $f_1 = [1,5,2]$, $f_2 = [2,1,5]$: median$(f_1)=2$, median$(f_2)=2$, sum $=4$
+
+$f_1 + f_2 = [3,6,7]$, median $= 6 \ne 4$ \quad $\Rightarrow$ Nonlinear!
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 6--7, HW2 P1 (median nonlinearity)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 6: IMAGE ARITHMETIC
+% ============================================================================
+
+\begin{conceptbox}[6. Image Arithmetic Operations]
+
+\begin{formulabox}
+\textbf{Addition}: $g(x,y) = f_1(x,y) + f_2(x,y)$ \hfill (noise reduction by averaging)
+
+\textbf{Subtraction}: $g(x,y) = f_1(x,y) - f_2(x,y)$ \hfill (change detection)
+
+\textbf{Multiplication}: $g(x,y) = f_1(x,y) \times f_2(x,y)$ \hfill (masking, ROI selection)
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Defect detection in manufacturing.
+
+Store ``golden'' reference image $f_{\text{ref}}$. For each new product image $f_{\text{new}}$:
+\[
+\text{defect} = |f_{\text{new}} - f_{\text{ref}}|
+\]
+Nonzero regions indicate missing components. \textbf{Requirements}: consistent lighting, alignment, no vibration.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 3--4, HW2 P2 (defect detection)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 6B: IMAGE AVERAGING FOR NOISE REDUCTION
+% ============================================================================
+
+\begin{conceptbox}[6b. Image Averaging for Noise Reduction]
+
+\begin{formulabox}
+\textbf{Model}: $g_i(x,y) = f(x,y) + \eta_i(x,y)$ where $\eta$ is noise with variance $\sigma_\eta^2$
+
+\textbf{Average of $K$ noisy images}:
+\[
+\bar{g}(x,y) = \frac{1}{K}\sum_{i=1}^{K} g_i(x,y)
+\]
+
+\textbf{Key Result}: The variance of the averaged image is:
+\[
+\boxed{\sigma_{\bar{g}}^2 = \frac{1}{K}\sigma_\eta^2}
+\]
+
+\textbf{Standard deviation}: $\sigma_{\bar{g}} = \frac{\sigma_\eta}{\sqrt{K}}$
+
+As $K \to \infty$, $\bar{g}(x,y) \to f(x,y)$ (noise averages to zero).
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: To reduce noise standard deviation by half, you need:
+\[
+\frac{\sigma_\eta}{\sqrt{K}} = \frac{\sigma_\eta}{2} \quad \Rightarrow \quad K = 4 \text{ images}
+\]
+To reduce by factor of 10, need $K = 100$ images.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 3--4
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 7: INTENSITY TRANSFORMATIONS
+% ============================================================================
+
+\begin{conceptbox}[7. Intensity Transformations]
+
+\begin{formulabox}
+\textbf{Log Transform}: $s = c \cdot \log(1 + r)$ \hfill (compress dynamic range, brighten darks)
+
+\textbf{Gamma (Power-Law)}: $s = c \cdot r^\gamma$
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item $\gamma < 1$: brightens dark regions (expand darks)
+    \item $\gamma > 1$: darkens image (compress darks)
+    \item $\gamma = 1$: identity
+\end{itemize}
+
+\textbf{Contrast Stretching}: $s = \frac{r - r_{\min}}{r_{\max} - r_{\min}} \cdot (L-1)$
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: For $\gamma = 0.4$ on a dark X-ray, dark pixels ($r=0.1$) map to:
+\[
+s = (0.1)^{0.4} \approx 0.40
+\]
+Brightens the image significantly.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 3--5, Midterm P1b (fireworks at night)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 6: HISTOGRAM PROCESSING
+% ============================================================================
+
+\begin{conceptbox}[8. Histogram Equalization]
+
+\begin{formulabox}
+\textbf{Normalized Histogram}: $p_r(r_k) = \frac{n_k}{MN}$ where $n_k$ = pixel count at level $k$
+
+\textbf{Histogram Equalization}:
+\[
+s_k = T(r_k) = (L-1) \sum_{i=0}^{k} p_r(r_i) = (L-1) \cdot \text{CDF}(r_k)
+\]
+Round $s_k$ to nearest integer.
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: 8-level image with $p_r = [0.1, 0.15, 0.25, 0.2, 0.125, 0.075, 0.0625, 0.0375]$
+
+CDF: $[0.1, 0.25, 0.5, 0.7, 0.825, 0.9, 0.9625, 1.0]$
+
+$s_k = 7 \times \text{CDF}$: $[0.7, 1.75, 3.5, 4.9, 5.775, 6.3, 6.7375, 7]$
+
+Rounded: $[1, 2, 4, 5, 6, 6, 7, 7]$
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 5--6, HW2 P3 (idempotency), HW2 P4 (discrete matching)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 7: HISTOGRAM SPECIFICATION
+% ============================================================================
+
+\begin{conceptbox}[9. Histogram Specification (Matching)]
+
+\begin{formulabox}
+\textbf{Goal}: Transform image with PDF $p_r(r)$ to have PDF $p_z(z)$
+
+\textbf{Method} (use equalization as a bridge):
+\begin{enumerate}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item Equalize input: $s = T_r(r) = (L-1)\int_0^r p_r(w)\,dw$
+    \item Equalize desired: $s = T_z(z) = (L-1)\int_0^z p_z(w)\,dw$
+    \item Set equal and solve: $T_r(r) = T_z(z) \Rightarrow z = T_z^{-1}(T_r(r))$
+\end{enumerate}
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Given $p_r(r) = \frac{4r}{3(L-1)^2}$ and $p_z(z) = \frac{2z}{(L-1)^2}$
+
+$T_r(r) = \frac{2r^2}{3(L-1)}$, \quad $T_z(z) = \frac{z^2}{L-1}$
+
+Setting equal: $\frac{2r^2}{3(L-1)} = \frac{z^2}{L-1} \Rightarrow z = \sqrt{\frac{2}{3}}\,r$
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 5--6, HW2 P5 (continuous), Midterm P4
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 8: SPATIAL FILTERING
+% ============================================================================
+
+\begin{conceptbox}[10. Spatial Filtering --- Smoothing]
+
+\begin{formulabox}
+\textbf{Averaging Filter}: $\frac{1}{9}\begin{bmatrix} 1 & 1 & 1 \\ 1 & 1 & 1 \\ 1 & 1 & 1 \end{bmatrix}$ \hfill (blur, reduce noise)
+
+\textbf{Gaussian Filter}: $G(x,y) = \frac{1}{2\pi\sigma^2}e^{-(x^2+y^2)/2\sigma^2}$ \hfill (smooth blur)
+
+\textbf{Median Filter}: Output = median of neighborhood \hfill (removes salt-and-pepper)
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Neighborhood $[15, 20, 255, 18, 22, 19, 21, 17, 0]$
+
+Arithmetic mean: $(15+20+255+18+22+19+21+17+0)/9 = 43$
+
+Median: Sort $\to [0,15,17,18,19,20,21,22,255]$, median $= 19$
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 6--7, HW3 P1 (blurring histograms), HW3 P3 (bar merging)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 9: SHARPENING FILTERS
+% ============================================================================
+
+\begin{conceptbox}[11. Spatial Filtering --- Sharpening]
+
+\begin{formulabox}
+\textbf{Laplacian} (4-neighbor): $\begin{bmatrix} 0 & -1 & 0 \\ -1 & 4 & -1 \\ 0 & -1 & 0 \end{bmatrix}$ \quad (8-neighbor): $\begin{bmatrix} -1 & -1 & -1 \\ -1 & 8 & -1 \\ -1 & -1 & -1 \end{bmatrix}$
+
+\textbf{Sharpened Image}: $g(x,y) = f(x,y) - \nabla^2 f(x,y)$ \hfill (subtract Laplacian)
+
+\textbf{High-Boost}: $g = A \cdot f - \text{lowpass}(f) = (A-1)f + \text{highpass}(f)$
+
+\textbf{Sobel} (horizontal edges): $\begin{bmatrix} -1 & -2 & -1 \\ 0 & 0 & 0 \\ 1 & 2 & 1 \end{bmatrix}$ \quad (vertical): $\begin{bmatrix} -1 & 0 & 1 \\ -2 & 0 & 2 \\ -1 & 0 & 1 \end{bmatrix}$
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Filter $\frac{1}{9}\begin{bmatrix} -1 & -1 & -1 \\ -1 & -17 & -1 \\ -1 & -1 & -1 \end{bmatrix}$
+
+This is a sharpening filter with inversion (all negative). Center weight $\gg$ neighbors $\Rightarrow$ edge enhancement.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 6--7, HW4 P1 (highboost k=3), Midterm P3
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 10: CONVOLUTION
+% ============================================================================
+
+\begin{conceptbox}[12. Convolution vs Correlation]
+
+\begin{formulabox}
+\textbf{Correlation}: $w(x,y) \star f(x,y) = \sum_s \sum_t w(s,t) \cdot f(x+s, y+t)$
+
+\textbf{Convolution}: $w(x,y) * f(x,y) = \sum_s \sum_t w(s,t) \cdot f(x-s, y-t)$
+
+\textbf{Key difference}: Convolution flips the filter 180°. For symmetric filters, they're the same.
+
+\textbf{Property}: If filter coefficients sum to zero, output sum is also zero.
+
+\textbf{Zero Padding}: Extend image with zeros at boundaries for full output.
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Position $(0,0)$ with zero-padded neighborhood $\begin{bmatrix} 0 & 0 & 0 \\ 0 & 3 & 5 \\ 0 & 7 & 18 \end{bmatrix}$
+
+Filter $\frac{1}{9}\begin{bmatrix} -1 & -1 & -1 \\ -1 & -17 & -1 \\ -1 & -1 & -1 \end{bmatrix}$:
+
+$\frac{1}{9}[(-1)(0+0+0+0+5+0+7+18) + (-17)(3)] = \frac{1}{9}[-30-51] = -9$
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 6--7, HW3 P2 (properties), HW3 P5 (full output), Midterm P3b
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 11: FOURIER TRANSFORM
+% ============================================================================
+
+\begin{conceptbox}[13. Fourier Transform]
+
+\begin{formulabox}
+\textbf{Continuous FT}: $F(u) = \int_{-\infty}^{\infty} f(t)\, e^{-j2\pi ut}\,dt$
+
+\textbf{Rectangular Pulse Formula} (height $h$, from $a$ to $b$):
+\[
+\boxed{\int_a^b h\, e^{-j2\pi ut}\,dt = \frac{h}{j2\pi u}\left(e^{-j2\pi ua} - e^{-j2\pi ub}\right)}
+\]
+
+\textbf{Sifting Property}: $\int_{-\infty}^{\infty} f(t)\,\delta(t-t_0)\,dt = f(t_0)$
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: $\int_{-\infty}^{\infty} (t^2 + 3t + 5)\,\delta(t-2)\,dt = (2)^2 + 3(2) + 5 = 15$
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 7--8, HW4 P2 (piecewise FT), Midterm Bonus
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 12: DFT
+% ============================================================================
+
+\begin{conceptbox}[14. Discrete Fourier Transform]
+
+\begin{formulabox}
+\textbf{1D DFT}: $F(u) = \sum_{x=0}^{M-1} f(x)\, e^{-j2\pi ux/M}$
+
+\textbf{Inverse}: $f(x) = \frac{1}{M}\sum_{u=0}^{M-1} F(u)\, e^{j2\pi ux/M}$
+
+\textbf{2D DFT}: $F(u,v) = \sum_{x=0}^{M-1}\sum_{y=0}^{N-1} f(x,y)\, e^{-j2\pi(ux/M + vy/N)}$
+
+\textbf{Convolution Theorem}: $f * h \leftrightarrow F \cdot H$ \hfill (convolution $\to$ multiplication)
+\end{formulabox}
+
+\textbf{Appears in}: Lecture 7--8
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 13: FREQUENCY DOMAIN FILTERS
+% ============================================================================
+
+\begin{conceptbox}[15. Frequency Domain Filters]
+
+\begin{formulabox}
+\textbf{Ideal Lowpass}: $H(u,v) = \begin{cases} 1 & D(u,v) \le D_0 \\ 0 & D(u,v) > D_0 \end{cases}$ \hfill (causes ringing)
+
+\textbf{Butterworth Lowpass}: $H(u,v) = \frac{1}{1 + [D(u,v)/D_0]^{2n}}$ \hfill (smooth rolloff)
+
+\textbf{Gaussian Lowpass}: $H(u,v) = e^{-D^2(u,v)/(2D_0^2)}$ \hfill (no ringing)
+
+\textbf{Highpass}: $H_{\text{HP}} = 1 - H_{\text{LP}}$
+
+where $D(u,v) = \sqrt{(u-M/2)^2 + (v-N/2)^2}$
+\end{formulabox}
+
+\textbf{Appears in}: Lecture 8+
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 14: NOISE MODELS
+% ============================================================================
+
+\begin{conceptbox}[16. Noise Models]
+
+\begin{formulabox}
+\textbf{Gaussian}: $p(z) = \frac{1}{\sqrt{2\pi}\sigma}\exp\left[-\frac{(z-\mu)^2}{2\sigma^2}\right]$
+
+\textbf{Salt-and-Pepper}: $p(z) = \begin{cases} P_a & z = a \text{ (black)} \\ P_b & z = b \text{ (white)} \\ 0 & \text{otherwise} \end{cases}$
+
+\textbf{Uniform}: $p(z) = \frac{1}{b-a}$ for $a \le z \le b$
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Best filters for each noise type}:
+\begin{itemize}[leftmargin=1.5em, itemsep=0pt, topsep=2pt]
+    \item Gaussian noise $\to$ Arithmetic mean, Gaussian smoothing
+    \item Salt-and-pepper $\to$ Median filter
+    \item Uniform noise $\to$ Arithmetic mean
+\end{itemize}
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 8+, HW4 P3 (10 filter types)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 15: RESTORATION FILTERS
+% ============================================================================
+
+\begin{conceptbox}[17. Restoration Filters (Mean Filters)]
+
+\begin{formulabox}
+\textbf{Arithmetic Mean}: $\hat{f} = \frac{1}{mn}\sum g(s,t)$
+
+\textbf{Geometric Mean}: $\hat{f} = \left[\prod g(s,t)\right]^{1/mn}$ \hfill (less blurring than arithmetic)
+
+\textbf{Harmonic Mean}: $\hat{f} = \frac{mn}{\sum 1/g(s,t)}$ \hfill (good for salt noise)
+
+\textbf{Contraharmonic Mean}: $\hat{f} = \frac{\sum g(s,t)^{Q+1}}{\sum g(s,t)^Q}$ \hfill ($Q>0$: pepper, $Q<0$: salt, $Q=0$: arithmetic)
+
+\textbf{Median}: $\hat{f} = \text{median}\{g(s,t)\}$ \hfill (best for salt-and-pepper)
+
+\textbf{Max}: $\hat{f} = \max\{g(s,t)\}$ \hfill (removes pepper/dark noise)
+
+\textbf{Min}: $\hat{f} = \min\{g(s,t)\}$ \hfill (removes salt/bright noise)
+
+\textbf{Midpoint}: $\hat{f} = \frac{1}{2}(\max + \min)$ \hfill (Gaussian + uniform noise)
+
+\textbf{Alpha-Trimmed Mean}: Delete $d/2$ lowest and $d/2$ highest, average rest
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Neighborhood $[15, 20, 255, 18, 0, 22, 19, 21, 17]$, $d=2$
+
+Sorted: $[0, 15, 17, 18, 19, 20, 21, 22, 255]$
+
+Trim 1 lowest (0) and 1 highest (255): $[15, 17, 18, 19, 20, 21, 22]$
+
+Alpha-trimmed mean: $(15+17+18+19+20+21+22)/7 = 18.86$
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 8+, HW4 P3 (all 10 filter types)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 18: MOTION BLUR AND WIENER FILTER
+% ============================================================================
+
+\begin{conceptbox}[18. Motion Blur \& Wiener Filter]
+
+\begin{formulabox}
+\textbf{Motion Blur Model}: $H(u,v) = \int_0^T e^{-j2\pi[u\,x_0(t) + v\,y_0(t)]}\,dt$
+
+For uniform horizontal motion $x_0(t) = at/T$:
+\[
+H(u,v) = \frac{T}{\pi u a}\sin(\pi u a)\,e^{-j\pi u a}
+\]
+
+\textbf{Wiener Filter}: $\hat{F}(u,v) = \frac{H^*(u,v)}{|H(u,v)|^2 + K} \cdot G(u,v)$
+
+where $K = S_\eta/S_f$ (noise-to-signal power ratio).
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Given $H(u,v) = 2\pi\sigma^2 e^{-2\pi^2\sigma^2(u^2+v^2)}$ and ratio $K$:
+\[
+\hat{F} = \frac{2\pi\sigma^2 e^{-2\pi^2\sigma^2(u^2+v^2)}}{4\pi^2\sigma^4 e^{-4\pi^2\sigma^2(u^2+v^2)} + K} \cdot G
+\]
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 8+, HW4 P4 (motion blur), HW4 P5 (Wiener)
+
+\end{conceptbox}
+
+% ============================================================================
+% SECTION 19: ORDER OF OPERATIONS
+% ============================================================================
+
+\begin{conceptbox}[19. Order of Linear Operations]
+
+\begin{formulabox}
+\textbf{Key Property}: Linear operations (convolutions) are \textbf{commutative}.
+
+If $h_1$ and $h_2$ are linear filters:
+\[
+(f * h_1) * h_2 = (f * h_2) * h_1 = f * (h_1 * h_2)
+\]
+
+\textbf{Result}: Averaging then Laplacian = Laplacian then Averaging (same result)
+\end{formulabox}
+
+\begin{examplebox}
+\textbf{Example}: Apply averaging (noise reduction) then Laplacian (edge detection).
+
+Since both are linear, order doesn't matter mathematically. However, averaging first is often preferred in practice to reduce noise before edge detection.
+\end{examplebox}
+
+\textbf{Appears in}: Lecture 6--7, HW3 P4 (averaging + Laplacian order)
+
+\end{conceptbox}
+
+% ============================================================================
+% QUICK REFERENCE: COMMON FILTERS
+% ============================================================================
+
+\vspace{0.3cm}
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=USC_Congaree, title=\textbf{Quick Reference: Common 3$\times$3 Filters}, sharp corners, colbacktitle=USC_Congaree, coltitle=white]
+
+\begin{tabular}{@{}p{3.5cm}p{4cm}p{6cm}@{}}
+\toprule
+\textbf{Filter} & \textbf{Kernel} & \textbf{Effect} \\
+\midrule
+Averaging (box) & $\frac{1}{9}\begin{bmatrix} 1 & 1 & 1 \\ 1 & 1 & 1 \\ 1 & 1 & 1 \end{bmatrix}$ & Blur, noise reduction \\[1.5em]
+Weighted avg. & $\frac{1}{16}\begin{bmatrix} 1 & 2 & 1 \\ 2 & 4 & 2 \\ 1 & 2 & 1 \end{bmatrix}$ & Smoother blur (Gaussian approx.) \\[1.5em]
+Laplacian (4-conn) & $\begin{bmatrix} 0 & -1 & 0 \\ -1 & 4 & -1 \\ 0 & -1 & 0 \end{bmatrix}$ & Edge detection \\[1.5em]
+Laplacian (8-conn) & $\begin{bmatrix} -1 & -1 & -1 \\ -1 & 8 & -1 \\ -1 & -1 & -1 \end{bmatrix}$ & Edge detection (diagonal) \\[1.5em]
+Sobel $G_x$ & $\begin{bmatrix} -1 & 0 & 1 \\ -2 & 0 & 2 \\ -1 & 0 & 1 \end{bmatrix}$ & Vertical edge detection \\[1.5em]
+Sobel $G_y$ & $\begin{bmatrix} -1 & -2 & -1 \\ 0 & 0 & 0 \\ 1 & 2 & 1 \end{bmatrix}$ & Horizontal edge detection \\[1.5em]
+High-boost ($A=2$) & $\frac{1}{9}\begin{bmatrix} -1 & -1 & -1 \\ -1 & 17 & -1 \\ -1 & -1 & -1 \end{bmatrix}$ & Sharpen (enhance edges) \\[1.5em]
+Prewitt $G_x$ & $\begin{bmatrix} -1 & 0 & 1 \\ -1 & 0 & 1 \\ -1 & 0 & 1 \end{bmatrix}$ & Vertical edge (simpler) \\
+\bottomrule
+\end{tabular}
+
+\end{tcolorbox}
+\end{center}
+
+\end{document}

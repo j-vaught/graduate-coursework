@@ -663,23 +663,63 @@ Pad the image with zeros around the border:
 
 \end{stepbox}
 
-\begin{stepbox}[Step 3: Compute Convolution at Each Position]
+\begin{stepbox}[Step 3: Compute Convolution --- Row 0]
 
-For each output pixel, multiply the filter by the corresponding $3 \times 3$ neighborhood and sum.
+For each output pixel, multiply the filter by the corresponding $3 \times 3$ neighborhood and sum. The filter coefficients are $-1$ for all neighbors and $-17$ for the center, with a normalization factor of $\frac{1}{9}$.
 
 \vspace{0.2cm}
-
-\textbf{Center pixel} (1,1): Using full $3 \times 3$ neighborhood $\begin{bmatrix} 3 & 5 & 12 \\ 7 & 18 & 11 \\ 5 & 9 & 15 \end{bmatrix}$:
+\textbf{Position (0,0)}: Neighborhood $\begin{bmatrix} 0 & 0 & 0 \\ 0 & 3 & 5 \\ 0 & 7 & 18 \end{bmatrix}$
 \[
-\frac{1}{9}[(-1)(3+5+12+7+11+5+9+15) + (-17)(18)] = \frac{1}{9}[-67-306] = \frac{-373}{9}
+\frac{1}{9}[(-1)(0+0+0+0+5+0+7+18) + (-17)(3)] = \frac{1}{9}[-30-51] = \frac{-81}{9} = -9
 \]
 
-\textbf{Corner pixel} (0,0): Using neighborhood $\begin{bmatrix} 0 & 0 & 0 \\ 0 & 3 & 5 \\ 0 & 7 & 18 \end{bmatrix}$:
+\textbf{Position (0,1)}: Neighborhood $\begin{bmatrix} 0 & 0 & 0 \\ 3 & 5 & 12 \\ 7 & 18 & 11 \end{bmatrix}$
 \[
-\frac{1}{9}[(-1)(5+7+18) + (-17)(3)] = \frac{1}{9}[-30-51] = \frac{-81}{9} = -9
+\frac{1}{9}[(-1)(0+0+0+3+12+7+18+11) + (-17)(5)] = \frac{1}{9}[-51-85] = \frac{-136}{9} \approx -15.1
 \]
 
-Computing all nine positions:
+\textbf{Position (0,2)}: Neighborhood $\begin{bmatrix} 0 & 0 & 0 \\ 5 & 12 & 0 \\ 18 & 11 & 0 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(0+0+0+5+0+18+11+0) + (-17)(12)] = \frac{1}{9}[-34-204] = \frac{-238}{9} \approx -26.4
+\]
+
+\end{stepbox}
+
+\begin{stepbox}[Step 4: Compute Convolution --- Row 1]
+
+\textbf{Position (1,0)}: Neighborhood $\begin{bmatrix} 0 & 3 & 5 \\ 0 & 7 & 18 \\ 0 & 5 & 9 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(0+3+5+0+18+0+5+9) + (-17)(7)] = \frac{1}{9}[-40-119] = \frac{-159}{9} \approx -17.7
+\]
+
+\textbf{Position (1,1)}: Neighborhood $\begin{bmatrix} 3 & 5 & 12 \\ 7 & 18 & 11 \\ 5 & 9 & 15 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(3+5+12+7+11+5+9+15) + (-17)(18)] = \frac{1}{9}[-67-306] = \frac{-373}{9} \approx -41.4
+\]
+
+\textbf{Position (1,2)}: Neighborhood $\begin{bmatrix} 5 & 12 & 0 \\ 18 & 11 & 0 \\ 9 & 15 & 0 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(5+12+0+18+0+9+15+0) + (-17)(11)] = \frac{1}{9}[-59-187] = \frac{-246}{9} \approx -27.3
+\]
+
+\end{stepbox}
+
+\begin{stepbox}[Step 5: Compute Convolution --- Row 2]
+
+\textbf{Position (2,0)}: Neighborhood $\begin{bmatrix} 0 & 7 & 18 \\ 0 & 5 & 9 \\ 0 & 0 & 0 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(0+7+18+0+9+0+0+0) + (-17)(5)] = \frac{1}{9}[-34-85] = \frac{-119}{9} \approx -13.2
+\]
+
+\textbf{Position (2,1)}: Neighborhood $\begin{bmatrix} 7 & 18 & 11 \\ 5 & 9 & 15 \\ 0 & 0 & 0 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(7+18+11+5+15+0+0+0) + (-17)(9)] = \frac{1}{9}[-56-153] = \frac{-209}{9} \approx -23.2
+\]
+
+\textbf{Position (2,2)}: Neighborhood $\begin{bmatrix} 18 & 11 & 0 \\ 9 & 15 & 0 \\ 0 & 0 & 0 \end{bmatrix}$
+\[
+\frac{1}{9}[(-1)(18+11+0+9+0+0+0+0) + (-17)(15)] = \frac{1}{9}[-38-255] = \frac{-293}{9} \approx -32.6
+\]
 
 \end{stepbox}
 
@@ -733,40 +773,63 @@ s = T(r) = (L-1) \int_0^r p_r(w)\,dw
 
 \vspace{0.3cm}
 
-\begin{stepbox}[Step 1: Apply Histogram Equalization to Input PDF]
+\begin{stepbox}[Step 1: Understand the Goal]
 
-Using the given formula, compute the equalized intensity $s$ from the input:
+We want to transform pixel intensities from distribution $p_r(r)$ to distribution $p_z(z)$. The challenge is that there is no direct formula to go from one arbitrary distribution to another.
+
+\vspace{0.2cm}
+
+\textbf{Key insight}: Histogram equalization maps \textit{any} distribution to a uniform distribution. We can use this as a ``bridge'' between the two distributions.
+
+\begin{center}
+\begin{tikzpicture}[node distance=2.5cm, >=Stealth]
+    \node (r) [draw, rounded corners, fill=USC_Garnet!10, minimum width=2cm, minimum height=0.8cm] {Input $r$};
+    \node (s) [draw, rounded corners, fill=USC_Atlantic!10, minimum width=2cm, minimum height=0.8cm, right=of r] {Uniform $s$};
+    \node (z) [draw, rounded corners, fill=USC_Honeycomb!10, minimum width=2cm, minimum height=0.8cm, right=of s] {Output $z$};
+
+    \draw[->, thick] (r) -- node[above] {$s = T_r(r)$} (s);
+    \draw[->, thick] (s) -- node[above] {$z = T_z^{-1}(s)$} (z);
+
+    \draw[->, thick, USC_Garnet, dashed] (r) to[bend right=30] node[below] {$z = T(r) = T_z^{-1}(T_r(r))$} (z);
+\end{tikzpicture}
+\end{center}
+
+Since both $r$ and $z$ map to the \textit{same} uniform distribution $s$, the values of $s$ must be equal. This lets us solve for $z$ in terms of $r$.
+
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Equalize the Input Distribution $p_r(r)$]
+
+Apply histogram equalization to the input. The CDF (cumulative distribution function) gives us $s$:
 
 \begin{align*}
-s &= (L-1) \int_0^r p_r(w)\,dw \\[0.5em]
+s = T_r(r) &= (L-1) \int_0^r p_r(w)\,dw \\[0.5em]
 &= (L-1) \int_0^r \frac{4w}{3(L-1)^2}\,dw \\[0.5em]
-&= (L-1) \cdot \frac{4}{3(L-1)^2} \int_0^r w\,dw \\[0.5em]
-&= (L-1) \cdot \frac{4}{3(L-1)^2} \cdot \frac{r^2}{2} \\[0.5em]
-&= \frac{4r^2}{6(L-1)} = \frac{2r^2}{3(L-1)}
+&= (L-1) \cdot \frac{4}{3(L-1)^2} \cdot \frac{w^2}{2} \Big|_0^r \\[0.5em]
+&= (L-1) \cdot \frac{4}{3(L-1)^2} \cdot \frac{r^2}{2} = \boxed{\frac{2r^2}{3(L-1)}}
 \end{align*}
 
 \end{stepbox}
 
-\begin{stepbox}[Step 2: Apply Histogram Equalization to Desired PDF]
+\begin{stepbox}[Step 3: Equalize the Desired Distribution $p_z(z)$]
 
-Similarly, compute the equalized intensity $s$ that would result from the desired output distribution:
+Apply the same process to the desired output distribution:
 
 \begin{align*}
-s &= (L-1) \int_0^z p_z(w)\,dw \\[0.5em]
+s = T_z(z) &= (L-1) \int_0^z p_z(w)\,dw \\[0.5em]
 &= (L-1) \int_0^z \frac{2w}{(L-1)^2}\,dw \\[0.5em]
-&= (L-1) \cdot \frac{2}{(L-1)^2} \int_0^z w\,dw \\[0.5em]
-&= (L-1) \cdot \frac{2}{(L-1)^2} \cdot \frac{z^2}{2} \\[0.5em]
-&= \frac{z^2}{L-1}
+&= (L-1) \cdot \frac{2}{(L-1)^2} \cdot \frac{w^2}{2} \Big|_0^z \\[0.5em]
+&= (L-1) \cdot \frac{2}{(L-1)^2} \cdot \frac{z^2}{2} = \boxed{\frac{z^2}{L-1}}
 \end{align*}
 
 \end{stepbox}
 
-\begin{stepbox}[Step 3: Equate and Solve for $z$]
+\begin{stepbox}[Step 4: Set Equal and Solve for $z$]
 
-Since both expressions equal $s$ (the equalized intensity), set them equal:
+Both expressions equal the same uniform value $s$. Setting them equal:
 
 \[
-\frac{2r^2}{3(L-1)} = \frac{z^2}{L-1}
+\underbrace{\frac{2r^2}{3(L-1)}}_{T_r(r)} = \underbrace{\frac{z^2}{L-1}}_{T_z(z)}
 \]
 
 Multiply both sides by $(L-1)$:
@@ -775,7 +838,7 @@ Multiply both sides by $(L-1)$:
 \frac{2r^2}{3} = z^2
 \]
 
-Solve for $z$:
+Take the square root (using positive root since intensities are non-negative):
 
 \[
 z = \sqrt{\frac{2}{3}}\, r = \frac{\sqrt{6}}{3}\, r
@@ -791,7 +854,13 @@ The transformation function is:
 \boxed{z = T(r) = \sqrt{\frac{2}{3}}\, r = \frac{\sqrt{6}}{3}\, r \approx 0.816\, r}
 \]
 
-This linear transformation compresses the intensity range slightly, mapping $r \in [0, L-1]$ to $z \in [0, 0.816(L-1)]$.
+\vspace{0.2cm}
+
+\textbf{Interpretation}: This is a simple linear scaling that compresses intensities by about 18\%. Every input intensity $r$ maps to a slightly smaller output intensity $z \approx 0.816r$.
+
+\vspace{0.2cm}
+
+\textbf{Why does this work?} The input PDF $p_r(r) = \frac{4r}{3(L-1)^2}$ rises more steeply than the desired PDF $p_z(z) = \frac{2z}{(L-1)^2}$. To ``spread out'' the distribution, we compress the intensity values, which reduces the slope of the resulting histogram.
 
 \end{resultsbox}
 
@@ -858,52 +927,46 @@ f(t) = \begin{cases}
 
 \end{stepbox}
 
-\begin{stepbox}[Step 2: Set Up the Fourier Transform Integral]
+\begin{stepbox}[Step 2: Key Formula for Rectangular Pulse]
 
-Using the definition $\displaystyle F(u) = \int_{-\infty}^{\infty} f(t) e^{-j2\pi ut}\,dt$, we split into three regions:
+For a constant $h$ over interval $[a, b]$, the Fourier transform is:
 
 \[
-F(u) = \int_{-2}^{-1} 3 e^{-j2\pi ut}\,dt + \int_{-1}^{2} 2 e^{-j2\pi ut}\,dt + \int_{2}^{4} 3 e^{-j2\pi ut}\,dt
+\boxed{\int_a^b h\, e^{-j2\pi ut}\,dt = \frac{h}{j2\pi u}\left(e^{-j2\pi ua} - e^{-j2\pi ub}\right)}
 \]
+
+\textbf{Cheat sheet version}: Just plug in height $h$, left bound $a$, right bound $b$. No integration needed.
 
 \end{stepbox}
 
-\begin{stepbox}[Step 3: Evaluate Each Integral]
+\begin{stepbox}[Step 3: Apply the Formula to Each Segment]
 
-For a constant $c$ over interval $[a,b]$:
+\textbf{Segment 1}: $h = 3$, $a = -2$, $b = -1$
 \[
-\int_a^b c\, e^{-j2\pi ut}\,dt = c \cdot \frac{e^{-j2\pi ua} - e^{-j2\pi ub}}{j2\pi u}
+F_1(u) = \frac{3}{j2\pi u}\left(e^{-j2\pi u(-2)} - e^{-j2\pi u(-1)}\right) = \frac{3}{j2\pi u}\left(e^{j4\pi u} - e^{j2\pi u}\right)
 \]
 
-\textbf{First integral} ($t \in [-2,-1]$, amplitude 3):
+\textbf{Segment 2}: $h = 2$, $a = -1$, $b = 2$
 \[
-\frac{3}{j2\pi u}\left(e^{j4\pi u} - e^{j2\pi u}\right)
+F_2(u) = \frac{2}{j2\pi u}\left(e^{-j2\pi u(-1)} - e^{-j2\pi u(2)}\right) = \frac{2}{j2\pi u}\left(e^{j2\pi u} - e^{-j4\pi u}\right)
 \]
 
-\textbf{Second integral} ($t \in [-1,2]$, amplitude 2):
+\textbf{Segment 3}: $h = 3$, $a = 2$, $b = 4$
 \[
-\frac{2}{j2\pi u}\left(e^{j2\pi u} - e^{-j4\pi u}\right)
-\]
-
-\textbf{Third integral} ($t \in [2,4]$, amplitude 3):
-\[
-\frac{3}{j2\pi u}\left(e^{-j4\pi u} - e^{-j8\pi u}\right)
+F_3(u) = \frac{3}{j2\pi u}\left(e^{-j2\pi u(2)} - e^{-j2\pi u(4)}\right) = \frac{3}{j2\pi u}\left(e^{-j4\pi u} - e^{-j8\pi u}\right)
 \]
 
 \end{stepbox}
 
 \begin{stepbox}[Step 4: Combine and Simplify]
 
+Sum all three contributions and factor out $\frac{1}{j2\pi u}$:
+
 \begin{align*}
 F(u) &= \frac{1}{j2\pi u}\Big[3e^{j4\pi u} - 3e^{j2\pi u} + 2e^{j2\pi u} - 2e^{-j4\pi u} + 3e^{-j4\pi u} - 3e^{-j8\pi u}\Big] \\[0.5em]
+&= \frac{1}{j2\pi u}\Big[3e^{j4\pi u} + (-3+2)e^{j2\pi u} + (-2+3)e^{-j4\pi u} - 3e^{-j8\pi u}\Big] \\[0.5em]
 &= \frac{1}{j2\pi u}\Big[3e^{j4\pi u} - e^{j2\pi u} + e^{-j4\pi u} - 3e^{-j8\pi u}\Big]
 \end{align*}
-
-Using $\displaystyle\frac{1}{j} = -j$:
-
-\[
-F(u) = \frac{-j}{2\pi u}\Big[3e^{j4\pi u} - e^{j2\pi u} + e^{-j4\pi u} - 3e^{-j8\pi u}\Big]
-\]
 
 \end{stepbox}
 
@@ -915,7 +978,12 @@ The Fourier transform is:
 \boxed{F(u) = \frac{1}{j2\pi u}\Big[3e^{j4\pi u} - e^{j2\pi u} + e^{-j4\pi u} - 3e^{-j8\pi u}\Big], \quad u \neq 0}
 \]
 
-For $u = 0$, we compute directly: $\displaystyle F(0) = \int_{-\infty}^{\infty} f(t)\,dt = 3(1) + 2(3) + 3(2) = 15$
+\vspace{0.3cm}
+
+For $u = 0$, compute the area directly:
+\[
+F(0) = \int_{-\infty}^{\infty} f(t)\,dt = 3(1) + 2(3) + 3(2) = 15
+\]
 
 \end{resultsbox}
 
