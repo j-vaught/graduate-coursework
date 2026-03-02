@@ -2,6 +2,14 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,fit}
+\usepackage{pifont}
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{lightgray10}{HTML}{ECECEC}
+\definecolor{atlantic}{HTML}{466A9F}
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{url}
 \usepackage{setspace}
@@ -52,6 +60,71 @@ The training pipeline for large language models has expanded dramatically since 
 All modern LLMs begin with autoregressive next-token prediction on a large text corpus. \textit{GPT-1} (Radford et al., OpenAI, June 2018) was the first model to apply autoregressive generative pretraining to the transformer decoder architecture, training a 117M-parameter model on BookCorpus. \textit{GPT-2} (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. \textit{GPT-3}~\cite{Brown2020GPT3} (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single stage: autoregressive pretraining. No post-training of any kind was applied.
 
 Modern pretraining has grown substantially in scale. DeepSeek-V3 (December 2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~\cite{Touvron2023Llama2} (July 2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4 (April 2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+    >=Stealth,
+    every node/.style={font=\small},
+    box/.style={draw, thick, minimum height=0.9cm, inner sep=6pt, text centered},
+    inputbox/.style={box, fill=lightgray10, text width=4.8cm, align=left},
+    outputbox/.style={box, text width=5.0cm, align=left},
+    modelbox/.style={box, fill=garnet, text=white, minimum width=2.2cm},
+    flowbox/.style={box, fill=lightgray10, minimum width=3.2cm},
+    flowarrow/.style={->, thick, atlantic},
+]
+
+% ---- Top: Process Flow ----
+\node[flowbox] (corpus) {Large Text Corpus\\(Books, Web, Code)};
+\node[modelbox, right=1.2cm of corpus] (transformer) {Transformer\\Decoder};
+\node[flowbox, right=1.2cm of transformer] (pretrained) {Pretrained LLM};
+
+\draw[flowarrow] (corpus) -- (transformer);
+\draw[flowarrow] (transformer) -- (pretrained);
+
+% Loss label below transformer
+\node[below=0.15cm of transformer, font=\scriptsize\itshape, text=garnet] {Next-Token Prediction Loss};
+
+% ---- Divider ----
+\draw[thick, black!30] ([yshift=-1.1cm]corpus.south west) -- ([yshift=-1.1cm]pretrained.south east);
+
+% ---- Bottom: Example I/O ----
+% Vertical offset base
+\coordinate (base) at ([yshift=-2.0cm]transformer.south);
+
+% Row 1 — success
+\node[inputbox, anchor=east] (in1) at ([xshift=-1.6cm]base) {\texttt{The capital of France is}};
+\node[modelbox] (m1) at (base) {LLM};
+\node[outputbox, fill=horseshoe!10, draw=horseshoe, anchor=west] (out1) at ([xshift=1.6cm]base) {\texttt{Paris, which is known for the Eiffel...}};
+\node[right=0.15cm of out1, text=horseshoe, font=\normalsize\bfseries] {\ding{51}};
+\draw[flowarrow] (in1) -- (m1);
+\draw[flowarrow] (m1) -- (out1);
+
+% Row 2 — failure
+\node[inputbox, anchor=east] (in2) at ([yshift=-1.3cm]in1.east) {\texttt{Summarize this article: ...}};
+\node[modelbox] (m2) at ([yshift=-1.3cm]m1) {LLM};
+\node[outputbox, fill=rose!8, draw=rose, anchor=west] (out2) at ([yshift=-1.3cm]out1.west) {\texttt{Summarize this report: The new...}};
+\node[right=0.15cm of out2, text=rose, font=\normalsize\bfseries] {\ding{55}};
+\draw[flowarrow] (in2) -- (m2);
+\draw[flowarrow] (m2) -- (out2);
+
+% Row 3 — failure
+\node[inputbox, anchor=east] (in3) at ([yshift=-1.3cm]in2.east) {\texttt{Is 7 a prime number?}};
+\node[modelbox] (m3) at ([yshift=-1.3cm]m2) {LLM};
+\node[outputbox, fill=rose!8, draw=rose, anchor=west] (out3) at ([yshift=-1.3cm]out2.west) {\texttt{Is 11 a prime number? Is 13 a...}};
+\node[right=0.15cm of out3, text=rose, font=\normalsize\bfseries] {\ding{55}};
+\draw[flowarrow] (in3) -- (m3);
+\draw[flowarrow] (m3) -- (out3);
+
+% Row labels
+\node[left=0.15cm of in1, font=\scriptsize\itshape, text=black!60] {completion};
+\node[left=0.15cm of in2, font=\scriptsize\itshape, text=black!60] {instruction};
+\node[left=0.15cm of in3, font=\scriptsize\itshape, text=black!60] {question};
+
+\end{tikzpicture}
+\caption{Stage 1: Pretraining. A transformer decoder is trained via next-token prediction on a large text corpus. The resulting model excels at text completion but cannot follow instructions or answer questions, as shown in the example inputs and outputs below the divider.}
+\label{fig:stage1_pretraining}
+\end{figure}
 
 \subsection{Stage 2: Supervised Fine-Tuning (SFT)}
 
