@@ -197,20 +197,26 @@ Two $N \times N$ images shown below are quite different, but their histograms ar
 
 \begin{stepbox}[Step 1: Analyze the Original Histograms]
 Both images have $N^2/2$ pixels at 0 and $N^2/2$ at 255, so their histograms are identical two-impulse distributions.
-
-\textbf{Assumption:} The chessboard is a \textit{1-pixel checkerboard} where pixel $(i,j)$ has intensity $255$ if $i+j$ is even, and $0$ if $i+j$ is odd. If the squares were larger blocks, interior pixels would be unaffected by $3 \times 3$ averaging, and the histograms would remain similar.
 \end{stepbox}
 
 \begin{stepbox}[Step 2: Analyze Blurring of Image (a) --- Half-and-Half]
-Interior pixels on either side have all 9 neighbors the same color, so they remain at 0 or 255. Only pixels within 1 column of the vertical boundary are affected --- the $3 \times 3$ window straddles both halves, producing intermediate values. This affects only $3N$ out of $N^2$ pixels, so the histogram retains two large spikes at 0 and 255 with a small spread of intermediate values.
+Interior pixels on either side have all 9 neighbors the same color, so they remain at 0 or 255. Only pixels near the vertical split are mixed. For the dominant mixed cases, the $3\times 3$ window has either 3 white + 6 black or 6 white + 3 black pixels, so the blurred values are
+\[
+\frac{3}{9}\cdot 255 = 85,\qquad \frac{6}{9}\cdot 255 = 170.
+\]
+So image (a) keeps two strong spikes at 0 and 255, plus much smaller intermediate mass concentrated near 85 and 170 (not centered at 128).
 \end{stepbox}
 
 \begin{stepbox}[Step 3: Analyze Blurring of Image (b) --- Chessboard]
-Every pixel is adjacent to opposite-intensity pixels. For any interior pixel, the $3 \times 3$ neighborhood has 5 same-color and 4 opposite-color pixels (4 corners match, 4 edges differ). If the center is white: average $= (5 \times 255)/9 = 1275/9 \approx 141.7$. If the center is black: average $= (4 \times 255)/9 = 1020/9 \approx 113.3$. \textbf{Every} pixel is affected, and the histogram collapses to two spikes near 142 and 113.
+For a checkerboard with finite square size, a $3\times 3$ window can contain different counts of white pixels depending on its location relative to square boundaries/corners. If the window contains $k$ white pixels, the output is
+\[
+r_k=\frac{k}{9}\cdot 255,\qquad k=0,1,\dots,9.
+\]
+Therefore image (b) has more gray-level variation than image (a), because many different local white/black combinations appear in $3\times 3$ neighborhoods.
 \end{stepbox}
 
 \begin{stepbox}[Part (a): Are the Histograms Still Equal?]
-\textbf{No.} Image (a) retains most pixels at 0 and 255 with a thin strip of intermediate values. Image (b) has \textit{no} pixels at 0 or 255; the entire image shifts to two clusters near 113 and 142. The histograms differ because the $3 \times 3$ mask interacts with the \textit{spatial structure}, not just the intensity distribution.
+\textbf{No.} Image (a) retains most pixels at 0 and 255 with a thin strip of mixed values, mainly near 85 and 170. Image (b) exhibits multiple intermediate levels from different $3\times3$ white/black counts. The histograms differ because the $3\times3$ averaging mask depends on spatial arrangement, not only on the global counts of 0 and 255 pixels.
 \end{stepbox}
 
 \begin{stepbox}[Part (b): Sketch of the Two Blurred Histograms]
@@ -224,20 +230,13 @@ Every pixel is adjacent to opposite-intensity pixels. For any interior pixel, th
 % Large spikes at 0 and 255
 \fill[USC_Garnet] (0,0) rectangle (5,2.0);
 \fill[USC_Garnet] (250,0) rectangle (255,2.0);
-% Small intermediate values near boundary
-\fill[USC_Garnet!50] (75,0) rectangle (85,0.08);
-\fill[USC_Garnet!50] (85,0) rectangle (95,0.12);
-\fill[USC_Garnet!50] (95,0) rectangle (105,0.15);
-\fill[USC_Garnet!50] (105,0) rectangle (115,0.18);
-\fill[USC_Garnet!50] (115,0) rectangle (125,0.2);
-\fill[USC_Garnet!50] (125,0) rectangle (135,0.2);
-\fill[USC_Garnet!50] (135,0) rectangle (145,0.18);
-\fill[USC_Garnet!50] (145,0) rectangle (155,0.15);
-\fill[USC_Garnet!50] (155,0) rectangle (165,0.12);
-\fill[USC_Garnet!50] (165,0) rectangle (175,0.08);
+% Small intermediate values near 85 and 170
+\fill[USC_Garnet!50] (80,0) rectangle (90,0.25);
+\fill[USC_Garnet!50] (165,0) rectangle (175,0.25);
 % Tick marks
 \node[below, font=\scriptsize] at (0,0) {0};
-\node[below, font=\scriptsize] at (128,0) {128};
+\node[below, font=\scriptsize] at (85,0) {85};
+\node[below, font=\scriptsize] at (170,0) {170};
 \node[below, font=\scriptsize] at (255,0) {255};
 \end{scope}
 \end{tikzpicture}
@@ -250,18 +249,21 @@ Every pixel is adjacent to opposite-intensity pixels. For any interior pixel, th
 \draw[->, thick] (0,0) -- (270,0) node[right, font=\small] {Intensity};
 \draw[->, thick] (0,0) -- (0,2.2) node[above, font=\small] {$h(r)$};
 \node[above, font=\small\bfseries] at (128,2.2) {(b) Chessboard blurred};
-% Two spikes near 113 and 142
-\fill[USC_Atlantic] (110,0) rectangle (117,1.8);
-\fill[USC_Atlantic] (139,0) rectangle (146,1.8);
-% Small edge effects near these values
-\fill[USC_Atlantic!40] (100,0) rectangle (110,0.1);
-\fill[USC_Atlantic!40] (117,0) rectangle (125,0.1);
-\fill[USC_Atlantic!40] (130,0) rectangle (139,0.1);
-\fill[USC_Atlantic!40] (146,0) rectangle (155,0.1);
+% Peaks at 0 and 255 with many intermediate levels
+\fill[USC_Atlantic] (0,0) rectangle (6,1.8);
+\fill[USC_Atlantic] (249,0) rectangle (255,1.8);
+\fill[USC_Atlantic!55] (20,0) rectangle (30,0.2);
+\fill[USC_Atlantic!55] (45,0) rectangle (55,0.25);
+\fill[USC_Atlantic!55] (70,0) rectangle (80,0.28);
+\fill[USC_Atlantic!55] (95,0) rectangle (105,0.22);
+\fill[USC_Atlantic!55] (120,0) rectangle (130,0.2);
+\fill[USC_Atlantic!55] (145,0) rectangle (155,0.22);
+\fill[USC_Atlantic!55] (170,0) rectangle (180,0.28);
+\fill[USC_Atlantic!55] (195,0) rectangle (205,0.25);
+\fill[USC_Atlantic!55] (220,0) rectangle (230,0.2);
 % Tick marks
 \node[below, font=\scriptsize] at (0,0) {0};
-\node[below, font=\scriptsize] at (113,0) {113};
-\node[below, font=\scriptsize] at (142,0) {142};
+\node[below, font=\scriptsize] at (128,0) {128};
 \node[below, font=\scriptsize] at (255,0) {255};
 \end{scope}
 \end{tikzpicture}
@@ -269,15 +271,15 @@ Every pixel is adjacent to opposite-intensity pixels. For any interior pixel, th
 \end{stepbox}
 
 \begin{stepbox}[Part (c) Bonus: Effect of Image Size $N$ on Chessboard Histogram]
-The $(N-2)^2$ interior pixels produce values $\approx 142$ or $\approx 113$, while border pixels (with zero-padded neighbors) produce different values shifted toward 0. The border fraction is $\sim 4/N$, so as $N$ increases, the histogram converges to two sharp spikes at 142 and 113. For small $N$, border effects dominate and the histogram is more spread out.
+As $N$ increases, the fraction of pixels near square boundaries becomes small compared to the total number of interior pixels. Interior pixels remain near pure black or pure white after averaging, while only boundary pixels produce intermediate values. Since the boundary-pixel fraction tends to zero as $N\to\infty$, the histogram approaches two dominant peaks at 0 and 255. For smaller $N$, boundary effects are proportionally larger, so intermediate levels are more visible.
 \end{stepbox}
 
 \begin{resultsbox}
-\textbf{(a)} No, the histograms of the blurred images are not equal. Image (a) retains large spikes at 0 and 255 with few intermediate values, while image (b) collapses entirely to two narrow peaks near 113 and 142.
+\textbf{(a)} No, the histograms of the blurred images are not equal. Image (a) keeps large spikes at 0 and 255, with mixed values mainly near 85 and 170. Image (b) has broader intermediate-level variation because different $3\times3$ neighborhoods contain different white/black counts.
 
-\textbf{(b)} See histogram sketches above. Image (a) has a bimodal histogram concentrated at the extremes; image (b) has a bimodal histogram concentrated near the center.
+\textbf{(b)} See histogram sketches above. Image (a) is strongly concentrated at the extremes with two minor intermediate components. Image (b) has strong extremes plus a richer spread of intermediate values.
 
-\textbf{(c) Bonus:} As $N \to \infty$, the border-pixel fraction $\to 0$ and the chessboard histogram converges to two delta functions at $\approx 113$ and $\approx 142$. For small $N$, border effects widen and shift the peaks.
+\textbf{(c) Bonus:} As $N \to \infty$, the boundary-affected fraction $\to 0$, so the blurred chessboard histogram is dominated by peaks at 0 and 255. For smaller $N$, boundary mixing contributes more intermediate gray levels.
 \end{resultsbox}
 
 
@@ -561,7 +563,7 @@ The convolution is defined as:
 \[
 g(x,y) = \sum_{s=-1}^{1}\sum_{t=-1}^{1} w(s,t)\, f(x-s, y-t)
 \]
-where $f(x,y) = 0$ outside the image (zero-padding). The output has the \textbf{same size} as the input.
+where $f(x,y) = 0$ outside the image (zero-padding). Because the problem asks for \textbf{FULL} convolution, the output size is $(M+2)\times(N+2)$ for an $M\times N$ input and a $3\times3$ mask.
 
 The mask $w$ with indices $s,t \in \{-1, 0, 1\}$:
 \[
@@ -575,17 +577,19 @@ w(1,-1) = 1,\; w(1,0) = 0,\; w(1,1) = 1
 \]
 \end{stepbox}
 
-\begin{stepbox}[Part (a): $2 \times 2$ Image $\to$ $2 \times 2$ Output]
+\begin{stepbox}[Part (a): $2 \times 2$ Image $\to$ $4 \times 4$ FULL Output]
 Image: $f(0,0) = 1$, $f(0,1) = 2$, $f(1,0) = 3$, $f(1,1) = 4$. All other $f = 0$ (zero-padded border).
 
-\vspace{0.2cm}
-
-\begin{align*}
-g(0,0) &= w(-1,-1)\cdot f(1,1) + w(0,0)\cdot f(0,0) = (-1)(4) + (2)(1) = -2 \\
-g(0,1) &= w(-1,1)\cdot f(1,0) + w(0,0)\cdot f(0,1) = (-1)(3) + (2)(2) = 1 \\
-g(1,0) &= w(1,-1)\cdot f(0,1) + w(0,0)\cdot f(1,0) = (1)(2) + (2)(3) = 8 \\
-g(1,1) &= w(1,1)\cdot f(0,0) + w(0,0)\cdot f(1,1) = (1)(1) + (2)(4) = 9
-\end{align*}
+The full convolution result is:
+\[
+g_{\text{full}}=
+\begin{bmatrix}
+-1 & -2 & -1 & -2 \\
+-3 & -2 & 1 & -4 \\
+1 & 8 & 9 & 2 \\
+3 & 4 & 3 & 4
+\end{bmatrix}.
+\]
 \end{stepbox}
 
 \begin{stepbox}[Part (a) Result Grid]
@@ -593,22 +597,43 @@ g(1,1) &= w(1,1)\cdot f(0,0) + w(0,0)\cdot f(1,1) = (1)(1) + (2)(4) = 9
 \begin{tikzpicture}[
   cell/.style={minimum size=1.1cm, draw=black, thick, fill=white, font=\large\bfseries},
 ]
-\node[cell] at (0,1.1) {$-2$};
-\node[cell] at (1.1,1.1) {$1$};
-\node[cell] at (0,0) {$8$};
-\node[cell] at (1.1,0) {$9$};
+\node[cell] at (0,3.3) {$-1$};
+\node[cell] at (1.1,3.3) {$-2$};
+\node[cell] at (2.2,3.3) {$-1$};
+\node[cell] at (3.3,3.3) {$-2$};
+
+\node[cell] at (0,2.2) {$-3$};
+\node[cell] at (1.1,2.2) {$-2$};
+\node[cell] at (2.2,2.2) {$1$};
+\node[cell] at (3.3,2.2) {$-4$};
+
+\node[cell] at (0,1.1) {$1$};
+\node[cell] at (1.1,1.1) {$8$};
+\node[cell] at (2.2,1.1) {$9$};
+\node[cell] at (3.3,1.1) {$2$};
+
+\node[cell] at (0,0) {$3$};
+\node[cell] at (1.1,0) {$4$};
+\node[cell] at (2.2,0) {$3$};
+\node[cell] at (3.3,0) {$4$};
 \end{tikzpicture}
 \end{center}
 \end{stepbox}
 
-\begin{stepbox}[Part (b): $3 \times 3$ Image $\to$ $3 \times 3$ Output]
+\begin{stepbox}[Part (b): $3 \times 3$ Image $\to$ $5 \times 5$ FULL Output]
 Image: $f(1,1) = 1$, all other $f(i,j) = 0$. This is a unit impulse at position $(1,1)$.
 
-Since the only nonzero pixel is $f(1,1) = 1$, each output value $g(x,y)$ has at most one nonzero term, occurring when $s = x-1$ and $t = y-1$:
+For full convolution, the impulse response appears centered in the $5\times5$ output support:
 \[
-g(x,y) = w(x-1,\, y-1) \cdot 1 = w(x-1,\, y-1)
+g_{\text{full}}=
+\begin{bmatrix}
+0 & 0 & 0 & 0 & 0 \\
+0 & -1 & 0 & -1 & 0 \\
+0 & 0 & 2 & 0 & 0 \\
+0 & 1 & 0 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0
+\end{bmatrix}.
 \]
-The output is simply the filter $w$ itself --- the fundamental impulse response property.
 \end{stepbox}
 
 \begin{stepbox}[Part (b) Result Grid]
@@ -616,32 +641,64 @@ The output is simply the filter $w$ itself --- the fundamental impulse response 
 \begin{tikzpicture}[
   cell/.style={minimum size=1.1cm, draw=black, thick, fill=white, font=\large\bfseries},
 ]
-\node[cell] at (0,2.2) {$-1$};
+\node[cell] at (0,4.4) {$0$};
+\node[cell] at (1.1,4.4) {$0$};
+\node[cell] at (2.2,4.4) {$0$};
+\node[cell] at (3.3,4.4) {$0$};
+\node[cell] at (4.4,4.4) {$0$};
+
+\node[cell] at (0,3.3) {$0$};
+\node[cell] at (1.1,3.3) {$-1$};
+\node[cell] at (2.2,3.3) {$0$};
+\node[cell] at (3.3,3.3) {$-1$};
+\node[cell] at (4.4,3.3) {$0$};
+
+\node[cell] at (0,2.2) {$0$};
 \node[cell] at (1.1,2.2) {$0$};
-\node[cell] at (2.2,2.2) {$-1$};
+\node[cell] at (2.2,2.2) {$2$};
+\node[cell] at (3.3,2.2) {$0$};
+\node[cell] at (4.4,2.2) {$0$};
 
 \node[cell] at (0,1.1) {$0$};
-\node[cell] at (1.1,1.1) {$2$};
+\node[cell] at (1.1,1.1) {$1$};
 \node[cell] at (2.2,1.1) {$0$};
+\node[cell] at (3.3,1.1) {$1$};
+\node[cell] at (4.4,1.1) {$0$};
 
-\node[cell] at (0,0) {$1$};
+\node[cell] at (0,0) {$0$};
 \node[cell] at (1.1,0) {$0$};
-\node[cell] at (2.2,0) {$1$};
+\node[cell] at (2.2,0) {$0$};
+\node[cell] at (3.3,0) {$0$};
+\node[cell] at (4.4,0) {$0$};
 \end{tikzpicture}
 \end{center}
 
-The convolution of a unit impulse with a filter produces the filter itself. $\blacksquare$
+The central $3\times3$ block equals the filter response around the impulse location, embedded in the full $5\times5$ support. $\blacksquare$
 \end{stepbox}
 
 \begin{resultsbox}
-\textbf{(a)} The $2 \times 2$ convolution output with zero-padded borders:
+\textbf{(a)} The full convolution output ($2\times2$ image with $3\times3$ mask) is:
 \[
-g = \begin{bmatrix} -2 & 1 \\ 8 & 9 \end{bmatrix}
+g_{\text{full}}=
+\begin{bmatrix}
+-1 & -2 & -1 & -2 \\
+-3 & -2 & 1 & -4 \\
+1 & 8 & 9 & 2 \\
+3 & 4 & 3 & 4
+\end{bmatrix}
 \]
 
-\textbf{(b)} The $3 \times 3$ convolution output for the impulse image equals the filter $w$:
+\textbf{(b)} The full convolution output ($3\times3$ impulse image with $3\times3$ mask) is:
 \[
-g = \begin{bmatrix} -1 & 0 & -1 \\ 0 & 2 & 0 \\ 1 & 0 & 1 \end{bmatrix} = w \qquad \blacksquare
+g_{\text{full}}=
+\begin{bmatrix}
+0 & 0 & 0 & 0 & 0 \\
+0 & -1 & 0 & -1 & 0 \\
+0 & 0 & 2 & 0 & 0 \\
+0 & 1 & 0 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0
+\end{bmatrix}
+\qquad \blacksquare
 \]
 \end{resultsbox}
 
