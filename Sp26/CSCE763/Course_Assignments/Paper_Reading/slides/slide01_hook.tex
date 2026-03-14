@@ -1,29 +1,38 @@
-% SLIDE 1: What Can You Measure from a Single Photo?
-\begin{frame}{What Can You Measure from a Single Photo?}
+% SLIDE 1: Why Depth Matters
+\begin{frame}{Why Depth Matters}
 \begin{columns}[T]
-\column{0.55\textwidth}
-\textbf{Goal:} From one RGB image, recover per-pixel
+\column{0.48\textwidth}
+\textbf{Knowing 3D from 2D enables:}
 \begin{itemize}
-  \item \textcolor{atlantic}{\textbf{Metric depth}} --- distance in meters from camera to each point
-  \item \textcolor{congaree}{\textbf{Surface normals}} --- 3D orientation of each surface patch
+  \item \textcolor{atlantic}{\textbf{Autonomous driving}} --- obstacle distance, lane geometry
+  \item \textcolor{congaree}{\textbf{Robotics}} --- grasping, navigation, collision avoidance
+  \item \textcolor{horseshoe}{\textbf{AR / VR}} --- object occlusion, scene placement
+  \item \textcolor{garnet}{\textbf{3D reconstruction}} --- single-image scene modeling
 \end{itemize}
 
-\vspace{0.4cm}
-\textbf{Connection to course:} The pinhole camera model (Ch.\ 2) relates 3D world coordinates to 2D image coordinates via focal length $f$:
-\[
-  u = f\,\frac{X}{Z}, \qquad v = f\,\frac{Y}{Z}
-\]
+\vspace{0.3cm}
+All require \textit{metric} depth --- real-world distances in meters, not just relative ordering.
 
-Without knowing $f$, depth is ambiguous.
+\column{0.48\textwidth}
+\textbf{My use case: marine radar labeling}
 
-\column{0.42\textwidth}
-% Placeholder for campus photo + depth/normal output
+\vspace{0.2cm}
 \begin{tikzpicture}
-  \node[rectangle, draw=bk30, fill=bk10, minimum width=5.5cm, minimum height=3.0cm,
-        font=\small\sffamily\color{bk50}, align=center] {
-    \textit{Demo output:}\\RGB $\mid$ Depth $\mid$ Normals\\[4pt]
-    (replace with inference result)
+  % Radar + camera fusion diagram
+  \node[pipeblock=atlantic, minimum width=3.2cm] (cam) at (0,2.5) {Camera};
+  \node[pipeblock=garnet, minimum width=3.2cm] (radar) at (0,1.2) {Marine Radar};
+  \node[pipeblock=congaree, minimum width=3.2cm] (depth) at (0,0) {Depth Model};
+
+  \draw[dataarrow=atlantic] (cam.east) -- ++(1.2,0) |- (depth.east);
+  \draw[dataarrow=garnet] (radar.east) -- ++(0.6,0);
+
+  \node[font=\scriptsize\sffamily, color=bk70, align=left, right] at (1.8,1.2) {
+    Fuse camera depth\\with radar returns\\to auto-label targets
   };
 \end{tikzpicture}
+
+\vspace{0.2cm}
+{\small Need metric depth at 50--500\,m over open water.\\[2pt]
+\textcolor{rose}{\textbf{Problem:}} Most depth models fail at long range and on textureless surfaces like water.}
 \end{columns}
 \end{frame}
