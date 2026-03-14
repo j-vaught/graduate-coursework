@@ -1,7 +1,7 @@
 % SLIDE 1: Why Depth Matters
 \begin{frame}{Why Depth Matters}
 \begin{columns}[T]
-\column{0.48\textwidth}
+\column{0.45\textwidth}
 \textbf{Knowing 3D from 2D enables:}
 \begin{itemize}
   \item \textcolor{atlantic}{\textbf{Autonomous driving}} --- obstacle distance, lane geometry
@@ -13,26 +13,50 @@
 \vspace{0.3cm}
 All require \textit{metric} depth --- real-world distances in meters, not just relative ordering.
 
-\column{0.48\textwidth}
+\column{0.52\textwidth}
 \textbf{My use case: marine radar labeling}
 
-\vspace{0.2cm}
-\begin{tikzpicture}
-  % Radar + camera fusion diagram
-  \node[pipeblock=atlantic, minimum width=3.2cm] (cam) at (0,2.5) {Camera};
-  \node[pipeblock=garnet, minimum width=3.2cm] (radar) at (0,1.2) {Marine Radar};
-  \node[pipeblock=congaree, minimum width=3.2cm] (depth) at (0,0) {Depth Model};
+\vspace{0.1cm}
+\centering
+\begin{tikzpicture}[scale=0.65]
+  % Water
+  \fill[atlantic!8] (-0.5,-0.3) rectangle (9.5,0.3);
+  \draw[atlantic!40, thick] (-0.5,0.3) -- (9.5,0.3);
 
-  \draw[dataarrow=atlantic] (cam.east) -- ++(1.2,0) |- (depth.east);
-  \draw[dataarrow=garnet] (radar.east) -- ++(0.6,0);
+  % Own vessel (left)
+  \fill[bk70] (0,0) -- (0.8,0.5) -- (1.6,0) -- cycle;
+  \node[font=\scriptsize\sffamily, color=bk70, below] at (0.8,-0.3) {Own vessel};
 
-  \node[font=\scriptsize\sffamily, color=bk70, align=left, right] at (1.8,1.2) {
-    Fuse camera depth\\with radar returns\\to auto-label targets
+  % Camera FOV cone
+  \draw[atlantic, thick, fill=atlantic!6] (1.6,0.3) -- (9,2.5) -- (9,-1.9) -- cycle;
+  \node[font=\scriptsize\sffamily, color=atlantic] at (1.6,0.9) {Camera};
+
+  % Radar arc
+  \draw[garnet, thick, dashed] (0.8,0.5) ++(0:1.5) arc (0:25:7.5);
+  \draw[garnet, thick, dashed] (0.8,0.5) ++(0:1.5) arc (0:-20:7.5);
+  \node[font=\scriptsize\sffamily, color=garnet] at (1.6,-0.7) {Radar};
+
+  % Target 1 (near, 80m)
+  \fill[congaree] (4.5,0.2) -- (5.0,0.6) -- (5.5,0.2) -- cycle;
+  \node[font=\scriptsize\sffamily, color=congaree, above] at (5.0,0.6) {80\,m};
+
+  % Target 2 (far, 350m)
+  \fill[rose] (7.8,0.1) -- (8.1,0.35) -- (8.4,0.1) -- cycle;
+  \node[font=\scriptsize\sffamily, color=rose, above] at (8.1,0.35) {350\,m};
+
+  % Depth arrows
+  \draw[atlantic, thick, {Stealth[length=4pt]}-{Stealth[length=4pt]}]
+    (1.6,-1.2) -- (4.5,-1.2) node[midway, below, font=\scriptsize\sffamily] {Depth model};
+  \draw[garnet, thick, {Stealth[length=4pt]}-{Stealth[length=4pt]}]
+    (1.6,-1.8) -- (7.8,-1.8) node[midway, below, font=\scriptsize\sffamily] {Radar range};
+
+  % Fusion label
+  \node[font=\scriptsize\sffamily\bfseries, color=bk70, align=center] at (5.5,-2.8) {
+    Match camera detections to radar returns\\using metric depth as the bridge
   };
 \end{tikzpicture}
 
-\vspace{0.2cm}
-{\small Need metric depth at 50--500\,m over open water.\\[2pt]
-\textcolor{rose}{\textbf{Problem:}} Most depth models fail at long range and on textureless surfaces like water.}
+\vspace{0.1cm}
+{\small \textcolor{rose}{\textbf{Problem:}} Depth models fail on water --- no texture, specular reflections, no marine training data.}
 \end{columns}
 \end{frame}
