@@ -1,0 +1,39 @@
+% SLIDE 4: Architecture Overview
+\begin{frame}{Architecture Overview}
+\centering
+\begin{tikzpicture}[node distance=0.6cm]
+  % Nodes
+  \node[pipeblock=bk70] (input) {RGB Image\\$I, f$};
+  \node[pipeblock=atlantic, right=of input] (cstm) {CSTM\\$I \to I_c$};
+  \node[pipeblock=congaree, right=of cstm] (enc) {ViT\\Encoder};
+  \node[pipeblock=congaree, right=of enc] (dec) {Decoder};
+  \node[pipeblock=garnet, right=of dec] (gru) {Joint\\Optimization\\(ConvGRU)};
+  \node[pipeblock=atlantic, right=of gru] (decstm) {De-CSTM\\$D_c \to D$};
+  \node[pipeblock=horseshoe, right=of decstm] (out) {Metric $D$\\Normals $\mathbf{n}$};
+
+  % Arrows
+  \draw[dataarrow] (input) -- (cstm);
+  \draw[dataarrow] (cstm) -- (enc);
+  \draw[dataarrow] (enc) -- (dec);
+  \draw[dataarrow] (dec) -- (gru);
+  \draw[dataarrow] (gru) -- (decstm);
+  \draw[dataarrow] (decstm) -- (out);
+
+  % Labels
+  \node[labelnode, below=0.2cm of cstm] {Canonical transform};
+  \node[labelnode, below=0.2cm of enc] {Backbone};
+  \node[labelnode, below=0.2cm of gru] {Iterative refinement};
+  \node[labelnode, below=0.2cm of decstm] {Undo transform};
+
+  % Feedback loop
+  \draw[dataarrow=rose, rounded corners=3pt]
+    (gru.south) -- ++(0,-0.6) -| (dec.south)
+    node[pos=0.25, below, font=\scriptsize\sffamily, color=rose] {$T$ iterations};
+\end{tikzpicture}
+
+\vspace{0.4cm}
+\begin{itemize}
+  \item \textbf{Modular:} Any backbone (ViT-S, ViT-L, ViT-G) plugs in; CSTM is backbone-agnostic
+  \item \textbf{Two key innovations:} Canonical Camera Space Transform (CSTM) and Joint Depth-Normal Optimization
+\end{itemize}
+\end{frame}

@@ -1,0 +1,49 @@
+% SLIDE 10: Random Proposal Normalization Loss (RPNL)
+\begin{frame}{Random Proposal Normalization Loss (RPNL)}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\textbf{Problem:} Standard depth losses normalize globally. Close objects dominate; distant detail is lost.
+
+\vspace{0.2cm}
+\textbf{Analogy from course:} This is the same problem \textit{adaptive histogram equalization} solves for image contrast. Global normalization washes out local structure.
+
+\vspace{0.3cm}
+\textbf{RPNL solution:}
+\begin{enumerate}
+  \item Randomly crop $K$ patches from the depth map
+  \item Normalize depth within each patch independently
+  \item Compute loss per patch, then average
+\end{enumerate}
+
+\vspace{0.2cm}
+This forces the network to preserve \textit{local} depth structure everywhere, not just near the camera.
+
+\column{0.42\textwidth}
+% Animation placeholder -- replace with rpnl_animation.gif
+\centering
+\begin{tikzpicture}[scale=0.75]
+  % Global normalization
+  \node[font=\small\sffamily\bfseries, color=bk70] at (2.5,5.5) {Global Norm};
+  \draw[thick, bk50] (0,2.5) rectangle (5,5);
+  % Gradient fill approximation
+  \fill[left color=garnet!80, right color=garnet!5] (0.1,2.6) rectangle (4.9,4.9);
+  \node[font=\scriptsize, color=white] at (1.2,3.7) {Near};
+  \node[font=\scriptsize, color=bk70] at (3.8,3.7) {Far (crushed)};
+
+  % RPNL
+  \node[font=\small\sffamily\bfseries, color=garnet] at (2.5,-0.5) {RPNL};
+  \draw[thick, bk50] (0,-3.5) rectangle (5,-0.8);
+  % Patches
+  \draw[thick, atlantic, fill=atlantic!15] (0.3,-3.2) rectangle (2.0,-1.8);
+  \draw[thick, congaree, fill=congaree!15] (2.5,-2.8) rectangle (4.7,-1.5);
+  \draw[thick, rose, fill=rose!15] (0.8,-1.5) rectangle (3.2,-0.9);
+  \node[font=\scriptsize, color=atlantic] at (1.15,-2.5) {Patch 1};
+  \node[font=\scriptsize, color=congaree] at (3.6,-2.15) {Patch 2};
+  \node[font=\scriptsize, color=rose] at (2.0,-1.2) {Patch 3};
+
+  % Arrow
+  \draw[dataarrow=garnet, very thick] (2.5,2.2) -- (2.5,0)
+    node[midway, right, font=\scriptsize\sffamily] {Local contrast preserved};
+\end{tikzpicture}
+\end{columns}
+\end{frame}

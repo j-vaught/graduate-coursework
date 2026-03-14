@@ -1,0 +1,45 @@
+% SLIDE 8: Joint Depth-Normal Optimization
+\begin{frame}{Joint Depth-Normal Optimization}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\textbf{Novel contribution:} First method to jointly optimize metric depth and surface normals through an iterative process.
+
+\vspace{0.3cm}
+\textbf{ConvGRU iterative refinement:}
+\begin{enumerate}
+  \item Decoder produces initial coarse estimates $D_0$, $\mathbf{n}_0$
+  \item At each iteration $t$:
+    \begin{itemize}
+      \item Compute update $\Delta_t$ from hidden state
+      \item $D_{t+1} = D_t + \Delta_{D,t}$
+      \item $\mathbf{n}_{t+1} = \mathbf{n}_t + \Delta_{\mathbf{n},t}$
+    \end{itemize}
+  \item After $T$ steps: final refined output
+\end{enumerate}
+
+\vspace{0.2cm}
+\textbf{Why jointly?} Depth and normals are geometrically coupled. Sharing a hidden state lets each task inform the other.
+
+\column{0.42\textwidth}
+% Animation placeholder -- replace with convgru_refinement.gif
+\centering
+\begin{tikzpicture}[scale=0.7]
+  % Iteration blocks
+  \foreach \i/\label/\desc in {0/t{=}0/Coarse, 1/t{=}1/Refined, 2/t{=}2/Sharper, 3/t{=}T/Final} {
+    \pgfmathsetmacro{\y}{3.5 - \i*1.1}
+    \node[pipeblock=garnet, minimum width=4cm] (iter\i) at (3, \y) {\small $\label$: \desc};
+  }
+
+  % Arrows
+  \draw[dataarrow=garnet] (iter0) -- (iter1);
+  \draw[dataarrow=garnet] (iter1) -- (iter2);
+  \draw[dataarrow=rose, dashed] (iter2) -- (iter3)
+    node[midway, right, font=\scriptsize\sffamily, color=rose] {$\cdots$};
+
+  % Hidden state
+  \draw[dataarrow=atlantic, thick, rounded corners=3pt]
+    (iter0.west) -- ++(-1,0) |- (iter3.west)
+    node[pos=0.25, left, font=\scriptsize\sffamily, color=atlantic, align=right] {Shared\\hidden\\state $h_t$};
+\end{tikzpicture}
+\end{columns}
+\end{frame}

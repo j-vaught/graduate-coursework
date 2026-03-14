@@ -1,0 +1,48 @@
+% SLIDE 6: CSTM --- Label Space
+\begin{frame}{Canonical Camera Space Transform --- Label Space}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\textbf{Idea:} Map all training data to a ``canonical'' camera with fixed focal length $f^c = 1000\,\text{px}$.
+
+\vspace{0.3cm}
+\textbf{CSTM\textsubscript{label}} transforms depth annotations:
+\[
+  \boxed{D_c^{*} = \omega_d \cdot D^{*}, \qquad \omega_d = \frac{f^c}{f}}
+\]
+
+If $f < f^c$: depth is \textit{scaled up} (wide-angle cameras see closer).\\
+If $f > f^c$: depth is \textit{scaled down}.
+
+\vspace{0.3cm}
+At inference, \textbf{De-CSTM} reverses:
+\[
+  D = \frac{D_c}{\omega_d} = D_c \cdot \frac{f}{f^c}
+\]
+
+\column{0.42\textwidth}
+% Animation placeholder -- replace with cstm_pipeline.gif
+\centering
+\begin{tikzpicture}[scale=0.7, every node/.style={font=\small\sffamily}]
+  % Source cameras
+  \node[pipeblock=atlantic, minimum width=2.5cm] (c1) at (0,4) {$f_1 = 500$};
+  \node[pipeblock=congaree, minimum width=2.5cm] (c2) at (0,2.5) {$f_2 = 1500$};
+  \node[pipeblock=horseshoe, minimum width=2.5cm] (c3) at (0,1.0) {$f_3 = 800$};
+
+  % Canonical
+  \node[pipeblock=garnet, minimum width=2.5cm, minimum height=1.5cm] (cc) at (5,2.5)
+    {Canonical\\$f^c = 1000$};
+
+  % Arrows with scale factors
+  \draw[dataarrow=atlantic] (c1.east) -- (cc.west |- c1)
+    node[midway, above, font=\scriptsize] {$\omega_d = 2.0$};
+  \draw[dataarrow=congaree] (c2.east) -- (cc.west)
+    node[midway, above, font=\scriptsize] {$\omega_d = 0.67$};
+  \draw[dataarrow=horseshoe] (c3.east) -- (cc.west |- c3)
+    node[midway, above, font=\scriptsize] {$\omega_d = 1.25$};
+
+  % Label
+  \node[font=\scriptsize\sffamily, color=bk70] at (0,-0.2) {Diverse cameras};
+  \node[font=\scriptsize\sffamily, color=garnet] at (5,0.8) {Unified training space};
+\end{tikzpicture}
+\end{columns}
+\end{frame}

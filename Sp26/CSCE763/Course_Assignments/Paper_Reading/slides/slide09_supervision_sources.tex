@@ -1,0 +1,39 @@
+% SLIDE 9: Joint Optimization --- Three Supervision Sources
+\begin{frame}{Joint Optimization --- Three Supervision Sources}
+\centering
+\begin{tikzpicture}[node distance=0.8cm]
+  % Central node
+  \node[pipeblock=garnet, minimum width=3cm, minimum height=1cm] (gru) {ConvGRU};
+
+  % Depth branch
+  \node[pipeblock=atlantic, above left=1.0cm and 2.5cm of gru] (depth) {Depth $D$};
+  \node[pipeblock=congaree, above right=1.0cm and 2.5cm of gru] (normal) {Normal $\mathbf{n}$};
+
+  % Loss nodes
+  \node[eqbox=atlantic, below left=1.2cm and 1.5cm of gru, minimum width=3cm] (ldepth)
+    {$L_d$: GT depth};
+  \node[eqbox=congaree, below right=1.2cm and 1.5cm of gru, minimum width=3cm] (lnormal)
+    {$L_n$: GT normals};
+  \node[eqbox=rose, below=1.8cm of gru, minimum width=3.5cm] (lcons)
+    {$L_{d\text{-}n}$: Consistency};
+
+  % Arrows
+  \draw[dataarrow=atlantic] (gru) -- (depth);
+  \draw[dataarrow=congaree] (gru) -- (normal);
+  \draw[dataarrow=atlantic] (depth) |- (ldepth);
+  \draw[dataarrow=congaree] (normal) |- (lnormal);
+  \draw[dataarrow=rose] (depth.south) -- ++(0,-0.3) -| (lcons.north west);
+  \draw[dataarrow=rose] (normal.south) -- ++(0,-0.3) -| (lcons.north east);
+
+  % Annotation
+  \node[font=\scriptsize\sffamily, color=rose, right=0.3cm of lcons] {
+    $\nabla D \approx \mathbf{n}$?
+  };
+  \node[font=\scriptsize\sffamily, color=bk70, below=0.3cm of lcons] {
+    Converts depth gradients to pseudo-normals; penalizes disagreement
+  };
+\end{tikzpicture}
+
+\vspace{0.3cm}
+\textbf{Key insight:} Only $\sim$20K outdoor images have GT normals. The consistency loss $L_{d\text{-}n}$ lets the model learn normals from depth-only datasets by enforcing geometric agreement.
+\end{frame}
