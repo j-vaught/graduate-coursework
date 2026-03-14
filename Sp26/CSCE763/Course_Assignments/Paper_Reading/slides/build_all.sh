@@ -14,6 +14,7 @@ PREAMBLE=$(sed -n '1,/\\begin{document}/p' build_single.tex)
 SLIDES=(
   slide00_title
   slide01_hook
+  slide01b_my_usecase
   slide02_metric_ambiguity
   slide03_taxonomy
   slide04_architecture
