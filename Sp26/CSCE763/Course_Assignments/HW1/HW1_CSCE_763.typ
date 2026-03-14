@@ -14,20 +14,20 @@
 )
 
 #set par(justify: false, leading: 0.65em)
-#set text(size: 12pt, font: ("CMU Serif", "Times New Roman", "Liberation Serif"))
+#set text(size: 12pt, font: "Times New Roman")
 
 #let double_rule() = {
   v(0.2cm)
-  rule(length: 100%)
+  line(length: 100%)
   v(0.1cm)
-  rule(length: 100%)
+  line(length: 100%)
   v(0.3cm)
 }
 
-#let qtitle(t, lab) = {
+#let qtitle(t) = {
   pagebreak()
   v(0.5cm)
-  [*#t*] #lab
+  [*#t*]
   double_rule()
 }
 
@@ -81,7 +81,7 @@
   ]
 ]
 
-#qtitle([Problem 1: Smallest Discernible Dot (25 pts)], [<quest1>])
+#qtitle([Problem 1: Smallest Discernible Dot (25 pts)])
 
 Thinking purely in geometric terms, estimate the diameter of the smallest printed dot that the eye can discern if the page on which the dot is printed is 0.5 m away from the eyes.
 
@@ -91,13 +91,13 @@ Thinking purely in geometric terms, estimate the diameter of the smallest printe
 2. The visual system ceases to detect the dot when the image of the dot on the fovea becomes smaller than the diameter of one receptor (cone) in that area of the retina.
 3. The fovea can be modeled as a square array of dimensions $1.5 "mm" times 1.5 "mm"$, and the cones (about $337,000$ in total) and spaces between the cones are distributed uniformly throughout this array.
 
-#qtitle([Problem 2: Adjacency of Image Subsets (25 pts)], [<quest2>])
+#qtitle([Problem 2: Adjacency of Image Subsets (25 pts)])
 
 Consider the two image subsets $S_1$ and $S_2$ shown below. For $V = {1}$, determine whether these two subsets are (a) 4-adjacent, (b) 8-adjacent, or (c) m-adjacent.
 
 #align(center, image("assets/problem2.svg", width: 86%))
 
-#qtitle([Problem 3: Shortest Paths (25 pts)], [<quest3>])
+#qtitle([Problem 3: Shortest Paths (25 pts)])
 
 Consider the image segment shown below.
 
@@ -106,14 +106,14 @@ Consider the image segment shown below.
 
 #align(center, image("assets/problem3.svg", width: 52%))
 
-#qtitle([Problem 4: Set Expressions (25 pts)], [<quest4>])
+#qtitle([Problem 4: Set Expressions (25 pts)])
 
 Give expressions for the sets shown shaded in the following figure in terms of sets $A$, $B$, and $C$. The shaded areas in each figure constitute one set, so give one expression for each of the three figures.
 
 #align(center, image("assets/problem4_abc.svg", width: 95%))
 
 #v(0.5cm)
-#rule(length: 100%)
+#line(length: 100%)
 #v(0.5cm)
 
 #align(center, image("assets/problem4_shaded.svg", width: 98%))
