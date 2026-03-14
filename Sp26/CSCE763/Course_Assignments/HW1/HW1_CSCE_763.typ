@@ -2,19 +2,21 @@
   paper: "us-letter",
   margin: 1in,
   header: context {
-    set text(size: 10pt, font: "Times New Roman")
-    grid(
-      columns: (1fr, 1fr, 1fr),
-      align: (left, center, right),
-      [Page #counter(page).display()],
-      [CSCE 763],
-      [JC Vaught],
-    )
+    if counter(page).get().first() != 1 {
+      set text(size: 10pt, font: "New Computer Modern")
+      grid(
+        columns: (1fr, 1fr, 1fr),
+        align: (left, center, right),
+        [Page #counter(page).display()],
+        [CSCE 763],
+        [JC Vaught],
+      )
+    }
   },
 )
 
-#set text(size: 12pt, font: "Times New Roman")
-#set par(justify: false, leading: 0.72em)
+#set text(size: 12pt, font: "New Computer Modern")
+#set par(justify: false, leading: 0.62em)
 #set enum(numbering: "1.")
 
 #let usc_garnet = rgb("#73000A")
@@ -23,11 +25,11 @@
 #let pageno(label) = context str(counter(page).at(label).first())
 
 #let double_rule() = {
-  v(0.2cm)
+  v(0.16cm)
   line(length: 100%, stroke: 0.6pt + neutral_dark)
-  v(0.1cm)
+  v(0.07cm)
   line(length: 100%, stroke: 0.6pt + neutral_dark)
-  v(0.3cm)
+  v(0.22cm)
 }
 
 #let qtitle(t) = {
@@ -48,7 +50,7 @@
 }
 
 #align(center)[
-  #set text(size: 20pt, weight: "bold")
+  #set text(size: 22pt)
   CSCE 763: Digital Image Processing
   \
   Homework \#1
@@ -68,17 +70,20 @@
 #align(center)[Due: 1:15 pm EST, Tuesday, Feb 3]
 #v(0.8cm)
 
-#align(center)[
-  #block(
-    stroke: 1pt + neutral_dark,
-    fill: white,
-    inset: 12pt,
-    radius: 0pt,
-    width: 100%,
-  )[
-    #align(center, text(size: 16pt, weight: "bold")[Table of Contents])
-    #v(0.3em)
-
+#block(
+  stroke: 1pt + neutral_dark,
+  fill: white,
+  inset: 0pt,
+  radius: 0pt,
+  width: 100%,
+)[
+  #block(fill: luma(90%), inset: (x: 10pt, y: 2pt), width: 100%)[
+    #align(left, text(size: 14pt, weight: "bold")[Table of Contents])
+  ]
+  #v(0.15em)
+  #block(inset: (x: 10pt, y: 4pt))[
+    #set text(size: 11pt)
+    #set par(leading: 0.5em)
     #toc_line([*Problem 1: Smallest Discernible Dot (25 pts)* ........................................], [*#pageno(<quest1>)*])
     #toc_line([*Problem 2: Adjacency of Image Subsets (25 pts)*], [])
     #toc_line([Part (a): 4-adjacency .................................................................], [*#pageno(<quest2>)*], indent: 1.2em)
@@ -106,19 +111,21 @@ Thinking purely in geometric terms, estimate the diameter of the smallest printe
 Consider the two image subsets $S_1$ and $S_2$ shown below. For $V = {1}$, determine whether these two subsets are (a) 4-adjacent, (b) 8-adjacent, or (c) m-adjacent.
 
 #v(0.1cm)
-#align(center, image("assets/problem2.svg", width: 86%))
+#align(center, image("assets/problem2.svg", width: 56%))
 
 #qtitle([Problem 3: Shortest Paths (25 pts) <quest3>])
 
 Consider the image segment shown below.
 
+#set enum(numbering: "(a)")
 #enum(
   [Let $V = {0, 1}$ and compute the lengths of the shortest 4-, 8-, and m-path between $p$ and $q$. If a particular path does not exist between these two points, explain why.],
   [Repeat for $V = {1, 2}$.],
 )
+#set enum(numbering: "1.")
 
 #v(0.1cm)
-#align(center, image("assets/problem3.svg", width: 52%))
+#align(center, image("assets/problem3.svg", width: 38%))
 
 #qtitle([Problem 4: Set Expressions (25 pts) <quest4>])
 
