@@ -1,0 +1,150 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{honeycomb}{HTML}{A49137}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{grass}{HTML}{CED318}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+% ── Object position (global coordinates) ──
+% Object position set inside tikzpicture for tikzgif compatibility
+\def\objr{0.15}
+
+% ── Camera positions (global coordinates for scope shifts) ──
+\def\camAx{-2.9}
+\def\camAy{0.52}
+\def\camBx{-2.9}
+\def\camBy{-0.82}
+
+% ── Camera macro: draws CMOS + lens + triangles ──
+% #1 = local object x, #2 = local object y, #3 = beam color (miss color)
+\newcommand{\drawcamera}[3]{%
+    \def\lc{0.68}%
+    \def\beamlen{12}%
+    \colorlet{beamclr}{#3}%
+    %
+    % Compute object angular extent from this camera's lens
+    \pgfmathsetmacro{\objdx}{#1 - \lc}%
+    \pgfmathsetmacro{\objdy}{#2}%
+    \pgfmathsetmacro{\objdist}{veclen(\objdx,\objdy)}%
+    \pgfmathsetmacro{\objcenterang}{atan2(\objdy,\objdx)}%
+    \pgfmathsetmacro{\objhalf}{asin(min(\objr/\objdist,1))}%
+    \pgfmathsetmacro{\objangmin}{\objcenterang - \objhalf}%
+    \pgfmathsetmacro{\objangmax}{\objcenterang + \objhalf}%
+    %
+    % Ingoing triangles (CMOS to lens)
+    \foreach \i in {0,...,5} {%
+      \pgfmathsetmacro{\ybot}{-0.6 + \i*0.2}%
+      \pgfmathsetmacro{\ytop}{-0.6 + (\i+1)*0.2}%
+      \pgfmathsetmacro{\triangmin}{atan2(-\ytop, \lc)}%
+      \pgfmathsetmacro{\triangmax}{atan2(-\ybot, \lc)}%
+      \pgfmathsetmacro{\ishit}{(\triangmax > \objangmin) && (\triangmin < \objangmax) ? 1 : 0}%
+      \ifnum\ishit=1
+        \fill[warmgrey, opacity=0.2] (0.075,\ybot) -- (\lc,0) -- (0.075,\ytop) -- cycle;
+        \draw[warmgrey, thin] (0.075,\ybot) -- (\lc,0) -- (0.075,\ytop);
+      \else
+        \fill[beamclr, opacity=0.08] (0.075,\ybot) -- (\lc,0) -- (0.075,\ytop) -- cycle;
+        \draw[beamclr, thin] (0.075,\ybot) -- (\lc,0) -- (0.075,\ytop);
+      \fi
+    }%
+    %
+    % Outgoing triangles (lens to scene)
+    \foreach \i in {0,...,5} {%
+      \pgfmathsetmacro{\ybot}{-0.6 + \i*0.2}%
+      \pgfmathsetmacro{\ytop}{-0.6 + (\i+1)*0.2}%
+      \pgfmathsetmacro{\angbot}{atan2(-\ytop, \lc)}%
+      \pgfmathsetmacro{\angtop}{atan2(-\ybot, \lc)}%
+      \pgfmathsetmacro{\xtop}{\lc + \beamlen*cos(\angtop)}%
+      \pgfmathsetmacro{\ytoppt}{\beamlen*sin(\angtop)}%
+      \pgfmathsetmacro{\xbot}{\lc + \beamlen*cos(\angbot)}%
+      \pgfmathsetmacro{\ybotpt}{\beamlen*sin(\angbot)}%
+      \pgfmathsetmacro{\ishit}{(\angtop > \objangmin) && (\angbot < \objangmax) ? 1 : 0}%
+      \ifnum\ishit=1
+        \fill[warmgrey, opacity=0.12]
+          (\lc,0) -- (\xtop,\ytoppt) -- (\xbot,\ybotpt) -- cycle;
+        \draw[warmgrey, thin]
+          (\lc,0) -- (\xtop,\ytoppt);
+        \draw[warmgrey, thin]
+          (\lc,0) -- (\xbot,\ybotpt);
+      \else
+        \fill[beamclr, opacity=0.05]
+          (\lc,0) -- (\xtop,\ytoppt) -- (\xbot,\ybotpt) -- cycle;
+        \draw[beamclr, thin]
+          (\lc,0) -- (\xtop,\ytoppt);
+        \draw[beamclr, thin]
+          (\lc,0) -- (\xbot,\ybotpt);
+      \fi
+    }%
+    %
+    % CMOS sensor pixels
+    \foreach \i in {0,...,5} {%
+      \pgfmathsetmacro{\ybot}{-0.6 + \i*0.2}%
+      \pgfmathsetmacro{\ytop}{-0.6 + (\i+1)*0.2}%
+      \pgfmathsetmacro{\triangmin}{atan2(-\ytop, \lc)}%
+      \pgfmathsetmacro{\triangmax}{atan2(-\ybot, \lc)}%
+      \pgfmathsetmacro{\ishit}{(\triangmax > \objangmin) && (\triangmin < \objangmax) ? 1 : 0}%
+      \ifnum\ishit=1
+        \draw[warmgrey, thin, fill=black] (0,\ybot) rectangle (0.075,\ytop);
+      \else
+        \draw[beamclr, thin, fill=white] (0,\ybot) rectangle (0.075,\ytop);
+      \fi
+    }%
+    %
+    % Lens
+    \fill[atlantic] (0.65,-0.12) rectangle (0.71,0.12);
+}
+
+\begin{document}
+\begin{tikzpicture}
+  \useasboundingbox (-3,-3) rectangle (7,3);
+
+  % Object position — animated by \PARAM (0 to 1)
+  \pgfmathsetmacro{\objgx}{5 + \PARAM * (-1.8 - 5)}
+  \pgfmathsetmacro{\objgy}{0.8 + \PARAM * (-0.15 - 0.8)}
+  \draw[horseshoe, thick] (-3,-3) rectangle (7,3);
+
+  % Clip to bounding box
+  \begin{scope}
+    \clip (-3,-3) rectangle (7,3);
+
+    % ── Camera A (upper) ──
+    \begin{scope}[shift={(\camAx,\camAy)}, scale=1]
+      \pgfmathsetmacro{\localox}{\objgx - \camAx}
+      \pgfmathsetmacro{\localoy}{\objgy - \camAy}
+      \drawcamera{\localox}{\localoy}{horseshoe}
+    \end{scope}
+
+    % ── Camera B (lower) ──
+    \begin{scope}[shift={(\camBx,\camBy)}, scale=1]
+      \pgfmathsetmacro{\localox}{\objgx - \camBx}
+      \pgfmathsetmacro{\localoy}{\objgy - \camBy}
+      \drawcamera{\localox}{\localoy}{rose}
+    \end{scope}
+
+    % ── Object (drawn on top, in global coords) ──
+    \fill[black] (\objgx,\objgy) circle (\objr);
+
+  \end{scope} % end clip
+
+  % Single box around both cameras
+  \pgfmathsetmacro{\boxtop}{\camAy + 0.61}
+  \pgfmathsetmacro{\boxbot}{\camBy - 0.61}
+  \pgfmathsetmacro{\boxleft}{\camAx - 0.01}
+  \pgfmathsetmacro{\boxright}{\camAx + 0.72}
+  \draw[garnet, thick] (\boxleft, \boxbot) rectangle (\boxright, \boxtop);
+
+  % Labels
+  \pgfmathsetmacro{\camAlabelY}{\camAy + 0.72}
+  \pgfmathsetmacro{\camBlabelY}{\camBy - 0.72}
+  \pgfmathsetmacro{\camLabelX}{\camAx + 0.35}
+  \node[font=\scriptsize\sffamily\bfseries, color=garnet] at (\camLabelX, \camAlabelY) {Cam 1};
+  \node[font=\scriptsize\sffamily\bfseries, color=garnet] at (\camLabelX, \camBlabelY) {Cam 2};
+
+\end{tikzpicture}
+\end{document}
