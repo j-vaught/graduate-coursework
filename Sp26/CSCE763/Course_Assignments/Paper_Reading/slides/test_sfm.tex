@@ -1,0 +1,142 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{luacode}
+
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{bk70}{HTML}{5C5C5C}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+% Camera icon macro
+\newcommand{\drawcameraicon}[1][1]{%
+  \begin{scope}[scale=#1]
+    \fill[bk70] (-0.18,-0.55) rectangle (0.18,0.55);
+    \draw[black, thick] (-0.18,-0.55) rectangle (0.18,0.55);
+    \fill[bk30] (0.18,-0.25) rectangle (0.38,0.25);
+    \draw[black, thick] (0.18,-0.25) rectangle (0.38,0.25);
+    \fill[bk30] (0.38,-0.33) rectangle (0.5,0.33);
+    \draw[black, thick] (0.38,-0.33) rectangle (0.5,0.33);
+    \fill[rose] (0.0,-0.38) circle (0.07);
+    \draw[black, thin] (0.0,-0.38) circle (0.07);
+  \end{scope}%
+}
+
+% ── CONFIG ──
+% camorbitangle set inside tikzpicture for tikzgif
+\def\nstops{10}         % number of photo stops around the orbit
+\def\snapradius{4}     % how close (in degrees) to a stop to activate rays
+\def\objx{2}
+\def\objy{0}
+\def\objrad{0.6}
+\def\orbitradius{2.8}
+
+\begin{document}
+\begin{tikzpicture}
+  \useasboundingbox (-1.1,-3.1) rectangle (5.1,3.1);
+  \draw[horseshoe, thick] (-1.1,-3.1) rectangle (5.1,3.1);
+
+  % Orbit angle from tikzgif \PARAM
+  \pgfmathsetmacro{\camorbitangle}{\PARAM}
+
+  % Object
+  \fill[warmgrey!25] (\objx,\objy) circle (\objrad);
+  \draw[warmgrey, thick] (\objx,\objy) circle (\objrad);
+
+  % Draw stop markers (small dots where camera takes photos)
+  \foreach \s in {0,...,9} {
+    \pgfmathsetmacro{\stopang}{\s * 360 / \nstops}
+    \pgfmathsetmacro{\sx}{\objx + \orbitradius*cos(\stopang)}
+    \pgfmathsetmacro{\sy}{\objy + \orbitradius*sin(\stopang)}
+    \fill[bk30] (\sx,\sy) circle (0.05);
+  }
+
+  % Compute camera position from orbit angle
+  \pgfmathsetmacro{\cx}{\objx + \orbitradius*cos(\camorbitangle)}
+  \pgfmathsetmacro{\cy}{\objy + \orbitradius*sin(\camorbitangle)}
+  \pgfmathsetmacro{\aimang}{atan2(\objy-\cy, \objx-\cx)}
+
+  % Check if camera is near a stop
+  \pgfmathsetmacro{\atstop}{0}
+  \foreach \s in {0,...,9} {
+    \pgfmathsetmacro{\stopang}{\s * 360 / \nstops}
+    \pgfmathsetmacro{\diff}{abs(\camorbitangle - \stopang)}
+    % Handle wrap-around
+    \pgfmathsetmacro{\diff}{min(\diff, 360 - \diff)}
+    \ifdim\diff pt<\snapradius pt
+      \global\def\atstop{1}
+    \fi
+  }
+
+  % Lua ray casting (only if at a stop)
+\ifnum\atstop=1
+\begin{luacode}
+local camx = \cx
+local camy = \cy
+local aim = \aimang * math.pi / 180
+local fov = 30 * math.pi / 180
+local nrays = 80
+local objx, objy, objr = \objx, \objy, \objrad
+local max_ray = 4
+
+for i = 0, nrays - 1 do
+  local frac = i / (nrays - 1)
+  local ang = aim - fov/2 + frac * fov
+  local rdx = math.cos(ang)
+  local rdy = math.sin(ang)
+
+  local ox = camx - objx
+  local oy = camy - objy
+  local a = rdx*rdx + rdy*rdy
+  local b = 2*(ox*rdx + oy*rdy)
+  local c = ox*ox + oy*oy - objr*objr
+  local disc = b*b - 4*a*c
+
+  local endx, endy
+  local hit = false
+
+  if disc >= 0 then
+    local t1 = (-b - math.sqrt(disc)) / (2*a)
+    local t2 = (-b + math.sqrt(disc)) / (2*a)
+    local t = t1
+    if t < 0.01 then t = t2 end
+    if t > 0.01 and t < max_ray then
+      endx = camx + t * rdx
+      endy = camy + t * rdy
+      hit = true
+    end
+  end
+
+  if not hit then
+    endx = camx + max_ray * rdx
+    endy = camy + max_ray * rdy
+  end
+
+  tex.sprint(string.format(
+    "\\draw[atlantic, thin, opacity=0.1] (%.4f,%.4f) -- (%.4f,%.4f);",
+    camx, camy, endx, endy
+  ))
+  if hit then
+    tex.sprint(string.format(
+      "\\fill[atlantic] (%.4f,%.4f) circle (0.03);",
+      endx, endy
+    ))
+  end
+end
+\end{luacode}
+\fi
+
+  % Redraw object on top
+  \fill[warmgrey!25] (\objx,\objy) circle (\objrad);
+  \draw[warmgrey, thick] (\objx,\objy) circle (\objrad);
+
+  % Camera on top
+  \begin{scope}[shift={(\cx,\cy)}, rotate=\aimang]
+    \drawcameraicon[0.35]
+  \end{scope}
+
+\end{tikzpicture}
+\end{document}

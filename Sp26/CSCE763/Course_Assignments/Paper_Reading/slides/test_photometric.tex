@@ -1,0 +1,224 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{luacode}
+
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{honeycomb}{HTML}{A49137}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{bk70}{HTML}{5C5C5C}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+% Camera icon macro
+\newcommand{\drawcameraicon}[1][1]{%
+  \begin{scope}[scale=#1]
+    \fill[bk70] (-0.18,-0.55) rectangle (0.18,0.55);
+    \draw[black, thick] (-0.18,-0.55) rectangle (0.18,0.55);
+    \fill[bk30] (0.18,-0.25) rectangle (0.38,0.25);
+    \draw[black, thick] (0.18,-0.25) rectangle (0.38,0.25);
+    \fill[bk30] (0.38,-0.33) rectangle (0.5,0.33);
+    \draw[black, thick] (0.38,-0.33) rectangle (0.5,0.33);
+    \fill[rose] (0.0,-0.38) circle (0.07);
+    \draw[black, thin] (0.0,-0.38) circle (0.07);
+  \end{scope}%
+}
+
+% ── Light state computed from \PARAM in Lua ──
+% \PARAM ranges 0-94 (95 frames at 30fps)
+% 0-4: all off, 5-34: singles, 35-64: pairs, 65-94: triplets
+
+% ── Object ──
+\def\objx{2.0}
+\def\objy{0}
+\def\objr{0.8}
+
+% ── Camera ──
+\def\camx{-2.2}
+\def\camy{0}
+
+\begin{document}
+\begin{tikzpicture}
+  \useasboundingbox (-3,-3) rectangle (7,3);
+  \draw[horseshoe, thick] (-3,-3) rectangle (7,3);
+
+\begin{luacode}
+local objx, objy, objr = \objx, \objy, \objr
+local camx, camy = \camx, \camy
+local cam_radius = 0.15
+
+-- 10 lights equally spaced in a ring around the object
+-- Ring radius, skip the angle closest to camera (left side)
+local nlights = 30
+local ring_r = 2.2
+local light_positions = {}
+local palette = {"garnet", "rose", "atlantic", "congaree", "horseshoe", "honeycomb"}
+local light_colors = {}
+for i = 1, nlights do
+  table.insert(light_colors, palette[((i-1) % #palette) + 1])
+end
+
+for i = 0, nlights - 1 do
+  -- Start from right (0 deg), go counterclockwise
+  -- Skip camera direction (~180 deg) by offsetting start
+  local ang = (i / nlights) * 2 * math.pi + 0.3  -- offset to avoid camera
+  local lx = objx + ring_r * math.cos(ang)
+  local ly = objy + ring_r * math.sin(ang)
+  table.insert(light_positions, {x=lx, y=ly, ang=ang})
+end
+
+-- Compute light states from frame number
+local frame = math.floor(\PARAM + 0.5)
+local states = {}
+for i = 1, nlights do states[i] = 0 end
+
+if frame < 5 then
+  -- All off
+elseif frame < 35 then
+  -- Single light: light (frame-5)+1
+  local idx = ((frame - 5) % nlights) + 1
+  states[idx] = 1
+elseif frame < 65 then
+  -- Adjacent pairs
+  local idx = ((frame - 35) % nlights) + 1
+  states[idx] = 1
+  states[(idx % nlights) + 1] = 1
+else
+  -- Adjacent triplets
+  local idx = ((frame - 65) % nlights)
+  states[(idx % nlights) + 1] = 1
+  states[((idx + 1) % nlights) + 1] = 1
+  states[((idx + 2) % nlights) + 1] = 1
+end
+
+local nrays = 100
+
+-- Draw rays for active lights
+for li, light in ipairs(light_positions) do
+  local is_on = states[li] or 0
+  if is_on == 1 then
+    local dx = objx - light.x
+    local dy = objy - light.y
+    local dist = math.sqrt(dx*dx + dy*dy)
+    local center_ang = math.atan2(dy, dx)
+    local half_ang = math.asin(math.min(objr / dist, 1)) * 1.5
+
+    local clr = light_colors[li] or "rose"
+
+    for i = 0, nrays - 1 do
+      local frac = i / (nrays - 1)
+      local ang = center_ang - half_ang + frac * 2 * half_ang
+      local rdx = math.cos(ang)
+      local rdy = math.sin(ang)
+
+      local ox = light.x - objx
+      local oy = light.y - objy
+      local a = rdx*rdx + rdy*rdy
+      local b = 2*(ox*rdx + oy*rdy)
+      local c = ox*ox + oy*oy - objr*objr
+      local disc = b*b - 4*a*c
+
+      if disc >= 0 then
+        local t1 = (-b - math.sqrt(disc)) / (2*a)
+        local t2 = (-b + math.sqrt(disc)) / (2*a)
+        local t = t1
+        if t < 0.01 then t = t2 end
+
+        if t > 0.01 then
+          local hx = light.x + t * rdx
+          local hy = light.y + t * rdy
+
+          local nx = (hx - objx) / objr
+          local ny = (hy - objy) / objr
+
+          local dot = rdx*nx + rdy*ny
+          local refx = rdx - 2*dot*nx
+          local refy = rdy - 2*dot*ny
+
+          local ref_len = math.sqrt(refx*refx + refy*refy)
+          refx = refx / ref_len
+          refy = refy / ref_len
+
+          local to_cam_x = camx - hx
+          local to_cam_y = camy - hy
+          local proj = to_cam_x * refx + to_cam_y * refy
+          local closest_x = hx + proj * refx
+          local closest_y = hy + proj * refy
+          local miss_dist = math.sqrt((closest_x - camx)^2 + (closest_y - camy)^2)
+          local hits_cam = (proj > 0) and (miss_dist < cam_radius * 3)
+
+          -- Incoming ray
+          tex.sprint(string.format(
+            "\\draw[%s, thin, opacity=0.25] (%.4f,%.4f) -- (%.4f,%.4f);",
+            clr, light.x, light.y, hx, hy
+          ))
+
+          if hits_cam then
+            tex.sprint(string.format(
+              "\\draw[atlantic, thin, opacity=0.6] (%.4f,%.4f) -- (%.4f,%.4f);",
+              hx, hy, camx, camy
+            ))
+          else
+            local ref_end_x = hx + refx * 1.5
+            local ref_end_y = hy + refy * 1.5
+            tex.sprint(string.format(
+              "\\draw[%s, thin, opacity=0.06] (%.4f,%.4f) -- (%.4f,%.4f);",
+              clr, hx, hy, ref_end_x, ref_end_y
+            ))
+          end
+        end
+      end
+    end
+  end
+end
+
+-- Check if any light is on
+local any_on = false
+for _, s in ipairs(states) do
+  if s == 1 then any_on = true; break end
+end
+
+-- Draw light source markers
+for li, light in ipairs(light_positions) do
+  local is_on = states[li] or 0
+  local clr = light_colors[li] or "rose"
+  if is_on == 1 then
+    -- Active light: always show
+    tex.sprint(string.format(
+      "\\fill[%s] (%.4f,%.4f) circle (0.1);",
+      clr, light.x, light.y
+    ))
+    tex.sprint(string.format(
+      "\\node[font=\\tiny\\sffamily, color=%s] at (%.4f,%.4f) {%d};",
+      clr, light.x, light.y + 0.22, li
+    ))
+  elseif not any_on then
+    -- All off: show all lights as hollow
+    tex.sprint(string.format(
+      "\\draw[%s, thin] (%.4f,%.4f) circle (0.1);",
+      clr, light.x, light.y
+    ))
+    tex.sprint(string.format(
+      "\\node[font=\\tiny\\sffamily, color=%s!30] at (%.4f,%.4f) {%d};",
+      clr, light.x, light.y + 0.22, li
+    ))
+  end
+  -- If any_on and this light is off: don't draw it
+end
+\end{luacode}
+
+  % ── Object (drawn on top) ──
+  \fill[warmgrey!25] (\objx,\objy) circle (\objr);
+  \draw[warmgrey, thick] (\objx,\objy) circle (\objr);
+
+  % ── Camera ──
+  \pgfmathsetmacro{\camaimang}{atan2(\objy-\camy, \objx-\camx)}
+  \begin{scope}[shift={(\camx,\camy)}, rotate=\camaimang]
+    \drawcameraicon[0.55]
+  \end{scope}
+
+\end{tikzpicture}
+\end{document}
