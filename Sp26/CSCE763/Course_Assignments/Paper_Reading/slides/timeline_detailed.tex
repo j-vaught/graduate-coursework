@@ -1,10 +1,9 @@
-% Detailed Monocular Depth Estimation Timeline — Branching Diagram
-% Shows paradigm forks, dead branches, convergences, and model releases
+% Monocular Depth Estimation — Research Branch Timeline
 \documentclass[border=14pt]{standalone}
 \usepackage[T1]{fontenc}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,calc,backgrounds,decorations.markings}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath}
+\usetikzlibrary{arrows.meta,positioning,calc,backgrounds}
 
 % ── Brand Colors ──
 \definecolor{garnet}{HTML}{73000A}
@@ -12,7 +11,6 @@
 \definecolor{atlantic}{HTML}{466A9F}
 \definecolor{congaree}{HTML}{1F414D}
 \definecolor{horseshoe}{HTML}{65780B}
-\definecolor{grass}{HTML}{CED318}
 \definecolor{honeycomb}{HTML}{A49137}
 \definecolor{warmgrey}{HTML}{676156}
 \definecolor{sandstorm}{HTML}{FFF2E3}
@@ -24,371 +22,251 @@
 
 \begin{document}
 \begin{tikzpicture}[
-  % ── Styles ──
   branch/.style={line width=2.5pt, color=#1, line cap=round},
-  deadbranch/.style={line width=2pt, color=#1, line cap=round, densely dashed},
+  fadebranch/.style={line width=2pt, color=#1!40, line cap=round, densely dashed},
   forkline/.style={line width=2pt, color=#1, line cap=round},
   modeldot/.style={circle, fill=#1, inner sep=0pt, minimum size=6pt,
-                   draw=#1!60!black, line width=0.5pt},
+                   draw=#1!50!black, line width=0.4pt},
   bigdot/.style={circle, fill=#1, inner sep=0pt, minimum size=9pt,
-                 draw=#1!60!black, line width=0.8pt},
-  mlabel/.style={font=\footnotesize\sffamily, align=center, color=#1},
-  blabel/.style={font=\small\sffamily\bfseries, color=#1, anchor=east},
-  deadmark/.style={font=\normalsize\bfseries, color=garnet},
-  mergelabel/.style={font=\scriptsize\sffamily\itshape, color=bk50, align=center},
-  yeartick/.style={font=\footnotesize\sffamily\bfseries, color=bk50},
+                 draw=#1!50!black, line width=0.8pt},
+  ml/.style={font=\footnotesize\sffamily, align=center, color=#1},
+  bl/.style={font=\normalsize\sffamily\bfseries, color=#1, anchor=east},
+  deadx/.style={font=\large\bfseries, color=garnet},
+  mergeannot/.style={font=\scriptsize\sffamily\itshape, color=bk50,
+                     fill=white, inner sep=1pt, align=center},
+  yearfont/.style={font=\footnotesize\sffamily\bfseries, color=bk50},
 ]
 
-  % ══════════════════════════════════════════════════════════════
-  % LAYOUT (~40cm wide)
+  % ═══════════════════════════════════════════════════
+  % LAYOUT — 7 branches, old at bottom, new at top
   %
-  % X positions (years → x):
-  %   2005=0  2006=2.8  2012=7  2013=8  2014=9.5  2015=11
-  %   2016=12.5  2017=14.5  2018=16.5  2019=18.5  2020=20.5
-  %   2021=23.5  2022=25.5  2023=28  2024=33  end=39
+  %   y= 5   Diffusion-Based
+  %   y= 3   Multi-Dataset / Foundation (main trunk)
+  %   y= 1   Metric Depth
+  %   y=-1   Supervised CNN
+  %   y=-3   Ordinal / Bins
+  %   y=-5   Self-Supervised
+  %   y=-7   Classical MRF
   %
-  % Y positions (branches):
-  %   y=6.5  Diffusion-Based
-  %   y=4    Foundation Models (convergence zone)
-  %   y=2    Multi-Dataset Relative / Zero-Shot
-  %   y=0    Metric Depth
-  %   y=-2.5 Supervised CNN (main historical trunk)
-  %   y=-4.5 Ordinal / Bins
-  %   y=-6.5 Self-Supervised
-  %   y=-8   GAN-Based (stub)
-  %   y=-10  Classical MRF
-  % ══════════════════════════════════════════════════════════════
+  % X: 2005=0, 2006=2.8, 2012=7, 2014=9.5, 2016=12.5,
+  %    2017=14.5, 2018=16.5, 2019=18.5, 2020=20.5,
+  %    2021=23.5, 2023=28, 2024=33, end=39
+  % ═══════════════════════════════════════════════════
 
   % ── Title ──
   \node[font=\LARGE\sffamily\bfseries, color=bk90, anchor=west]
-    at (-4.5, 9.5) {Monocular Depth Estimation: Research Branches (2005--2024)};
+    at (-5.0, 8.0) {Monocular Depth Estimation --- Research Branches (2005--2024)};
 
-  % ── Year reference lines (background) ──
+  % ── Year grid (background) ──
   \begin{scope}[on background layer]
     \foreach \x/\yr in {
-      0.0/2005, 2.8/2006, 7.0/2012, 9.5/2014, 11.0/2015,
+      0/2005, 2.8/2006, 7/2012, 9.5/2014,
       12.5/2016, 14.5/2017, 16.5/2018, 18.5/2019,
-      20.5/2020, 23.5/2021, 25.5/2022, 28.0/2023, 33.0/2024%
+      20.5/2020, 23.5/2021, 25.5/2022, 28/2023, 33/2024%
     } {
-      \draw[bk10, very thin] (\x, -11) -- (\x, 9.0);
-      \node[yeartick] at (\x, 9.0) {\yr};
+      \draw[bk10, thin] (\x, -8.5) -- (\x, 7.2);
+      \node[yearfont] at (\x, 7.4) {\yr};
     }
   \end{scope}
 
   % ── Legend ──
-  \draw[branch=bk70] (-4.0, 8.0) -- (-2.5, 8.0);
-  \node[font=\small\sffamily, color=bk70, right=3pt] at (-2.5, 8.0) {Active branch};
-  \draw[deadbranch=bk50] (-4.0, 7.3) -- (-2.5, 7.3);
-  \node[font=\small\sffamily, color=bk50, right=3pt] at (-2.5, 7.3) {Declining};
-  \node[deadmark] at (2.2, 8.0) {$\boldsymbol\times$};
-  \node[font=\small\sffamily, color=bk70, right=3pt] at (2.5, 8.0) {Dead branch};
-  \draw[-{Stealth[length=5pt]}, bk50, thick, densely dashed]
-    (1.5, 7.3) -- (2.3, 7.3);
-  \node[font=\small\sffamily, color=bk50, right=3pt] at (2.5, 7.3) {Absorbed / merged into};
+  \draw[branch=bk70] (-4.5, 6.8) -- (-3.0, 6.8);
+  \node[font=\small\sffamily, color=bk70, right=2pt] at (-3.0, 6.8)
+    {Active};
+  \draw[fadebranch=bk70] (0, 6.8) -- (1.5, 6.8);
+  \node[font=\small\sffamily, color=bk50, right=2pt] at (1.5, 6.8)
+    {Declining};
+  \node[deadx] at (5.0, 6.8) {$\boldsymbol\times$};
+  \node[font=\small\sffamily, color=bk70, right=2pt] at (5.3, 6.8)
+    {Dead};
+  \draw[-{Stealth[length=4pt]}, bk50, thick, densely dashed]
+    (7.5, 6.8) -- (8.5, 6.8);
+  \node[font=\small\sffamily, color=bk50, right=2pt] at (8.5, 6.8)
+    {Absorbed into};
 
-  \node[modeldot=bk50] at (7, 8.0) {};
-  \node[font=\small\sffamily, color=bk70, right=3pt] at (7.1, 8.0) {Relative};
-  \node[modeldot=atlantic] at (10, 8.0) {};
-  \node[font=\small\sffamily, color=atlantic, right=3pt] at (10.1, 8.0) {Affine-inv.};
-  \node[modeldot=garnet] at (13, 8.0) {};
-  \node[font=\small\sffamily, color=garnet, right=3pt] at (13.1, 8.0) {Metric};
+  \node[modeldot=bk50] at (12.5, 6.8) {};
+  \node[font=\small\sffamily, color=bk70, right=2pt] at (12.6, 6.8)
+    {Relative};
+  \node[modeldot=atlantic] at (15.5, 6.8) {};
+  \node[font=\small\sffamily, color=atlantic, right=2pt] at (15.6, 6.8)
+    {Affine-inv.};
+  \node[modeldot=garnet] at (19.0, 6.8) {};
+  \node[font=\small\sffamily, color=garnet, right=2pt] at (19.1, 6.8)
+    {Metric};
 
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 1: Classical MRF (y=-10, 2005--2013, DEAD)
-  % ══════════════════════════════════════════════════════════════
+  % ═══════════════════════════════════════════════════
+  % 1. CLASSICAL MRF  (y=-7, 2005--2013, DEAD)
+  % ═══════════════════════════════════════════════════
 
-  \node[blabel=warmgrey] at (-0.5, -10) {Classical MRF};
-  \draw[branch=warmgrey] (0.0, -10) -- (7.5, -10);
-  \draw[deadbranch=warmgrey!50] (7.5, -10) -- (8.5, -10);
-  \node[deadmark] at (9.0, -10) {$\boldsymbol\times$};
+  \node[bl=warmgrey] at (-0.5, -7) {Classical MRF};
+  \draw[branch=warmgrey] (0, -7) -- (7, -7);
+  \draw[fadebranch=warmgrey] (7, -7) -- (8, -7);
+  \node[deadx] at (8.5, -7) {$\boldsymbol\times$};
+
+  \node[modeldot=bk50] at (0, -7) {};
+  \node[ml=bk70, below=5pt] at (0, -7) {\textbf{Saxena}\\[-1pt]{\scriptsize 2005}};
+  \node[modeldot=bk50] at (2.8, -7) {};
+  \node[ml=bk70, below=5pt] at (2.8, -7) {\textbf{Make3D}\\[-1pt]{\scriptsize 2008}};
+
+  % ═══════════════════════════════════════════════════
+  % 2. SUPERVISED CNN  (y=-1, 2014--~2020, DEAD)
+  % ═══════════════════════════════════════════════════
+
+  \node[bl=congaree] at (-0.5, -1) {Supervised CNN};
+
+  % Fork up from Classical
+  \draw[forkline=congaree] (7.5, -7) to[out=30, in=200] (9, -1);
+
+  \draw[branch=congaree] (9, -1) -- (21, -1);
+  \draw[fadebranch=congaree] (21, -1) -- (22.5, -1);
+  \node[deadx] at (23, -1) {$\boldsymbol\times$};
   \node[font=\scriptsize\sffamily\itshape, color=bk50, right=2pt]
-    at (9.3, -10) {superseded by deep learning};
+    at (23.3, -1) {single-dataset approach};
 
-  % Models on Classical
-  \node[modeldot=bk50] at (0.0, -10) {};
-  \node[mlabel=bk70, below=4pt] at (0.0, -10) {
-    \textbf{Saxena}\\[-1pt]{\scriptsize 2005, NIPS}
-  };
-  \node[modeldot=bk50] at (2.8, -10) {};
-  \node[mlabel=bk70, below=4pt] at (2.8, -10) {
-    \textbf{Make3D}\\[-1pt]{\scriptsize 2008, AAAI}
-  };
+  \node[modeldot=bk50] at (9.5, -1) {};
+  \node[ml=bk70, above=5pt] at (9.5, -1)
+    {\textbf{Eigen et al.}\\[-1pt]{\scriptsize 2014, NIPS}};
+  \node[modeldot=bk50] at (12.5, -1) {};
+  \node[ml=bk70, below=5pt] at (12.5, -1)
+    {\textbf{FCRN}\\[-1pt]{\scriptsize 2016, 3DV}};
 
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 2: Supervised CNN (y=-2.5, 2014--~2020, feeds others)
-  % ══════════════════════════════════════════════════════════════
+  % ═══════════════════════════════════════════════════
+  % 3. SELF-SUPERVISED  (y=-5, 2017--~2023, DECLINING)
+  % ═══════════════════════════════════════════════════
 
-  \node[blabel=congaree] at (-0.5, -2.5) {Supervised CNN};
+  \node[bl=horseshoe] at (-0.5, -5) {Self-Supervised};
 
-  % Fork UP from Classical to Supervised at x=8 (2013→2014 transition)
-  \draw[forkline=congaree] (8.0, -10) to[out=45, in=210] (9.0, -2.5);
+  % Fork down from Supervised
+  \draw[forkline=horseshoe] (12, -1) to[out=-35, in=170] (13.5, -5);
+  \node[font=\scriptsize\sffamily\itshape, color=horseshoe,
+        fill=white, inner sep=1pt] at (12, -2.8)
+    {photometric loss};
 
-  % Main supervised line
-  \draw[branch=congaree] (9.0, -2.5) -- (21.5, -2.5);
-  \draw[deadbranch=congaree!40] (21.5, -2.5) -- (23.0, -2.5);
-  \node[deadmark] at (23.5, -2.5) {$\boldsymbol\times$};
-  \node[font=\scriptsize\sffamily\itshape, color=bk50, right=2pt]
-    at (23.8, -2.5) {\parbox{3.5cm}{single-dataset\\supervised dies out}};
-
-  % Models on Supervised
-  \node[modeldot=bk50] at (9.5, -2.5) {};
-  \node[mlabel=bk70, above=4pt] at (9.5, -2.5) {
-    \textbf{Eigen}\\[-1pt]{\scriptsize 2014, NIPS}
-  };
-  \node[modeldot=bk50] at (11.0, -2.5) {};
-  \node[mlabel=bk70, below=4pt] at (11.0, -2.5) {
-    \textbf{Liu et al.}\\[-1pt]{\scriptsize 2015, CVPR}
-  };
-  \node[modeldot=bk50] at (12.5, -2.5) {};
-  \node[mlabel=bk70, above=4pt] at (12.5, -2.5) {
-    \textbf{FCRN}\\[-1pt]{\scriptsize 2016, 3DV}
-  };
-
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 3: Self-Supervised (y=-6.5, 2016--2023, DECLINING)
-  % ══════════════════════════════════════════════════════════════
-
-  \node[blabel=horseshoe] at (-0.5, -6.5) {Self-Supervised};
-
-  % Fork DOWN from Supervised to Self-Supervised at x=12 (2016)
-  \draw[forkline=horseshoe] (12.0, -2.5) to[out=-45, in=160] (13.5, -6.5);
-  \node[font=\scriptsize\sffamily, color=horseshoe,
-        fill=white, inner sep=1pt] at (12.2, -4.2)
-    {\textit{photometric loss}};
-
-  % Main self-supervised line
-  \draw[branch=horseshoe] (13.5, -6.5) -- (27.0, -6.5);
-  \draw[deadbranch=horseshoe!40] (27.0, -6.5) -- (30.0, -6.5);
+  \draw[branch=horseshoe] (13.5, -5) -- (27, -5);
+  \draw[fadebranch=horseshoe] (27, -5) -- (30, -5);
   \node[font=\scriptsize\sffamily\itshape, color=bk50, right=0pt]
-    at (30.2, -6.5) {declining};
+    at (30.2, -5) {declining};
 
-  % Models on Self-Supervised
-  \node[modeldot=bk50] at (14.5, -6.5) {};
-  \node[mlabel=bk70, below=4pt] at (14.5, -6.5) {
-    \textbf{Monodepth}\\[-1pt]{\scriptsize 2017, CVPR}
-  };
-  \node[modeldot=bk50] at (18.5, -6.5) {};
-  \node[mlabel=bk70, above=4pt] at (18.5, -6.5) {
-    \textbf{Monodepth2}\\[-1pt]{\scriptsize 2019, ICCV}
-  };
-  \node[modeldot=bk50] at (21.0, -6.5) {};
-  \node[mlabel=bk70, below=4pt] at (21.0, -6.5) {
-    \textbf{PackNet}\\[-1pt]{\scriptsize 2020, CVPR}
-  };
+  \node[modeldot=bk50] at (14.5, -5) {};
+  \node[ml=bk70, below=5pt] at (14.5, -5)
+    {\textbf{Monodepth}\\[-1pt]{\scriptsize 2017, CVPR}};
+  \node[modeldot=bk50] at (18.5, -5) {};
+  \node[ml=bk70, above=5pt] at (18.5, -5)
+    {\textbf{Monodepth2}\\[-1pt]{\scriptsize 2019, ICCV}};
+  \node[modeldot=bk50] at (21, -5) {};
+  \node[ml=bk70, below=5pt] at (21, -5)
+    {\textbf{PackNet}\\[-1pt]{\scriptsize 2020, CVPR}};
 
-  % ── Merge arrow from Self-supervised → Foundation Models (pseudo-labels) ──
-  \draw[-{Stealth[length=5pt]}, horseshoe!60, thick, densely dashed]
-    (27.0, -6.5) to[out=30, in=220] (33.0, 4.0);
-  \node[mergelabel, fill=white, inner sep=1pt]
-    at (30.5, -1.0) {pseudo-labels};
+  % ═══════════════════════════════════════════════════
+  % 4. ORDINAL / BINS  (y=-3, 2018--2021, ABSORBED)
+  % ═══════════════════════════════════════════════════
 
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 4: GAN-Based (y=-8.5, 2018--2019, DEAD)
-  % ══════════════════════════════════════════════════════════════
+  \node[bl=honeycomb] at (-0.5, -3) {Ordinal / Bins};
 
-  \node[blabel=bk50, font=\small\sffamily\bfseries] at (15.0, -8.5)
-    {GAN-Based};
+  % Fork down from Supervised
+  \draw[forkline=honeycomb] (16, -1) to[out=-25, in=170] (16.5, -3);
+  \node[font=\scriptsize\sffamily\itshape, color=honeycomb,
+        fill=white, inner sep=1pt] at (17, -1.8)
+    {classification};
 
-  % Fork DOWN from Self-Supervised
-  \draw[forkline=bk50] (16.0, -6.5) to[out=-30, in=180] (16.5, -8.5);
+  \draw[branch=honeycomb] (16.5, -3) -- (24, -3);
 
-  % Very short line
-  \draw[branch=bk50] (16.5, -8.5) -- (18.0, -8.5);
-  \draw[deadbranch=bk50!40] (18.0, -8.5) -- (18.8, -8.5);
-  \node[deadmark] at (19.3, -8.5) {$\boldsymbol\times$};
-  \node[font=\scriptsize\sffamily\itshape, color=bk50, right=2pt]
-    at (19.6, -8.5) {training instability};
-
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 5: Ordinal / Bins (y=-4.5, 2018--2022, ABSORBED)
-  % ══════════════════════════════════════════════════════════════
-
-  \node[blabel=honeycomb] at (-0.5, -4.5) {Ordinal / Bins};
-
-  % Fork DOWN from Supervised
-  \draw[forkline=honeycomb] (16.0, -2.5) to[out=-20, in=170] (16.5, -4.5);
-  \node[font=\scriptsize\sffamily, color=honeycomb,
-        fill=white, inner sep=1pt] at (16.8, -3.3)
-    {\textit{depth as classification}};
-
-  % Ordinal line
-  \draw[branch=honeycomb] (16.5, -4.5) -- (24.5, -4.5);
-
-  % Absorbed arrow → Multi-Dataset
+  % Absorbed arrow up to Multi-Dataset
   \draw[-{Stealth[length=5pt]}, honeycomb!60, thick, densely dashed]
-    (24.5, -4.5) to[out=30, in=210] (25.5, 2.0);
-  \node[mergelabel, fill=white, inner sep=1pt]
-    at (24.0, -1.2) {bins insight\\absorbed};
+    (24, -3) to[out=25, in=220] (26, 3);
+  \node[mergeannot] at (24.3, -0.3) {absorbed};
 
-  % Models on Ordinal
-  \node[modeldot=bk50] at (16.5, -4.5) {};
-  \node[mlabel=bk70, below=4pt] at (16.5, -4.5) {
-    \textbf{DORN}\\[-1pt]{\scriptsize 2018, CVPR}
-  };
-  \node[modeldot=bk50] at (23.5, -4.5) {};
-  \node[mlabel=bk70, below=4pt] at (23.5, -4.5) {
-    \textbf{AdaBins}\\[-1pt]{\scriptsize 2021, CVPR}
-  };
+  \node[modeldot=bk50] at (16.5, -3) {};
+  \node[ml=bk70, below=5pt] at (16.5, -3)
+    {\textbf{DORN}\\[-1pt]{\scriptsize 2018, CVPR}};
+  \node[modeldot=bk50] at (23.5, -3) {};
+  \node[ml=bk70, below=5pt] at (23.5, -3)
+    {\textbf{AdaBins}\\[-1pt]{\scriptsize 2021, CVPR}};
 
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 6: Multi-Dataset Relative (y=2, 2020--present, ACTIVE)
-  % ══════════════════════════════════════════════════════════════
+  % ═══════════════════════════════════════════════════
+  % 5. MULTI-DATASET / FOUNDATION  (y=3, 2020--, DOMINANT)
+  % ═══════════════════════════════════════════════════
 
-  \node[blabel=atlantic] at (-0.5, 2.0) {Multi-Dataset Relative};
+  \node[bl=atlantic] at (-0.5, 3) {\parbox{4.5cm}{\raggedleft Multi-Dataset /\\Foundation}};
 
-  % Fork UP from Supervised at x=20 (2020, MiDaS)
-  \draw[forkline=atlantic] (20.0, -2.5) to[out=45, in=210] (20.5, 2.0);
-  \node[font=\scriptsize\sffamily, color=atlantic,
-        fill=white, inner sep=1pt] at (19.5, -0.2)
-    {\textit{mixed-dataset}\\[-2pt]\textit{training}};
+  % Fork up from Supervised
+  \draw[forkline=atlantic] (20, -1) to[out=40, in=210] (20.5, 3);
+  \node[font=\scriptsize\sffamily\itshape, color=atlantic,
+        fill=white, inner sep=1pt] at (19.5, 0.8)
+    {mixed datasets};
 
-  % Main multi-dataset line
-  \draw[branch=atlantic] (20.5, 2.0) -- (39.0, 2.0);
+  \draw[branch=atlantic] (20.5, 3) -- (39, 3);
+  \draw[-{Stealth[length=6pt]}, atlantic, line width=2.5pt]
+    (38.5, 3) -- (39, 3);
 
-  % Models on Multi-Dataset
-  \node[modeldot=bk50] at (20.5, 2.0) {};
-  \node[mlabel=bk70, above=4pt] at (20.5, 2.0) {
-    \textbf{MiDaS}\\[-1pt]{\scriptsize 2020, TPAMI}
-  };
-  \node[modeldot=bk50] at (23.5, 2.0) {};
-  \node[mlabel=bk70, below=4pt] at (23.5, 2.0) {
-    \textbf{DPT}\\[-1pt]{\scriptsize 2021, ICCV}
-  };
+  \node[modeldot=bk50] at (20.5, 3) {};
+  \node[ml=bk70, above=5pt] at (20.5, 3)
+    {\textbf{MiDaS}\\[-1pt]{\scriptsize 2020, TPAMI}};
+  \node[modeldot=bk50] at (23.5, 3) {};
+  \node[ml=bk70, above=5pt] at (23.5, 3)
+    {\textbf{DPT}\\[-1pt]{\scriptsize 2021, ICCV}};
+  \node[modeldot=atlantic] at (33, 3) {};
+  \node[ml=bk90, below=5pt] at (33, 3)
+    {\textbf{DepthAnything}\\[-1pt]{\scriptsize 2024, CVPR}};
+  \node[modeldot=atlantic] at (36, 3) {};
+  \node[ml=bk90, above=5pt] at (36, 3)
+    {\textbf{DA v2}\\[-1pt]{\scriptsize 2024, NeurIPS}};
 
-  % ViT adoption marker
-  \draw[atlantic!50, very thick, dotted] (23.5, 2.6) -- (23.5, 3.0);
-  \node[font=\scriptsize\sffamily\itshape, color=atlantic]
-    at (23.5, 3.3) {ViT backbone};
+  % ═══════════════════════════════════════════════════
+  % 6. METRIC DEPTH  (y=1, 2023--, VERY ACTIVE)
+  % ═══════════════════════════════════════════════════
 
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 7: Metric Depth (y=0, 2023--present, VERY ACTIVE)
-  % ══════════════════════════════════════════════════════════════
+  \node[bl=garnet] at (-0.5, 1) {Metric Depth};
 
-  \node[blabel=garnet] at (-0.5, 0.0) {Metric Depth};
+  % Fork down from Multi-Dataset
+  \draw[forkline=garnet] (27, 3) to[out=-25, in=165] (28, 1);
+  \node[font=\scriptsize\sffamily\itshape, color=garnet,
+        fill=white, inner sep=1pt] at (27, 1.8)
+    {real-world scale};
 
-  % Fork DOWN from Multi-Dataset at x=27 (2023)
-  \draw[forkline=garnet] (27.5, 2.0) to[out=-30, in=170] (28.0, 0.0);
-  \node[font=\scriptsize\sffamily, color=garnet,
-        fill=white, inner sep=1pt] at (27.2, 0.6)
-    {\textit{real-world meters}};
+  \draw[branch=garnet] (28, 1) -- (39, 1);
+  \draw[-{Stealth[length=6pt]}, garnet, line width=2.5pt]
+    (38.5, 1) -- (39, 1);
 
-  % Metric line
-  \draw[branch=garnet] (28.0, 0.0) -- (39.0, 0.0);
-
-  % Arrow tip showing "active"
-  \draw[-{Stealth[length=6pt]}, garnet, line width=2.5pt] (38.5, 0.0) -- (39.0, 0.0);
-
-  % Models on Metric
-  \node[modeldot=garnet] at (28.0, 0.0) {};
-  \node[mlabel=garnet, below=4pt] at (28.0, 0.0) {
-    \textbf{ZoeDepth}\\[-1pt]{\scriptsize 2023, CVPR}
-  };
-  \node[modeldot=garnet] at (29.5, 0.0) {};
-  \node[mlabel=garnet, above=4pt] at (29.5, 0.0) {
-    \textbf{Metric3D v1}\\[-1pt]{\scriptsize 2023, ICCV}
-  };
+  \node[modeldot=garnet] at (28, 1) {};
+  \node[ml=garnet, below=5pt] at (28, 1)
+    {\textbf{ZoeDepth}\\[-1pt]{\scriptsize 2023, CVPR}};
+  \node[modeldot=garnet] at (30, 1) {};
+  \node[ml=garnet, above=5pt] at (30, 1)
+    {\textbf{Metric3D v1}\\[-1pt]{\scriptsize 2023, ICCV}};
 
   % Metric3D v2 — HIGHLIGHTED
-  \node[bigdot=garnet] at (34.0, 0.0) {};
-  \draw[garnet, very thick] (34.0, 0.0) circle (8pt);
-  \node[mlabel=garnet, below=5pt,
-        font=\footnotesize\sffamily\bfseries] at (34.0, 0.0) {
-    \textbf{Metric3D v2}\\[-1pt]{\scriptsize 2024, TPAMI}
-  };
-  \draw[garnet, thick] ($(34.0, -0.5) + (-1.15, -0.6)$)
-    rectangle ($(34.0, -0.5) + (1.15, 0.15)$);
+  \node[bigdot=garnet] at (34, 1) {};
+  \draw[garnet, very thick] (34, 1) circle (8pt);
+  \node[ml=garnet, below=5pt,
+        font=\footnotesize\sffamily\bfseries] at (34, 1)
+    {\textbf{Metric3D v2}\\[-1pt]{\scriptsize 2024, TPAMI}};
+  \draw[garnet, thick] ($(34, 0.45) + (-1.2, -0.6)$)
+    rectangle ($(34, 0.45) + (1.2, 0.1)$);
 
-  \node[modeldot=garnet] at (36.0, 0.0) {};
-  \node[mlabel=garnet, above=4pt] at (36.0, 0.0) {
-    \textbf{UniDepth}\\[-1pt]{\scriptsize 2024, CVPR}
-  };
-  \node[modeldot=garnet] at (38.0, 0.0) {};
-  \node[mlabel=garnet, below=4pt] at (38.0, 0.0) {
-    \textbf{Depth Pro}\\[-1pt]{\scriptsize 2024, Apple}
-  };
+  \node[modeldot=garnet] at (36, 1) {};
+  \node[ml=garnet, below=5pt] at (36, 1)
+    {\textbf{UniDepth}\\[-1pt]{\scriptsize 2024, CVPR}};
+  \node[modeldot=garnet] at (38, 1) {};
+  \node[ml=garnet, above=5pt] at (38, 1)
+    {\textbf{Depth Pro}\\[-1pt]{\scriptsize 2024, Apple}};
 
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 8: Diffusion-Based (y=6.5, 2023--present, ACTIVE)
-  % ══════════════════════════════════════════════════════════════
+  % ═══════════════════════════════════════════════════
+  % 7. DIFFUSION-BASED  (y=5, 2023--, ACTIVE)
+  % ═══════════════════════════════════════════════════
 
-  \node[blabel=rose] at (-0.5, 6.5) {Diffusion-Based};
+  \node[bl=rose] at (-0.5, 5) {Diffusion-Based};
 
-  % Enters from left as a new paradigm (no fork from existing branch)
-  \draw[branch=rose] (29.0, 6.5) -- (39.0, 6.5);
+  \draw[branch=rose] (29, 5) -- (39, 5);
 
-  % Fork indicator from "generative AI" (external)
   \node[font=\scriptsize\sffamily\itshape, color=rose,
-        fill=white, inner sep=1pt, anchor=east] at (28.8, 6.5)
-    {from Stable\\[-2pt]Diffusion};
-  \draw[rose, thick, -{Stealth[length=4pt]}] (28.8, 6.5) -- (29.0, 6.5);
+        fill=white, inner sep=1pt, anchor=east] at (28.8, 5)
+    {from generative AI};
+  \draw[rose, thick, -{Stealth[length=4pt]}] (28.8, 5) -- (29, 5);
 
-  % Models on Diffusion
-  \node[modeldot=atlantic] at (31.0, 6.5) {};
-  \node[mlabel=atlantic, above=4pt] at (31.0, 6.5) {
-    \textbf{Marigold}\\[-1pt]{\scriptsize 2023, CVPR '24}
-  };
-
-  \node[font=\scriptsize\sffamily\itshape, color=bk50, above=0pt]
-    at (36.0, 6.8) {10$\times$ slower than discriminative};
-
-  % ══════════════════════════════════════════════════════════════
-  % BRANCH 9: Foundation Models (y=4, 2024--present, DOMINANT)
-  % ══════════════════════════════════════════════════════════════
-
-  \node[blabel=bk90, font=\small\sffamily\bfseries] at (-0.5, 4.0)
-    {Foundation Models};
-
-  % Convergence arrows from multiple branches
-  \draw[-{Stealth[length=5pt]}, atlantic!60, thick, densely dashed]
-    (31.0, 2.0) to[out=30, in=200] (33.0, 4.0);
-  \draw[-{Stealth[length=5pt]}, garnet!60, thick, densely dashed]
-    (32.0, 0.0) to[out=40, in=250] (33.0, 4.0);
-  \draw[-{Stealth[length=5pt]}, rose!60, thick, densely dashed]
-    (33.0, 6.5) to[out=-30, in=110] (33.5, 4.0);
-
-  % Convergence node
-  \fill[bk90] (33.0, 4.0) circle (4pt);
-  \node[font=\scriptsize\sffamily\itshape, color=bk70,
-        fill=white, inner sep=1pt, anchor=east] at (32.7, 4.5)
-    {convergence};
-
-  % Foundation line
-  \draw[branch=bk90] (33.0, 4.0) -- (39.0, 4.0);
-  \draw[-{Stealth[length=6pt]}, bk90, line width=2.5pt] (38.5, 4.0) -- (39.0, 4.0);
-
-  % Models on Foundation
-  \node[modeldot=atlantic] at (33.5, 4.0) {};
-  \node[mlabel=bk90, above=4pt] at (33.5, 4.0) {
-    \textbf{DepthAnything}\\[-1pt]{\scriptsize 2024, CVPR}
-  };
-  \node[modeldot=atlantic] at (36.0, 4.0) {};
-  \node[mlabel=bk90, below=4pt] at (36.0, 4.0) {
-    \textbf{DepthAnything v2}\\[-1pt]{\scriptsize 2024, NeurIPS}
-  };
-
-  % ══════════════════════════════════════════════════════════════
-  % ANNOTATIONS — Key transitions
-  % ══════════════════════════════════════════════════════════════
-
-  % "Deep Learning Revolution" annotation at the Classical→Supervised fork
-  \node[font=\small\sffamily\bfseries, color=congaree,
-        fill=white, inner sep=2pt, draw=congaree, thick,
-        rounded corners=2pt] at (8.5, -6.0)
-    {Deep Learning Revolution};
-
-  % "ViT replaces CNN" annotation
-  \node[font=\small\sffamily\bfseries, color=atlantic,
-        fill=white, inner sep=2pt, draw=atlantic, thick,
-        rounded corners=2pt] at (23.5, -1.3)
-    {ViT replaces CNN};
-  \draw[atlantic, thick, -{Stealth[length=3pt]}]
-    (23.5, -0.9) -- (23.5, 1.5);
-
-  % "Metric renaissance" annotation
-  \node[font=\small\sffamily\bfseries, color=garnet,
-        fill=white, inner sep=2pt, draw=garnet, thick,
-        rounded corners=2pt] at (31.0, -2.5)
-    {Metric Renaissance};
+  \node[modeldot=atlantic] at (31, 5) {};
+  \node[ml=atlantic, above=5pt] at (31, 5)
+    {\textbf{Marigold}\\[-1pt]{\scriptsize 2023, CVPR '24}};
 
 \end{tikzpicture}
 \end{document}
