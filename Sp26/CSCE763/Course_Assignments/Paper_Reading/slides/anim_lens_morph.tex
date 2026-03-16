@@ -21,14 +21,15 @@
 
 local frame = \PARAM
 
--- Keyframes: {Rl, Rr, label}
+-- Keyframes: {Rl_start, Rr_start, Rl_end, Rr_end, label}
+-- Within each segment, R sweeps from start to end values
 local keys = {
-    { 3,   -3,   "Biconvex (symmetric)"},
-    { 2,   -6,   "Biconvex (asymmetric)"},
-    {-3,    3,   "Biconcave (symmetric)"},
-    { 3,    3,   "Meniscus (converging)"},
-    { 20,  -3,   "Plano-convex"},
-    { 20,   3,   "Plano-concave"},
+    { 2,   -2,    8,   -8,   "Biconvex (symmetric)"},
+    { 2,   -8,    6,   -3,   "Biconvex (asymmetric)"},
+    {-2,    2,   -8,    8,   "Biconcave (symmetric)"},
+    { 2,    2,    8,    8,   "Meniscus (converging)"},
+    { 20,  -2,   20,   -8,   "Plano-convex"},
+    { 20,   2,   20,    8,   "Plano-concave"},
 }
 
 local n_keys = #keys
@@ -42,9 +43,17 @@ if seg >= n_keys then seg = n_keys - 1; local_f = seg_len - 1 end
 
 local is_blank = (local_f < blank) and (seg > 0)  -- no blank before first lens
 local k = keys[seg + 1]
-local Rl = k[1]
-local Rr = k[2]
-local label = k[3]
+
+-- Sweep progress within this segment (0..1 over the visible frames)
+local visible_frames = seg_len - (is_blank and 0 or ((seg > 0) and blank or 0))
+local vis_f = (seg > 0) and (local_f - blank) or local_f
+local t = math.max(0, math.min(1, vis_f / (seg_len - blank - 1)))
+-- Smooth step
+t = t * t * (3 - 2 * t)
+
+local Rl = k[1] + (k[3] - k[1]) * t
+local Rr = k[2] + (k[4] - k[2]) * t
+local label = k[5]
 
 -- Safety clamp: |R| must stay above h + margin
 local min_R = 1.8
