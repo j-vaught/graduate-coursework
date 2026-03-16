@@ -1,0 +1,250 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{luacode}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{bk70}{HTML}{5C5C5C}
+\definecolor{bk50}{HTML}{A2A2A2}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+\begin{document}
+\begin{tikzpicture}
+
+\begin{luacode}
+-- ================================================================
+-- Two-lens Snell's-law ray tracer
+-- ================================================================
+
+-- ── Adjustable parameters ──
+local lens1_x  = 3.0     -- center x of lens 1
+local lens2_x  = 5.5     -- center x of lens 2
+local lens1_R  = 4.0     -- radius of curvature (smaller = more curved)
+local lens2_R  = 5.0
+local lens1_h  = 1.3     -- half-aperture
+local lens2_h  = 1.3
+local n_glass  = 1.52
+local n_air    = 1.0
+local sensor_x = 8.0
+local sensor_h = 1.5
+
+local xmin, xmax = -0.5, 8.8
+local ymin, ymax = -2.0, 2.0
+
+-- ── Helpers ──
+local function sag(R, h) return R - math.sqrt(math.max(R*R - h*h, 0)) end
+
+-- Circle-ray intersection.  Returns (t, hx, hy, nx, ny).
+-- pick = "near" or "far" selects which root.
+local function isect(ox, oy, dx, dy, cx, cy, r, pick)
+    local ex, ey = ox - cx, oy - cy
+    local a = dx*dx + dy*dy
+    local b = 2*(ex*dx + ey*dy)
+    local c = ex*ex + ey*ey - r*r
+    local disc = b*b - 4*a*c
+    if disc < 0 then return nil end
+    local sq = math.sqrt(disc)
+    local t1 = (-b - sq)/(2*a)
+    local t2 = (-b + sq)/(2*a)
+    local t
+    if pick == "far" then
+        t = (t2 > 1e-4) and t2 or ((t1 > 1e-4) and t1 or nil)
+    else
+        t = (t1 > 1e-4) and t1 or ((t2 > 1e-4) and t2 or nil)
+    end
+    if not t then return nil end
+    local hx, hy = ox + t*dx, oy + t*dy
+    return t, hx, hy, (hx-cx)/r, (hy-cy)/r
+end
+
+-- Vector-form Snell refraction.  Returns (dx', dy') or nil (TIR).
+local function refract(dx, dy, nx, ny, n1, n2)
+    local d = dx*nx + dy*ny
+    if d > 0 then nx, ny, d = -nx, -ny, -d end   -- flip normal to face ray
+    local r = n1/n2
+    local cos_i = -d
+    local sin2t = r*r*(1 - cos_i*cos_i)
+    if sin2t > 1 then return nil end
+    local cos_t = math.sqrt(1 - sin2t)
+    local rx = r*dx + (r*cos_i - cos_t)*nx
+    local ry = r*dy + (r*cos_i - cos_t)*ny
+    local l = math.sqrt(rx*rx + ry*ry)
+    return rx/l, ry/l
+end
+
+-- ── Biconvex lens geometry ──
+-- Left surface: part of circle centered at  cx_L = lx + sqrt(R²-h²)
+--   surface is the LEFT side of that circle (ray enters here)
+-- Right surface: part of circle centered at cx_R = lx - sqrt(R²-h²)
+--   surface is the RIGHT side of that circle (ray exits here)
+
+local function lens_circles(lx, R, h)
+    local d = math.sqrt(math.max(R*R - h*h, 0))
+    return lx + d, lx - d   -- cx_left_surf, cx_right_surf
+end
+
+-- ── Draw a biconvex lens ──
+local function draw_lens(lx, R, h)
+    local s = sag(R, h)
+    local cx_L, cx_R = lens_circles(lx, R, h)
+    local N = 60
+
+    -- Left surface arc: x = cx_L - sqrt(R²-y²)  for y in [-h, h]
+    -- Right surface arc: x = cx_R + sqrt(R²-y²)  for y in [-h, h]
+    local left, right = {}, {}
+    for i = 0, N do
+        local y = -h + 2*h*(i/N)
+        local q = math.sqrt(math.max(R*R - y*y, 0))
+        table.insert(left,  {cx_L - q, y})
+        table.insert(right, {cx_R + q, y})
+    end
+
+    -- Fill
+    local p = "\\fill[atlantic!10, opacity=0.85] "
+    for i, v in ipairs(left) do
+        p = p .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+    end
+    for i = #right, 1, -1 do
+        p = p .. string.format(" -- (%.4f,%.4f)", right[i][1], right[i][2])
+    end
+    tex.sprint(p .. " -- cycle;")
+
+    -- Outlines
+    for _, arc in ipairs({left, right}) do
+        local s = "\\draw[atlantic!60, thin] "
+        for i, v in ipairs(arc) do
+            s = s .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+        end
+        tex.sprint(s .. ";")
+    end
+    -- Top/bottom edges
+    tex.sprint(string.format(
+        "\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        left[1][1], left[1][2], right[1][1], right[1][2]))
+    tex.sprint(string.format(
+        "\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        left[#left][1], left[#left][2], right[#right][1], right[#right][2]))
+end
+
+-- ── Trace one ray through both lenses ──
+local function trace(ox, oy, dx, dy)
+    local pts = {{ox, oy}}
+    local cx, cy, cdx, cdy = ox, oy, dx, dy
+
+    local lenses = {
+        {x=lens1_x, R=lens1_R, h=lens1_h},
+        {x=lens2_x, R=lens2_R, h=lens2_h},
+    }
+
+    for _, L in ipairs(lenses) do
+        local cxL, cxR = lens_circles(L.x, L.R, L.h)
+
+        -- 1) Hit left surface (near side of circle centered at cxL)
+        local t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, cxL, 0, L.R, "near")
+        if t and math.abs(hy) <= L.h then
+            table.insert(pts, {hx, hy})
+            local ndx, ndy = refract(cdx, cdy, nx, ny, n_air, n_glass)
+            if not ndx then break end
+            cdx, cdy = ndx, ndy
+            cx, cy = hx, hy
+
+            -- 2) Hit right surface (far side of circle centered at cxR)
+            t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, cxR, 0, L.R, "far")
+            if t and math.abs(hy) <= L.h then
+                table.insert(pts, {hx, hy})
+                ndx, ndy = refract(cdx, cdy, nx, ny, n_glass, n_air)
+                if not ndx then break end
+                cdx, cdy = ndx, ndy
+                cx, cy = hx, hy
+            end
+        end
+        -- if missed, ray continues undeviated
+    end
+
+    -- Terminate at sensor plane
+    if math.abs(cdx) > 1e-6 then
+        local ts = (sensor_x - cx) / cdx
+        if ts > 0 then
+            table.insert(pts, {sensor_x, cy + ts*cdy})
+        end
+    end
+    return pts
+end
+
+-- ══════════════════════════════════
+-- DRAW
+-- ══════════════════════════════════
+
+-- Optical axis
+tex.sprint(string.format(
+    "\\draw[warmgrey, dashed, thin] (%.2f,0)--(%.2f,0);", xmin, xmax))
+
+-- Lenses
+draw_lens(lens1_x, lens1_R, lens1_h)
+draw_lens(lens2_x, lens2_R, lens2_h)
+
+-- CMOS sensor
+tex.sprint(string.format(
+    "\\fill[congaree!80] (%.2f,%.2f) rectangle (%.2f,%.2f);",
+    sensor_x, -sensor_h, sensor_x+0.12, sensor_h))
+for i = 0, 15 do
+    local y = -sensor_h + i*(2*sensor_h/16)
+    tex.sprint(string.format(
+        "\\draw[congaree!40, very thin] (%.2f,%.4f)--(%.2f,%.4f);",
+        sensor_x, y, sensor_x+0.12, y))
+end
+tex.sprint(string.format(
+    "\\draw[congaree, thick] (%.2f,%.2f) rectangle (%.2f,%.2f);",
+    sensor_x, -sensor_h, sensor_x+0.12, sensor_h))
+
+-- ── Parallel rays (garnet) ──
+for i = 0, 12 do
+    local y0 = -1.2 + 2.4*(i/12)
+    local pts = trace(xmin, y0, 1, 0)
+    for j = 1, #pts-1 do
+        tex.sprint(string.format(
+            "\\draw[garnet, thin, opacity=0.6] (%.4f,%.4f)--(%.4f,%.4f);",
+            pts[j][1], pts[j][2], pts[j+1][1], pts[j+1][2]))
+    end
+end
+
+-- ── Point-source fan (atlantic) ──
+local sx, sy = -0.3, 0.9
+for i = 0, 10 do
+    local ty = -lens1_h*0.85 + 2*lens1_h*0.85*(i/10)
+    local ddx, ddy = lens1_x - sx, ty - sy
+    local l = math.sqrt(ddx*ddx + ddy*ddy)
+    local pts = trace(sx, sy, ddx/l, ddy/l)
+    for j = 1, #pts-1 do
+        tex.sprint(string.format(
+            "\\draw[atlantic, thin, opacity=0.45] (%.4f,%.4f)--(%.4f,%.4f);",
+            pts[j][1], pts[j][2], pts[j+1][1], pts[j+1][2]))
+    end
+end
+tex.sprint(string.format("\\fill[atlantic] (%.2f,%.2f) circle(0.06);", sx, sy))
+
+-- ── Labels ──
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=atlantic,anchor=south] at (%.2f,%.2f) {Lens 1};",
+    lens1_x, lens1_h+0.12))
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=atlantic,anchor=south] at (%.2f,%.2f) {Lens 2};",
+    lens2_x, lens2_h+0.12))
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=congaree,anchor=south] at (%.2f,%.2f) {CMOS};",
+    sensor_x+0.06, sensor_h+0.12))
+
+-- ── Parameter readout ──
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\scriptsize,text=warmgrey,anchor=north west] at (%.2f,%.2f) {$R_1=%.1f$ \\quad $R_2=%.1f$ \\quad $d=%.1f$};",
+    xmin+0.1, ymin+0.05, lens1_R, lens2_R, lens2_x-lens1_x))
+
+\end{luacode}
+
+\useasboundingbox (-0.5,-2.0) rectangle (8.8,2.0);
+
+\end{tikzpicture}
+\end{document}
