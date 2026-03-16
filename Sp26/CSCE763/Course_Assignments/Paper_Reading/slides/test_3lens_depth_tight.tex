@@ -1,0 +1,335 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{luacode}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{bk70}{HTML}{5C5C5C}
+
+\begin{document}
+\begin{tikzpicture}
+
+\useasboundingbox (-10,-2.5) rectangle (14,2.5);
+\clip (-10,-2.5) rectangle (14,2.5);
+
+\begin{luacode}
+-- ════════════════════════════════════════════════════════════
+-- 3-lens system: two point sources at different distances
+-- Close object → large image on CMOS
+-- Far object   → small image on CMOS
+-- ════════════════════════════════════════════════════════════
+
+local h       = 1.4
+local n_glass = 1.52
+local min_wall = 0.08
+
+local x1      = 2.0
+local d12     = 2.5
+local d23     = 0.5
+local d3s     = 2.5
+local ap_frac = 0.5
+
+local x2   = x1 + d12
+local x3   = x2 + d23
+local x_ap = x1 + d12 * ap_frac
+
+local lens1 = {Rl = 2.5,  Rr = 999}
+local lens2 = {Rl = -3,   Rr = 3}
+local lens3 = {Rl = 3,    Rr = -3}
+
+local ap_gap   = 0.6
+local casing_y = h
+
+local sensor_x = x3 + d3s
+local sensor_h = 0.8
+
+-- ── Point sources ──
+-- Single object, x swept by \PARAM (close=-2, far=-8)
+local obj = {x = \PARAM,  y = 0}
+local n_fan     = 120
+local ray_width = 0.15
+local ray_opacity = 0.4
+
+local xmin = -10
+local xmax = 14
+
+-- ════════════════════════════════════════════════════════════
+-- ENGINE (same as test_3lens.tex)
+-- ════════════════════════════════════════════════════════════
+
+local function auto_t(Rl, Rr, h)
+    local aRl, aRr = math.abs(Rl), math.abs(Rr)
+    local sl = (aRl >= h) and (aRl - math.sqrt(aRl*aRl - h*h)) or aRl
+    local sr = (aRr >= h) and (aRr - math.sqrt(aRr*aRr - h*h)) or aRr
+    local dl = (Rl > 0) and -sl or sl
+    local dr = (Rr < 0) and -sr or sr
+    local t = min_wall - math.min(0, dl + dr)
+    if t < min_wall then t = min_wall end
+    return t
+end
+
+local function isect(ox, oy, dx, dy, cx, cy, r, pick)
+    local ex, ey = ox - cx, oy - cy
+    local a = dx*dx + dy*dy
+    local b = 2*(ex*dx + ey*dy)
+    local c = ex*ex + ey*ey - r*r
+    local disc = b*b - 4*a*c
+    if disc < 0 then return nil end
+    local sq = math.sqrt(disc)
+    local t1 = (-b - sq)/(2*a)
+    local t2 = (-b + sq)/(2*a)
+    local t
+    if pick == "far" then
+        t = (t2 > 1e-4) and t2 or ((t1 > 1e-4) and t1 or nil)
+    else
+        t = (t1 > 1e-4) and t1 or ((t2 > 1e-4) and t2 or nil)
+    end
+    if not t then return nil end
+    local hx, hy = ox + t*dx, oy + t*dy
+    return t, hx, hy, (hx-cx)/r, (hy-cy)/r
+end
+
+local function refract(dx, dy, nx, ny, n1, n2)
+    local d = dx*nx + dy*ny
+    if d > 0 then nx, ny, d = -nx, -ny, -d end
+    local r = n1/n2
+    local ci = -d
+    local s2t = r*r*(1 - ci*ci)
+    if s2t > 1 then return nil end
+    local ct = math.sqrt(1 - s2t)
+    local rx = r*dx + (r*ci - ct)*nx
+    local ry = r*dy + (r*ci - ct)*ny
+    local l = math.sqrt(rx*rx + ry*ry)
+    return rx/l, ry/l
+end
+
+local function lens_geo(lx, Rl, Rr, h)
+    local t = auto_t(Rl, Rr, h)
+    local vl = lx - t/2
+    local vr = lx + t/2
+    return { vl=vl, vr=vr, t=t,
+             cl_x = vl + Rl, cr_x = vr + Rr,
+             aRl=math.abs(Rl), aRr=math.abs(Rr) }
+end
+
+local function draw_lens(lx, Rl, Rr, h)
+    local G = lens_geo(lx, Rl, Rr, h)
+    local N = 80
+    local lp, rp = {}, {}
+    for i = 0, N do
+        local y = -h + 2*h*(i/N)
+        local ql = math.sqrt(math.max(G.aRl*G.aRl - y*y, 0))
+        local qr = math.sqrt(math.max(G.aRr*G.aRr - y*y, 0))
+        table.insert(lp, {(Rl > 0) and (G.cl_x - ql) or (G.cl_x + ql), y})
+        table.insert(rp, {(Rr < 0) and (G.cr_x + qr) or (G.cr_x - qr), y})
+    end
+    local p = "\\fill[atlantic!12, opacity=0.85] "
+    for i, v in ipairs(lp) do
+        p = p .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+    end
+    for i = #rp, 1, -1 do
+        p = p .. string.format(" -- (%.4f,%.4f)", rp[i][1], rp[i][2])
+    end
+    tex.sprint(p .. " -- cycle;")
+    for _, arc in ipairs({lp, rp}) do
+        local s = "\\draw[atlantic!60, thin] "
+        for i, v in ipairs(arc) do
+            s = s .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+        end
+        tex.sprint(s .. ";")
+    end
+    tex.sprint(string.format("\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        lp[1][1], lp[1][2], rp[1][1], rp[1][2]))
+    tex.sprint(string.format("\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        lp[#lp][1], lp[#lp][2], rp[#rp][1], rp[#rp][2]))
+end
+
+local function trace_lens(cx, cy, cdx, cdy, lx, Rl, Rr, h)
+    local G = lens_geo(lx, Rl, Rr, h)
+    local pts = {}
+    local pick_l = (cdx >= 0) and ((Rl > 0) and "near" or "far") or ((Rr < 0) and "near" or "far")
+    local pick_r = (cdx >= 0) and ((Rr < 0) and "far" or "near") or ((Rl > 0) and "far" or "near")
+    local surf1_cx = (cdx >= 0) and G.cl_x or G.cr_x
+    local surf1_r  = (cdx >= 0) and G.aRl or G.aRr
+    local surf2_cx = (cdx >= 0) and G.cr_x or G.cl_x
+    local surf2_r  = (cdx >= 0) and G.aRr or G.aRl
+
+    local t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, surf1_cx, 0, surf1_r, pick_l)
+    if t and math.abs(hy) <= h then
+        table.insert(pts, {hx, hy})
+        local ndx, ndy = refract(cdx, cdy, nx, ny, 1.0, n_glass)
+        if not ndx then return pts, cdx, cdy, cx, cy end
+        cdx, cdy = ndx, ndy
+        cx, cy = hx, hy
+        t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, surf2_cx, 0, surf2_r, pick_r)
+        if t and math.abs(hy) <= h then
+            table.insert(pts, {hx, hy})
+            ndx, ndy = refract(cdx, cdy, nx, ny, n_glass, 1.0)
+            if not ndx then return pts, cdx, cdy, cx, cy end
+            cdx, cdy = ndx, ndy
+            cx, cy = hx, hy
+        end
+    end
+    return pts, cdx, cdy, cx, cy
+end
+
+local function check_casing(cx, cy, cdx, cdy, x_limit)
+    if math.abs(cdy) < 1e-9 then return nil end
+    local t_top = (casing_y - cy) / cdy
+    if t_top > 0 then
+        local hx = cx + t_top * cdx
+        if hx >= cx and hx <= x_limit then return hx, casing_y end
+    end
+    local t_bot = (-casing_y - cy) / cdy
+    if t_bot > 0 then
+        local hx = cx + t_bot * cdx
+        if hx >= cx and hx <= x_limit then return hx, -casing_y end
+    end
+    return nil
+end
+
+-- General trace: any origin + direction through the full system
+local function trace_full(ox, oy, odx, ody)
+    local pts = {{ox, oy}}
+    local cx, cy = ox, oy
+    local cdx, cdy = odx, ody
+
+    -- Lens 1
+    local lpts
+    lpts, cdx, cdy, cx, cy = trace_lens(cx, cy, cdx, cdy, x1, lens1.Rl, lens1.Rr, h)
+    for _, p in ipairs(lpts) do table.insert(pts, p) end
+
+    local chx, chy = check_casing(cx, cy, cdx, cdy, x_ap)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
+
+    -- Aperture
+    if math.abs(cdx) > 1e-6 then
+        local t_ap = (x_ap - cx) / cdx
+        if t_ap > 0 then
+            local ap_y = cy + t_ap * cdy
+            table.insert(pts, {x_ap, ap_y})
+            if math.abs(ap_y) > ap_gap then return pts, true end
+            cx, cy = x_ap, ap_y
+        end
+    end
+
+    chx, chy = check_casing(cx, cy, cdx, cdy, x2)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
+
+    -- Lens 2
+    lpts, cdx, cdy, cx, cy = trace_lens(cx, cy, cdx, cdy, x2, lens2.Rl, lens2.Rr, h)
+    for _, p in ipairs(lpts) do table.insert(pts, p) end
+
+    chx, chy = check_casing(cx, cy, cdx, cdy, x3)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
+
+    -- Lens 3
+    lpts, cdx, cdy, cx, cy = trace_lens(cx, cy, cdx, cdy, x3, lens3.Rl, lens3.Rr, h)
+    for _, p in ipairs(lpts) do table.insert(pts, p) end
+
+    chx, chy = check_casing(cx, cy, cdx, cdy, sensor_x)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
+
+    -- Extend to sensor
+    if math.abs(cdx) > 1e-6 then
+        local ts = (sensor_x - cx) / cdx
+        if ts > 0 then table.insert(pts, {sensor_x, cy + ts*cdy}) end
+    end
+    return pts, false
+end
+
+-- ══════════ DRAW ══════════
+
+-- Optical axis
+tex.sprint(string.format(
+    "\\draw[warmgrey, dashed, thin] (%.2f,0)--(%.2f,0);", xmin, xmax))
+
+-- Lenses
+draw_lens(x1, lens1.Rl, lens1.Rr, h)
+draw_lens(x2, lens2.Rl, lens2.Rr, h)
+draw_lens(x3, lens3.Rl, lens3.Rr, h)
+
+-- Aperture
+tex.sprint(string.format(
+    "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
+    x_ap, casing_y, x_ap, ap_gap))
+tex.sprint(string.format(
+    "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
+    x_ap, -ap_gap, x_ap, -casing_y))
+
+-- Casing
+local casing_left = x1 - 0.6
+local casing_right = sensor_x + 0.12
+tex.sprint(string.format(
+    "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
+    casing_left, casing_y, casing_right, casing_y))
+tex.sprint(string.format(
+    "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
+    casing_left, -casing_y, casing_right, -casing_y))
+
+-- CMOS
+tex.sprint(string.format(
+    "\\fill[congaree!80] (%.2f,%.2f) rectangle (%.2f,%.2f);",
+    sensor_x, -sensor_h, sensor_x + 0.12, sensor_h))
+local npix = 12
+for i = 0, npix - 1 do
+    local py = -sensor_h + i * (2*sensor_h / npix)
+    tex.sprint(string.format(
+        "\\draw[congaree!40, very thin] (%.2f,%.4f)--(%.2f,%.4f);",
+        sensor_x, py, sensor_x + 0.12, py))
+end
+tex.sprint(string.format(
+    "\\draw[congaree, thick] (%.2f,%.2f) rectangle (%.2f,%.2f);",
+    sensor_x, -sensor_h, sensor_x + 0.12, sensor_h))
+
+-- ── Trace fan rays from single point source ──
+for i = 0, n_fan - 1 do
+    local frac = (n_fan > 1) and (i / (n_fan - 1)) or 0.5
+    local target_y = -h * 0.95 + 2 * h * 0.95 * frac
+    local ddx = x1 - obj.x
+    local ddy = target_y - obj.y
+    local l = math.sqrt(ddx*ddx + ddy*ddy)
+    local pts, blocked = trace_full(obj.x, obj.y, ddx/l, ddy/l)
+    local op = blocked and 0.1 or ray_opacity
+    local clr = blocked and "warmgrey" or "garnet"
+    for j = 1, #pts - 1 do
+        tex.sprint(string.format(
+            "\\draw[%s, line width=%.2fpt, opacity=%.2f] (%.4f,%.4f)--(%.4f,%.4f);",
+            clr, ray_width, op,
+            pts[j][1], pts[j][2], pts[j+1][1], pts[j+1][2]))
+    end
+end
+
+-- Point source marker
+tex.sprint(string.format("\\fill[garnet] (%.2f,%.2f) circle(0.1);", obj.x, obj.y))
+
+-- Distance label
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize\\bfseries,text=garnet,anchor=south] at (%.2f,%.2f) {$d = %.1f$};",
+    obj.x, obj.y + 0.2, x1 - obj.x))
+
+-- Lens labels
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=atlantic,anchor=south] at (%.2f,%.2f) {Plano-convex};",
+    x1, h + 0.15))
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=bk70,anchor=south] at (%.2f,%.2f) {Aperture};",
+    x_ap, h + 0.15))
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=atlantic,anchor=south] at (%.2f,%.2f) {Biconcave};",
+    x2, h + 0.15))
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=atlantic,anchor=south] at (%.2f,%.2f) {Biconvex};",
+    x3, h + 0.15))
+tex.sprint(string.format(
+    "\\node[font=\\sffamily\\footnotesize,text=congaree,anchor=south] at (%.2f,%.2f) {CMOS};",
+    sensor_x + 0.06, casing_y + 0.15))
+
+\end{luacode}
+
+\end{tikzpicture}
+\end{document}
