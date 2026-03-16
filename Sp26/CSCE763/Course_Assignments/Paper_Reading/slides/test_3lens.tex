@@ -38,6 +38,9 @@ local lens3 = {Rl = 3,    Rr = -3}     -- biconvex
 -- Aperture
 local ap_gap  = 0.6       -- half-gap (opening radius)
 
+-- Casing
+local casing_y = h + 0.1  -- inner wall of casing (blocks stray light)
+
 -- Sensor
 local sensor_x = x3 + d
 local sensor_h = 0.8
@@ -183,6 +186,25 @@ local function trace_lens(cx, cy, cdx, cdy, lx, Rl, Rr, h)
     return pts, cdx, cdy, cx, cy
 end
 
+-- Check if ray hits casing wall between current pos and next element
+-- Returns hit point if blocked, nil if clear
+local function check_casing(cx, cy, cdx, cdy, x_limit)
+    if math.abs(cdy) < 1e-9 then return nil end
+    -- Check top wall
+    local t_top = (casing_y - cy) / cdy
+    if t_top > 0 then
+        local hx = cx + t_top * cdx
+        if hx >= cx and hx <= x_limit then return hx, casing_y end
+    end
+    -- Check bottom wall
+    local t_bot = (-casing_y - cy) / cdy
+    if t_bot > 0 then
+        local hx = cx + t_bot * cdx
+        if hx >= cx and hx <= x_limit then return hx, -casing_y end
+    end
+    return nil
+end
+
 -- Full trace: parallel ray from left through all 3 lenses + aperture
 local function trace_full(oy)
     local pts = {{xmin, oy}}
@@ -190,9 +212,13 @@ local function trace_full(oy)
     local cdx, cdy = 1, 0
 
     -- Lens 1: plano-convex
-    local lpts, ndx, ndy, nx, ny
+    local lpts
     lpts, cdx, cdy, cx, cy = trace_lens(cx, cy, cdx, cdy, x1, lens1.Rl, lens1.Rr, h)
     for _, p in ipairs(lpts) do table.insert(pts, p) end
+
+    -- Check casing between lens1 and aperture
+    local chx, chy = check_casing(cx, cy, cdx, cdy, x_ap)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
 
     -- Aperture: check if ray passes through the gap
     if math.abs(cdx) > 1e-6 then
@@ -201,25 +227,36 @@ local function trace_full(oy)
             local ap_y = cy + t_ap * cdy
             table.insert(pts, {x_ap, ap_y})
             if math.abs(ap_y) > ap_gap then
-                -- Blocked by aperture
                 return pts, true
             end
             cx, cy = x_ap, ap_y
         end
     end
 
+    -- Check casing between aperture and lens2
+    chx, chy = check_casing(cx, cy, cdx, cdy, x2)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
+
     -- Lens 2: biconcave
     lpts, cdx, cdy, cx, cy = trace_lens(cx, cy, cdx, cdy, x2, lens2.Rl, lens2.Rr, h)
     for _, p in ipairs(lpts) do table.insert(pts, p) end
+
+    -- Check casing between lens2 and lens3
+    chx, chy = check_casing(cx, cy, cdx, cdy, x3)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
 
     -- Lens 3: biconvex
     lpts, cdx, cdy, cx, cy = trace_lens(cx, cy, cdx, cdy, x3, lens3.Rl, lens3.Rr, h)
     for _, p in ipairs(lpts) do table.insert(pts, p) end
 
-    -- Extend to right edge
+    -- Check casing between lens3 and sensor
+    chx, chy = check_casing(cx, cy, cdx, cdy, sensor_x)
+    if chx then table.insert(pts, {chx, chy}); return pts, true end
+
+    -- Extend to sensor
     if math.abs(cdx) > 1e-6 then
-        local ts = (xmax - cx) / cdx
-        if ts > 0 then table.insert(pts, {xmax, cy + ts*cdy}) end
+        local ts = (sensor_x - cx) / cdx
+        if ts > 0 then table.insert(pts, {sensor_x, cy + ts*cdy}) end
     end
     return pts, false
 end
@@ -242,6 +279,18 @@ tex.sprint(string.format(
 tex.sprint(string.format(
     "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
     x_ap, -ap_gap, x_ap, -h - 0.1))
+
+-- Lens casing — two horizontal lines running just outside the lens tops/bottoms
+-- from a bit past the front lens (lens1) to the CMOS
+local casing_y = h + 0.1          -- just outside lens aperture
+local casing_left = x1 - 0.6      -- extends past front of lens1
+local casing_right = sensor_x + 0.12
+tex.sprint(string.format(
+    "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
+    casing_left, casing_y, casing_right, casing_y))
+tex.sprint(string.format(
+    "\\draw[bk70, thick] (%.2f,%.2f)--(%.2f,%.2f);",
+    casing_left, -casing_y, casing_right, -casing_y))
 
 -- CMOS sensor
 tex.sprint(string.format(
