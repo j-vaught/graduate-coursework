@@ -1,0 +1,166 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{luacode}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{bk70}{HTML}{5C5C5C}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+\begin{document}
+\begin{tikzpicture}
+
+\begin{luacode}
+-- ════════════════════════════════════════════════════════════
+-- Lens shape showcase: one number (R) per surface, auto thickness
+-- ════════════════════════════════════════════════════════════
+-- Sign convention:
+--   R > 0 : surface bulges LEFT  (convex to incoming light)
+--   R < 0 : surface bulges RIGHT (concave to incoming light)
+--   |R| large (e.g. 999) : nearly flat
+
+local min_wall = 0.08   -- minimum glass thickness anywhere
+local h = 1.0           -- half-aperture for all examples
+
+-- ── Auto-thickness calculation ──
+local function auto_t(Rl, Rr, h)
+    local absRl = math.abs(Rl)
+    local absRr = math.abs(Rr)
+    local sag_l = (absRl >= h) and (absRl - math.sqrt(absRl*absRl - h*h)) or absRl
+    local sag_r = (absRr >= h) and (absRr - math.sqrt(absRr*absRr - h*h)) or absRr
+    -- Convex surfaces make edges thinner; concave make edges thicker
+    local dl = (Rl > 0) and -sag_l or sag_l
+    local dr = (Rr < 0) and -sag_r or sag_r
+    local edge_delta = dl + dr  -- negative = edges thinner than center
+    -- t = center thickness; ensure min_wall everywhere
+    local t = min_wall - math.min(0, edge_delta)
+    if t < min_wall then t = min_wall end
+    return t
+end
+
+-- ── Draw one lens at (cx, cy) ──
+local function draw_lens(cx, cy, Rl, Rr, h, label)
+    local t = auto_t(Rl, Rr, h)
+    local absRl = math.abs(Rl)
+    local absRr = math.abs(Rr)
+
+    -- Left surface vertex at cx - t/2, right vertex at cx + t/2
+    local vl = cx - t/2
+    local vr = cx + t/2
+
+    -- Left surface: circle of radius |Rl|
+    -- If Rl > 0: center at vl + Rl (to the right), surface = left side of circle
+    -- If Rl < 0: center at vl + Rl (to the left),  surface = right side of circle
+    local cl_x = vl + Rl
+
+    -- Right surface: circle of radius |Rr|
+    -- If Rr > 0: center at vr - Rr (to the left),  surface = right side of circle -- wait
+    -- Actually: right surface uses OPPOSITE convention since it faces the other way
+    -- Rr < 0 means bulges RIGHT (convex outward) for the exit surface
+    -- Rr > 0 means caves LEFT (concave) for exit surface
+    -- Center at vr - Rr
+    local cr_x = vr + Rr
+
+    local N = 80
+    local left_pts = {}
+    local right_pts = {}
+
+    for i = 0, N do
+        local y = -h + 2*h*(i/N)
+        -- Left surface x at height y
+        local ql = math.sqrt(math.max(absRl*absRl - y*y, 0))
+        local lx
+        if Rl > 0 then
+            lx = cl_x - ql   -- left side of circle (bulges left)
+        else
+            lx = cl_x + ql   -- right side of circle (caves right)
+        end
+
+        -- Right surface x at height y
+        local qr = math.sqrt(math.max(absRr*absRr - y*y, 0))
+        local rx
+        if Rr < 0 then
+            -- center is left of vertex, surface = right side of circle
+            rx = cr_x + qr
+        else
+            -- center is right of vertex, surface = left side of circle
+            rx = cr_x - qr
+        end
+
+        table.insert(left_pts,  {lx, cy + y})
+        table.insert(right_pts, {rx, cy + y})
+    end
+
+    -- Fill
+    local p = "\\fill[atlantic!12, opacity=0.85] "
+    for i, v in ipairs(left_pts) do
+        p = p .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+    end
+    for i = #right_pts, 1, -1 do
+        p = p .. string.format(" -- (%.4f,%.4f)", right_pts[i][1], right_pts[i][2])
+    end
+    tex.sprint(p .. " -- cycle;")
+
+    -- Outlines
+    for _, arc in ipairs({left_pts, right_pts}) do
+        local s = "\\draw[atlantic!60, thin] "
+        for i, v in ipairs(arc) do
+            s = s .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+        end
+        tex.sprint(s .. ";")
+    end
+
+    -- Top/bottom edges
+    tex.sprint(string.format("\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        left_pts[1][1], left_pts[1][2], right_pts[1][1], right_pts[1][2]))
+    tex.sprint(string.format("\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        left_pts[#left_pts][1], left_pts[#left_pts][2],
+        right_pts[#right_pts][1], right_pts[#right_pts][2]))
+
+    -- Optical axis tick
+    tex.sprint(string.format("\\draw[warmgrey, dashed, very thin] (%.2f,%.2f)--(%.2f,%.2f);",
+        cx - 1.5, cy, cx + 1.5, cy))
+
+    -- Label below
+    tex.sprint(string.format(
+        "\\node[font=\\sffamily\\scriptsize, text=bk70, anchor=north] at (%.2f,%.2f) {%s};",
+        cx, cy - h - 0.15, label))
+
+    -- R values above
+    local rl_str = (math.abs(Rl) > 500) and "\\infty" or string.format("%.0f", Rl)
+    local rr_str = (math.abs(Rr) > 500) and "\\infty" or string.format("%.0f", Rr)
+    tex.sprint(string.format(
+        "\\node[font=\\sffamily\\tiny, text=warmgrey, anchor=south] at (%.2f,%.2f) {$R_L=%s$~~$R_R=%s$};",
+        cx, cy + h + 0.1, rl_str, rr_str))
+end
+
+-- ════════════════════════════════════════════════════════════
+-- GALLERY — 6 lens types in a 3x2 grid
+-- ════════════════════════════════════════════════════════════
+local col_spacing = 3.8
+local row_spacing = 3.2
+
+local lenses = {
+    -- row 1
+    {col=0, row=0, Rl= 3, Rr=-3,   label="Biconvex (symmetric)"},
+    {col=1, row=0, Rl= 2, Rr=-6,   label="Biconvex (asymmetric)"},
+    {col=2, row=0, Rl=-3, Rr= 3,   label="Biconcave (symmetric)"},
+    -- row 2
+    {col=0, row=1, Rl= 3, Rr= 3,   label="Meniscus (converging)"},
+    {col=1, row=1, Rl= 999, Rr=-3,  label="Plano-convex"},
+    {col=2, row=1, Rl= 999, Rr= 3,  label="Plano-concave"},
+}
+
+for _, L in ipairs(lenses) do
+    local cx = L.col * col_spacing
+    local cy = -L.row * row_spacing
+    draw_lens(cx, cy, L.Rl, L.Rr, h, L.label)
+end
+
+\end{luacode}
+
+\end{tikzpicture}
+\end{document}
