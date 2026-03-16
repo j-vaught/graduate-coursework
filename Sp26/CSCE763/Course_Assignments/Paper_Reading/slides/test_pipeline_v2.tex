@@ -1,0 +1,97 @@
+\documentclass[border=10pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{amsmath}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{rose}{HTML}{CC2E40}
+\definecolor{honeycomb}{HTML}{A49137}
+\definecolor{bk70}{HTML}{5C5C5C}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+\begin{document}
+\begin{tikzpicture}[
+    block/.style={
+        draw=#1, thick, fill=#1!8,
+        minimum height=1.2cm, minimum width=2.2cm,
+        font=\sffamily\small, text=bk70, align=center,
+    },
+    arr/.style={->, thick, color=bk70},
+    label/.style={font=\sffamily\tiny, text=warmgrey, align=center},
+    newlabel/.style={font=\sffamily\tiny\bfseries, text=horseshoe, align=center},
+]
+
+% ── v2 Pipeline blocks ──
+% Input
+\node[block=warmgrey] (input) at (0, 0) {Input $I$};
+
+% CSTM
+\node[block=garnet] (cstm) at (3, 0) {CSTM};
+
+% ViT Encoder-Decoder (changed from ConvNeXt)
+\node[block=horseshoe] (backbone) at (6.5, 0) {ViT\\Encoder-Decoder};
+
+% ConvGRU (new in v2)
+\node[block=horseshoe] (gru) at (10, 0) {ConvGRU\\Refinement};
+
+% ── Branch: Depth (top path) ──
+\node[block=congaree] (dhead) at (13, 1.0) {Depth Head\\$G_d$};
+\node[block=garnet] (decstm) at (16, 1.0) {De-CSTM};
+\node[block=warmgrey] (dout) at (19, 1.0) {Metric\\Depth $D$};
+
+% ── Branch: Normal (bottom path) ──
+\node[block=rose] (nhead) at (13, -1.0) {Normal Head\\$G_n$};
+\node[block=warmgrey] (nout) at (16, -1.0) {Normals $N$};
+
+% ── Arrows: main trunk ──
+\draw[arr] (input) -- (cstm);
+\draw[arr] (cstm) -- (backbone);
+\draw[arr] (backbone) -- (gru);
+
+% ── Arrows: branch split ──
+\draw[arr] (gru.east) -- ++(0.5, 0) |- (dhead.west);
+\draw[arr] (gru.east) -- ++(0.5, 0) |- (nhead.west);
+
+% ── Arrows: depth path ──
+\draw[arr] (dhead) -- (decstm);
+\draw[arr] (decstm) -- (dout);
+
+% ── Arrows: normal path ──
+\draw[arr] (nhead) -- (nout);
+
+% ── ConvGRU iteration loop ──
+\draw[arr, horseshoe, dashed] (gru.south) -- ++(0, -0.6) -- ++(-1.2, 0)
+    node[midway, below, font=\sffamily\tiny, text=horseshoe] {$T$ iterations}
+    -- ++(0, 0.6) -- (gru.south west);
+
+% ── Consistency loss ──
+\draw[<->, thick, honeycomb] (dhead.south) -- (nhead.north)
+    node[midway, right, font=\sffamily\tiny\bfseries, text=honeycomb, align=left] {$L_{d\text{-}n}$\\consistency};
+
+% ── Focal length input ──
+\node[font=\sffamily\tiny, text=garnet, anchor=south] (flabel) at (3, 1.8) {$f$ from EXIF};
+\draw[->, thin, garnet] (flabel) -- (cstm.north);
+\draw[->, thin, garnet, dashed] (flabel.east) -- ++(12.2, 0) |- (decstm.north);
+
+% ── Annotations below ──
+\node[label, anchor=north] at (cstm.south) {Canonical Camera\\Transform};
+
+\node[newlabel, anchor=north] at (backbone.south) {\textit{v2: ViT replaces}\\ConvNeXt};
+
+\node[newlabel, anchor=north] at ([yshift=-0.6cm]gru.south) {Shared hidden state $H^t$\\iterates depth + normals};
+
+% ── Title ──
+\node[font=\sffamily\bfseries, text=garnet, anchor=south] at (9.5, 3.0) {Metric3D v2 Pipeline};
+
+% ── v2 additions legend ──
+\node[font=\sffamily\tiny\bfseries, text=horseshoe, anchor=north west] at (-0.5, -2.5)
+    {v2 additions:};
+\node[font=\sffamily\tiny, text=bk70, anchor=north west, align=left] at (1.8, -2.5)
+    {(1) ViT backbone \quad (2) ConvGRU joint refinement \quad (3) Normal prediction with $L_{d\text{-}n}$ consistency loss};
+
+\end{tikzpicture}
+\end{document}
