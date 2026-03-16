@@ -48,9 +48,9 @@ local sensor_x = x3 + d3s
 local sensor_h = 0.8
 
 -- ── Point sources ──
-local close_obj = {x = -2,  y = 0}      -- close object on axis (garnet)
-local far_obj   = {x = -8,  y = 0}      -- far object on axis (atlantic)
-local n_fan     = 60                      -- rays per source
+-- Single object, x swept by \PARAM (close=-2, far=-8)
+local obj = {x = \PARAM,  y = 0}
+local n_fan     = 60
 local ray_width = 0.15
 local ray_opacity = 0.4
 
@@ -286,43 +286,31 @@ tex.sprint(string.format(
     "\\draw[congaree, thick] (%.2f,%.2f) rectangle (%.2f,%.2f);",
     sensor_x, -sensor_h, sensor_x + 0.12, sensor_h))
 
--- ── Trace fan rays from each point source ──
-local function trace_fan(src, color, n)
-    for i = 0, n - 1 do
-        local frac = (n > 1) and (i / (n - 1)) or 0.5
-        -- Aim rays to fill lens1 aperture
-        local target_y = -h * 0.95 + 2 * h * 0.95 * frac
-        local ddx = x1 - src.x
-        local ddy = target_y - src.y
-        local l = math.sqrt(ddx*ddx + ddy*ddy)
-        local pts, blocked = trace_full(src.x, src.y, ddx/l, ddy/l)
-        local op = blocked and 0.1 or ray_opacity
-        local clr = blocked and "warmgrey" or color
-        for j = 1, #pts - 1 do
-            tex.sprint(string.format(
-                "\\draw[%s, line width=%.2fpt, opacity=%.2f] (%.4f,%.4f)--(%.4f,%.4f);",
-                clr, ray_width, op,
-                pts[j][1], pts[j][2], pts[j+1][1], pts[j+1][2]))
-        end
+-- ── Trace fan rays from single point source ──
+for i = 0, n_fan - 1 do
+    local frac = (n_fan > 1) and (i / (n_fan - 1)) or 0.5
+    local target_y = -h * 0.95 + 2 * h * 0.95 * frac
+    local ddx = x1 - obj.x
+    local ddy = target_y - obj.y
+    local l = math.sqrt(ddx*ddx + ddy*ddy)
+    local pts, blocked = trace_full(obj.x, obj.y, ddx/l, ddy/l)
+    local op = blocked and 0.1 or ray_opacity
+    local clr = blocked and "warmgrey" or "garnet"
+    for j = 1, #pts - 1 do
+        tex.sprint(string.format(
+            "\\draw[%s, line width=%.2fpt, opacity=%.2f] (%.4f,%.4f)--(%.4f,%.4f);",
+            clr, ray_width, op,
+            pts[j][1], pts[j][2], pts[j+1][1], pts[j+1][2]))
     end
 end
 
--- Far object first (behind close object)
-trace_fan(far_obj,   "atlantic", n_fan)
--- Close object on top
-trace_fan(close_obj, "garnet",   n_fan)
+-- Point source marker
+tex.sprint(string.format("\\fill[garnet] (%.2f,%.2f) circle(0.1);", obj.x, obj.y))
 
--- Point source markers
-tex.sprint(string.format("\\fill[garnet] (%.2f,%.2f) circle(0.1);", close_obj.x, close_obj.y))
-tex.sprint(string.format("\\fill[atlantic] (%.2f,%.2f) circle(0.1);", far_obj.x, far_obj.y))
-
--- Object labels
+-- Distance label
 tex.sprint(string.format(
-    "\\node[font=\\sffamily\\footnotesize\\bfseries,text=garnet,anchor=south] at (%.2f,%.2f) {Close};",
-    close_obj.x, close_obj.y + 0.15))
-tex.sprint(string.format(
-    "\\node[font=\\sffamily\\footnotesize\\bfseries,text=atlantic,anchor=south] at (%.2f,%.2f) {Far};",
-    far_obj.x, far_obj.y + 0.15))
+    "\\node[font=\\sffamily\\footnotesize\\bfseries,text=garnet,anchor=south] at (%.2f,%.2f) {$d = %.1f$};",
+    obj.x, obj.y + 0.2, x1 - obj.x))
 
 -- Lens labels
 tex.sprint(string.format(
