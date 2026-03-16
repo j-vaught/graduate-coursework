@@ -135,23 +135,44 @@ local function draw_lens(lx, R, h)
         left[#left][1], left[#left][2], right[#right][1], right[#right][2]))
 end
 
+-- Trace ray through lenses. Direction-aware: if dx < 0, traverse lenses in reverse.
 local function trace(ox, oy, dx, dy)
     local pts = {{ox, oy}}
     local cx, cy, cdx, cdy = ox, oy, dx, dy
-    local lenses = {
-        {x=C.lens1_x, R=C.lens1_R, h=C.lens1_h},
-        {x=C.lens2_x, R=C.lens2_R, h=C.lens2_h},
-    }
+    local lenses
+    if dx >= 0 then
+        -- Left to right: lens1 then lens2
+        lenses = {
+            {x=C.lens1_x, R=C.lens1_R, h=C.lens1_h},
+            {x=C.lens2_x, R=C.lens2_R, h=C.lens2_h},
+        }
+    else
+        -- Right to left: lens2 then lens1
+        lenses = {
+            {x=C.lens2_x, R=C.lens2_R, h=C.lens2_h},
+            {x=C.lens1_x, R=C.lens1_R, h=C.lens1_h},
+        }
+    end
     for _, L in ipairs(lenses) do
         local cxL, cxR = lens_circles(L.x, L.R, L.h)
-        local t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, cxL, 0, L.R, "near")
+        -- Going right: hit left surface (near on cxL), then right surface (far on cxR)
+        -- Going left:  hit right surface (near on cxR), then left surface (far on cxL)
+        local surf1_cx, surf1_pick, surf2_cx, surf2_pick
+        if dx >= 0 then
+            surf1_cx, surf1_pick = cxL, "near"
+            surf2_cx, surf2_pick = cxR, "far"
+        else
+            surf1_cx, surf1_pick = cxR, "near"
+            surf2_cx, surf2_pick = cxL, "far"
+        end
+        local t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, surf1_cx, 0, L.R, surf1_pick)
         if t and math.abs(hy) <= L.h then
             table.insert(pts, {hx, hy})
             local ndx, ndy = refract(cdx, cdy, nx, ny, 1.0, C.n_glass)
             if not ndx then break end
             cdx, cdy = ndx, ndy
             cx, cy = hx, hy
-            t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, cxR, 0, L.R, "far")
+            t, hx, hy, nx, ny = isect(cx, cy, cdx, cdy, surf2_cx, 0, L.R, surf2_pick)
             if t and math.abs(hy) <= L.h then
                 table.insert(pts, {hx, hy})
                 ndx, ndy = refract(cdx, cdy, nx, ny, C.n_glass, 1.0)
@@ -161,10 +182,12 @@ local function trace(ox, oy, dx, dy)
             end
         end
     end
+    -- Extend to scene boundary
     if math.abs(cdx) > 1e-6 then
-        local ts = (C.sensor_x - cx) / cdx
+        local target_x = (cdx > 0) and C.xmax or C.xmin
+        local ts = (target_x - cx) / cdx
         if ts > 0 then
-            table.insert(pts, {C.sensor_x, cy + ts*cdy})
+            table.insert(pts, {target_x, cy + ts*cdy})
         end
     end
     return pts
@@ -203,15 +226,15 @@ tex.sprint(string.format(
     "\\draw[congaree, thick] (%.2f,%.2f) rectangle (%.2f,%.2f);",
     C.sensor_x, -C.sensor_h, C.sensor_x+0.12, C.sensor_h))
 
--- Parallel rays
+-- Parallel rays from CMOS going LEFT into the world
 for i = 0, C.n_rays - 1 do
     local frac = (C.n_rays > 1) and (i / (C.n_rays - 1)) or 0.5
     local y0 = C.ray_y_min + (C.ray_y_max - C.ray_y_min) * frac
-    local pts = trace(C.xmin, y0, 1, 0)
+    local pts = trace(C.sensor_x, y0, -1, 0)
     draw_rays(pts, C.parallel_color, C.parallel_opacity, C.ray_width)
 end
 
--- Fan rays
+-- Fan rays from a world-side point source going RIGHT into the camera
 if C.fan_on then
     for i = 0, C.fan_n - 1 do
         local frac = (C.fan_n > 1) and (i / (C.fan_n - 1)) or 0.5
