@@ -22,15 +22,17 @@
 local frame = \PARAM
 
 -- Keyframes: {Rl, Rr, label}
+-- Flat keyframes inserted between sign changes to avoid R crossing 0
 local keys = {
     { 3,   -3,   "Biconvex (symmetric)"},
     { 2,   -6,   "Biconvex (asymmetric)"},
+    { 20,  -20,  "Flattening..."},          -- bridge: Rl sign change next
     {-3,    3,   "Biconcave (symmetric)"},
+    {-20,   20,  "Flattening..."},           -- bridge: Rl sign change next
     { 3,    3,   "Meniscus (converging)"},
     { 20,  -3,   "Plano-convex"},
     { 20,   3,   "Plano-concave"},
 }
--- Use 20 instead of 999 for plano so interpolation doesn't explode
 
 local n_keys = #keys
 local seg_len = 60       -- frames per segment
@@ -61,6 +63,11 @@ else
     -- Show target label once past halfway
     label = (t < 0.5) and k1[3] or k2[3]
 end
+
+-- Safety clamp: |R| must stay above h + margin
+local min_R = 1.8
+if math.abs(Rl) < min_R then Rl = (Rl >= 0 and 1 or -1) * min_R end
+if math.abs(Rr) < min_R then Rr = (Rr >= 0 and 1 or -1) * min_R end
 
 -- ════════════════════════════════════════════════════════════
 -- Fixed config
@@ -234,7 +241,8 @@ tex.sprint(string.format(
 
 \end{luacode}
 
-\useasboundingbox (-0.5,-1.8) rectangle (6.5,2.2);
+\useasboundingbox (-0.5,-1.8) rectangle (6.5,2.5);
+\draw[bk70, very thin] (-0.5,-1.8) rectangle (6.5,2.5);
 
 \end{tikzpicture}
 \end{document}
