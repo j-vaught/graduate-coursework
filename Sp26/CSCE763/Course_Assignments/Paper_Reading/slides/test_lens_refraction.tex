@@ -1,0 +1,255 @@
+\documentclass[border=5pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{luacode}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{bk70}{HTML}{5C5C5C}
+\definecolor{bk30}{HTML}{C7C7C7}
+
+\begin{document}
+\begin{tikzpicture}
+
+\begin{luacode}
+-- ════════════════════════════════════════════════════════════
+-- Single-lens ray refraction gallery
+-- Shows parallel rays through 6 lens types using Rl/Rr system
+-- ════════════════════════════════════════════════════════════
+
+local min_wall = 0.08
+local n_glass  = 1.52
+
+-- ── Ray config ──
+local n_rays     = 25
+local ray_y_min  = -0.9
+local ray_y_max  =  0.9
+local ray_width  = 0.15    -- pt
+local ray_opacity = 0.5
+local ray_extend  = 2.5    -- how far past lens to draw exit rays
+
+-- ── Grid layout ──
+local col_spacing = 5.0
+local row_spacing = 3.4
+local lens_x_in_cell = 2.0   -- where lens sits within each cell
+local cell_xmin = -0.5
+local cell_xmax = 4.5
+
+-- ── Lens gallery ──
+local h = 1.0
+local lenses = {
+    {col=0, row=0, Rl= 3,   Rr=-3,   label="Biconvex (symmetric)"},
+    {col=1, row=0, Rl= 2,   Rr=-6,   label="Biconvex (asymmetric)"},
+    {col=2, row=0, Rl=-3,   Rr= 3,   label="Biconcave (symmetric)"},
+    {col=0, row=1, Rl= 3,   Rr= 3,   label="Meniscus (converging)"},
+    {col=1, row=1, Rl= 999, Rr=-3,   label="Plano-convex"},
+    {col=2, row=1, Rl= 999, Rr= 3,   label="Plano-concave"},
+}
+
+-- ════════════════════════════════════════════════════════════
+-- ENGINE
+-- ════════════════════════════════════════════════════════════
+
+local function auto_t(Rl, Rr, h)
+    local absRl = math.abs(Rl)
+    local absRr = math.abs(Rr)
+    local sag_l = (absRl >= h) and (absRl - math.sqrt(absRl*absRl - h*h)) or absRl
+    local sag_r = (absRr >= h) and (absRr - math.sqrt(absRr*absRr - h*h)) or absRr
+    local dl = (Rl > 0) and -sag_l or sag_l
+    local dr = (Rr < 0) and -sag_r or sag_r
+    local edge_delta = dl + dr
+    local t = min_wall - math.min(0, edge_delta)
+    if t < min_wall then t = min_wall end
+    return t
+end
+
+-- Circle-ray intersection
+local function isect(ox, oy, dx, dy, cx, cy, r, pick)
+    local ex, ey = ox - cx, oy - cy
+    local a = dx*dx + dy*dy
+    local b = 2*(ex*dx + ey*dy)
+    local c = ex*ex + ey*ey - r*r
+    local disc = b*b - 4*a*c
+    if disc < 0 then return nil end
+    local sq = math.sqrt(disc)
+    local t1 = (-b - sq)/(2*a)
+    local t2 = (-b + sq)/(2*a)
+    local t
+    if pick == "far" then
+        t = (t2 > 1e-4) and t2 or ((t1 > 1e-4) and t1 or nil)
+    else
+        t = (t1 > 1e-4) and t1 or ((t2 > 1e-4) and t2 or nil)
+    end
+    if not t then return nil end
+    local hx, hy = ox + t*dx, oy + t*dy
+    return t, hx, hy, (hx-cx)/r, (hy-cy)/r
+end
+
+-- Snell's law refraction
+local function refract(dx, dy, nx, ny, n1, n2)
+    local d = dx*nx + dy*ny
+    if d > 0 then nx, ny, d = -nx, -ny, -d end
+    local r = n1/n2
+    local ci = -d
+    local s2t = r*r*(1 - ci*ci)
+    if s2t > 1 then return nil end
+    local ct = math.sqrt(1 - s2t)
+    local rx = r*dx + (r*ci - ct)*nx
+    local ry = r*dy + (r*ci - ct)*ny
+    local l = math.sqrt(rx*rx + ry*ry)
+    return rx/l, ry/l
+end
+
+-- Compute lens surface circle centers and vertex positions
+local function lens_geometry(lx, Rl, Rr, h)
+    local t = auto_t(Rl, Rr, h)
+    local vl = lx - t/2
+    local vr = lx + t/2
+    local cl_x = vl + Rl          -- left surface circle center
+    local cr_x = vr + Rr          -- right surface circle center
+    return {
+        vl=vl, vr=vr, t=t,
+        cl_x=cl_x, cr_x=cr_x,
+        absRl=math.abs(Rl), absRr=math.abs(Rr),
+        Rl=Rl, Rr=Rr, h=h,
+    }
+end
+
+-- Draw lens shape (at world coordinates, centered at cx_world, cy_world)
+local function draw_lens(cx_w, cy_w, Rl, Rr, h, label)
+    local G = lens_geometry(cx_w, Rl, Rr, h)
+    local N = 80
+    local left_pts, right_pts = {}, {}
+
+    for i = 0, N do
+        local y = -h + 2*h*(i/N)
+        local ql = math.sqrt(math.max(G.absRl*G.absRl - y*y, 0))
+        local lx = (Rl > 0) and (G.cl_x - ql) or (G.cl_x + ql)
+        local qr = math.sqrt(math.max(G.absRr*G.absRr - y*y, 0))
+        local rx = (Rr < 0) and (G.cr_x + qr) or (G.cr_x - qr)
+        table.insert(left_pts,  {lx, cy_w + y})
+        table.insert(right_pts, {rx, cy_w + y})
+    end
+
+    local p = "\\fill[atlantic!12, opacity=0.85] "
+    for i, v in ipairs(left_pts) do
+        p = p .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+    end
+    for i = #right_pts, 1, -1 do
+        p = p .. string.format(" -- (%.4f,%.4f)", right_pts[i][1], right_pts[i][2])
+    end
+    tex.sprint(p .. " -- cycle;")
+
+    for _, arc in ipairs({left_pts, right_pts}) do
+        local s = "\\draw[atlantic!60, thin] "
+        for i, v in ipairs(arc) do
+            s = s .. (i==1 and "" or " -- ") .. string.format("(%.4f,%.4f)", v[1], v[2])
+        end
+        tex.sprint(s .. ";")
+    end
+    tex.sprint(string.format("\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        left_pts[1][1], left_pts[1][2], right_pts[1][1], right_pts[1][2]))
+    tex.sprint(string.format("\\draw[atlantic!60, thin] (%.4f,%.4f)--(%.4f,%.4f);",
+        left_pts[#left_pts][1], left_pts[#left_pts][2],
+        right_pts[#right_pts][1], right_pts[#right_pts][2]))
+
+    -- Label
+    tex.sprint(string.format(
+        "\\node[font=\\sffamily\\scriptsize, text=bk70, anchor=north] at (%.2f,%.2f) {%s};",
+        cx_w, cy_w - h - 0.15, label))
+    local rl_str = (math.abs(Rl) > 500) and "\\infty" or string.format("%.0f", Rl)
+    local rr_str = (math.abs(Rr) > 500) and "\\infty" or string.format("%.0f", Rr)
+    tex.sprint(string.format(
+        "\\node[font=\\sffamily\\tiny, text=warmgrey, anchor=south] at (%.2f,%.2f) {$R_L=%s$~~$R_R=%s$};",
+        cx_w, cy_w + h + 0.1, rl_str, rr_str))
+end
+
+-- Trace a single ray through one lens (world coords, lens centered at lx_w, cy_w=0 offset)
+local function trace_single(ox, oy, dx, dy, lx_w, cy_w, Rl, Rr, h, xstop)
+    local G = lens_geometry(lx_w, Rl, Rr, h)
+    local pts = {{ox, oy}}
+    local cx, cy_r = ox, oy
+    local cdx, cdy = dx, dy
+
+    -- Hit left surface
+    -- Left surface: circle at (G.cl_x, cy_w), radius G.absRl
+    -- If Rl > 0, surface is left side → ray hits "near"
+    -- If Rl < 0, surface is right side → ray hits "far"
+    local pick_l = (Rl > 0) and "near" or "far"
+    local t, hx, hy, nx, ny = isect(cx, cy_r, cdx, cdy, G.cl_x, cy_w, G.absRl, pick_l)
+    if t and math.abs(hy - cy_w) <= h then
+        table.insert(pts, {hx, hy})
+        local ndx, ndy = refract(cdx, cdy, nx, ny, 1.0, n_glass)
+        if not ndx then
+            table.insert(pts, {xstop, hy})
+            return pts
+        end
+        cdx, cdy = ndx, ndy
+        cx, cy_r = hx, hy
+
+        -- Hit right surface
+        -- If Rr < 0, surface is right side → ray hits "far"
+        -- If Rr > 0, surface is left side → ray hits "near"
+        local pick_r = (Rr < 0) and "far" or "near"
+        t, hx, hy, nx, ny = isect(cx, cy_r, cdx, cdy, G.cr_x, cy_w, G.absRr, pick_r)
+        if t and math.abs(hy - cy_w) <= h then
+            table.insert(pts, {hx, hy})
+            ndx, ndy = refract(cdx, cdy, nx, ny, n_glass, 1.0)
+            if not ndx then
+                table.insert(pts, {xstop, hy})
+                return pts
+            end
+            cdx, cdy = ndx, ndy
+            cx, cy_r = hx, hy
+        end
+    end
+
+    -- Extend to xstop
+    if math.abs(cdx) > 1e-6 then
+        local ts = (xstop - cx) / cdx
+        if ts > 0 then
+            table.insert(pts, {xstop, cy_r + ts*cdy})
+        end
+    end
+    return pts
+end
+
+-- ════════════════════════════════════════════════════════════
+-- DRAW GALLERY
+-- ════════════════════════════════════════════════════════════
+
+for _, L in ipairs(lenses) do
+    local ox = L.col * col_spacing   -- cell origin x
+    local oy = -L.row * row_spacing  -- cell origin y
+    local lx_w = ox + lens_x_in_cell -- lens world x
+    local xstart = ox + cell_xmin
+    local xstop  = ox + cell_xmax
+
+    -- Optical axis
+    tex.sprint(string.format(
+        "\\draw[warmgrey, dashed, very thin] (%.2f,%.2f)--(%.2f,%.2f);",
+        xstart, oy, xstop, oy))
+
+    -- Draw lens
+    draw_lens(lx_w, oy, L.Rl, L.Rr, h, L.label)
+
+    -- Trace parallel rays
+    for i = 0, n_rays - 1 do
+        local frac = (n_rays > 1) and (i / (n_rays - 1)) or 0.5
+        local y0 = oy + ray_y_min + (ray_y_max - ray_y_min) * frac
+        local pts = trace_single(xstart, y0, 1, 0, lx_w, oy, L.Rl, L.Rr, h, xstop)
+        for j = 1, #pts - 1 do
+            tex.sprint(string.format(
+                "\\draw[garnet, line width=%.2fpt, opacity=%.2f] (%.4f,%.4f)--(%.4f,%.4f);",
+                ray_width, ray_opacity,
+                pts[j][1], pts[j][2], pts[j+1][1], pts[j+1][2]))
+        end
+    end
+end
+
+\end{luacode}
+
+\end{tikzpicture}
+\end{document}
