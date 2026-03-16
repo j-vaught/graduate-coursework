@@ -12,6 +12,9 @@
 \begin{document}
 \begin{tikzpicture}
 
+\useasboundingbox (-0.5,-2.2) rectangle (7.5,2.2);
+\clip (-0.5,-2.2) rectangle (7.5,2.2);
+
 \begin{luacode}
 -- ════════════════════════════════════════════════════════════
 -- CONTROLS — edit these to tune the simulation
@@ -21,7 +24,7 @@ local CFG = {
     lens1_x  = 3.0,      -- center x of lens 1
     lens2_x  = 5.5,      -- center x of lens 2
     lens1_R  = 6.0,      -- radius of curvature (larger = weaker, rays diverge more)
-    lens2_R  = 8.0,
+    lens2_R  = 3.5,       -- more curved to focus light
     lens1_h  = 1.8,      -- half-aperture height (bigger than sensor)
     lens2_h  = 1.6,
     n_glass  = 1.52,     -- refractive index
@@ -51,8 +54,8 @@ local CFG = {
     fan_opacity      = 0.35,
 
     -- Scene bounds
-    xmin = -0.5, xmax = 8.8,
-    ymin = -2.0, ymax = 2.0,
+    xmin = -0.5, xmax = 7.5,
+    ymin = -2.2, ymax = 2.2,
 }
 
 -- ════════════════════════════════════════════════════════════
@@ -226,11 +229,14 @@ tex.sprint(string.format(
     "\\draw[congaree, thick] (%.2f,%.2f) rectangle (%.2f,%.2f);",
     C.sensor_x, -C.sensor_h, C.sensor_x+0.12, C.sensor_h))
 
--- Parallel rays from CMOS going LEFT into the world
+-- Fan rays from CMOS center, aimed to fill lens 2's aperture
 for i = 0, C.n_rays - 1 do
     local frac = (C.n_rays > 1) and (i / (C.n_rays - 1)) or 0.5
-    local y0 = C.ray_y_min + (C.ray_y_max - C.ray_y_min) * frac
-    local pts = trace(C.sensor_x, y0, -1, 0)
+    local target_y = -C.lens2_h * 0.95 + 2 * C.lens2_h * 0.95 * frac
+    local ddx = C.lens2_x - C.sensor_x
+    local ddy = target_y - 0  -- rays originate from sensor center (y=0)
+    local l = math.sqrt(ddx*ddx + ddy*ddy)
+    local pts = trace(C.sensor_x, 0, ddx/l, ddy/l)
     draw_rays(pts, C.parallel_color, C.parallel_opacity, C.ray_width)
 end
 
@@ -260,8 +266,6 @@ tex.sprint(string.format(
     C.xmin+0.1, C.ymin+0.05, C.lens1_R, C.lens2_R, C.lens2_x - C.lens1_x))
 
 \end{luacode}
-
-\useasboundingbox (-0.5,-2.0) rectangle (8.8,2.0);
 
 \end{tikzpicture}
 \end{document}
