@@ -175,6 +175,29 @@ local function draw_lens(lx, Rl, Rr, h)
         lp[#lp][1], lp[#lp][2], rp[#rp][1], rp[#rp][2]))
 end
 
+-- Clip ray endpoint to bounding box, return the point where it exits
+local bbox = {xmin = xmin, xmax = xmax, ymin = -1.8, ymax = 2.5}
+local function clip_to_bbox(cx, cy, cdx, cdy)
+    local t_best = 1e9
+    -- Check all 4 walls
+    if math.abs(cdx) > 1e-9 then
+        local t = (bbox.xmax - cx) / cdx
+        if t > 0 and t < t_best then t_best = t end
+        t = (bbox.xmin - cx) / cdx
+        if t > 0 and t < t_best then t_best = t end
+    end
+    if math.abs(cdy) > 1e-9 then
+        local t = (bbox.ymax - cy) / cdy
+        if t > 0 and t < t_best then t_best = t end
+        t = (bbox.ymin - cy) / cdy
+        if t > 0 and t < t_best then t_best = t end
+    end
+    if t_best < 1e9 then
+        return cx + t_best * cdx, cy + t_best * cdy
+    end
+    return cx, cy
+end
+
 local function trace(ox, oy, dx, dy, lx, Rl, Rr, h)
     local G = lens_geo(lx, Rl, Rr, h)
     local pts = {{ox, oy}}
@@ -184,7 +207,10 @@ local function trace(ox, oy, dx, dy, lx, Rl, Rr, h)
     if t and math.abs(hy) <= h then
         table.insert(pts, {hx, hy})
         local ndx, ndy = refract(cdx, cdy, nx, ny, 1.0, n_glass)
-        if not ndx then table.insert(pts, {xmax, hy}); return pts end
+        if not ndx then
+            local ex, ey = clip_to_bbox(hx, hy, cdx, cdy)
+            table.insert(pts, {ex, ey}); return pts
+        end
         cdx, cdy = ndx, ndy
         cx, cy = hx, hy
         local pick_r = (Rr < 0) and "far" or "near"
@@ -192,15 +218,17 @@ local function trace(ox, oy, dx, dy, lx, Rl, Rr, h)
         if t and math.abs(hy) <= h then
             table.insert(pts, {hx, hy})
             ndx, ndy = refract(cdx, cdy, nx, ny, n_glass, 1.0)
-            if not ndx then table.insert(pts, {xmax, hy}); return pts end
+            if not ndx then
+                local ex, ey = clip_to_bbox(hx, hy, cdx, cdy)
+                table.insert(pts, {ex, ey}); return pts
+            end
             cdx, cdy = ndx, ndy
             cx, cy = hx, hy
         end
     end
-    if math.abs(cdx) > 1e-6 then
-        local ts = (xmax - cx) / cdx
-        if ts > 0 then table.insert(pts, {xmax, cy + ts*cdy}) end
-    end
+    -- Extend to bounding box edge
+    local ex, ey = clip_to_bbox(cx, cy, cdx, cdy)
+    table.insert(pts, {ex, ey})
     return pts
 end
 
