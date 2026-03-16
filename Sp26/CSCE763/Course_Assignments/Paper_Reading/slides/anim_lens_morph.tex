@@ -14,21 +14,18 @@
 
 \begin{luacode}
 -- ════════════════════════════════════════════════════════════
--- Animated lens morph: \PARAM sweeps 0..360
--- 6 keyframes at 0, 60, 120, 180, 240, 300
--- Each segment: 20 frames hold + 40 frames morph to next
+-- Animated lens showcase: \PARAM sweeps 0..(n_keys * seg_len - 1)
+-- Each segment: 3 blank frames + 57 frames showing the lens
+-- No morphing — hard cut between lens types
 -- ════════════════════════════════════════════════════════════
 
 local frame = \PARAM
 
 -- Keyframes: {Rl, Rr, label}
--- Flat keyframes inserted between sign changes to avoid R crossing 0
 local keys = {
     { 3,   -3,   "Biconvex (symmetric)"},
     { 2,   -6,   "Biconvex (asymmetric)"},
-    { 20,  -20,  "Flattening..."},          -- bridge: Rl sign change next
     {-3,    3,   "Biconcave (symmetric)"},
-    {-20,   20,  "Flattening..."},           -- bridge: Rl sign change next
     { 3,    3,   "Meniscus (converging)"},
     { 20,  -3,   "Plano-convex"},
     { 20,   3,   "Plano-concave"},
@@ -36,33 +33,18 @@ local keys = {
 
 local n_keys = #keys
 local seg_len = 60       -- frames per segment
-local hold = 20          -- frames to hold before morphing
-local morph = seg_len - hold  -- frames for transition
+local blank = 3          -- blank frames between lens types
 
 -- Figure out which segment and local frame
-local seg = math.floor(frame / seg_len)         -- 0..5
-local local_f = frame - seg * seg_len            -- 0..59
+local seg = math.floor(frame / seg_len)
+local local_f = frame - seg * seg_len
 if seg >= n_keys then seg = n_keys - 1; local_f = seg_len - 1 end
 
-local k1 = keys[seg + 1]
-local k2 = keys[math.min(seg + 2, n_keys)]  -- next keyframe (clamp at end)
-
-local Rl, Rr, label
-if local_f < hold then
-    -- Hold current keyframe
-    Rl = k1[1]
-    Rr = k1[2]
-    label = k1[3]
-else
-    -- Morph to next
-    local t = (local_f - hold) / morph
-    -- Smooth step for nicer easing
-    t = t * t * (3 - 2 * t)
-    Rl = k1[1] + (k2[1] - k1[1]) * t
-    Rr = k1[2] + (k2[2] - k1[2]) * t
-    -- Show target label once past halfway
-    label = (t < 0.5) and k1[3] or k2[3]
-end
+local is_blank = (local_f < blank) and (seg > 0)  -- no blank before first lens
+local k = keys[seg + 1]
+local Rl = k[1]
+local Rr = k[2]
+local label = k[3]
 
 -- Safety clamp: |R| must stay above h + margin
 local min_R = 1.8
@@ -234,6 +216,8 @@ end
 
 -- ══════════ DRAW ══════════
 
+if not is_blank then
+
 -- Optical axis
 tex.sprint(string.format(
     "\\draw[warmgrey, dashed, thin] (%.2f,0)--(%.2f,0);", xmin, xmax))
@@ -261,11 +245,11 @@ tex.sprint(string.format(
     "\\node[font=\\sffamily\\small, text=bk70, anchor=south] at (%.2f,%.2f) {$R_L = %s$ \\qquad $R_R = %s$};",
     lens_x, h + 0.35, rl_disp, rr_disp))
 
--- Escape label for TeX
-local safe_label = label:gsub("%(", "{\\lparen}"):gsub("%)", "{\\rparen}")
 tex.sprint(string.format(
     "\\node[font=\\sffamily\\footnotesize\\bfseries, text=atlantic, anchor=south] at (%.2f,%.2f) {%s};",
     lens_x, h + 0.7, label))
+
+end -- if not is_blank
 
 \end{luacode}
 
