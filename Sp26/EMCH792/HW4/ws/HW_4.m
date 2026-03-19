@@ -210,3 +210,10 @@ title('Velocity Variance: P_{pri}(2,2) and P_{post}(2,2)');
 legend('A Priori', 'A Posteriori', 'Location', 'best');
 grid on;
 set(gca, 'Box', 'on');
+
+%% Save figures
+saveas(figure(1), 'position_plot.png');
+saveas(figure(2), 'velocity_plot.png');
+saveas(figure(3), 'position_error.png');
+saveas(figure(4), 'velocity_error.png');
+saveas(figure(5), 'covariance_plot.png');
