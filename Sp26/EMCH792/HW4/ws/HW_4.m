@@ -56,6 +56,8 @@ P_post_hist = zeros(2, 2, N + 1);
 x_true_hist(:, 1) = x_true;
 x_est_hist(:, 1) = x_est;
 y_hist(1) = H * x_true + sqrt(R) * randn;
+% No a priori covariance exists at t=0 for this recursion.
+P_pri_hist(:, :, 1) = NaN(2);
 P_post_hist(:, :, 1) = P_post;
 
 for k_step = 1:N
@@ -112,12 +114,20 @@ fprintf('Velocity error: mean = %.4f, std = %.4f\n', err_mean_vel, err_std_vel);
 
 % How does the calculated std compare to the steady state theoretical std
 % from the a posteriori error covariance matrix?
-% Compute theoretical steady-state a posteriori covariance from DARE.
-% For scalar measurement, the KF DARE is solved with:
-% A_d = F', B_d = H', Q_d = Q, R_d = R
-[P_pri_ss, ~, ~] = dare(F', H', Q, R);
-K_ss = P_pri_ss * H' / (H * P_pri_ss * H' + R);
-P_post_ss_theory = (eye(2) - K_ss * H) * P_pri_ss * (eye(2) - K_ss * H)' + K_ss * R * K_ss';
+% Compute steady-state covariance by iterating the same KF covariance
+% recursion used in simulation to avoid formulation/toolbox mismatches.
+P_post_iter = P_post_hist(:, :, 1);
+for i_ss = 1:5000
+    P_pri_iter = F * P_post_iter * F' + Q;
+    K_iter = P_pri_iter * H' / (H * P_pri_iter * H' + R);
+    P_post_next = (eye(2) - K_iter * H) * P_pri_iter * (eye(2) - K_iter * H)' + K_iter * R * K_iter';
+    if norm(P_post_next - P_post_iter, "fro") < 1e-12
+        P_post_iter = P_post_next;
+        break;
+    end
+    P_post_iter = P_post_next;
+end
+P_post_ss_theory = P_post_iter;
 theo_std_pos = sqrt(P_post_ss_theory(1, 1));
 theo_std_vel = sqrt(P_post_ss_theory(2, 2));
 
@@ -210,6 +220,7 @@ set(gca, 'Box', 'on');
 %% 6. Plot the a priori and a posteriori error covariance
 
 steps = 0:N;
+steps_pri = 1:N;
 
 P_pri_11  = squeeze(P_pri_hist(1, 1, :));
 P_post_11 = squeeze(P_post_hist(1, 1, :));
@@ -220,7 +231,7 @@ P_post_12 = squeeze(P_post_hist(1, 2, :));
 
 figure(5);
 subplot(3, 1, 1);
-plot(steps, P_pri_11, '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
+plot(steps_pri, P_pri_11(2:end), '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
 plot(steps, P_post_11, '-', 'Color', atlantic, 'LineWidth', 1.2);
 hold off;
 xlabel('Time Step');
@@ -231,7 +242,7 @@ grid on;
 set(gca, 'Box', 'on');
 
 subplot(3, 1, 2);
-plot(steps, P_pri_22, '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
+plot(steps_pri, P_pri_22(2:end), '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
 plot(steps, P_post_22, '-', 'Color', atlantic, 'LineWidth', 1.2);
 hold off;
 xlabel('Time Step');
@@ -242,7 +253,7 @@ grid on;
 set(gca, 'Box', 'on');
 
 subplot(3, 1, 3);
-plot(steps, P_pri_12, '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
+plot(steps_pri, P_pri_12(2:end), '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
 plot(steps, P_post_12, '-', 'Color', atlantic, 'LineWidth', 1.2);
 hold off;
 xlabel('Time Step');
