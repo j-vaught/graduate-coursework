@@ -1,5 +1,6 @@
 %% Clear and close everything
 clear; close all; clc;
+rng(792, "twister");  % reproducible stochastic simulation
 
 %% 0. Start by entering your last name
 lastName = "Vaught";
@@ -36,7 +37,8 @@ fprintf('G = \n'); disp(G);
 % estimated states, the measurements and the a priori and a posteriori
 % error covariance
 
-N = 100;  % number of time steps (10 sec / 0.1 sec)
+Tf = 10;              % total simulation time [s]
+N = round(Tf / Ts);   % number of time steps
 
 % Initial conditions
 x_true = [0; 0];
@@ -49,7 +51,6 @@ x_est_hist  = zeros(2, N);
 y_hist      = zeros(1, N);
 P_pri_hist  = zeros(2, 2, N);
 P_post_hist = zeros(2, 2, N);
-K_hist      = zeros(2, N);
 
 for k_step = 1:N
     % Input signal
@@ -79,7 +80,6 @@ for k_step = 1:N
     y_hist(k_step)         = y;
     P_pri_hist(:, :, k_step)  = P_pri;
     P_post_hist(:, :, k_step) = P_post;
-    K_hist(:, k_step)      = K;
 end
 
 t = (1:N) * Ts;  % time vector
