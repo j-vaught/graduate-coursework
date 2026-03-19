@@ -103,7 +103,7 @@ A radioactive mass has a half-life of $\tau$ seconds. At each time step the numb
 
 \vspace{0.3cm}
 
-This is a scalar system. The half-life of $\tau$ seconds means that the number of emitted particles halves at each time step. Including the process noise $u_k$ (which we denote $w_k$ to follow standard Kalman filter notation) and the measurement noise $v_k$, the linear system equations are
+This is a scalar system. We assume the discrete sampling period equals one half-life interval ($\Delta t = \tau$), so the number of emitted particles halves at each time step. Including the process noise $u_k$ (which we denote $w_k$ to follow standard Kalman filter notation) and the measurement noise $v_k$, the linear system equations are
 \begin{align}
 x_{k+1} &= \tfrac{1}{2}\, x_k + w_k, \quad w_k \sim (0, Q) \label{eq:5.1_state} \\
 y_k &= x_k + v_k, \quad v_k \sim (0, R) \label{eq:5.1_meas}
@@ -163,6 +163,17 @@ Applying the quadratic formula and taking the positive root,
 The steady-state \textit{a posteriori} variance is then
 \begin{align}
 \boxed{P^+ = \frac{P^- R}{P^- + R}} \label{eq:5.1_Pplus_final}
+\end{align}
+Substituting Eq.~\eqref{eq:5.1_Pminus_ss} into Eq.~\eqref{eq:5.1_Pplus_final} gives the explicit closed form
+\begin{align}
+\boxed{
+P^+ =
+\frac{
+R\left(-(3R/4 - Q) + \sqrt{(3R/4 - Q)^2 + 4QR}\right)
+}{
+2R -(3R/4 - Q) + \sqrt{(3R/4 - Q)^2 + 4QR}
+}
+}
 \end{align}
 
 \end{stepbox}
@@ -264,9 +275,10 @@ Kalman gain:
 \begin{align}
 K_1 = P_1^- H^T (H P_1^- H^T + R)^{-1} = I_2 \left(I_2 + \begin{bmatrix} 0 & 0 \\ 0 & 1 \end{bmatrix}\right)^{-1} = \begin{bmatrix} 1 & 0 \\ 0 & 1/2 \end{bmatrix}
 \end{align}
-Measurement update:
+Measurement update (Joseph form, used for numerical robustness with singular $R$):
 \begin{align}
-P_1^+ = (I_2 - K_1)\,P_1^- = \begin{bmatrix} 0 & 0 \\ 0 & 1/2 \end{bmatrix}\begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix} = \begin{bmatrix} 0 & 0 \\ 0 & 1/2 \end{bmatrix}
+P_1^+ &= (I_2 - K_1)P_1^-(I_2 - K_1)^T + K_1 R K_1^T \nonumber \\
+&= \begin{bmatrix} 0 & 0 \\ 0 & 1/2 \end{bmatrix}
 \end{align}
 The guppy variance after one week is $P_1^+(2,2) = \boxed{1/2}$.
 
@@ -283,9 +295,10 @@ The inverse is $\frac{1}{3/2 \cdot 5/2 - 1/4}\begin{bmatrix} 5/2 & -1/2 \\ -1/2 
 \begin{align}
 K_2 = P_2^- (H P_2^- H^T + R)^{-1} = \begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 3/2 \end{bmatrix}\begin{bmatrix} 5/7 & -1/7 \\ -1/7 & 3/7 \end{bmatrix} = \begin{bmatrix} 1 & 0 \\ 1/7 & 4/7 \end{bmatrix}
 \end{align}
-Measurement update:
+Measurement update (Joseph form):
 \begin{align}
-P_2^+ = (I_2 - K_2)\,P_2^- = \begin{bmatrix} 0 & 0 \\ -1/7 & 3/7 \end{bmatrix}\begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 3/2 \end{bmatrix} = \begin{bmatrix} 0 & 0 \\ 0 & 4/7 \end{bmatrix}
+P_2^+ &= (I_2 - K_2)P_2^-(I_2 - K_2)^T + K_2 R K_2^T \nonumber \\
+&= \begin{bmatrix} 0 & 0 \\ 0 & 4/7 \end{bmatrix}
 \end{align}
 The guppy variance after two weeks is $P_2^+(2,2) = \boxed{4/7}$.
 

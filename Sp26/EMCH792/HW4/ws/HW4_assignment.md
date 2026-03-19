@@ -14,32 +14,4 @@ Consider the mass-spring-damper system shown in the picture above. The state of 
 3. Calculate the mean and standard deviation of the error between the true and estimated state. What can you comment about the calculated values? How does the calculated std compare to the steady state theoretical std from the *a posteriori* error covariance matrix?
 4. Plot the true, estimated, and measured position. Plot the true and estimated velocity.
 5. Plot the position error and the expected bounds. Plot the velocity error and the expected bounds.
-6. Plot the *a priori* and *a posteriori* error covariance (it should look like Figure 5.4, page 134 of the textbook).
-
----
-
-## Submission Instructions
-
-Your submission must include the following files:
-
-- "HW_4.m" -> The edited MATLAB script with your solutions
-- PDF document with the scanned solutions
-
-Upload all files on Blackboard in a single submission.
-
-Make sure that the scripts you submit can run. Do not copy the results that appear in the command window in your scripts and make sure that if you add any comments in your scripts that they follow the proper **MATLAB** syntax. **Scripts that do not run will not be graded.**
-
----
-
-## Grading Rubric
-
-| Problem | Points |
-|---------|--------|
-| A.1     | 20     |
-| A.2     | 20     |
-| B.1     | 15     |
-| B.2     | 15     |
-| B.3     | 15     |
-| B.4     | 5      |
-| B.5     | 5      |
-| B.6     | 5      |
+6. Plot the *a priori* and *a posteriori* error covariance (it should look like Figure 5.4).
