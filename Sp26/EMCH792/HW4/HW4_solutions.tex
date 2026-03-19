@@ -103,12 +103,36 @@ A radioactive mass has a half-life of $\tau$ seconds. At each time step the numb
 
 \vspace{0.3cm}
 
+This is a scalar system. The half-life of $\tau$ seconds means that the number of emitted particles halves at each time step. Including the process noise $u_k$ (which we denote $w_k$ to follow standard Kalman filter notation) and the measurement noise $v_k$, the linear system equations are
+\begin{align}
+x_{k+1} &= \tfrac{1}{2}\, x_k + w_k, \quad w_k \sim (0, Q) \label{eq:5.1_state} \\
+y_k &= x_k + v_k, \quad v_k \sim (0, R) \label{eq:5.1_meas}
+\end{align}
+The system matrices are therefore $F = 1/2$, $H = 1$, and there is no deterministic control input ($G = 0$). The process and measurement noises are uncorrelated, i.e., $E[w_k v_j^T] = 0$ for all $k, j$.
+
 \end{stepbox}
 
 \begin{stepbox}
 \textbf{(b) Suppose we want to use a Kalman filter to find the optimal estimate of the number of emitted particles at each time step. Write the one-step \textit{a posteriori} Kalman filter equations for this system.}
 
 \vspace{0.3cm}
+
+Applying the standard discrete-time Kalman filter (Simon, Eq.~5.27) to the scalar system from part~(a), the one-step \textit{a posteriori} filter equations are as follows.
+
+\textit{Time update (prediction):}
+\begin{align}
+\hat{x}_k^- &= \tfrac{1}{2}\,\hat{x}_{k-1}^+ \label{eq:5.1_xpred} \\
+P_k^- &= \tfrac{1}{4}\,P_{k-1}^+ + Q \label{eq:5.1_Ppred}
+\end{align}
+
+\textit{Measurement update (correction):}
+\begin{align}
+K_k &= \frac{P_k^-}{P_k^- + R} \label{eq:5.1_gain} \\
+\hat{x}_k^+ &= \hat{x}_k^- + K_k\bigl(y_k - \hat{x}_k^-\bigr) = (1 - K_k)\,\tfrac{1}{2}\,\hat{x}_{k-1}^+ + K_k\, y_k \label{eq:5.1_xupd} \\
+P_k^+ &= (1 - K_k)\,P_k^- \label{eq:5.1_Pupd}
+\end{align}
+
+Note that since $H = 1$, the innovation is simply $y_k - \hat{x}_k^-$, and the gain simplifies to the ratio of the prior variance to the total variance.
 
 \end{stepbox}
 
@@ -117,6 +141,30 @@ A radioactive mass has a half-life of $\tau$ seconds. At each time step the numb
 
 \vspace{0.3cm}
 
+At steady state, $P_k^- \to P^-$ and $P_k^+ \to P^+$, so the Riccati recursion becomes time-invariant. From Eq.~\eqref{eq:5.1_Pupd} and \eqref{eq:5.1_gain},
+\begin{align}
+P^+ = (1 - K)\,P^- = \frac{P^- R}{P^- + R} \label{eq:5.1_Pplus_ss}
+\end{align}
+Substituting into the prediction equation \eqref{eq:5.1_Ppred},
+\begin{align}
+P^- = \tfrac{1}{4}\,P^+ + Q = \tfrac{1}{4}\cdot\frac{P^- R}{P^- + R} + Q
+\end{align}
+Multiplying both sides by $(P^- + R)$,
+\begin{align}
+P^-(P^- + R) &= \tfrac{1}{4}\,P^- R + Q(P^- + R) \\
+(P^-)^2 + P^- R &= \tfrac{1}{4}\,P^- R + Q\,P^- + QR \\
+(P^-)^2 + \tfrac{3}{4}\,R\,P^- - Q\,P^- - QR &= 0 \\
+(P^-)^2 + \left(\tfrac{3R}{4} - Q\right)P^- - QR &= 0 \label{eq:5.1_quadratic}
+\end{align}
+Applying the quadratic formula and taking the positive root,
+\begin{align}
+\boxed{P^- = \frac{-(3R/4 - Q) + \sqrt{(3R/4 - Q)^2 + 4QR}}{2}} \label{eq:5.1_Pminus_ss}
+\end{align}
+The steady-state \textit{a posteriori} variance is then
+\begin{align}
+\boxed{P^+ = \frac{P^- R}{P^- + R}} \label{eq:5.1_Pplus_final}
+\end{align}
+
 \end{stepbox}
 
 \begin{stepbox}
@@ -124,11 +172,45 @@ A radioactive mass has a half-life of $\tau$ seconds. At each time step the numb
 
 \vspace{0.3cm}
 
+\textit{Case 1: $Q = R$.} Substituting into Eq.~\eqref{eq:5.1_quadratic},
+\begin{align}
+(P^-)^2 + \left(\tfrac{3R}{4} - R\right)P^- - R^2 &= 0 \quad\Longrightarrow\quad (P^-)^2 - \tfrac{R}{4}\,P^- - R^2 = 0
+\end{align}
+Using the quadratic formula,
+\begin{align}
+P^- = \frac{R/4 + \sqrt{R^2/16 + 4R^2}}{2} = \frac{R/4 + \sqrt{65\,R^2/16}}{2} = \frac{(1 + \sqrt{65})\,R}{8} \approx 1.133\,R
+\end{align}
+The steady-state Kalman gain is
+\begin{align}
+K = \frac{P^-}{P^- + R} = \frac{1+\sqrt{65}}{9+\sqrt{65}} \approx \boxed{0.531}
+\end{align}
+
+\textit{Case 2: $Q = 2R$.} Substituting into Eq.~\eqref{eq:5.1_quadratic},
+\begin{align}
+(P^-)^2 + \left(\tfrac{3R}{4} - 2R\right)P^- - 2R^2 &= 0 \quad\Longrightarrow\quad (P^-)^2 - \tfrac{5R}{4}\,P^- - 2R^2 = 0
+\end{align}
+Using the quadratic formula,
+\begin{align}
+P^- = \frac{5R/4 + \sqrt{25R^2/16 + 8R^2}}{2} = \frac{5R/4 + \sqrt{153\,R^2/16}}{2} = \frac{(5 + \sqrt{153})\,R}{8} \approx 2.171\,R
+\end{align}
+The steady-state Kalman gain is
+\begin{align}
+K = \frac{P^-}{P^- + R} = \frac{5+\sqrt{153}}{13+\sqrt{153}} \approx \boxed{0.685}
+\end{align}
+
+\textit{Intuition.} When $Q/R$ increases, the process model becomes less trustworthy relative to the measurements (the system dynamics are noisier while measurement quality stays the same). The Kalman filter compensates by increasing its gain $K$, placing more weight on the measurements and less weight on the model prediction. This is consistent with the general principle: a higher Kalman gain means more trust in the measurements, which is appropriate when process noise dominates measurement noise.
+
 \end{stepbox}
 
 \begin{resultsbox}
 
-\vspace{0.3cm}
+\textbf{Exercise 5.1 Summary.} For the radioactive mass system with $F = 1/2$, $H = 1$:
+\begin{itemize}[nosep]
+\item \textit{A posteriori} Kalman filter: $\hat{x}_k^+ = (1-K_k)\frac{1}{2}\hat{x}_{k-1}^+ + K_k y_k$, \; $K_k = P_k^-/(P_k^- + R)$
+\item Steady-state prior variance: $(P^-)^2 + (3R/4 - Q)P^- - QR = 0$ (positive root)
+\item Steady-state gain ($Q = R$): $K \approx 0.531$
+\item Steady-state gain ($Q = 2R$): $K \approx 0.685$
+\end{itemize}
 
 \end{resultsbox}
 
@@ -140,12 +222,72 @@ Suppose that you have a fish tank with $x_p$ piranhas and $x_g$ guppies [Bay99].
 
 \vspace{0.3cm}
 
+Define the state vector $\mathbf{x}_k = \begin{bmatrix} x_p(k) \\ x_g(k) \end{bmatrix}$. Using the given difference equations with $k_1 = 1$ and $k_2 = k_3 = 1/2$,
+\begin{align}
+x_p(k+1) &= x_p(k) + k_1 x_g(k) - k_2 x_p(k) + u_p(k) = \tfrac{1}{2} x_p(k) + x_g(k) + u_p(k) \\
+x_g(k+1) &= x_g(k) + u(k) - k_3 x_p(k) + u_g(k) = -\tfrac{1}{2} x_p(k) + x_g(k) + u(k) + u_g(k)
+\end{align}
+In matrix form, the state equation is
+\begin{align}
+\mathbf{x}_{k+1} = F\,\mathbf{x}_k + G\,u_k + \mathbf{w}_k
+\end{align}
+where
+\begin{align}
+F = \begin{bmatrix} 1/2 & 1 \\ -1/2 & 1 \end{bmatrix}, \quad
+G = \begin{bmatrix} 0 \\ 1 \end{bmatrix}, \quad
+Q = E[\mathbf{w}_k \mathbf{w}_k^T] = \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix} = I_2
+\end{align}
+The piranhas are counted perfectly, and the guppy count has zero-mean noise with variance 1. The measurement equation is
+\begin{align}
+\mathbf{y}_k = H\,\mathbf{x}_k + \mathbf{v}_k
+\end{align}
+where
+\begin{align}
+H = \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix} = I_2, \quad
+R = \begin{bmatrix} 0 & 0 \\ 0 & 1 \end{bmatrix}
+\end{align}
+
 \end{stepbox}
 
 \begin{stepbox}
 \textbf{(b) Suppose that at the initial time you have a perfect count for $x_p$ and $x_g$. Using a Kalman filter to estimate the guppy population, what is the variance of your guppy population estimate after one week? What is the variance after two weeks?}
 
 \vspace{0.3cm}
+
+A perfect initial count means $P_0^+ = \begin{bmatrix} 0 & 0 \\ 0 & 0 \end{bmatrix}$.
+
+\textit{Week 1.} Time update:
+\begin{align}
+P_1^- = F\,P_0^+\,F^T + Q = \begin{bmatrix} 1/2 & 1 \\ -1/2 & 1 \end{bmatrix}\begin{bmatrix} 0 & 0 \\ 0 & 0 \end{bmatrix}\begin{bmatrix} 1/2 & -1/2 \\ 1 & 1 \end{bmatrix} + I_2 = \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}
+\end{align}
+Kalman gain:
+\begin{align}
+K_1 = P_1^- H^T (H P_1^- H^T + R)^{-1} = I_2 \left(I_2 + \begin{bmatrix} 0 & 0 \\ 0 & 1 \end{bmatrix}\right)^{-1} = \begin{bmatrix} 1 & 0 \\ 0 & 1/2 \end{bmatrix}
+\end{align}
+Measurement update:
+\begin{align}
+P_1^+ = (I_2 - K_1)\,P_1^- = \begin{bmatrix} 0 & 0 \\ 0 & 1/2 \end{bmatrix}\begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix} = \begin{bmatrix} 0 & 0 \\ 0 & 1/2 \end{bmatrix}
+\end{align}
+The guppy variance after one week is $P_1^+(2,2) = \boxed{1/2}$.
+
+\textit{Week 2.} Time update:
+\begin{align}
+P_2^- &= F\,P_1^+\,F^T + Q = \begin{bmatrix} 1/2 & 1 \\ -1/2 & 1 \end{bmatrix}\begin{bmatrix} 0 & 0 \\ 0 & 1/2 \end{bmatrix}\begin{bmatrix} 1/2 & -1/2 \\ 1 & 1 \end{bmatrix} + I_2 \nonumber \\
+&= \begin{bmatrix} 0 & 1/2 \\ 0 & 1/2 \end{bmatrix}\begin{bmatrix} 1/2 & -1/2 \\ 1 & 1 \end{bmatrix} + I_2 = \begin{bmatrix} 1/2 & 1/2 \\ 1/2 & 1/2 \end{bmatrix} + I_2 = \begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 3/2 \end{bmatrix}
+\end{align}
+Kalman gain:
+\begin{align}
+H P_2^- H^T + R &= \begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 3/2 \end{bmatrix} + \begin{bmatrix} 0 & 0 \\ 0 & 1 \end{bmatrix} = \begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 5/2 \end{bmatrix}
+\end{align}
+The inverse is $\frac{1}{3/2 \cdot 5/2 - 1/4}\begin{bmatrix} 5/2 & -1/2 \\ -1/2 & 3/2 \end{bmatrix} = \frac{1}{7/2}\begin{bmatrix} 5/2 & -1/2 \\ -1/2 & 3/2 \end{bmatrix} = \begin{bmatrix} 5/7 & -1/7 \\ -1/7 & 3/7 \end{bmatrix}$.
+\begin{align}
+K_2 = P_2^- (H P_2^- H^T + R)^{-1} = \begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 3/2 \end{bmatrix}\begin{bmatrix} 5/7 & -1/7 \\ -1/7 & 3/7 \end{bmatrix} = \begin{bmatrix} 1 & 0 \\ 1/7 & 4/7 \end{bmatrix}
+\end{align}
+Measurement update:
+\begin{align}
+P_2^+ = (I_2 - K_2)\,P_2^- = \begin{bmatrix} 0 & 0 \\ -1/7 & 3/7 \end{bmatrix}\begin{bmatrix} 3/2 & 1/2 \\ 1/2 & 3/2 \end{bmatrix} = \begin{bmatrix} 0 & 0 \\ 0 & 4/7 \end{bmatrix}
+\end{align}
+The guppy variance after two weeks is $P_2^+(2,2) = \boxed{4/7}$.
 
 \end{stepbox}
 
@@ -154,11 +296,39 @@ Suppose that you have a fish tank with $x_p$ piranhas and $x_g$ guppies [Bay99].
 
 \vspace{0.3cm}
 
+At steady state, $\mathbf{x}_{k+1} = \mathbf{x}_k = \mathbf{x}_{ss}$ and the process noise is zero. From the state equation,
+\begin{align}
+\mathbf{x}_{ss} = F\,\mathbf{x}_{ss} + G\,u_{ss} \quad\Longrightarrow\quad (I - F)\,\mathbf{x}_{ss} = G\,u_{ss}
+\end{align}
+Computing $I - F$,
+\begin{align}
+(I - F) = \begin{bmatrix} 1/2 & -1 \\ 1/2 & 0 \end{bmatrix}
+\end{align}
+The system becomes
+\begin{align}
+\begin{bmatrix} 1/2 & -1 \\ 1/2 & 0 \end{bmatrix}\begin{bmatrix} x_{p,ss} \\ x_{g,ss} \end{bmatrix} = \begin{bmatrix} 0 \\ 1 \end{bmatrix} u_{ss}
+\end{align}
+From the second row: $\frac{1}{2} x_{p,ss} = u_{ss}$, so $x_{p,ss} = 2\,u_{ss}$.
+
+From the first row: $\frac{1}{2} x_{p,ss} - x_{g,ss} = 0$, so $x_{g,ss} = \frac{1}{2} x_{p,ss} = u_{ss}$.
+
+Therefore, the steady-state ratio of piranhas to guppies is
+\begin{align}
+\boxed{\frac{x_{p,ss}}{x_{g,ss}} = \frac{2\,u_{ss}}{u_{ss}} = 2}
+\end{align}
+At steady state, there are twice as many piranhas as guppies.
+
 \end{stepbox}
 
 \begin{resultsbox}
 
-\vspace{0.3cm}
+\textbf{Exercise 5.4 Summary.} For the fish tank system with state $\mathbf{x} = [x_p;\; x_g]^T$:
+\begin{itemize}[nosep]
+\item State-space model: $F = \begin{bmatrix} 1/2 & 1 \\ -1/2 & 1 \end{bmatrix}$, $G = \begin{bmatrix} 0 \\ 1 \end{bmatrix}$, $H = I_2$, $Q = I_2$, $R = \text{diag}(0, 1)$
+\item Guppy variance after 1 week: $P_1^+(2,2) = 1/2$
+\item Guppy variance after 2 weeks: $P_2^+(2,2) = 4/7$
+\item Steady-state population ratio: $x_p / x_g = 2$
+\end{itemize}
 
 \end{resultsbox}
 
