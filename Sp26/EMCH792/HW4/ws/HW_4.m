@@ -112,6 +112,19 @@ fprintf('\nComparison of calculated std vs theoretical steady-state std:\n');
 fprintf('Position: calculated std = %.4f, theoretical std = %.4f\n', err_std_pos, theo_std_pos);
 fprintf('Velocity: calculated std = %.4f, theoretical std = %.4f\n', err_std_vel, theo_std_vel);
 
+% Steady-state comparison should use only the converged portion.
+ss_start_idx = floor(0.5 * N) + 1;
+err_ss = err(:, ss_start_idx:end);
+P_post_ss_mean = mean(P_post_hist(:, :, ss_start_idx:end), 3);
+err_ss_std_pos = std(err_ss(1, :));
+err_ss_std_vel = std(err_ss(2, :));
+theo_ss_std_pos = sqrt(P_post_ss_mean(1, 1));
+theo_ss_std_vel = sqrt(P_post_ss_mean(2, 2));
+
+fprintf('\nSteady-state-only comparison (last 50%% of samples):\n');
+fprintf('Position: empirical ss std = %.4f, covariance-based ss std = %.4f\n', err_ss_std_pos, theo_ss_std_pos);
+fprintf('Velocity: empirical ss std = %.4f, covariance-based ss std = %.4f\n', err_ss_std_vel, theo_ss_std_vel);
+
 % The calculated standard deviation should be close to the theoretical
 % steady-state standard deviation from the final a posteriori error
 % covariance matrix, confirming the filter has converged to its
@@ -187,9 +200,11 @@ P_pri_11  = squeeze(P_pri_hist(1, 1, :));
 P_post_11 = squeeze(P_post_hist(1, 1, :));
 P_pri_22  = squeeze(P_pri_hist(2, 2, :));
 P_post_22 = squeeze(P_post_hist(2, 2, :));
+P_pri_12  = squeeze(P_pri_hist(1, 2, :));
+P_post_12 = squeeze(P_post_hist(1, 2, :));
 
 figure(5);
-subplot(2, 1, 1);
+subplot(3, 1, 1);
 plot(steps, P_pri_11, '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
 plot(steps, P_post_11, '-', 'Color', atlantic, 'LineWidth', 1.2);
 hold off;
@@ -200,13 +215,24 @@ legend('A Priori', 'A Posteriori', 'Location', 'best');
 grid on;
 set(gca, 'Box', 'on');
 
-subplot(2, 1, 2);
+subplot(3, 1, 2);
 plot(steps, P_pri_22, '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
 plot(steps, P_post_22, '-', 'Color', atlantic, 'LineWidth', 1.2);
 hold off;
 xlabel('Time Step');
 ylabel('Variance [(m/s)^2]');
 title('Velocity Variance: P_{pri}(2,2) and P_{post}(2,2)');
+legend('A Priori', 'A Posteriori', 'Location', 'best');
+grid on;
+set(gca, 'Box', 'on');
+
+subplot(3, 1, 3);
+plot(steps, P_pri_12, '-', 'Color', garnet, 'LineWidth', 1.2); hold on;
+plot(steps, P_post_12, '-', 'Color', atlantic, 'LineWidth', 1.2);
+hold off;
+xlabel('Time Step');
+ylabel('Covariance [m^2/s]');
+title('Cross Covariance: P_{pri}(1,2) and P_{post}(1,2)');
 legend('A Priori', 'A Posteriori', 'Location', 'best');
 grid on;
 set(gca, 'Box', 'on');
