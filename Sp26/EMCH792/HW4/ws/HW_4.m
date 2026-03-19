@@ -21,7 +21,7 @@ B = [0; 1/m];
 % Discretize using matrix exponential (Eq. 1.104)
 Ts = 0.1;                           % sampling period [s]
 F = expm(A * Ts);                   % discrete state transition matrix
-G = (F - eye(2)) * inv(A) * B;     % discrete input matrix
+G = (F - eye(2)) * (A \ B);         % discrete input matrix
 
 % Observation matrix (measure position only)
 H = [1, 0];
@@ -38,19 +38,25 @@ fprintf('G = \n'); disp(G);
 % error covariance
 
 Tf = 10;              % total simulation time [s]
-N = round(Tf / Ts);   % number of time steps
+N = round(Tf / Ts);   % number of propagation steps
 
 % Initial conditions
 x_true = [0; 0];
 x_est  = [0; 0];
 P_post = [1, 0; 0, 2];
 
-% Pre-allocate storage
-x_true_hist = zeros(2, N);
-x_est_hist  = zeros(2, N);
-y_hist      = zeros(1, N);
-P_pri_hist  = zeros(2, 2, N);
-P_post_hist = zeros(2, 2, N);
+% Pre-allocate storage (include t=0 sample)
+x_true_hist = zeros(2, N + 1);
+x_est_hist  = zeros(2, N + 1);
+y_hist      = zeros(1, N + 1);
+P_pri_hist  = zeros(2, 2, N + 1);
+P_post_hist = zeros(2, 2, N + 1);
+
+% Store initial conditions at t=0
+x_true_hist(:, 1) = x_true;
+x_est_hist(:, 1) = x_est;
+y_hist(1) = H * x_true + sqrt(R) * randn;
+P_post_hist(:, :, 1) = P_post;
 
 for k_step = 1:N
     % Input signal
@@ -72,17 +78,19 @@ for k_step = 1:N
     % Measurement update (correction)
     K      = P_pri * H' / (H * P_pri * H' + R);
     x_est  = x_pred + K * (y - H * x_pred);
-    P_post = (eye(2) - K * H) * P_pri;
+    I2 = eye(2);
+    P_post = (I2 - K * H) * P_pri * (I2 - K * H)' + K * R * K';
 
     % Store
-    x_true_hist(:, k_step) = x_true;
-    x_est_hist(:, k_step)  = x_est;
-    y_hist(k_step)         = y;
-    P_pri_hist(:, :, k_step)  = P_pri;
-    P_post_hist(:, :, k_step) = P_post;
+    idx = k_step + 1;
+    x_true_hist(:, idx) = x_true;
+    x_est_hist(:, idx)  = x_est;
+    y_hist(idx)         = y;
+    P_pri_hist(:, :, idx)  = P_pri;
+    P_post_hist(:, :, idx) = P_post;
 end
 
-t = (1:N) * Ts;  % time vector
+t = (0:N) * Ts;  % time vector
 
 %% 3. Calculate the mean and std of the error between the true and
 % estimated state.
@@ -104,26 +112,33 @@ fprintf('Velocity error: mean = %.4f, std = %.4f\n', err_mean_vel, err_std_vel);
 
 % How does the calculated std compare to the steady state theoretical std
 % from the a posteriori error covariance matrix?
-P_post_final = P_post_hist(:, :, N);
-theo_std_pos = sqrt(P_post_final(1, 1));
-theo_std_vel = sqrt(P_post_final(2, 2));
+% Compute theoretical steady-state a posteriori covariance from DARE.
+% For scalar measurement, the KF DARE is solved with:
+% A_d = F', B_d = H', Q_d = Q, R_d = R
+[P_pri_ss, ~, ~] = dare(F', H', Q, R);
+K_ss = P_pri_ss * H' / (H * P_pri_ss * H' + R);
+P_post_ss_theory = (eye(2) - K_ss * H) * P_pri_ss * (eye(2) - K_ss * H)' + K_ss * R * K_ss';
+theo_std_pos = sqrt(P_post_ss_theory(1, 1));
+theo_std_vel = sqrt(P_post_ss_theory(2, 2));
 
 fprintf('\nComparison of calculated std vs theoretical steady-state std:\n');
 fprintf('Position: calculated std = %.4f, theoretical std = %.4f\n', err_std_pos, theo_std_pos);
 fprintf('Velocity: calculated std = %.4f, theoretical std = %.4f\n', err_std_vel, theo_std_vel);
 
 % Steady-state comparison should use only the converged portion.
-ss_start_idx = floor(0.5 * N) + 1;
+ss_start_idx = floor(0.5 * (N + 1)) + 1;
 err_ss = err(:, ss_start_idx:end);
 P_post_ss_mean = mean(P_post_hist(:, :, ss_start_idx:end), 3);
 err_ss_std_pos = std(err_ss(1, :));
 err_ss_std_vel = std(err_ss(2, :));
-theo_ss_std_pos = sqrt(P_post_ss_mean(1, 1));
-theo_ss_std_vel = sqrt(P_post_ss_mean(2, 2));
+theo_ss_std_pos = sqrt(P_post_ss_theory(1, 1));
+theo_ss_std_vel = sqrt(P_post_ss_theory(2, 2));
 
 fprintf('\nSteady-state-only comparison (last 50%% of samples):\n');
-fprintf('Position: empirical ss std = %.4f, covariance-based ss std = %.4f\n', err_ss_std_pos, theo_ss_std_pos);
-fprintf('Velocity: empirical ss std = %.4f, covariance-based ss std = %.4f\n', err_ss_std_vel, theo_ss_std_vel);
+fprintf('Position: empirical ss std = %.4f, theoretical ss std = %.4f\n', err_ss_std_pos, theo_ss_std_pos);
+fprintf('Velocity: empirical ss std = %.4f, theoretical ss std = %.4f\n', err_ss_std_vel, theo_ss_std_vel);
+fprintf('Steady-state sample-mean posterior covariance diag = [%.4f, %.4f]\n', ...
+    P_post_ss_mean(1, 1), P_post_ss_mean(2, 2));
 
 % The calculated standard deviation should be close to the theoretical
 % steady-state standard deviation from the final a posteriori error
@@ -194,7 +209,7 @@ set(gca, 'Box', 'on');
 
 %% 6. Plot the a priori and a posteriori error covariance
 
-steps = 1:N;
+steps = 0:N;
 
 P_pri_11  = squeeze(P_pri_hist(1, 1, :));
 P_post_11 = squeeze(P_post_hist(1, 1, :));
