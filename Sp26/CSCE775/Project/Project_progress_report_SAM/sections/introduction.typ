@@ -10,16 +10,26 @@ While this is useful, it also creates a problem where when the user clicks on th
 
 In the context of our work, we are only focusing on creating a solution to two of these issues: a) the sensitivity of SAM to the prompt points and their state, and b) the hypothesis commitment problem. While we do not address the image quality issue and the plethora of proposed solutions in that area, we do utilize a variety of different datasets in different domains to ensure that any solution we do develop remains agnostic to the image quality and domain.
 
-In 
+== One-shot segmentation with SAM
 
-Given a prompt---a point, a box, or a mask---SAM produces remarkably accurate segmentation hypotheses across an extraordinary range of domains. The quality of SAM's output is, however, inextricably bound to the quality of its input: a well-placed click elicits a crisp mask, while a careless click yields a fragmented prediction.
+The set of aforementioned issues with SAM are somewhat manageable when a person is in the loop, as the user can provide feedback and a certain level of reasoning about the segmentation problem at hand. However, when we move to predominantly automated scenarios (i.e., automated dataset labeling as we see Meta and many AI companies foolishly attempting), the problem of accuracy becomes much more noticeable. A correction rate of 10% for a human annotator would not raise any flags since the 10% error signifies a 90% decrease of effort as opposed to manually labeling the images. This same 10% error rate becomes a massive problem once datasets scale to millions or tens and hundreds of millions of images, a scale simply unmanageable by human annotators.
 
-This burden becomes acute in the _one-shot segmentation_ setting. A single labeled reference image defines the target class, and the system must autonomously segment that class in a novel query image without human intervention. The problem requires semantic understanding (inferring a class concept from one exemplar), spatial reasoning (identifying where the concept is instantiated), and interactive control (selecting and refining prompts until the segmentation is satisfactory).
+=== Problem formulation
+
+We find it important to first begin by formulating the problem of one-shot segmentation in a clear and understandable way (with all the pesky, error-prone mathematics brushed aside for now). The problem is explained as simply as I can manage as such: given a reference image, along with a reference mask/segmentation, can we develop a model or algorithm that can then segment that same object or class from the reference image in an arbitrary query image, and furthermore, can the model determine when the object class is not present in the image? No other work we were able to find explored the efficacy of these models when including images without the object class. A visual example of the problem is shown in @fig:problem.
 
 #figure(
   image("../figures/fig_problem.pdf", width: 100%),
   caption: [The one-shot segmentation problem. Given a reference image with a known mask (support set) and a new query image of the same class, the system must produce an accurate segmentation mask by placing point prompts for SAM.],
 ) <fig:problem>
+
+\*\*\*old text here \*\*\*
+
+Given a prompt---a point, a box, or a mask---SAM produces remarkably accurate segmentation hypotheses across an extraordinary range of domains. The quality of SAM's output is, however, inextricably bound to the quality of its input: a well-placed click elicits a crisp mask, while a careless click yields a fragmented prediction.
+
+This burden becomes acute in the _one-shot segmentation_ setting. A single labeled reference image defines the target class, and the system must autonomously segment that class in a novel query image without human intervention. The problem requires semantic understanding (inferring a class concept from one exemplar), spatial reasoning (identifying where the concept is instantiated), and interactive control (selecting and refining prompts until the segmentation is satisfactory).
+
+
 
 Automating prompt selection for SAM decomposes into five interacting sub-problems: understanding the target from one example, deciding where to click, interpreting SAM's mask feedback, knowing when to stop, and handling SAM's hypothesis commitment---where accumulated points targeting different object parts cause the decoder to lock into one interpretation. We conducted a systematic month-long investigation into automated prompt optimization, pursuing four progressively sophisticated approaches.
 
