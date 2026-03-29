@@ -1,6 +1,18 @@
 = Introduction <sec:introduction>
 
-The Segment Anything Model (SAM) @kirillov2023sam, released by Meta(fromerly Facebook) in 2023, was one of the first models to allow for intereactive, semi-automated segmentation, although marketeed as a one-shot segmetnation model, it became common/standard for many teams working on segmentation to altered the landscape of interactive segmentation. Given a prompt---a point, a box, or a mask---SAM produces remarkably accurate segmentation hypotheses across an extraordinary range of domains. The quality of SAM's output is, however, inextricably bound to the quality of its input: a well-placed click elicits a crisp mask, while a careless click yields a fragmented prediction.
+The Segment Anything Model (SAM) @kirillov2023sam, released by Meta (formerly Facebook) in 2023, was one of the first models to allow for interactive, semi-automated segmentation. Although marketed as a one-shot segmentation model, it became common for many teams working on segmentation to use it to significantly speed up segmentation.
+
+SAM takes in a point, a box, or a mask as an input and creates a segmentation mask as output. While this is good in theory, the reality is that the quality of the output is highly variable and sensitive to a variety of issues, like image input quality, point input quality, and of course, the nature of the image itself --- certainly an object of a person (of which there are millions of training examples) is trivial to segment as compared to something rarer with specific, small, and often occluded features like an electrical diagram for example.
+
+Additionally, once a point is placed in SAM, it will create a hypothesis as to what it thinks you are trying to segment and create multiple tiers of segmentations. This is naturally useful and indeed preferred in many cases since the model must try to guess what the user is trying to segment from the initial click --- i.e., clicking on a logo on a person's shirt yields many possibilities for the model. Is the user trying to segment the person, the shirt, the logo, or something else?
+
+While this is useful, it also creates a problem where when the user clicks on the shirt, the model may incorrectly create a hypothesis that the user is trying to segment the person. Then all later clicks will be interpreted in the context of that hypothesis. This will, can, and has led to a situation where the model becomes committed to a particular interpretation and fails to adjust its segmentation based on new input.
+
+In the context of our work, we are only focusing on creating a solution to two of these issues: a) the sensitivity of SAM to the prompt points and their state, and b) the hypothesis commitment problem. While we do not address the image quality issue and the plethora of proposed solutions in that area, we do utilize a variety of different datasets in different domains to ensure that any solution we do develop remains agnostic to the image quality and domain.
+
+In 
+
+Given a prompt---a point, a box, or a mask---SAM produces remarkably accurate segmentation hypotheses across an extraordinary range of domains. The quality of SAM's output is, however, inextricably bound to the quality of its input: a well-placed click elicits a crisp mask, while a careless click yields a fragmented prediction.
 
 This burden becomes acute in the _one-shot segmentation_ setting. A single labeled reference image defines the target class, and the system must autonomously segment that class in a novel query image without human intervention. The problem requires semantic understanding (inferring a class concept from one exemplar), spatial reasoning (identifying where the concept is instantiated), and interactive control (selecting and refining prompts until the segmentation is satisfactory).
 
