@@ -23,15 +23,29 @@ We find it important to first begin by formulating the problem of one-shot segme
   caption: [The one-shot segmentation problem. Given a reference image with a known mask (support set) and a new query image of the same class, the system must produce an accurate segmentation mask by placing point prompts for SAM.],
 ) <fig:problem>
 
+Although there are a multitude of attempts to decompose the problem of point-prompt based segmentation, we attempt to do so in a sense that is more applicable to reinforcement learning by breaking the problem down into a sequential decision process with a two-tiered action space, with one tier being spatial (i.e., where to click) and the other being semantic, i.e., deciding what the next step is or determining when the mask quality is adequate.
+
+The first action space (or tier one, spatial) was somewhat already decided for us, since we were building on the work of @ppo2025cvpr who had built a graph-based solution to the problem, although there are many issues with their solution. Regardless, the decision to use DINO as the backbone for spatial prompt selection was decided on since many papers had shown promise. Therefore, the spatial action space was set to be a 37x37 grid of click/point locations as determined by the DINO architecture.
+
+The second action space (or tier two, semantic) ended up changing quite a lot as we explored our approach, however I will do my best to summarize the choices here as well as justify them for the dear reader.
+
+1. The most important action the model can take is to place a positive point, which is a point that is placed on the object of interest. This is, of course, a required action by SAM, and thus was not really examined under a close lens.
+2. The second most important action the model can take is to place a negative point, which is a point that is placed on the background or on an object that is not the object of interest. This is also a required action by SAM, and was not really examined under a close lens.
+3. While somewhat debated, I argued for, and we eventually agreed to add a STOP action to the model, allowing the model itself to decide when it was good enough. The reason for this action was the idea that a cutoff built into the harness itself would result in failure in novel spaces or spaces without ground truth data. It also allowed for us to explore the idea of rewarding the model on efficiency and learning to place less optimal clicks but fewer of them, allowing the process to be sped up.
+4. Later, we decided to expand the action space to include a few more actions (see the V2 section for more details) that would allow the model to directly address the hypothesis commitment problem. This was done by allowing the model to place a decomposition action that would allow it to break down the mask into sub-masks and then place points on those sub-masks. The idea was that this would allow the model to escape from a bad hypothesis by breaking down the mask into smaller parts and then placing points on those parts to refine the segmentation. While this idea worked excellently for human annotators, we never saw results with the standard Transformer model we developed.
+5. Finally, in the most recent version we added in a series of new actions including a review action, a reset action, and an undo action to undo the last step. In the most recent version we also added a third tier which was used by the model when deciding to place points, since we discovered (and literature has shown) that the VLMs are somewhat poor at deriving coordinates onto images or placing objects onto images, with Google being the best in the field at this so far. The third tier corrected this by allowing the model to adjust points before placing them, flipping them from positive to negative, vice versa, nudging them, or even moving them to a different location.
+
 \*\*\*old text here \*\*\*
 
-Given a prompt---a point, a box, or a mask---SAM produces remarkably accurate segmentation hypotheses across an extraordinary range of domains. The quality of SAM's output is, however, inextricably bound to the quality of its input: a well-placed click elicits a crisp mask, while a careless click yields a fragmented prediction.
 
-This burden becomes acute in the _one-shot segmentation_ setting. A single labeled reference image defines the target class, and the system must autonomously segment that class in a novel query image without human intervention. The problem requires semantic understanding (inferring a class concept from one exemplar), spatial reasoning (identifying where the concept is instantiated), and interactive control (selecting and refining prompts until the segmentation is satisfactory).
+Automating prompt selection for SAM decomposes into five interacting sub-problems: 
+1. understanding the target from one example, 
+2. deciding where to click, 
+3. interpreting SAM's mask feedback, 
+4. knowing when to stop, and 
+5. handling SAM's hypothesis commitment---where accumulated points targeting different object parts cause the decoder to lock into one interpretation. 
 
-
-
-Automating prompt selection for SAM decomposes into five interacting sub-problems: understanding the target from one example, deciding where to click, interpreting SAM's mask feedback, knowing when to stop, and handling SAM's hypothesis commitment---where accumulated points targeting different object parts cause the decoder to lock into one interpretation. We conducted a systematic month-long investigation into automated prompt optimization, pursuing four progressively sophisticated approaches.
+We conducted a systematic month-long investigation into automated prompt optimization, pursuing four approaches.
 
 Our *first approach* treated prompt selection as a graph-based reinforcement learning problem. A Deep Q-Network was trained to select optimal prompt sequences from a graph of candidate locations. This formulation encountered fundamental design flaws---a lossy 8-dimensional state vector, misaligned proxy rewards, and an inappropriate training paradigm---and was abandoned after thorough failure analysis.
 
