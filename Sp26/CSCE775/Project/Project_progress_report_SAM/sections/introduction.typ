@@ -54,6 +54,16 @@ Although our work is severely behind schedule, we have completed a series of res
 
 == Contributions and Paper Structure
 
-This work makes four primary contributions. First, it provides a comprehensive empirical analysis of four RL paradigms for SAM prompt optimization, including graph-based Q-learning, behavioral cloning with PPO, sub-mask decomposition with GRPO/PPO, and VLM-based zero-shot control. Second, it introduces a novel sub-mask decomposition action space that directly addresses SAM's hypothesis commitment problem, together with a detailed failure analysis of why policy gradient methods fail to discover it. Third, it presents the first application of a VLM as an interactive segmentation policy for SAM, using a three-phase decision loop with post-click review. Fourth, it provides a detailed failure analysis identifying three systematic failure modes: reward collapse under PPO, decomposition suppression under short-horizon credit assignment, and distribution shift cascade from behavioral cloning to on-policy learning.
+Finally, we use this section to give ourselves credit for our ingenuity.
+
+This work makes four primary contributions to the field as of now, and we hope to make more contributions as we continue to work on this project.
+
+First, our work provides a comprehensive empirical analysis of four RL paradigms for SAM prompt optimization, including graph-based Q-learning, behavioral cloning with PPO, sub-mask decomposition with GRPO/PPO, and VLM-based zero-shot control.
+
+Second, it introduces a novel sub-mask decomposition action space that directly addresses SAM's hypothesis commitment problem, together with a failure analysis of why policy gradient methods fail to discover it.
+
+Third, it presents the first application of a VLM as an interactive segmentation policy for SAM, using a three-phase decision loop with post-click review.
+
+Fourth, it provides a detailed failure analysis identifying three systematic failure modes: a) reward collapse under PPO, b) decomposition suppression under short-horizon credit assignment, and c) distribution shift cascade from behavioral cloning to on-policy learning.
 
 Section @sec:related reviews related work. Section @sec:qlearning documents the Q-learning investigation and its failure analysis. Section @sec:dataset describes the evaluation protocol. Sections @sec:v1 through @sec:v3 present the three main architectures. Section @sec:results reports experimental results. Section @sec:discussion synthesizes lessons learned. Sections @sec:engineering and @sec:conclusion cover infrastructure and conclusions.
