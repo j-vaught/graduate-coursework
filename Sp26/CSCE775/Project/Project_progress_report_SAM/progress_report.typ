@@ -49,7 +49,7 @@
     RL-Based Prompt Optimization for the Segment Anything Model
   ]
   #v(0.4em)
-  #text(size: 12pt)[J.C. Vaught #h(1em) Xeerak Muhammed #h(1em) Jacob Whisenant]
+  #text(size: 12pt)[J.C. Vaught #h(1em) Xeerak Muhammad #h(1em) Jacob Whisenant]
   #v(0.2em)
   #text(size: 11pt, fill: luma(100))[March 29, 2026]
 ]
