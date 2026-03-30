@@ -103,12 +103,22 @@ A key finding across all RL experiments is the stability--capability tradeoff. G
 
 The remaining work focuses on distilling V3's VLM-level performance into a compact, deployable model and validating on additional domains.
 
-- *Mar 28 -- Apr 4:* Scale VLM trajectory collection to 50--100 FSS-1000 classes
-- *Apr 4 -- Apr 11:* Behavioral cloning distillation: train compact PolicyTransformer from VLM-generated demonstrations
-- *Apr 11 -- Apr 18:* RL fine-tuning of distilled policy using GRPO with frozen spatial head
-- *Apr 18 -- Apr 25:* Full FSS-1000 test set evaluation and Kvasir-SEG @jha2020kvasir cross-domain evaluation
-- *Apr 25 -- May 2:* Final ablation experiments and report writing
-- *May 2 -- May 9:* Buffer and presentation preparation
+#figure(
+  table(
+    columns: 2,
+    table.hline(),
+    [*Date*], [*Milestone*],
+    table.hline(),
+    [Mar 28 -- Apr 4],  [Scale VLM trajectory collection to 50--100 FSS-1000 classes],
+    [Apr 4 -- Apr 11],  [Behavioral cloning distillation: train compact PolicyTransformer from VLM-generated demonstrations],
+    [Apr 11 -- Apr 18], [RL fine-tuning of distilled policy using GRPO with frozen spatial head],
+    [Apr 18 -- Apr 25], [Full FSS-1000 test set evaluation and Kvasir-SEG @jha2020kvasir cross-domain evaluation],
+    [Apr 25 -- May 2],  [Final ablation experiments and report writing],
+    [May 2 -- May 9],   [Buffer and presentation preparation],
+    table.hline(),
+  ),
+  caption: [Projected timeline through end of semester.],
+) <tab:timeline>
 
 // ── Conclusion ───────────────────────────────────────────────────────
 = Conclusion
