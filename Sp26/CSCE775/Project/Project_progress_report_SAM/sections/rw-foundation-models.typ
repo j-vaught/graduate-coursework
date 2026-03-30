@@ -1,6 +1,6 @@
 == Foundation Models for Segmentation
 
-SAM's modular architecture, a frozen ViT encoder paired with a lightweight mask decoder and flexible prompt interface, has spawned numerous derivative models. These works collectively validate the central premise of our approach: because the encoder can be frozen, compressed, or swapped entirely, a learned prompt policy operating through the prompt interface is architecture-agnostic and forward-compatible with future SAM variants. Models such as SegGPT, SEEM, and Grounded-SAM further demonstrate that SAM's prompt interface is the natural control surface for downstream systems, whether driven by visual examples, text queries, or spatial coordinates.
+SAM's modular architecture has spawned a family of models that either compress its encoder, replace it entirely, or explore alternative prompting paradigms. Our project builds directly on this modularity. Because the encoder can be frozen, compressed, or swapped without affecting the prompt interface, we treat prompt placement as the sole learnable component, making our policy forward-compatible with any SAM variant. We differentiate from models like SegGPT and SEEM, which require end-to-end retraining or fundamentally different prompting paradigms, by keeping SAM entirely frozen and learning only where and when to prompt it.
 
 #figure(
   table(

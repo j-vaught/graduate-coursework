@@ -1,6 +1,6 @@
 == Reinforcement Learning for Visual Sequential Decision-Making
 
-A broader body of work establishes the principles that our SAM prompt optimization inherits. The lineage runs from visual attention as a sequential decision process through active object localization to iterative visual processing, with each generation contributing principles directly applicable to our formulation: sequential spatial actions over image observations, learned stopping criteria, coarse-to-fine hierarchical refinement, goal-conditioned visual policies, and discrete interpretable action spaces.
+Our formulation of SAM prompting as a sequential MDP inherits principles from a broader body of RL-for-vision work. We build on the recurrent attention model's framing of perception as sequential spatial decisions @mnih2014ram, Caicedo and Lazebnik's demonstration that spatial refinement is naturally expressible as an MDP @caicedo2015active, and Mathe et al.'s learned stopping condition for balancing exploration and exploitation @mathe2016rl. Our V2's sub-mask decomposition parallels Bellver et al.'s hierarchical coarse-to-fine detection @bellver2016hierarchical, and our goal-conditioned prompting, where the agent reconciles the current mask with the desired segmentation, follows Zhu et al.'s target-driven navigation paradigm @zhu2017target. We differentiate from these works by applying these principles to a frozen foundation model's prompt interface rather than to raw image processing.
 
 #figure(
   table(

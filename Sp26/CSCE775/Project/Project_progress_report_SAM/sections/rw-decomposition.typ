@@ -1,6 +1,6 @@
 == Multi-Mask Decomposition and Refinement
 
-Segmenting complex objects as a single mask often fails when their shape or structure exceeds the capacity of a one-shot prediction. Several methods address this through decomposition heuristics or multi-granularity reasoning, but none frame the decomposition decision itself as a sequential learning problem. Our V2 system addresses this gap by training an RL agent to decide when and how to split a target region into sub-masks, replacing static heuristics with a policy that adapts to object complexity. Our V3 extends this further by incorporating VLM reasoning to guide decomposition with semantic understanding.
+Segmenting complex objects as a single mask often fails when their shape or structure exceeds the capacity of a one-shot prediction. Existing methods address this through heuristic decomposition rules or multi-granularity reasoning but none frame the decomposition decision itself as a sequential learning problem. Our V2 system fills this gap by training an RL agent to decide when and how to split a target into sub-masks, replacing static heuristics with a policy that adapts to object complexity. We build on SAMRefiner's insight that decomposition improves mask quality, but differentiate by making the decomposition strategy learned rather than hand-designed. Our V3 extends this further by using VLM reasoning to guide decomposition with semantic understanding of object structure.
 
 #figure(
   table(
