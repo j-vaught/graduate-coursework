@@ -101,7 +101,7 @@ A key finding across all RL experiments is the stability--capability tradeoff. G
 // ── Future Milestones ────────────────────────────────────────────────
 = Future Milestones
 
-The remaining work focuses on distilling V3's VLM-level performance into a compact, deployable model and validating on additional domains.
+The remaining work focuses on distilling V3's VLM-level performance into a compact, deployable model, exploring RL-based fine-tuning of VLMs to improve their use of segmentation and vision tools, and validating on additional domains.
 
 #figure(
   table(
@@ -111,7 +111,7 @@ The remaining work focuses on distilling V3's VLM-level performance into a compa
     table.hline(),
     [Mar 28 -- Apr 4],  [Scale VLM trajectory collection to 50--100 FSS-1000 classes],
     [Apr 4 -- Apr 11],  [Behavioral cloning distillation: train compact PolicyTransformer from VLM-generated demonstrations],
-    [Apr 11 -- Apr 18], [RL fine-tuning of distilled policy using GRPO with frozen spatial head],
+    [Apr 11 -- Apr 18], [RL fine-tuning: GRPO on distilled policy and exploratory RL training of VLM to improve segmentation and vision tool use],
     [Apr 18 -- Apr 25], [Full FSS-1000 test set evaluation and Kvasir-SEG @jha2020kvasir cross-domain evaluation],
     [Apr 25 -- May 2],  [Final ablation experiments and report writing],
     [May 2 -- May 9],   [Buffer and presentation preparation],
@@ -123,7 +123,7 @@ The remaining work focuses on distilling V3's VLM-level performance into a compa
 // ── Conclusion ───────────────────────────────────────────────────────
 = Conclusion
 
-This project addresses automated prompt optimization for SAM in one-shot segmentation through four approaches spanning graph-based Q-learning, transformer policy networks, sub-mask decomposition, and zero-shot VLM guidance. Our experiments reveal that proxy rewards are dangerous (the Q-learning proxy was anti-correlated with true segmentation quality), that standard RL exploration cannot discover multi-step compositional strategies like sub-mask decomposition, and that behavioral cloning warmstarts are insufficient to prevent PPO collapse. The zero-shot VLM approach (V3) achieves the best results at 0.776 mean Dice with 1.3 clicks, outperforming all trained policies through chain-of-thought visual reasoning rather than trial-and-error exploration. The remaining work will distill V3's capabilities into a compact, efficient model and evaluate cross-domain generalization.
+This project addresses automated prompt optimization for SAM in one-shot segmentation through four approaches spanning graph-based Q-learning, transformer policy networks, sub-mask decomposition, and zero-shot VLM guidance. Our experiments reveal that proxy rewards are dangerous (the Q-learning proxy was anti-correlated with true segmentation quality), that standard RL exploration cannot discover multi-step compositional strategies like sub-mask decomposition, and that behavioral cloning warmstarts are insufficient to prevent PPO collapse. The zero-shot VLM approach (V3) achieves the best results at 0.776 mean Dice with 1.3 clicks, outperforming all trained policies through chain-of-thought visual reasoning rather than trial-and-error exploration. The remaining work will distill V3's capabilities into a compact, efficient model, investigate using RL to train a VLM to more effectively leverage segmentation and vision tools, and evaluate cross-domain generalization.
 
 // ── References ───────────────────────────────────────────────────────
 #bibliography("references.bib", style: "ieee")
