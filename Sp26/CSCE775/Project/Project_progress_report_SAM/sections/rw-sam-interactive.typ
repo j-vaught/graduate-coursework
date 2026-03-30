@@ -1,5 +1,21 @@
 == SAM and Interactive Segmentation
 
-SAM @kirillov2023sam and SAM 2 @ravi2024sam2 achieve strong zero-shot segmentation given spatial prompts, yet they exhibit well-documented failure modes. Zhang et al. @zhang2024limitsfm show that SAM, SAM 2, and HQ-SAM @ke2023samhq all degrade measurably on objects with tree-like morphology or low textural contrast against their surroundings, demonstrating that these limitations are structural rather than dataset-specific. Bui et al. @bui2024samrobust further demonstrate that segmentation quality is sensitive to prompt type, count, and spatial placement, with single-point prompts producing highly variable masks depending on click location. Fan et al. @fan2025stablesam formalize this observation as prompt noise sensitivity and propose stabilization strategies within the decoder. Most consequential for multi-click interactive use is the hypothesis commitment problem. When multiple points target different object parts, SAM's lightweight decoder commits early to one interpretation and resists correction from subsequent clicks. Expert annotators work around this limitation by creating independent sub-masks for each region, a strategy that our V2 architecture automates through sequential prompt episodes.
+SAM @kirillov2023sam and SAM 2 @ravi2024sam2 achieve strong zero-shot segmentation given spatial prompts, yet they exhibit well-documented failure modes on thin structures, branching objects, and low-contrast regions. Zhang et al. @zhang2024limitsfm show that these limitations are structural rather than dataset-specific, persisting across SAM, SAM 2, and HQ-SAM. Most consequential for multi-click interactive use is the hypothesis commitment problem, where the decoder commits early to one interpretation and resists correction from subsequent clicks. Expert annotators work around this by creating independent sub-masks, a strategy our V2 automates. End-to-end click-conditioned methods retrain the full segmentation backbone, while our approach treats SAM as frozen and learns only the prompt policy, a practical advantage but a harder optimization problem.
 
-Interactive segmentation methods including RITM @sofiiuk2022ritm, FocalClick @chen2022focalclick, SimpleClick @liu2023simpleclick, and InterFormer @huang2023interformer train end-to-end click-conditioned models that jointly optimize the encoder and decoder for iterative refinement. These approaches achieve strong accuracy at each click budget but require retraining the full segmentation backbone, typically hundreds of millions of parameters. Our approach treats SAM as a frozen foundation model and learns only the prompt policy. This design offers a practical advantage in that it avoids retraining 600M or more parameters, but it also poses a harder optimization problem because the policy must compensate for decoder limitations it cannot modify.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [SAM @kirillov2023sam], [ICCV 2023], [Promptable foundation model for zero-shot segmentation with points, boxes, and masks.],
+    [SAM 2 @ravi2024sam2], [arXiv 2024], [Extends SAM to video with memory-based temporal propagation.],
+    [Zhang et al. @zhang2024limitsfm], [arXiv 2024], [Quantifies SAM's structural failure modes on tree-like and low-contrast objects.],
+    [RITM @sofiiuk2022ritm], [ICIP 2022], [Mask-guided iterative training for click-based interactive segmentation.],
+    [FocalClick @chen2022focalclick], [CVPR 2022], [Local-global click refinement with focal fields.],
+    [SimpleClick @liu2023simpleclick], [ICCV 2023], [ViT-based interactive segmentation with simple click encoding.],
+    [InterFormer @huang2023interformer], [ICCV 2023], [Decouples image encoding from click-conditioned decoding for real-time interaction.],
+    table.hline(),
+  ),
+  caption: [SAM and end-to-end interactive segmentation methods.],
+) <tab:rw_sam_interactive>

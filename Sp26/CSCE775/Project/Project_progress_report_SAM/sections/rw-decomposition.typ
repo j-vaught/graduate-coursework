@@ -1,7 +1,19 @@
 == Multi-Mask Decomposition and Refinement
 
-Segmenting complex objects as a single mask often fails when their shape, texture, or structure exceeds the capacity of a one-shot prediction. Several lines of work address this limitation through decomposition and hierarchical reasoning. SAMRefiner @lin2025samrefiner introduces a multi-prompt excavation strategy that mines distance-guided points, context-aware bounding boxes, and Gaussian-style masks, then applies heuristic split-and-merge rules to refine SAM outputs. UnSAM @wang2024unsam takes a divide-and-conquer approach, recursively partitioning an image into finer regions and normalizing the resulting masks for unsupervised segmentation. Both methods improve mask quality but rely on hand-designed decomposition heuristics rather than learned strategies.
+Segmenting complex objects as a single mask often fails when their shape or structure exceeds the capacity of a one-shot prediction. Several methods address this through decomposition heuristics or multi-granularity reasoning, but none frame the decomposition decision itself as a sequential learning problem. Our V2 system addresses this gap by training an RL agent to decide when and how to split a target region into sub-masks, replacing static heuristics with a policy that adapts to object complexity. Our V3 extends this further by incorporating VLM reasoning to guide decomposition with semantic understanding.
 
-A parallel thread explores multi-granularity and part-aware segmentation with foundation models. Semantic-SAM @li2024semanticsam extends a DETR-based architecture to produce masks at multiple semantic granularities, demonstrating that training on SA-1B improves both generic and part-level segmentation. PartGLEE @li2024partglee constructs explicit hierarchical relationships between objects and their constituent parts through a Q-Former module, enabling open-world part parsing at arbitrary granularity. SAM-CP @du2025samcp composes two complementary prompt types on top of SAM patches to achieve semantic, instance, and panoptic segmentation in a unified framework, effectively treating mask composition as the mechanism for task generalization.
-
-These approaches demonstrate the value of decomposing segmentation into sub-problems, yet none frame the decomposition decision itself as a sequential learning problem. Our V2 system addresses this gap by training an RL agent to decide when and how to split a target region into sub-masks, replacing static heuristics with a policy that adapts to object complexity. Our planned V3 extends this further by incorporating VLM reasoning to guide decomposition with semantic understanding.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [SAMRefiner @lin2025samrefiner], [ICLR 2025], [Heuristic split-and-merge rules with distance-guided prompts for SAM mask refinement.],
+    [UnSAM @wang2024unsam], [NeurIPS 2024], [Divide-and-conquer recursive partitioning for unsupervised segmentation.],
+    [Semantic-SAM @li2024semanticsam], [ECCV 2024], [Multi-granularity segmentation with explicit semantic labels at each level.],
+    [PartGLEE @li2024partglee], [ECCV 2024], [Hierarchical object-part relationships via Q-Former for open-world part parsing.],
+    [SAM-CP @du2025samcp], [ICLR 2025], [Composable prompts on SAM patches for unified semantic, instance, and panoptic segmentation.],
+    table.hline(),
+  ),
+  caption: [Multi-mask decomposition and hierarchical segmentation approaches.],
+) <tab:rw_decomposition>

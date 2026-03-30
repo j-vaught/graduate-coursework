@@ -1,5 +1,20 @@
 == Reinforcement Learning for Visual Sequential Decision-Making
 
-Treating visual perception as a sequential decision process has deep roots in the RL literature. Mnih et al. @mnih2014ram introduced the Recurrent Attention Model, which learns a policy for sequentially attending to informative image regions via REINFORCE, establishing that perception can unfold as a goal-directed sequence of actions rather than a single feed-forward pass. Caicedo and Lazebnik @caicedo2015active extended this to object localization, training a DQN that iteratively transforms a bounding box through discrete spatial actions until converging on a tight detection. Mathe et al. @mathe2016rl further developed RL-based detection by learning both a search policy and a stopping condition, explicitly addressing the exploration-exploitation tradeoff in deciding when an object has been sufficiently localized.
+A broader body of work establishes the principles that our SAM prompt optimization inherits. The lineage runs from visual attention as a sequential decision process through active object localization to iterative visual processing, with each generation contributing principles directly applicable to our formulation: sequential spatial actions over image observations, learned stopping criteria, coarse-to-fine hierarchical refinement, goal-conditioned visual policies, and discrete interpretable action spaces.
 
-Bellver et al. @bellver2016hierarchical proposed hierarchical detection with coarse-to-fine zoom-in actions, a multi-scale decomposition strategy that parallels the sub-mask decomposition our V2 system learns. Zhu et al. @zhu2017target introduced target-driven visual navigation, conditioning an RL policy on both the current observation and a goal specification, anticipating our goal-conditioned prompting where the agent reconciles the current segmentation state with the desired mask. Park et al. @park2018distort framed image enhancement as an MDP with interpretable discrete actions, showing that complex visual transformations decompose into learnable sequential steps. These works establish the principles our SAM prompt optimization inherits: sequential spatial actions, learned stopping criteria, coarse-to-fine refinement, and goal-conditioned visual policies.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [RAM @mnih2014ram], [NeurIPS 2014], [Sequential visual attention via REINFORCE; perception as goal-directed actions.],
+    [Caicedo et al. @caicedo2015active], [ICCV 2015], [DQN agent iteratively transforming bounding boxes for object localization.],
+    [Mathe et al. @mathe2016rl], [CVPR 2016], [RL-based detection learning both search policy and stopping condition.],
+    [Bellver et al. @bellver2016hierarchical], [NIPS-W 2016], [Hierarchical coarse-to-fine zoom-in actions for object detection.],
+    [Zhu et al. @zhu2017target], [ICRA 2017], [Goal-conditioned RL policy for target-driven visual navigation.],
+    [Park et al. @park2018distort], [CVPR 2018], [Image enhancement as MDP with interpretable discrete actions.],
+    table.hline(),
+  ),
+  caption: [RL for visual sequential decision-making establishing principles for SAM prompting.],
+) <tab:rw_rl_vision>

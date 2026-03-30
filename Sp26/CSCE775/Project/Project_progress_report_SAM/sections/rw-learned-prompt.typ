@@ -1,7 +1,19 @@
 == Learned Prompt Placement
 
-Several recent methods address the challenge of automating point prompt placement for SAM. CPlot @liu2024cplot formulates multi-click placement as an optimal transport problem, producing a full set of click coordinates in a single forward pass. PseudoClick @chen2022pseudoclick trains a network to generate synthetic click sequences that mimic human annotation behavior. SAMAug @dai2024samaug takes a post-hoc augmentation approach, generating additional point prompts from an initial SAM prediction via maximum-distance or saliency-based sampling. AutoProSAM @li2025autoprosam eliminates manual prompts entirely by training a lightweight generator that produces point and box prompts from intermediate encoder features, enabling fully automatic multi-organ segmentation. These methods share a common limitation. They treat prompt generation as a feedforward prediction problem and do not exploit the iterative feedback loop in which each new click conditions on the current mask state.
+Several recent methods address automating point prompt placement for SAM, but they treat prompt generation as a feedforward prediction problem and do not exploit the iterative feedback loop in which each new click conditions on the current mask state. Reinforcement learning offers a natural framework for sequential click placement because the agent observes the evolving segmentation mask and selects the next prompt to maximize cumulative improvement. Our work is, to our knowledge, the first to unify RL-based sequential click placement, learned sub-mask decomposition for handling complex object geometry, VLM-driven visual reasoning for semantic prompt guidance, and a comprehensive failure-mode analysis within a single framework.
 
-Reinforcement learning offers a natural framework for sequential click placement because the agent observes the evolving mask and selects the next prompt to maximize cumulative improvement. AlignSAM @huang2024alignsam adopts this paradigm by training an RL policy to predict prompt positions for SAM, yet it operates on whole masks without decomposing complex objects into sub-regions. SAMRefiner @lin2025samrefiner performs sub-mask decomposition but relies on heuristic rules rather than a learned policy. Plug-and-Play PPO @ppo2025cvpr also optimizes point prompts via policy gradients, though it targets single-round placement without multi-step interaction or structural decomposition.
-
-Our work is, to our knowledge, the first to unify RL-based sequential click placement, learned sub-mask decomposition for complex object geometry, VLM-driven visual reasoning for semantic prompt guidance, and comprehensive failure-mode analysis within a single framework. This combination addresses gaps left by each line of work discussed in this chapter, positioning our approach at the intersection of interactive segmentation, reinforcement learning, prompt optimization, and vision-language grounding.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [CPlot @liu2024cplot], [ECCV 2024], [Optimal transport for multi-click placement in a single forward pass.],
+    [PseudoClick @chen2022pseudoclick], [ECCV 2022], [Synthetic click sequence generation mimicking human annotation behavior.],
+    [SAMAug @dai2024samaug], [arXiv 2024], [Post-hoc point prompt augmentation via maximum-distance and saliency sampling.],
+    [AutoProSAM @li2025autoprosam], [WACV 2025], [Lightweight prompt generator from encoder features for automatic multi-organ segmentation.],
+    [PPO-SAM @ppo2025cvpr], [CVPR 2025], [Plug-and-play point prompt optimization via policy gradients.],
+    table.hline(),
+  ),
+  caption: [Learned and optimized prompt placement methods for SAM.],
+) <tab:rw_learned>

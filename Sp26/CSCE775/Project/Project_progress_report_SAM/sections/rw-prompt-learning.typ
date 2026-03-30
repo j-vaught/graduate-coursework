@@ -1,5 +1,22 @@
 == SAM Prompt Sensitivity and Learned Prompt Placement
 
-SAM's segmentation quality is sensitive to the spatial location of input prompts. Bui et al. @bui2024samrobust show that accuracy varies dramatically as a function of prompt placement, with points near object centroids yielding the highest IoU and points near boundaries producing substantially degraded masks. Several methods address this through feature-matching heuristics. PerSAM @zhang2024persam computes cosine similarity between reference and target features to derive point prompts for training-free one-shot personalization. Matcher @liu2024matcher similarly combines DINOv2 @oquab2024dinov2 correspondences with SAM for training-free one-shot segmentation. SAM-PT @rajic2023sampt propagates point prompts across video frames via point tracking. These approaches produce reasonable prompts without training but are non-adaptive, relying on fixed similarity metrics that cannot incorporate segmentation feedback.
+SAM's segmentation quality varies dramatically with prompt location, with centroid-placed points yielding the highest IoU and boundary-adjacent points producing substantially degraded masks @bui2024samrobust. Heuristic feature-matching methods derive prompts without training but are non-adaptive, unable to incorporate segmentation feedback or correct poor initial placements. The broader prompt-learning literature establishes that learned prompts consistently outperform hand-crafted ones and that input-conditional generation is superior to static prompts. Our work extends this trajectory by training an RL policy that iteratively selects prompts conditioned on the evolving segmentation state, combining the adaptiveness missing from heuristic methods with the reward-driven optimization absent from supervised approaches.
 
-Supervised approaches offer an alternative. RSPrompter @chen2024rsprompter learns a prompt generator for remote sensing that keeps SAM frozen but remains limited to single-pass generation without iterative refinement. The broader prompt-learning literature reinforces the value of learned over hand-crafted prompts. Visual Prompt Tuning @jia2022vpt showed that inserting learnable tokens into frozen Vision Transformers, updating less than one percent of parameters, matches or exceeds full fine-tuning. CoOp @zhou2022coop replaced hand-designed CLIP text prompts with learned continuous context vectors. CoCoOp @zhou2022cocoop further improved on this by generating input-conditional prompts through a lightweight Meta-Net, showing that image-specific prompts outperform static ones across distribution shifts. Our work extends this trajectory by training an RL policy that iteratively selects prompts conditioned on the evolving segmentation state.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [Bui et al. @bui2024samrobust], [CVPR-W 2024], [Systematic study of SAM's sensitivity to prompt type, count, and placement.],
+    [PerSAM @zhang2024persam], [ICLR 2024], [Training-free one-shot personalization via cosine-similarity prompt generation.],
+    [Matcher @liu2024matcher], [ICLR 2024], [Training-free DINOv2 feature matching with SAM for one-shot segmentation.],
+    [SAM-PT @rajic2023sampt], [arXiv 2023], [Point tracking propagation for zero-shot video SAM prompting.],
+    [RSPrompter @chen2024rsprompter], [IEEE TGRS 2024], [Learned single-pass prompt generator for remote sensing with frozen SAM.],
+    [VPT @jia2022vpt], [ECCV 2022], [Learnable tokens for frozen ViTs; updates less than 1% of parameters.],
+    [CoOp @zhou2022coop], [IJCV 2022], [Learned continuous context vectors replacing hand-crafted CLIP prompts.],
+    [CoCoOp @zhou2022cocoop], [CVPR 2022], [Input-conditional prompt generation via Meta-Net for distribution robustness.],
+    table.hline(),
+  ),
+  caption: [SAM prompt sensitivity studies and learned prompt placement methods.],
+) <tab:rw_prompt>

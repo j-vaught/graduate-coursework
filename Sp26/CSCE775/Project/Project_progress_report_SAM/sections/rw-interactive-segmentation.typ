@@ -1,7 +1,22 @@
 == Interactive Segmentation: From Graph Cuts to Transformers
 
-The interactive segmentation paradigm began with energy-minimization formulations. Boykov and Jolly @boykov2001graphcuts cast foreground extraction as a min-cut/max-flow problem where user-supplied seed clicks define hard constraints. Rother et al. @rother2004grabcut extended this with GrabCut, replacing fixed seeds with iterative Gaussian mixture model estimation inside a user-drawn bounding box. These methods established the click-then-refine loop that persists in modern systems.
+The interactive segmentation paradigm began with energy-minimization formulations and evolved through deep learning to the architectural separation of image encoding from prompt processing that SAM adopted at scale. Classical methods established the click-then-refine loop, while deep approaches introduced learned click encodings and test-time optimization to enforce click consistency. Recent work by Fan et al. @fan2025stablesam and Antonov et al. @antonov2024rclicks confirms that prompt sensitivity remains a measurable deployment bottleneck even in modern systems, directly motivating our learned prompt-placement approach.
 
-The transition to learned representations began with Xu et al. @xu2016dios, who encoded positive and negative clicks as Euclidean distance-transform maps concatenated with the RGB input to a CNN. Jang and Kim @jang2019brs introduced backpropagating refinement (BRS), performing test-time gradient updates to enforce click consistency. Sofiiuk et al. @sofiiuk2020fbrs accelerated this with feature-level refinement (f-BRS), enabling real-time interaction. Huang et al. @huang2023interformer proposed InterFormer, decoupling heavyweight image encoding from lightweight click-conditioned decoding. These advances established that prompt processing and image understanding benefit from architectural separation, a design philosophy SAM @kirillov2023sam later adopted at scale.
-
-Despite this maturity, SAM inherits longstanding sensitivity to prompt placement. Fan et al. @fan2025stablesam show that low-quality prompts bias the decoder's cross-attention toward background tokens and propose decoder-side plugins to stabilize predictions. Antonov et al. @antonov2024rclicks release 475K real annotator clicks and demonstrate that model accuracy drops substantially under realistic click distributions compared to synthetic center-of-error-region clicks used in training. As discussed above, methods such as RITM @sofiiuk2022ritm, FocalClick @chen2022focalclick, and SimpleClick @liu2023simpleclick address this by retraining the backbone end-to-end. Our work takes a complementary path, learning a prompt-placement policy that mitigates sensitivity without modifying any model weights.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [Graph Cuts @boykov2001graphcuts], [ICCV 2001], [Min-cut/max-flow segmentation with user-supplied seed click constraints.],
+    [GrabCut @rother2004grabcut], [SIGGRAPH 2004], [Iterative GMM estimation with bounding box and corrective clicks.],
+    [DIOS @xu2016dios], [CVPR 2016], [First deep approach, encoding clicks as distance-transform maps for a CNN.],
+    [BRS @jang2019brs], [CVPR 2019], [Test-time backpropagation refinement to enforce click consistency.],
+    [f-BRS @sofiiuk2020fbrs], [CVPR 2020], [Feature-level backprop refinement enabling real-time interaction.],
+    [InterFormer @huang2023interformer], [ICCV 2023], [Decouples heavyweight image encoding from lightweight click-conditioned decoding.],
+    [Stable-SAM @fan2025stablesam], [ICLR 2025], [Analyzes SAM's prompt sensitivity; proposes decoder-side stabilization plugins.],
+    [RClicks @antonov2024rclicks], [NeurIPS 2024], [475K real annotator clicks showing models degrade under realistic click distributions.],
+    table.hline(),
+  ),
+  caption: [Evolution of interactive segmentation from classical to modern methods.],
+) <tab:rw_interactive>

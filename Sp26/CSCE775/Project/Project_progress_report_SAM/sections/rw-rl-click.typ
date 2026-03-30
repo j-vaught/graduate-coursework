@@ -1,7 +1,21 @@
 == RL for Click and Prompt Optimization
 
-The idea of using reinforcement learning to guide interactive segmentation predates foundation models. SeedNet @song2018seednet trained a deep RL agent to place seed points for watershed-based segmentation, demonstrating that a learned policy could outperform heuristic click strategies on natural images. IteR-MRL @liao2020itermrl extended this direction to volumetric medical data by deploying multiple cooperative RL agents that iteratively refine 3D segmentation masks through coordinated click sequences.
+The idea of using reinforcement learning to guide interactive segmentation predates foundation models, with early work demonstrating that learned policies outperform heuristic click strategies. SAM's prompt-conditioned architecture has renewed interest in this direction because it exposes a natural action interface for sequential decision-making. AlignSAM @huang2024alignsam is the closest prior work to our own, training a policy network that iteratively proposes point prompts for single-mask predictions. Our work differs in two respects. First, we decompose the action space into coarse and fine stages to improve sample efficiency. Second, we incorporate vision-language model feedback as an auxiliary signal, providing semantic grounding that pure mask-overlap rewards lack.
 
-The emergence of the Segment Anything Model has renewed interest in RL-based prompt optimization because SAM's prompt-conditioned architecture exposes a natural action interface for sequential decision-making. AlignSAM @huang2024alignsam is the closest prior work to our own, training a policy network that iteratively proposes point prompts and refines single-mask predictions through interaction with SAM. AIES @aies2024 formulates the problem as a Markov decision process in which a DQN agent selects among prompt types, including points, bounding boxes, and masks, to maximize segmentation quality on medical imaging tasks. TEPO @cheng2023tepo addresses the related challenge of propagating prompts across temporally adjacent slices in 3D volumes, reducing the per-slice annotation burden. Beyond RL, SSPrompt @huang2024ssprompt learns spatial and semantic prompts jointly through gradient-based optimization, showing that prompt placement is a critical bottleneck even outside the reinforcement learning paradigm. At the pixel level, PixelDRL @liu2025pixeldrl treats every pixel as an independent agent governed by an asynchronous advantage actor-critic and iteratively refines coarse predictions into fine-grained masks with very few labeled examples.
-
-Our work differs from these methods in two respects. First, we decompose the action space into coarse and fine stages to improve sample efficiency. Second, we incorporate vision-language model feedback as an auxiliary reward signal, providing semantic grounding that pure mask-overlap rewards lack.
+#figure(
+  table(
+    columns: (8em, 10em, 1fr),
+    table.hline(),
+    [*Method*], [*Venue*], [*Contribution*],
+    table.hline(),
+    [SeedNet @song2018seednet], [CVPR 2018], [RL agent for sequential seed point placement in pre-SAM interactive segmentation.],
+    [IteR-MRL @liao2020itermrl], [CVPR 2020], [Multi-agent RL for iterative 3D medical image segmentation.],
+    [AlignSAM @huang2024alignsam], [CVPR 2024], [RL policy for iterative SAM point prompts in a single-mask regime.],
+    [AIES @aies2024], [MICCAI 2024], [DQN agent selecting prompt types (point, box, mask) for medical imaging.],
+    [TEPO @cheng2023tepo], [arXiv 2023], [Temporally-extended prompt propagation across 3D slices.],
+    [SSPrompt @huang2024ssprompt], [arXiv 2024], [Gradient-based joint spatial and semantic prompt optimization for SAM.],
+    [PixelDRL @liu2025pixeldrl], [Sci. Rep. 2025], [Per-pixel actor-critic agents for fine-grained medical mask refinement.],
+    table.hline(),
+  ),
+  caption: [RL-based click and prompt optimization methods for segmentation.],
+) <tab:rw_rl_click>
