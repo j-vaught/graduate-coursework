@@ -62,7 +62,7 @@ First, our work provides a comprehensive empirical analysis of four RL paradigms
 
 Second, it introduces a novel sub-mask decomposition action space that directly addresses SAM's hypothesis commitment problem, together with a failure analysis of why policy gradient methods fail to discover it.
 
-Third, it presents the first application of a VLM as an interactive segmentation policy for SAM, using a three-phase decision loop with post-click review.
+Third, it presents the first application of a VLM as an interactive segmentation policy for SAM using a three-phase decision loop with post-click review.
 
 Fourth, it provides a detailed failure analysis identifying three systematic failure modes: a) reward collapse under PPO, b) decomposition suppression under short-horizon credit assignment, and c) distribution shift cascade from behavioral cloning to on-policy learning.
 
