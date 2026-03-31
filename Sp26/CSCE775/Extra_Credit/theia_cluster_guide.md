@@ -25,6 +25,28 @@
 
 - **Terminal (4 hours):** From the login node, run `idev` (CPU) or `idev_gpu` (GPU)
 - **Virtual desktop:** Open OnDemand > Interactive Apps > Hyperion Desktop
+- **Direct SSH to compute nodes is blocked** — use `srun` to attach shells
+
+### Long-Running Dev Session (recommended)
+
+All partitions allow infinite time. Use `salloc --no-shell` to hold an allocation, then attach/reattach via `srun`:
+
+```bash
+# From login node: allocate with infinite time
+salloc --partition=defq --time=0 --account=rc_general --no-shell --job-name=dev-session
+
+# Attach a shell (run from any login session, repeatable)
+srun --jobid=$(squeue -u jvaught -h -n dev-session -o '%i') --pty bash
+
+# Cancel when done
+scancel --name=dev-session
+```
+
+Or use `./theia-node.sh` which automates this (see script in this directory).
+
+### VS Code on Compute Nodes
+
+Use Open OnDemand (Hyperion Desktop) for a graphical session on a compute node, then run VS Code inside the desktop. Direct VS Code Remote-SSH to compute nodes does not work (SSH is blocked by PAM).
 
 ## Job Submission (Slurm)
 
