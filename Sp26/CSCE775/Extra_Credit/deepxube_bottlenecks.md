@@ -107,3 +107,22 @@ The fix is setting `torch.set_num_threads(1)` in all worker processes. Consider 
 | 8 | GIL fixes | Low | 1.3-2x with many cores |
 
 Items 1 and 2 are the biggest bang-for-buck. The async pipeline alone would likely double throughput since the GPU is currently idle roughly 50% of the time waiting for data. DDP scales linearly with GPU count. Together they would enable full utilization of multi-GPU setups.
+
+## Optimization 1: Async Double-Buffered Pipeline (Implemented)
+
+Modified files: `base/trainer.py`, `trainers/utils/train_loop.py`.
+
+A background `threading.Thread` collects data for the next training round into a second `DataBuffer` while the main thread trains on the current buffer. The GIL is released during both `Queue.get()` blocking and numpy memory copies, so the prefetch thread achieves true concurrency with GPU training. First iteration is a cold start (synchronous). Every subsequent iteration overlaps training with next-round data generation.
+
+### Post-Optimization Benchmark Results
+
+| # | Domain | Config | Batch | Procs | Before | After | Speedup |
+|---|--------|--------|-------|-------|--------|-------|---------|
+| 1 | Grid 7x7 | V, resnet\_fc.100H\_2B | 100 | 1 | 17.6s | 18.2s | 1.0x |
+| 2 | Grid 7x7 | QFix, resnet\_fc.100H\_2B | 100 | 1 | 17.0s | 17.8s | 1.0x |
+| 3 | Cube3 | V, resnet\_fc.5000H\_4B | 100 | 1 | 58.9s | 45.5s | 1.29x |
+| 4 | Cube3 | V, resnet\_fc.5000H\_4B | 1000 | 1 | 4m 3s | 4m 16s | 1.0x |
+| 5 | NPuzzle 4 | V, resnet\_fc.1000H\_4B | 100 | 1 | 18.7s | 18.9s | 1.0x |
+| 6 | Cube3 | V, resnet\_fc.5000H\_4B | 100 | 4 | 55.9s | 42.7s | 1.31x |
+
+The speedup is most visible when data generation and training are comparable in duration (Cube3 with batch 100). For small domains (Grid, NPuzzle) the overhead is negligible. For data-generation-dominated workloads (batch 1000) the overlap is too small relative to total time to matter. Larger models and harder domains would show greater benefit as training time grows.
