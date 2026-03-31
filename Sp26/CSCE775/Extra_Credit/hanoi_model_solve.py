@@ -1,0 +1,210 @@
+"""
+Animate the trained DeepXube model solving a Hanoi instance.
+Picks the hardest solved instance from results and renders it step-by-step.
+Also produces a summary bar chart of solve statistics.
+"""
+
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepxube"))
+
+import pickle
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.animation as animation
+from collections import Counter
+from typing import List
+
+import deepxube
+from deepxube.domains.hanoi import HanoiState, HanoiGoal
+
+# ── Brand colours ─────────────────────────────────────────────────────────────
+GARNET    = "#73000A"
+BLACK_90  = "#363636"
+BLACK_70  = "#5C5C5C"
+BLACK_50  = "#A2A2A2"
+ATLANTIC  = "#466A9F"
+CONGAREE  = "#1F414D"
+HORSESHOE = "#65780B"
+HONEYCOMB = "#A49137"
+ROSE      = "#CC2E40"
+GRASS     = "#CED318"
+SANDSTORM = "#FFF2E3"
+
+DISK_COLORS = [GARNET, ATLANTIC, CONGAREE, HORSESHOE, HONEYCOMB, ROSE, BLACK_70]
+
+RESULTS_PKL = "training/hanoi/results/results.pkl"
+
+
+# ── Drawing helper ─────────────────────────────────────────────────────────────
+
+def draw_hanoi(ax, disks, goal_disks, num_disks, num_pegs, title=""):
+    ax.clear()
+    ax.set_facecolor(SANDSTORM)
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    if title:
+        ax.set_title(title, fontsize=9, color=BLACK_90, pad=3)
+
+    peg_xs   = [(p + 1) / (num_pegs + 1) for p in range(num_pegs)]
+    base_y   = 0.12
+    disk_h   = min(0.11, 0.62 / num_disks)
+    disk_gap = 0.01
+    max_w    = 0.28
+    peg_w    = 0.012
+
+    ax.add_patch(patches.Rectangle((0.04, base_y - 0.038), 0.92, 0.025,
+                                   facecolor=BLACK_90, edgecolor="none"))
+    rod_h = base_y + num_disks * (disk_h + disk_gap) + 0.05
+    for px in peg_xs:
+        ax.add_patch(patches.Rectangle((px - peg_w/2, base_y - 0.013), peg_w, rod_h,
+                                       facecolor=BLACK_70, edgecolor="none"))
+
+    disks_per_peg = [[] for _ in range(num_pegs)]
+    for i in range(num_disks):
+        disks_per_peg[int(disks[i])].append(i)
+
+    goal_peg_uniform = int(goal_disks[0]) if np.all(goal_disks == goal_disks[0]) else -1
+
+    for peg_idx, stack in enumerate(disks_per_peg):
+        px = peg_xs[peg_idx]
+        for pos, disk_i in enumerate(stack):
+            frac = (num_disks - disk_i) / num_disks
+            w = max_w * frac + 0.03
+            y = base_y + pos * (disk_h + disk_gap)
+            color    = DISK_COLORS[disk_i % len(DISK_COLORS)]
+            on_goal  = (peg_idx == int(goal_disks[disk_i]))
+            ax.add_patch(patches.Rectangle(
+                (px - w/2, y), w, disk_h,
+                facecolor=color,
+                edgecolor=GRASS if on_goal else BLACK_90,
+                linewidth=2.2 if on_goal else 0.7,
+            ))
+            ax.text(px, y + disk_h/2, str(disk_i),
+                    ha="center", va="center", fontsize=7,
+                    color="white", fontweight="bold")
+
+    for p, px in enumerate(peg_xs):
+        suffix = " ★" if p == goal_peg_uniform else ""
+        ax.text(px, 0.04, f"Peg {p}{suffix}",
+                ha="center", va="center", fontsize=7.5, color=BLACK_90)
+
+
+# ── 1. Statistics bar chart ────────────────────────────────────────────────────
+
+def make_stats_figure(results: dict) -> None:
+    costs  = results["path_costs"]
+    nodes  = results["num_nodes_generated"]
+    solved = results["solved"]
+    n      = len(costs)
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4), facecolor="white")
+    fig.suptitle(
+        f"DeepXube  ×  Tower of Hanoi (4 disks, 3 pegs)\n"
+        f"{sum(solved)}/{n} instances solved  ·  "
+        f"Mean solution: {np.mean(costs):.2f} moves  ·  "
+        f"Mean nodes: {np.mean(nodes):.1f}",
+        fontsize=10, color=BLACK_90, fontweight="bold",
+    )
+
+    # Left — solution length histogram
+    ax = axes[0]
+    cnt = Counter(int(c) for c in costs)
+    xs = sorted(cnt.keys())
+    ys = [cnt[x] for x in xs]
+    bars = ax.bar(xs, ys, color=GARNET, edgecolor="white", linewidth=0.6)
+    ax.set_xlabel("Solution length (moves)", fontsize=9, color=BLACK_90)
+    ax.set_ylabel("# instances", fontsize=9, color=BLACK_90)
+    ax.set_title("Solution Length Distribution", fontsize=9, color=BLACK_90)
+    ax.tick_params(colors=BLACK_70)
+    for spine in ax.spines.values(): spine.set_color(BLACK_50)
+    ax.set_facecolor(SANDSTORM)
+    for bar, y in zip(bars, ys):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.3,
+                str(y), ha="center", va="bottom", fontsize=7.5, color=BLACK_90)
+
+    # Right — nodes generated histogram
+    ax = axes[1]
+    cnt_n = Counter(int(nd) for nd in nodes)
+    xs_n = sorted(cnt_n.keys())
+    ys_n = [cnt_n[x] for x in xs_n]
+    ax.bar(xs_n, ys_n, color=ATLANTIC, edgecolor="white", linewidth=0.6)
+    ax.set_xlabel("Nodes generated by A*", fontsize=9, color=BLACK_90)
+    ax.set_ylabel("# instances", fontsize=9, color=BLACK_90)
+    ax.set_title("Search Efficiency (fewer = better)", fontsize=9, color=BLACK_90)
+    ax.tick_params(colors=BLACK_70)
+    for spine in ax.spines.values(): spine.set_color(BLACK_50)
+    ax.set_facecolor(SANDSTORM)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.88])
+    fig.savefig("hanoi_stats.png", dpi=150, bbox_inches="tight", facecolor="white")
+    print("Saved hanoi_stats.png")
+    plt.close(fig)
+
+
+# ── 2. Animated model solution ─────────────────────────────────────────────────
+
+def make_model_solution_animation(results: dict) -> None:
+    costs         = results["path_costs"]
+    states_on_path = results["states_on_path"]  # list of lists of HanoiState
+    goals         = results["goals"]
+    solved        = results["solved"]
+
+    # Pick the hardest solved instance
+    best_idx = int(np.argmax(costs))
+    path: List[HanoiState] = states_on_path[best_idx]
+    goal: HanoiGoal = goals[best_idx]
+    n_moves = int(costs[best_idx])
+    num_disks = len(path[0].disks)
+    num_pegs  = int(goal.disks.max()) + 1
+
+    # Each element in path is states_on_path per instance
+    # Build frame list: [start_state, ..., goal_state]
+    frames_disks = [s.disks for s in path]
+    goal_disks   = goal.disks
+
+    total_frames = len(frames_disks)
+
+    fig, ax = plt.subplots(figsize=(4.2, 4.2), facecolor="white")
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.02)
+
+    def make_label(i):
+        if i == 0:
+            return f"Start  (goal is {n_moves} moves away)"
+        if i == total_frames - 1:
+            return "Solved!"
+        return f"Move {i} of {n_moves}"
+
+    def update(frame):
+        draw_hanoi(ax, frames_disks[frame], goal_disks, num_disks, num_pegs,
+                   title=make_label(frame))
+        pct = int(100 * frame / max(total_frames - 1, 1))
+        fig.suptitle(
+            f"DeepXube A* solution  —  {n_moves}-move instance  [{pct}%]",
+            fontsize=8.5, color=BLACK_90, y=0.97,
+        )
+        return []
+
+    ani = animation.FuncAnimation(
+        fig, update,
+        frames=total_frames,
+        interval=700,
+        blit=False, repeat=True,
+    )
+    writer = animation.PillowWriter(fps=1.4)
+    ani.save("hanoi_model_solution.gif", writer=writer, dpi=130)
+    print(f"Saved hanoi_model_solution.gif  ({n_moves} moves, {total_frames} frames)")
+    plt.close(fig)
+
+
+# ── Main ───────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    with open(RESULTS_PKL, "rb") as f:
+        results = pickle.load(f)
+
+    print(f"Loaded {len(results['path_costs'])} solved instances")
+    make_stats_figure(results)
+    make_model_solution_animation(results)
+    print("Done.")
