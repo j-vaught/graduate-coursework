@@ -78,6 +78,25 @@ module load python3/anaconda/3.12
 
 Request additional software: https://scprod.service-now.com/sp?id=sc_cat_item&sys_id=a100fb030f396300c1c0563be1050eba
 
+## Mounting Remote Filesystems Locally (Mac)
+
+Uses FUSE-T + sshfs (no kernel extension required). Run once per reboot:
+
+```bash
+sshfs theia:/work/jvaught ~/theia-work -o volname=theia-work,noappledouble,reconnect
+sshfs theia:/home/jvaught ~/theia-home -o volname=theia-home,noappledouble,reconnect
+```
+
+Open in VS Code locally:
+```bash
+code ~/theia-work
+```
+
+Unmount:
+```bash
+umount ~/theia-work ~/theia-home
+```
+
 ## File Transfer
 
 Use `sftp` or `scp` with the same address and port:
