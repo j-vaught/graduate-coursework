@@ -25,18 +25,19 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
     if env.is_terminal(state_start):
         return []
 
-    def compute_heuristic(state: State) -> float:
-        """Compute h(s) = -max_a Q(s,a), clamped >= 0"""
-        states_input = env.states_to_nnet_input([state])
-        q_values = nnet(torch.tensor(states_input, dtype=torch.float32))
-        max_q = torch.max(q_values[0]).item()
-        h_value = -max_q
-        return max(0.0, h_value)
+    def compute_heuristic_batch(states):
+        """Compute h(s) = -max_a Q(s,a), clamped >= 0 for a batch of states"""
+        if not states:
+            return []
+        inp = env.states_to_nnet_input(states)
+        with torch.no_grad():
+            qvals = nnet(torch.tensor(inp, dtype=torch.float32))
+        return (-qvals.max(dim=1).values).clamp(min=0).numpy()
 
     # Priority queue: (h_value, counter, state, action_path)
     counter = 0
     open_list = []
-    h_start = compute_heuristic(state_start)
+    h_start = float(compute_heuristic_batch([state_start])[0])
     heapq.heappush(open_list, (h_start, counter, state_start, []))
     counter += 1
 
@@ -45,34 +46,31 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
     max_expansions = 200000
 
     while open_list and expansions < max_expansions:
-        h_current, _, current_state, action_path = heapq.heappop(open_list)
+        _, _, current_state, action_path = heapq.heappop(open_list)
 
-        # Skip if already visited
         if current_state in visited:
             continue
 
         visited.add(current_state)
         expansions += 1
 
-        # Check if terminal
         if env.is_terminal(current_state):
             return action_path
 
-        # Expand successors
+        # Expand and batch evaluate successors
         actions = env.get_actions(current_state)
+        succs, s_actions = [], []
         for action in actions:
-            expected_reward, next_states_list, probs_list = env.state_action_dynamics(
-                current_state, action
-            )
+            _, next_states_list, _ = env.state_action_dynamics(current_state, action)
+            ns = next_states_list[0]
+            if ns not in visited:
+                succs.append(ns)
+                s_actions.append(action)
 
-            # Use expected next state (weighted by probabilities)
-            if next_states_list:
-                next_state = next_states_list[0]  # Take first successor
-
-                if next_state not in visited:
-                    new_action_path = action_path + [action]
-                    h_next = compute_heuristic(next_state)
-                    heapq.heappush(open_list, (h_next, counter, next_state, new_action_path))
-                    counter += 1
+        if succs:
+            hs = compute_heuristic_batch(succs)
+            for ns, a, h in zip(succs, s_actions, hs):
+                heapq.heappush(open_list, (float(h), counter, ns, action_path + [a]))
+                counter += 1
 
     return None
