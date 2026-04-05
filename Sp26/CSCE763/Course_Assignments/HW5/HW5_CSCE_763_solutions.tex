@@ -1,0 +1,742 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 5 Solutions
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns, calc}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{USC_Grass}{HTML}{CED318}
+\definecolor{USC_Horseshoe}{HTML}{65780B}
+\definecolor{outputbg}{RGB}{245,245,245}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title={#1},
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#5}
+\author{Instructor: Dr. Yan Tong \\ University of South Carolina \\ \textit{Solutions by: JC Vaught}}
+\date{Due: 1:15 pm EST, Thursday, April 9}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Image Entropy and Compression (25 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Arithmetic Decoding (25 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Line Break Detection Masks (25 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Sobel Mask Decomposition (25 pts)} \dotfill & \textbf{\pageref{quest:4}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Image Entropy and Compression
+% ============================================================================
+
+\question{Problem 1: Image Entropy and Compression (25 pts)}\label{quest:1}
+
+Consider a simple $4 \times 16$, 8-bit image:
+
+\vspace{0.3cm}
+
+\begin{center}
+\ttfamily
+\begin{tabular}{cccccccccccccccc}
+22 & 22 & 21 & 94 & 93 & 94 & 166 & 167 & 166 & 167 & 253 & 254 & 254 & 255 & 253 & 55 \\
+20 & 22 & 21 & 22 & 94 & 95 & 93 & 166 & 167 & 166 & 254 & 253 & 255 & 255 & 254 & 54 \\
+21 & 21 & 20 & 22 & 95 & 95 & 95 & 165 & 166 & 166 & 255 & 254 & 254 & 254 & 253 & 54 \\
+21 & 21 & 22 & 95 & 95 & 94 & 166 & 167 & 165 & 166 & 254 & 255 & 253 & 253 & 255 & 55 \\
+\end{tabular}
+\end{center}
+\rmfamily
+
+\vspace{0.3cm}
+
+\begin{enumerate}[label=(\alph*)]
+\item Compute the entropy of the image. (5 pts)
+\item Compress the image using Huffman coding and report the compression ratio using Huffman coding. (10 pts)
+\item Use another data compression algorithm shown in the lecture to obtain a higher compression ratio. (10 pts)
+\end{enumerate}
+
+% --- Part (a): Entropy ---
+
+\vspace{0.4cm}
+
+\begin{stepbox}[Part (a): Compute Entropy]
+The image has $4 \times 16 = 64$ pixels. Counting the frequency of each distinct intensity value yields 14 unique symbols.
+
+\vspace{0.3cm}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{|c|c|c||c|c|c|}
+\hline
+\textbf{Value} & \textbf{Count} & $\boldsymbol{p_i}$ & \textbf{Value} & \textbf{Count} & $\boldsymbol{p_i}$ \\
+\hline
+20  & 2 & 2/64  & 95  & 6 & 6/64 \\
+21  & 6 & 6/64  & 165 & 2 & 2/64 \\
+22  & 6 & 6/64  & 166 & 8 & 8/64 \\
+54  & 2 & 2/64  & 167 & 4 & 4/64 \\
+55  & 2 & 2/64  & 253 & 6 & 6/64 \\
+93  & 2 & 2/64  & 254 & 8 & 8/64 \\
+94  & 4 & 4/64  & 255 & 6 & 6/64 \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.3cm}
+
+Group the symbols by probability to compute entropy $H = -\sum p_i \log_2 p_i$:
+
+\begin{itemize}
+\item 5 symbols with $p=2/64$: each contributes $-\frac{2}{64}\log_2\frac{2}{64} = \frac{5}{32}$. Subtotal: $5 \times \frac{5}{32} = \frac{25}{32} = 0.78125$.
+\item 5 symbols with $p=6/64$: each contributes $-\frac{6}{64}\log_2\frac{6}{64} = \frac{3}{32}(5-\log_2 3)$. Subtotal: $5 \times 0.32016 = 1.60078$.
+\item 2 symbols with $p=4/64$: each contributes $-\frac{4}{64}\log_2\frac{4}{64} = \frac{4}{16} = 0.25$. Subtotal: $2 \times 0.25 = 0.50$.
+\item 2 symbols with $p=8/64$: each contributes $-\frac{8}{64}\log_2\frac{8}{64} = \frac{3}{8} = 0.375$. Subtotal: $2 \times 0.375 = 0.75$.
+\end{itemize}
+\end{stepbox}
+
+\begin{resultsbox}
+\[
+\boxed{H = 0.78125 + 1.60078 + 0.50 + 0.75 = 3.632 \text{ bits/pixel}}
+\]
+\end{resultsbox}
+
+% --- Part (b): Huffman Coding ---
+
+\vspace{0.4cm}
+
+\begin{stepbox}[Part (b): Huffman Coding]
+Build a Huffman tree by repeatedly combining the two lowest-frequency symbols.
+
+\vspace{0.2cm}
+
+\textbf{Huffman Tree Construction:}
+
+Sort symbols by frequency (ascending): 20(2), 54(2), 55(2), 93(2), 165(2), 94(4), 167(4), 21(6), 22(6), 95(6), 253(6), 255(6), 166(8), 254(8).
+
+\begin{enumerate}[label=\arabic*.]
+\item Combine 20(2) + 54(2) $\to$ $N_1$(4)
+\item Combine 55(2) + 93(2) $\to$ $N_2$(4)
+\item Combine 165(2) + $N_1$(4) $\to$ $N_3$(6)
+\item Combine $N_2$(4) + 94(4) $\to$ $N_4$(8)
+\item Combine 167(4) + $N_3$(6) $\to$ $N_5$(10)
+\item Combine 21(6) + 22(6) $\to$ $N_6$(12)
+\item Combine 95(6) + 253(6) $\to$ $N_7$(12)
+\item Combine 255(6) + $N_4$(8) $\to$ $N_8$(14)
+\item Combine 166(8) + 254(8) $\to$ $N_9$(16)
+\item Combine $N_5$(10) + $N_6$(12) $\to$ $N_{10}$(22)
+\item Combine $N_7$(12) + $N_8$(14) $\to$ $N_{11}$(26)
+\item Combine $N_9$(16) + $N_{10}$(22) $\to$ $N_{12}$(38)
+\item Combine $N_{11}$(26) + $N_{12}$(38) $\to$ Root(64)
+\end{enumerate}
+
+\vspace{0.2cm}
+
+The resulting Huffman code table is as follows.
+
+\vspace{0.2cm}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Symbol} & \textbf{Count} & \textbf{Code} & \textbf{Bits} & \textbf{Total Bits} \\
+\hline
+166  & 8 & 100    & 3 & 24 \\
+254  & 8 & 101    & 3 & 24 \\
+95   & 6 & 000    & 3 & 18 \\
+253  & 6 & 001    & 3 & 18 \\
+255  & 6 & 010    & 3 & 18 \\
+21   & 6 & 1110   & 4 & 24 \\
+22   & 6 & 1111   & 4 & 24 \\
+94   & 4 & 0111   & 4 & 16 \\
+167  & 4 & 1100   & 4 & 16 \\
+55   & 2 & 01100  & 5 & 10 \\
+93   & 2 & 01101  & 5 & 10 \\
+165  & 2 & 11010  & 5 & 10 \\
+20   & 2 & 110110 & 6 & 12 \\
+54   & 2 & 110111 & 6 & 12 \\
+\hline
+\multicolumn{4}{|r|}{\textbf{Grand Total:}} & \textbf{236} \\
+\hline
+\end{tabular}
+\end{center}
+\end{stepbox}
+
+\clearpage
+
+\begin{resultsbox}
+Average code length: $236/64 = 3.6875$ bits/pixel (close to entropy of 3.632).
+
+Original image: $64 \times 8 = 512$ bits. Huffman-coded: 236 bits.
+\[
+\boxed{\text{Compression Ratio} = \frac{512}{236} \approx 2.169}
+\]
+\end{resultsbox}
+
+% --- Part (c): Higher Compression ---
+
+\vspace{0.4cm}
+
+\begin{stepbox}[Part (c): Lossless Predictive Coding (DPCM) + Huffman]
+Huffman coding on the raw pixel values ignores spatial correlation between neighboring pixels. A higher compression ratio can be achieved by first applying \textit{differential pulse code modulation} (DPCM) to exploit the strong inter-pixel redundancy, then Huffman coding the prediction errors.
+
+\vspace{0.2cm}
+
+\textbf{Prediction scheme:} The first pixel is sent directly (8 bits). Each subsequent pixel in a row is predicted by its left neighbor. The first pixel of rows 2--4 is predicted by the pixel directly above it. The transmitted quantity is the prediction error $e_n = x_n - \hat{x}_n$.
+
+\vspace{0.2cm}
+
+\textbf{Prediction errors} (63 values):
+
+\vspace{0.1cm}
+{\small
+\textbf{Row 1} (cols 2--16): $0, -1, 73, -1, 1, 72, 1, -1, 1, 86, 1, 0, 1, -2, -198$
+
+\textbf{Row 2} (col 1 from above, then cols 2--16):
+
+$-2, 2, -1, 1, 72, 1, -2, 73, 1, -1, 88, -1, 2, 0, -1, -200$
+
+\textbf{Row 3}: $1, 0, -1, 2, 73, 0, 0, 70, 1, 0, 89, -1, 0, 0, -1, -199$
+
+\textbf{Row 4}: $0, 0, 1, 73, 0, -1, 72, 1, -2, 1, 88, 1, -2, 0, 2, -200$
+}
+
+\vspace{0.2cm}
+
+\textbf{Error frequency distribution and Huffman codes:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Error} & \textbf{Count} & \textbf{Code} & \textbf{Bits} & \textbf{Total Bits} \\
+\hline
+1    & 14 & 01      & 2 & 28 \\
+0    & 13 & 00      & 2 & 26 \\
+$-1$ & 11 & 111     & 3 & 33 \\
+$-2$ & 5  & 1101    & 4 & 20 \\
+2    & 4  & 1010    & 4 & 16 \\
+73   & 4  & 1011    & 4 & 16 \\
+72   & 3  & 1000    & 4 & 12 \\
+88   & 2  & 10011   & 5 & 10 \\
+$-200$& 2 & 11000   & 5 & 10 \\
+89   & 1  & 100100  & 6 & 6  \\
+$-198$& 1 & 100101  & 6 & 6  \\
+$-199$& 1 & 110010  & 6 & 6  \\
+70   & 1  & 1100110 & 7 & 7  \\
+86   & 1  & 1100111 & 7 & 7  \\
+\hline
+\multicolumn{4}{|r|}{\textbf{Error bits:}} & \textbf{203} \\
+\hline
+\end{tabular}
+\end{center}
+
+Total bits $= 8 \text{ (first pixel)} + 203 \text{ (Huffman-coded errors)} = 211$ bits.
+\end{stepbox}
+
+\begin{resultsbox}
+The prediction errors have entropy $H_e \approx 3.09$ bits (vs.\ 3.63 for raw pixels), confirming that DPCM removes significant inter-pixel redundancy.
+
+\[
+\boxed{\text{Compression Ratio} = \frac{512}{211} \approx 2.427}
+\]
+
+This exceeds the Huffman-only ratio of 2.169 because predictive coding exploits the spatial correlation that symbol-by-symbol Huffman coding cannot.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 2: Arithmetic Decoding
+% ============================================================================
+
+\question{Problem 2: Arithmetic Decoding (25 pts)}\label{quest:2}
+
+The arithmetic decoding process is the reverse of the encoding procedure. Decode the message
+$0.222355$ given the coding model. Assume that ``!'' is the symbol indicating the end of message.
+Show the decoding process.
+
+\vspace{0.3cm}
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Symbol} & \textbf{Probability} \\
+\midrule
+A & 0.25 \\
+B & 0.15 \\
+C & 0.1 \\
+D & 0.3 \\
+E & 0.1 \\
+! & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.4cm}
+
+\begin{stepbox}[Step 1: Establish Cumulative Probability Ranges]
+Assign cumulative subintervals to each symbol in the order given.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Symbol} & \textbf{Probability} & \textbf{Range} \\
+\hline
+A & 0.25 & $[0,\; 0.25)$ \\
+B & 0.15 & $[0.25,\; 0.40)$ \\
+C & 0.10 & $[0.40,\; 0.50)$ \\
+D & 0.30 & $[0.50,\; 0.80)$ \\
+E & 0.10 & $[0.80,\; 0.90)$ \\
+! & 0.10 & $[0.90,\; 1.00)$ \\
+\hline
+\end{tabular}
+\end{center}
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Iterative Decoding]
+Start with interval $[\text{low}, \text{high}) = [0, 1)$ and code value $v = 0.222355$.
+
+\vspace{0.3cm}
+
+\textbf{Iteration 1:} $[\text{low}, \text{high}) = [0,\; 1)$, width $= 1$
+
+Subintervals:
+\begin{center}
+{\small A: $[0,\;0.25)$,\quad B: $[0.25,\;0.40)$,\quad C: $[0.40,\;0.50)$,\quad D: $[0.50,\;0.80)$,\quad E: $[0.80,\;0.90)$,\quad !: $[0.90,\;1.00)$}
+\end{center}
+$v = 0.222355$ falls in $[0,\;0.25)$ $\Rightarrow$ \textbf{Output: A}
+
+Update: $\text{low} = 0$, $\text{high} = 0.25$
+
+\vspace{0.3cm}
+
+\textbf{Iteration 2:} $[\text{low}, \text{high}) = [0,\; 0.25)$, width $= 0.25$
+
+Subintervals:
+\begin{center}
+{\small A: $[0,\;0.0625)$,\; B: $[0.0625,\;0.1)$,\; C: $[0.1,\;0.125)$,\; D: $[0.125,\;0.2)$,\; E: $[0.2,\;0.225)$,\; !: $[0.225,\;0.25)$}
+\end{center}
+$v = 0.222355$ falls in $[0.2,\;0.225)$ $\Rightarrow$ \textbf{Output: E}
+
+Update: $\text{low} = 0.2$, $\text{high} = 0.225$
+
+\vspace{0.3cm}
+
+\textbf{Iteration 3:} $[\text{low}, \text{high}) = [0.2,\; 0.225)$, width $= 0.025$
+
+Subintervals:
+\begin{center}
+{\small A: $[0.2,\;0.20625)$,\; B: $[0.20625,\;0.21)$,\; C: $[0.21,\;0.2125)$,\; D: $[0.2125,\;0.22)$}
+
+{\small E: $[0.22,\;0.2225)$,\; !: $[0.2225,\;0.225)$}
+\end{center}
+$v = 0.222355$ falls in $[0.22,\;0.2225)$ $\Rightarrow$ \textbf{Output: E}
+
+Update: $\text{low} = 0.22$, $\text{high} = 0.2225$
+
+\vspace{0.3cm}
+
+\textbf{Iteration 4:} $[\text{low}, \text{high}) = [0.22,\; 0.2225)$, width $= 0.0025$
+
+Subintervals:
+\begin{center}
+{\small A: $[0.22,\;0.220625)$,\; B: $[0.220625,\;0.221)$,\; C: $[0.221,\;0.22125)$}
+
+{\small D: $[0.22125,\;0.222)$,\; E: $[0.222,\;0.22225)$,\; !: $[0.22225,\;0.2225)$}
+\end{center}
+$v = 0.222355$ falls in $[0.22225,\;0.2225)$ $\Rightarrow$ \textbf{Output: !}
+
+End-of-message symbol received. Stop decoding.
+\end{stepbox}
+
+\begin{stepbox}[Verification: Encode ``AEE!'' to Confirm]
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Step} & \textbf{Symbol} & \textbf{New Low} & \textbf{New High} \\
+\hline
+Init &  & 0 & 1 \\
+1 & A & $0 + 1 \times 0 = 0$ & $0 + 1 \times 0.25 = 0.25$ \\
+2 & E & $0 + 0.25 \times 0.8 = 0.2$ & $0 + 0.25 \times 0.9 = 0.225$ \\
+3 & E & $0.2 + 0.025 \times 0.8 = 0.22$ & $0.2 + 0.025 \times 0.9 = 0.2225$ \\
+4 & ! & $0.22 + 0.0025 \times 0.9 = 0.22225$ & $0.22 + 0.0025 \times 1.0 = 0.2225$ \\
+\hline
+\end{tabular}
+\end{center}
+Final interval: $[0.22225,\; 0.2225)$. The code value $0.222355 \in [0.22225,\; 0.2225)$. $\checkmark$
+\end{stepbox}
+
+\begin{resultsbox}
+\[
+\boxed{\text{Decoded message: } \mathbf{A\;E\;E\;!}}
+\]
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 3: Line Break Detection Masks
+% ============================================================================
+
+\question{Problem 3: Line Break Detection Masks (25 pts)}\label{quest:3}
+
+A binary image contains straight lines oriented horizontally, vertically, at $45^\circ$, and at $-45^\circ$.
+Develop a set of $3 \times 3$ masks that can be used to detect 1-pixel breaks in these lines. For example,
+you may want to detect a pattern like $1\ 1\ 1\ 0\ 1\ 1\ 1$ in the vertical direction. Assume that the
+intensities of the lines and background are represented by 1 and 0, respectively.
+
+\vspace{0.4cm}
+
+\begin{stepbox}[Step 1: Break Pattern Analysis]
+A 1-pixel break in a line means the center pixel is 0 (the gap) while the two nearest pixels along the line direction are 1 (the line continues on both sides). A good detection mask should produce a strong positive response at break locations and zero response at normal line points and background.
+
+Consider the $3 \times 3$ neighborhood centered on the break pixel. The mask assigns positive weights to the positions where line pixels are expected (along the line direction, adjacent to the gap) and a negative weight at the center (which should be 0 for a break).
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Design the Four Masks]
+
+\textbf{Horizontal line break} --- the line runs left-to-right, break at center:
+\[
+\text{Pattern: }
+\begin{bmatrix} 0 & 0 & 0 \\ 1 & 0 & 1 \\ 0 & 0 & 0 \end{bmatrix}
+\qquad
+\mathbf{M}_H =
+\begin{bmatrix} 0 & 0 & 0 \\ 1 & -2 & 1 \\ 0 & 0 & 0 \end{bmatrix}
+\]
+
+\textbf{Vertical line break} --- the line runs top-to-bottom, break at center:
+\[
+\text{Pattern: }
+\begin{bmatrix} 0 & 1 & 0 \\ 0 & 0 & 0 \\ 0 & 1 & 0 \end{bmatrix}
+\qquad
+\mathbf{M}_V =
+\begin{bmatrix} 0 & 1 & 0 \\ 0 & -2 & 0 \\ 0 & 1 & 0 \end{bmatrix}
+\]
+
+\textbf{$45^\circ$ line break} --- the line runs from top-right to bottom-left, break at center:
+\[
+\text{Pattern: }
+\begin{bmatrix} 0 & 0 & 1 \\ 0 & 0 & 0 \\ 1 & 0 & 0 \end{bmatrix}
+\qquad
+\mathbf{M}_{45} =
+\begin{bmatrix} 0 & 0 & 1 \\ 0 & -2 & 0 \\ 1 & 0 & 0 \end{bmatrix}
+\]
+
+\textbf{$-45^\circ$ line break} --- the line runs from top-left to bottom-right, break at center:
+\[
+\text{Pattern: }
+\begin{bmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}
+\qquad
+\mathbf{M}_{-45} =
+\begin{bmatrix} 1 & 0 & 0 \\ 0 & -2 & 0 \\ 0 & 0 & 1 \end{bmatrix}
+\]
+\end{stepbox}
+
+\begin{stepbox}[Step 3: Response Verification]
+Each mask gives the following responses when centered on different pixel types.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\small
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Location} & \textbf{Center} & \textbf{Line Neighbors} & \textbf{Response} \\
+\hline
+Break point  & 0 & both = 1 & $1+(-2)(0)+1 = \mathbf{2}$ \\
+Normal line  & 1 & both = 1 & $1+(-2)(1)+1 = \mathbf{0}$ \\
+Background   & 0 & both = 0 & $0+(-2)(0)+0 = \mathbf{0}$ \\
+Endpoint     & 1 & 1 and 0  & $1+(-2)(1)+0 = \mathbf{-1}$ \\
+\hline
+\end{tabular}
+\normalsize
+\end{center}
+
+A threshold of $>0$ (or specifically $=2$) on the mask response cleanly isolates 1-pixel break locations. The masks produce the maximum response of 2 exclusively at break points, zero at normal line points and background, and $-1$ at endpoints.
+\end{stepbox}
+
+\begin{resultsbox}
+The four $3 \times 3$ break-detection masks are:
+\[
+\boxed{
+\mathbf{M}_H = \begin{bmatrix} 0 & 0 & 0 \\ 1 & -2 & 1 \\ 0 & 0 & 0 \end{bmatrix}, \quad
+\mathbf{M}_V = \begin{bmatrix} 0 & 1 & 0 \\ 0 & -2 & 0 \\ 0 & 1 & 0 \end{bmatrix}
+}
+\]
+\[
+\boxed{
+\mathbf{M}_{45} = \begin{bmatrix} 0 & 0 & 1 \\ 0 & -2 & 0 \\ 1 & 0 & 0 \end{bmatrix}, \quad
+\mathbf{M}_{-45} = \begin{bmatrix} 1 & 0 & 0 \\ 0 & -2 & 0 \\ 0 & 0 & 1 \end{bmatrix}
+}
+\]
+A response of 2 at any pixel indicates a 1-pixel break in the corresponding line orientation.
+\end{resultsbox}
+
+
+% ============================================================================
+% PROBLEM 4: Sobel Mask Decomposition
+% ============================================================================
+
+\question{Problem 4: Sobel Mask Decomposition (25 pts)}\label{quest:4}
+
+The results obtained by a single pass through an image of some 2D masks can be achieved also
+by two passes using 1D masks for improving efficiency. Show that the response of Sobel masks
+
+\begin{align}
+\mathbf{S}_x &=
+\begin{bmatrix}
+-1 & -2 & -1 \\
+0 & 0 & 0 \\
+1 & 2 & 1
+\end{bmatrix} \\[1em]
+\mathbf{S}_y &=
+\begin{bmatrix}
+-1 & 0 & 1 \\
+-2 & 0 & 2 \\
+-1 & 0 & 1
+\end{bmatrix}
+\end{align}
+
+can be implemented similarly by one pass of a vertical differencing mask
+
+\begin{align}
+\mathbf{d}_v &=
+\begin{bmatrix}
+-1 \\
+0 \\
+1
+\end{bmatrix}
+\end{align}
+
+followed by a horizontal smoothing mask
+
+\begin{align}
+\mathbf{s}_h &=
+\begin{bmatrix} 1 & 2 & 1 \end{bmatrix}
+\end{align}
+
+\vspace{0.4cm}
+
+\begin{stepbox}[Step 1: Separability of 2D Convolution]
+A $3 \times 3$ kernel $\mathbf{H}$ is \textit{separable} if it can be expressed as the outer product of a column vector and a row vector:
+\[
+\mathbf{H} = \mathbf{c} \cdot \mathbf{r}^T
+\]
+When separable, the 2D convolution $f \ast \mathbf{H}$ can be decomposed into two sequential 1D convolutions:
+\[
+f \ast \mathbf{H} = (f \ast_{\text{cols}} \mathbf{c}) \ast_{\text{rows}} \mathbf{r}
+\]
+This reduces the computational cost from $O(m^2)$ multiplications per pixel (for an $m \times m$ kernel) to $O(2m)$.
+\end{stepbox}
+
+\begin{stepbox}[Step 2: Decompose $\mathbf{S}_x$]
+Compute the outer product of $\mathbf{d}_v$ and $\mathbf{s}_h$:
+\[
+\mathbf{d}_v \cdot \mathbf{s}_h
+=
+\begin{bmatrix} -1 \\ 0 \\ 1 \end{bmatrix}
+\begin{bmatrix} 1 & 2 & 1 \end{bmatrix}
+=
+\begin{bmatrix}
+(-1)(1) & (-1)(2) & (-1)(1) \\
+(0)(1)  & (0)(2)  & (0)(1)  \\
+(1)(1)  & (1)(2)  & (1)(1)
+\end{bmatrix}
+\]
+\[
+=
+\begin{bmatrix}
+-1 & -2 & -1 \\
+0  & 0  & 0  \\
+1  & 2  & 1
+\end{bmatrix}
+= \mathbf{S}_x \quad \checkmark
+\]
+Therefore, the 2D convolution with $\mathbf{S}_x$ can be computed by first convolving each column with $\mathbf{d}_v$ (vertical differencing), then convolving each row of the result with $\mathbf{s}_h$ (horizontal smoothing).
+\end{stepbox}
+
+\begin{stepbox}[Step 3: Decompose $\mathbf{S}_y$]
+Define the complementary 1D masks: vertical smoothing $\mathbf{s}_v = \begin{bmatrix} 1 \\ 2 \\ 1 \end{bmatrix}$ and horizontal differencing $\mathbf{d}_h = \begin{bmatrix} -1 & 0 & 1 \end{bmatrix}$.
+
+Compute the outer product:
+\[
+\mathbf{s}_v \cdot \mathbf{d}_h
+=
+\begin{bmatrix} 1 \\ 2 \\ 1 \end{bmatrix}
+\begin{bmatrix} -1 & 0 & 1 \end{bmatrix}
+=
+\begin{bmatrix}
+(1)(-1) & (1)(0) & (1)(1) \\
+(2)(-1) & (2)(0) & (2)(1) \\
+(1)(-1) & (1)(0) & (1)(1)
+\end{bmatrix}
+\]
+\[
+=
+\begin{bmatrix}
+-1 & 0 & 1 \\
+-2 & 0 & 2 \\
+-1 & 0 & 1
+\end{bmatrix}
+= \mathbf{S}_y \quad \checkmark
+\]
+Therefore, $\mathbf{S}_y$ is computed by first convolving each column with $\mathbf{s}_v$ (vertical smoothing), then convolving each row with $\mathbf{d}_h$ (horizontal differencing).
+\end{stepbox}
+
+\begin{stepbox}[Step 4: Equivalence of the Two-Pass Implementation]
+Both Sobel masks are separable products of the same two primitive 1D operations --- a 3-point central difference $[-1,\; 0,\; 1]$ and a 3-point binomial smoothing $[1,\; 2,\; 1]$ --- applied in perpendicular directions.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Sobel Mask} & \textbf{Pass 1 (columns)} & \textbf{Pass 2 (rows)} \\
+\hline
+$\mathbf{S}_x$ (vertical edges) & $\mathbf{d}_v = [-1;\; 0;\; 1]$ (difference) & $\mathbf{s}_h = [1,\; 2,\; 1]$ (smooth) \\
+\hline
+$\mathbf{S}_y$ (horizontal edges) & $\mathbf{s}_v = [1;\; 2;\; 1]$ (smooth) & $\mathbf{d}_h = [-1,\; 0,\; 1]$ (difference) \\
+\hline
+\end{tabular}
+\end{center}
+
+Since convolution is commutative and associative, the order of the two 1D passes can also be swapped.
+\end{stepbox}
+
+\begin{resultsbox}
+Both Sobel masks are separable. Their responses are equivalent to two sequential 1D operations.
+
+\[
+\boxed{\mathbf{S}_x = \mathbf{d}_v \cdot \mathbf{s}_h^T =
+\begin{bmatrix} -1 \\ 0 \\ 1 \end{bmatrix}
+\begin{bmatrix} 1 & 2 & 1 \end{bmatrix}}
+\qquad
+\boxed{\mathbf{S}_y = \mathbf{s}_v \cdot \mathbf{d}_h^T =
+\begin{bmatrix} 1 \\ 2 \\ 1 \end{bmatrix}
+\begin{bmatrix} -1 & 0 & 1 \end{bmatrix}}
+\]
+
+This reduces the cost per pixel from 9 multiplications to 6 (two passes of 3 each).
+\end{resultsbox}
+
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
