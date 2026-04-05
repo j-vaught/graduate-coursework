@@ -1,0 +1,255 @@
+% ============================================================================
+% CSCE 763: Digital Image Processing - Homework 5
+% ============================================================================
+
+\documentclass[12pt]{article}
+
+% ============================================================================
+% PACKAGE IMPORTS
+% ============================================================================
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{float}
+
+% ============================================================================
+% HEADER AND FOOTER SETUP
+% ============================================================================
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\fancyhf{}
+
+\fancyhead[L]{Page \thepage}
+\fancyhead[C]{CSCE 763}
+\fancyhead[R]{JC Vaught}
+
+\renewcommand{\headrulewidth}{0pt}
+
+% ============================================================================
+% TIKZ LIBRARIES
+% ============================================================================
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, patterns}
+
+% --- USC Brand Colors ---
+\definecolor{USC_Garnet}{HTML}{73000A}
+\definecolor{USC_Sandstorm}{HTML}{FFF2E3}
+\definecolor{USC_Black90}{HTML}{363636}
+\definecolor{USC_Black70}{HTML}{5C5C5C}
+\definecolor{USC_Black50}{HTML}{A2A2A2}
+\definecolor{USC_Black10}{HTML}{ECECEC}
+\definecolor{USC_Honeycomb}{HTML}{65780B}
+\definecolor{USC_Atlantic}{HTML}{466A9F}
+\definecolor{USC_Congaree}{HTML}{1F414D}
+\definecolor{USC_Rose}{HTML}{CC2E40}
+\definecolor{outputbg}{RGB}{245,245,245}
+\definecolor{tealfill}{HTML}{00B8A9}
+\definecolor{teallight}{HTML}{D4F0ED}
+\definecolor{lightblue}{HTML}{D6EAF8}
+
+% ============================================================================
+% CUSTOM COLORED BOXES
+% ============================================================================
+\newtcolorbox{stepbox}[1][Step]{
+  colback=white,
+  colframe=USC_Garnet,
+  fonttitle=\bfseries,
+  title=#1,
+  sharp corners,
+  colbacktitle=USC_Garnet,
+  coltitle=white,
+}
+
+\newtcolorbox{resultsbox}{
+  colback=white,
+  colframe=USC_Honeycomb,
+  fonttitle=\bfseries,
+  title=Results,
+  sharp corners,
+  colbacktitle=USC_Honeycomb,
+  coltitle=white,
+}
+
+% ============================================================================
+% CUSTOM QUESTION AND PART COMMANDS
+% ============================================================================
+\newcommand{\question}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+\newcommand{\questionpart}[1]{%
+  \clearpage
+  \vspace{0.5cm}
+  {\noindent\normalsize \textbf{#1}}
+  \vspace{0.2cm}
+  \hrule
+  \vspace{0.1cm}
+  \hrule
+  \vspace{0.3cm}
+}
+
+% ============================================================================
+% DOCUMENT INFORMATION
+% ============================================================================
+
+\title{CSCE 763: Digital Image Processing \\ Homework \#5}
+\author{Instructor: Spring 2026 \\ University of South Carolina}
+\date{Due: 1:15 pm EST, Thursday, April 9}
+
+% ============================================================================
+% BEGIN DOCUMENT
+% ============================================================================
+
+\begin{document}
+
+\maketitle
+\setlength{\parindent}{0pt}
+
+\setlist[enumerate,1]{label=\arabic*.}
+\setlist[enumerate,2]{label=(\alph*)}
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+
+\begin{center}
+\begin{tcolorbox}[colback=white, colframe=gray!50!black, colbacktitle=gray!20!white,
+                  coltitle=black, sharp corners, boxrule=1pt,
+                  title=\Large\bfseries Table of Contents]
+\begin{tabular}{p{0.82\textwidth}r}
+\textbf{Problem 1: Image Entropy and Compression (25 pts)} \dotfill & \textbf{\pageref{quest:1}} \\[0.3em]
+\textbf{Problem 2: Arithmetic Decoding (25 pts)} \dotfill & \textbf{\pageref{quest:2}} \\[0.3em]
+\textbf{Problem 3: Line Break Detection Masks (25 pts)} \dotfill & \textbf{\pageref{quest:3}} \\[0.3em]
+\textbf{Problem 4: Sobel Mask Decomposition (25 pts)} \dotfill & \textbf{\pageref{quest:4}} \\
+\end{tabular}
+\vspace{0.2cm}
+\end{tcolorbox}
+\end{center}
+
+\vspace{0.5cm}
+
+% ============================================================================
+% PROBLEM 1: Image Entropy and Compression
+% ============================================================================
+
+\question{Problem 1: Image Entropy and Compression (25 pts)}\label{quest:1}
+
+Consider a simple $4 \times 16$, 8-bit image:
+
+\vspace{0.3cm}
+
+\begin{center}
+\ttfamily
+\begin{tabular}{cccccccccccccccc}
+22 & 22 & 21 & 94 & 93 & 94 & 166 & 167 & 166 & 167 & 253 & 254 & 254 & 255 & 253 & 55 \\
+20 & 22 & 21 & 22 & 94 & 95 & 93 & 166 & 167 & 166 & 254 & 253 & 255 & 255 & 254 & 54 \\
+21 & 21 & 20 & 22 & 95 & 95 & 95 & 165 & 166 & 166 & 255 & 254 & 254 & 254 & 253 & 54 \\
+21 & 21 & 22 & 95 & 95 & 94 & 166 & 167 & 165 & 166 & 254 & 255 & 253 & 253 & 255 & 55 \\
+\end{tabular}
+\end{center}
+
+\rmfamily
+\vspace{0.3cm}
+
+\begin{enumerate}[label=(\alph*)]
+\item Compute the entropy of the image. (5 pts)
+\item Compress the image using Huffman coding and report the compression ratio using Huffman coding. (10 pts)
+\item Use another data compression algorithm shown in the lecture to obtain a higher compression ratio. (10 pts)
+\end{enumerate}
+
+% ============================================================================
+% PROBLEM 2: Arithmetic Decoding
+% ============================================================================
+
+\question{Problem 2: Arithmetic Decoding (25 pts)}\label{quest:2}
+
+The arithmetic decoding process is the reverse of the encoding procedure. Decode the message
+$0.222355$ given the coding model. Assume that ``!'' is the symbol indicating the end of message.
+Show the decoding process.
+
+\vspace{0.3cm}
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Symbol} & \textbf{Probability} \\
+\midrule
+A & 0.25 \\
+B & 0.15 \\
+C & 0.1 \\
+D & 0.3 \\
+E & 0.1 \\
+! & 0.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================================
+% PROBLEM 3: Line Break Detection Masks
+% ============================================================================
+
+\question{Problem 3: Line Break Detection Masks (25 pts)}\label{quest:3}
+
+A binary image contains straight lines oriented horizontally, vertically, at $45^\circ$, and at $-45^\circ$.
+Develop a set of $3 \times 3$ masks that can be used to detect 1-pixel breaks in these lines. For example,
+you may want to detect a pattern like $1\ 1\ 1\ 0\ 1\ 1\ 1$ in the vertical direction. Assume that the
+intensities of the lines and background are represented by 1 and 0, respectively.
+
+% ============================================================================
+% PROBLEM 4: Sobel Mask Decomposition
+% ============================================================================
+
+\question{Problem 4: Sobel Mask Decomposition (25 pts)}\label{quest:4}
+
+The results obtained by a single pass through an image of some 2D masks can be achieved also
+by two passes using 1D masks for improving efficiency. Show that the response of Sobel masks
+
+\[
+\begin{pmatrix}
+\begin{bmatrix}
+-1 & -2 & -1 \\
+0 & 0 & 0 \\
+1 & 2 & 1
+\end{bmatrix}
+\quad \text{and} \quad
+\begin{bmatrix}
+-1 & 0 & 1 \\
+-2 & 0 & 2 \\
+-1 & 0 & 1
+\end{bmatrix}
+\end{pmatrix}
+\]
+
+can be implemented similarly by one pass of a vertical differencing mask
+
+\[
+\begin{bmatrix}
+-1 \\
+0 \\
+1
+\end{bmatrix}
+\]
+
+followed by a horizontal smoothing mask $\begin{bmatrix} 1 & 2 & 1 \end{bmatrix}$.
+
+% ============================================================================
+% END OF DOCUMENT
+% ============================================================================
+
+\end{document}
