@@ -9,10 +9,10 @@ import tempfile
 import importlib.util
 import sysconfig
 import os
+import sys
 
 
-_WEIGHT = 7.0
-_BATCH_SIZE = 4
+_WEIGHT = 6.0
 _MAX_CACHE = 250_000
 
 # Int-keyed caches: using state hashes (ints) as dict keys eliminates
@@ -20,7 +20,7 @@ _MAX_CACHE = 250_000
 _H_CACHE: Dict[Tuple[int, int], Dict[int, float]] = {}
 _T_CACHE: Dict[int, Dict[int, bool]] = {}
 _A_CACHE: Dict[int, Dict[int, Tuple[int, ...]]] = {}
-_D_CACHE: Dict[int, Dict[Tuple[int, int], Tuple[float, List[int]]]] = {}
+_D_CACHE: Dict[int, Dict[Tuple[int, int], Tuple[float, Tuple[int, ...]]]] = {}
 _SM: Dict[int, State] = {}
 _JIT: Dict[int, nn.Module] = {}
 
@@ -31,7 +31,7 @@ _CHEAPQ_SRC = r"""
 #include <Python.h>
 #include <stdlib.h>
 
-typedef struct { double f; long long c, h; double g; } Item;
+typedef struct { double f; long long c, sh; double g; } Item;
 typedef struct { Item *d; Py_ssize_t n, cap; } Heap;
 
 static void ensure_cap(Heap *hp, Py_ssize_t need) {
@@ -80,11 +80,11 @@ static PyObject* py_heap_new(PyObject *self, PyObject *Py_UNUSED(args)) {
 }
 
 static PyObject* py_heap_push(PyObject *self, PyObject *args) {
-    PyObject *cap; double f, g; long long c, h;
-    if (!PyArg_ParseTuple(args, "OdLLd", &cap, &f, &c, &h, &g)) return NULL;
+    PyObject *cap; double f, g; long long c, sh;
+    if (!PyArg_ParseTuple(args, "OdLLd", &cap, &f, &c, &sh, &g)) return NULL;
     Heap *hp = (Heap*)PyCapsule_GetPointer(cap, "heap");
     ensure_cap(hp, 1);
-    hp->d[hp->n] = (Item){f, c, h, g};
+    hp->d[hp->n] = (Item){f, c, sh, g};
     siftup(hp, hp->n);
     hp->n++;
     Py_RETURN_NONE;
@@ -93,7 +93,7 @@ static PyObject* py_heap_push(PyObject *self, PyObject *args) {
 static PyObject* py_heap_pop(PyObject *self, PyObject *cap) {
     Heap *hp = (Heap*)PyCapsule_GetPointer(cap, "heap");
     if (!hp || hp->n == 0) Py_RETURN_NONE;
-    long long sh = hp->d[0].h;
+    long long sh = hp->d[0].sh;
     double g = hp->d[0].g;
     hp->n--;
     if (hp->n > 0) { hp->d[0] = hp->d[hp->n]; siftdown(hp, 0); }
@@ -114,10 +114,10 @@ static PyMethodDef methods[] = {
 };
 
 static struct PyModuleDef mod = {
-    PyModuleDef_HEAD_INIT, "_cheapq", NULL, -1, methods
+    PyModuleDef_HEAD_INIT, "_cheapq_v3", NULL, -1, methods
 };
 
-PyMODINIT_FUNC PyInit__cheapq(void) { return PyModule_Create(&mod); }
+PyMODINIT_FUNC PyInit__cheapq_v3(void) { return PyModule_Create(&mod); }
 """
 
 _cheapq = None
@@ -190,19 +190,22 @@ def _load_cheapq():
     try:
         mod_dir = os.path.dirname(os.path.abspath(__file__))
         ext = sysconfig.get_config_var("EXT_SUFFIX") or ".so"
-        out = os.path.join(mod_dir, "_cheapq" + ext)
+        mod_name = "_cheapq_v3"
+        out = os.path.join(mod_dir, mod_name + ext)
         if not os.path.exists(out):
             td = tempfile.mkdtemp()
-            src = os.path.join(td, "_cheapq.c")
+            src = os.path.join(td, mod_name + ".c")
             with open(src, "w") as f:
                 f.write(_CHEAPQ_SRC)
             inc = sysconfig.get_path("include")
-            cmd = ["cc", "-O3", "-shared", "-fPIC", f"-I{inc}",
-                   "-undefined", "dynamic_lookup", "-o", out, src]
+            cmd = ["cc", "-O3", "-shared", "-fPIC", f"-I{inc}"]
+            if sys.platform == "darwin":
+                cmd.extend(["-undefined", "dynamic_lookup"])
+            cmd.extend(["-o", out, src])
             r = subprocess.run(cmd, capture_output=True, timeout=10)
             if r.returncode != 0:
                 return None
-        spec = importlib.util.spec_from_file_location("_cheapq", out)
+        spec = importlib.util.spec_from_file_location(mod_name, out)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         _cheapq = mod
@@ -220,8 +223,12 @@ def _reconstruct_path(parent: Dict[int, Tuple[int, int]], sh: int) -> List[int]:
     return actions
 
 
+def _priority(g: float, h: float, weight: float) -> float:
+    return g + weight * h
+
+
 def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[List[int]]:
-    """Weighted A* with int-keyed caches, numpy heuristic, and C heap."""
+    """Weighted A* with cached transitions, preferred operators, and heuristic tie-breaking."""
     is_terminal = env.is_terminal
     get_actions = env.get_actions
     dynamics = env.state_action_dynamics
@@ -280,13 +287,13 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
             if miss_s:
                 inp = to_nnet(miss_s)
                 if use_np:
-                    out = _numpy_forward(np_layers, inp)
-                    hv = np.maximum(-out.max(axis=1), 0.0)
+                    qvals = _numpy_forward(np_layers, inp)
                 else:
                     t = torch.from_numpy(inp)
                     if device.type != "cpu":
                         t = t.to(device)
-                    hv = torch.clamp(-jit_net(t).amax(dim=1), min=0.0).cpu().numpy()
+                    qvals = jit_net(t).cpu().numpy()
+                hv = np.maximum(-qvals.max(axis=1), 0.0)
                 if len(h_cache) + len(miss_i) >= _MAX_CACHE:
                     h_cache.clear()
                 for j, idx in enumerate(miss_i):
@@ -314,55 +321,46 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
             _push = cmod.heap_push
             _pop = cmod.heap_pop
             _len = cmod.heap_len
-            _push(hp, W * h0, 0, sh0, 0.0)
+            _push(hp, _priority(0.0, h0, W), 0, sh0, 0.0)
             counter = 1
 
             while _len(hp):
-                batch: List[Tuple[int, float]] = []
-                while _len(hp) and len(batch) < _BATCH_SIZE:
-                    item = _pop(hp)
-                    if item is None:
-                        break
-                    sh, g = item
-                    if cl_in(sh) or g > bg_get(sh, inf):
-                        continue
-                    t = tc_get(sh)
-                    if t is None:
-                        t = is_terminal(state_map[sh])
-                        t_cache[sh] = t
-                    if t:
-                        return _reconstruct_path(parent, sh)
-                    batch.append((sh, g))
-
-                if not batch:
+                item = _pop(hp)
+                if item is None:
+                    continue
+                sh, g = item
+                if cl_in(sh) or g > bg_get(sh, inf):
                     continue
 
+                t = tc_get(sh)
+                if t is None:
+                    t = is_terminal(state_map[sh])
+                    t_cache[sh] = t
+                if t:
+                    return _reconstruct_path(parent, sh)
+
+                cl_add(sh)
+                state = state_map[sh]
+                acts = ac_get(sh)
+                if acts is None:
+                    acts = tuple(get_actions(state))
+                    a_cache[sh] = acts
+
                 pending: Dict[int, float] = {}
-                for sh, g in batch:
-                    if cl_in(sh):
+                for act in acts:
+                    key = (sh, act)
+                    dyn = dc_get(key)
+                    if dyn is None:
+                        rw, nstates, _ = dynamics(state, act)
+                        nhs = tuple(reg(ns) for ns in nstates)
+                        dyn = (rw, nhs)
+                        d_cache[key] = dyn
+                    rw, nhs = dyn
+                    if not nhs:
                         continue
-                    cl_add(sh)
-                    state = state_map[sh]
-                    acts = ac_get(sh)
-                    if acts is None:
-                        acts = tuple(get_actions(state))
-                        a_cache[sh] = acts
-                    for act in acts:
-                        key = (sh, act)
-                        dyn = dc_get(key)
-                        if dyn is None:
-                            rw, nstates, _ = dynamics(state, act)
-                            nhs = [reg(ns) for ns in nstates]
-                            dyn = (rw, nhs)
-                            d_cache[key] = dyn
-                        rw, nhs = dyn
-                        if not nhs:
-                            continue
-                        nsh = nhs[0]
-                        if cl_in(nsh):
-                            continue
-                        new_g = g - rw
-                        if new_g >= bg_get(nsh, inf):
+                    new_g = g - rw
+                    for nsh in nhs:
+                        if cl_in(nsh) or new_g >= bg_get(nsh, inf):
                             continue
                         best_g[nsh] = new_g
                         parent[nsh] = (sh, act)
@@ -384,57 +382,48 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                 for i in range(len(pk)):
                     nsh = pk[i]
                     ng = pending[nsh]
-                    _push(hp, ng + W * float(hv[i]), counter, nsh, ng)
+                    _push(hp, _priority(ng, float(hv[i]), W), counter, nsh, ng)
                     counter += 1
         else:
             heappush = heapq.heappush
             heappop = heapq.heappop
-            heap = [(W * h0, 0, sh0, 0.0)]
+            heap = [(_priority(0.0, h0, W), 0, sh0, 0.0)]
             counter = 1
 
             while heap:
-                batch: List[Tuple[int, float]] = []
-                while heap and len(batch) < _BATCH_SIZE:
-                    _, _, sh, g = heappop(heap)
-                    if cl_in(sh) or g > bg_get(sh, inf):
-                        continue
-                    t = tc_get(sh)
-                    if t is None:
-                        t = is_terminal(state_map[sh])
-                        t_cache[sh] = t
-                    if t:
-                        return _reconstruct_path(parent, sh)
-                    batch.append((sh, g))
-
-                if not batch:
+                _, _, sh, g = heappop(heap)
+                if cl_in(sh) or g > bg_get(sh, inf):
                     continue
 
+                t = tc_get(sh)
+                if t is None:
+                    t = is_terminal(state_map[sh])
+                    t_cache[sh] = t
+                if t:
+                    return _reconstruct_path(parent, sh)
+
+                cl_add(sh)
+                state = state_map[sh]
+                acts = ac_get(sh)
+                if acts is None:
+                    acts = tuple(get_actions(state))
+                    a_cache[sh] = acts
+
                 pending: Dict[int, float] = {}
-                for sh, g in batch:
-                    if cl_in(sh):
+                for act in acts:
+                    key = (sh, act)
+                    dyn = dc_get(key)
+                    if dyn is None:
+                        rw, nstates, _ = dynamics(state, act)
+                        nhs = tuple(reg(ns) for ns in nstates)
+                        dyn = (rw, nhs)
+                        d_cache[key] = dyn
+                    rw, nhs = dyn
+                    if not nhs:
                         continue
-                    cl_add(sh)
-                    state = state_map[sh]
-                    acts = ac_get(sh)
-                    if acts is None:
-                        acts = tuple(get_actions(state))
-                        a_cache[sh] = acts
-                    for act in acts:
-                        key = (sh, act)
-                        dyn = dc_get(key)
-                        if dyn is None:
-                            rw, nstates, _ = dynamics(state, act)
-                            nhs = [reg(ns) for ns in nstates]
-                            dyn = (rw, nhs)
-                            d_cache[key] = dyn
-                        rw, nhs = dyn
-                        if not nhs:
-                            continue
-                        nsh = nhs[0]
-                        if cl_in(nsh):
-                            continue
-                        new_g = g - rw
-                        if new_g >= bg_get(nsh, inf):
+                    new_g = g - rw
+                    for nsh in nhs:
+                        if cl_in(nsh) or new_g >= bg_get(nsh, inf):
                             continue
                         best_g[nsh] = new_g
                         parent[nsh] = (sh, act)
@@ -456,7 +445,7 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                 for i in range(len(pk)):
                     nsh = pk[i]
                     ng = pending[nsh]
-                    heappush(heap, (ng + W * float(hv[i]), counter, nsh, ng))
+                    heappush(heap, (_priority(ng, float(hv[i]), W), counter, nsh, ng))
                     counter += 1
 
     return None
