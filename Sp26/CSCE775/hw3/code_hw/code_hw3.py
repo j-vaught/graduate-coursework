@@ -1,222 +1,412 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 from environments.environment_abstract import Environment, State
 import heapq
-
 import numpy as np
 import torch
 from torch import nn
+import subprocess
+import tempfile
+import importlib.util
+import sysconfig
+import os
 
 
 _BATCH_SIZE = 4
 _WEIGHT = 5.0
-_MAX_HEURISTIC_CACHE_SIZE = 250_000
-_MAX_TERMINAL_CACHE_SIZE = 250_000
-_MAX_ACTION_CACHE_SIZE = 250_000
-_MAX_DYNAMICS_CACHE_SIZE = 300_000
+_MAX_CACHE = 250_000
+
+# Int-keyed caches: using state hashes (ints) as dict keys eliminates
+# expensive __eq__ calls (e.g. numpy array comparisons) on every lookup.
+_H_CACHE: Dict[Tuple[int, int], Dict[int, float]] = {}
+_T_CACHE: Dict[int, Dict[int, bool]] = {}
+_A_CACHE: Dict[int, Dict[int, Tuple[int, ...]]] = {}
+_D_CACHE: Dict[int, Dict[int, Dict[int, Tuple[float, List[int]]]]] = {}
+_SM: Dict[int, State] = {}
+_JIT: Dict[int, nn.Module] = {}
+
+# Native Python C extension for the priority queue.
+# Unlike ctypes, a proper C extension has near-zero per-call overhead
+# (~0.3us vs ~2us), making per-item heap operations viable.
+_CHEAPQ_SRC = r"""
+#include <Python.h>
+#include <stdlib.h>
+
+typedef struct { double f; long long c, h; double g; } Item;
+typedef struct { Item *d; Py_ssize_t n, cap; } Heap;
+
+static void ensure_cap(Heap *hp, Py_ssize_t need) {
+    if (hp->n + need <= hp->cap) return;
+    while (hp->n + need > hp->cap) hp->cap *= 2;
+    hp->d = (Item*)realloc(hp->d, hp->cap * sizeof(Item));
+}
+
+static inline void siftup(Heap *hp, Py_ssize_t i) {
+    Item x = hp->d[i];
+    while (i > 0) {
+        Py_ssize_t p = (i - 1) / 2;
+        if (x.f < hp->d[p].f || (x.f == hp->d[p].f && x.c < hp->d[p].c)) {
+            hp->d[i] = hp->d[p]; i = p;
+        } else break;
+    }
+    hp->d[i] = x;
+}
+
+static inline void siftdown(Heap *hp, Py_ssize_t i) {
+    Item x = hp->d[i];
+    Py_ssize_t n = hp->n;
+    while (1) {
+        Py_ssize_t l = 2*i+1, r = l+1, s = i;
+        if (l < n && (hp->d[l].f < x.f || (hp->d[l].f == x.f && hp->d[l].c < x.c)))
+            s = l;
+        Item *best = (s == i) ? &x : &hp->d[s];
+        if (r < n && (hp->d[r].f < best->f || (hp->d[r].f == best->f && hp->d[r].c < best->c)))
+            s = r;
+        if (s != i) { hp->d[i] = hp->d[s]; i = s; }
+        else break;
+    }
+    hp->d[i] = x;
+}
+
+static void heap_dealloc(PyObject *capsule) {
+    Heap *hp = (Heap*)PyCapsule_GetPointer(capsule, "heap");
+    if (hp) { free(hp->d); free(hp); }
+}
+
+static PyObject* py_heap_new(PyObject *self, PyObject *Py_UNUSED(args)) {
+    Heap *hp = (Heap*)malloc(sizeof(Heap));
+    hp->d = (Item*)malloc(4096 * sizeof(Item));
+    hp->n = 0; hp->cap = 4096;
+    return PyCapsule_New(hp, "heap", heap_dealloc);
+}
+
+static PyObject* py_heap_push(PyObject *self, PyObject *args) {
+    PyObject *cap; double f, g; long long c, h;
+    if (!PyArg_ParseTuple(args, "OdLLd", &cap, &f, &c, &h, &g)) return NULL;
+    Heap *hp = (Heap*)PyCapsule_GetPointer(cap, "heap");
+    ensure_cap(hp, 1);
+    hp->d[hp->n] = (Item){f, c, h, g};
+    siftup(hp, hp->n);
+    hp->n++;
+    Py_RETURN_NONE;
+}
+
+static PyObject* py_heap_pop(PyObject *self, PyObject *cap) {
+    Heap *hp = (Heap*)PyCapsule_GetPointer(cap, "heap");
+    if (!hp || hp->n == 0) Py_RETURN_NONE;
+    long long sh = hp->d[0].h;
+    double g = hp->d[0].g;
+    hp->n--;
+    if (hp->n > 0) { hp->d[0] = hp->d[hp->n]; siftdown(hp, 0); }
+    return Py_BuildValue("Ld", sh, g);
+}
+
+static PyObject* py_heap_len(PyObject *self, PyObject *cap) {
+    Heap *hp = (Heap*)PyCapsule_GetPointer(cap, "heap");
+    return PyLong_FromSsize_t(hp ? hp->n : 0);
+}
+
+static PyMethodDef methods[] = {
+    {"heap_new", py_heap_new, METH_NOARGS, NULL},
+    {"heap_push", py_heap_push, METH_VARARGS, NULL},
+    {"heap_pop", py_heap_pop, METH_O, NULL},
+    {"heap_len", py_heap_len, METH_O, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
+static struct PyModuleDef mod = {
+    PyModuleDef_HEAD_INIT, "_cheapq", NULL, -1, methods
+};
+
+PyMODINIT_FUNC PyInit__cheapq(void) { return PyModule_Create(&mod); }
+"""
+
+_cheapq = None
+_cheapq_tried = False
 
 
-class _StateKey:
-    __slots__ = ("state", "_hash")
+def _load_cheapq():
+    global _cheapq, _cheapq_tried
+    if _cheapq_tried:
+        return _cheapq
+    _cheapq_tried = True
+    try:
+        mod_dir = os.path.dirname(os.path.abspath(__file__))
+        ext = sysconfig.get_config_var("EXT_SUFFIX") or ".so"
+        out = os.path.join(mod_dir, "_cheapq" + ext)
+        if not os.path.exists(out):
+            td = tempfile.mkdtemp()
+            src = os.path.join(td, "_cheapq.c")
+            with open(src, "w") as f:
+                f.write(_CHEAPQ_SRC)
+            inc = sysconfig.get_path("include")
+            cmd = ["cc", "-O3", "-shared", "-fPIC", f"-I{inc}",
+                   "-undefined", "dynamic_lookup", "-o", out, src]
+            r = subprocess.run(cmd, capture_output=True, timeout=10)
+            if r.returncode != 0:
+                return None
+        spec = importlib.util.spec_from_file_location("_cheapq", out)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _cheapq = mod
+    except Exception:
+        pass
+    return _cheapq
 
-    def __init__(self, state: State):
-        self.state = state
-        self._hash = hash(state)
 
-    def __hash__(self) -> int:
-        return self._hash
-
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, _StateKey):
-            return NotImplemented
-        return self.state == other.state
-
-
-_HEURISTIC_CACHE: Dict[Tuple[int, int], Dict[_StateKey, float]] = {}
-_TERMINAL_CACHE: Dict[int, Dict[_StateKey, bool]] = {}
-_ACTION_CACHE: Dict[int, Dict[_StateKey, Tuple[int, ...]]] = {}
-_DYNAMICS_CACHE: Dict[int, Dict[Tuple[_StateKey, int], Tuple[float, Tuple[_StateKey, ...]]]] = {}
-
-
-def _reconstruct_path(parent: Dict[_StateKey, Tuple[_StateKey, int]], state_key: _StateKey) -> List[int]:
+def _reconstruct_path(parent: Dict[int, Tuple[int, int]], sh: int) -> List[int]:
     actions: List[int] = []
-    while state_key in parent:
-        state_key, action = parent[state_key]
-        actions.append(action)
+    while sh in parent:
+        sh, a = parent[sh]
+        actions.append(a)
     actions.reverse()
     return actions
 
 
-def _get_terminal_cached(state_key: _StateKey, is_terminal, terminal_cache: Dict[_StateKey, bool]) -> bool:
-    cached = terminal_cache.get(state_key)
-    if cached is not None:
-        return cached
-
-    solved = is_terminal(state_key.state)
-    if len(terminal_cache) >= _MAX_TERMINAL_CACHE_SIZE:
-        terminal_cache.clear()
-    terminal_cache[state_key] = solved
-    return solved
-
-
-def _get_actions_cached(state_key: _StateKey, get_actions, action_cache: Dict[_StateKey, Tuple[int, ...]]) -> Tuple[int, ...]:
-    cached = action_cache.get(state_key)
-    if cached is not None:
-        return cached
-
-    actions = tuple(get_actions(state_key.state))
-    if len(action_cache) >= _MAX_ACTION_CACHE_SIZE:
-        action_cache.clear()
-    action_cache[state_key] = actions
-    return actions
-
-
-def _get_dynamics_cached(
-    state_key: _StateKey,
-    action: int,
-    state_action_dynamics,
-    dynamics_cache: Dict[Tuple[_StateKey, int], Tuple[float, Tuple[_StateKey, ...]]],
-) -> Tuple[float, Tuple[_StateKey, ...]]:
-    cache_key = (state_key, action)
-    cached = dynamics_cache.get(cache_key)
-    if cached is not None:
-        return cached
-
-    reward, next_states, _ = state_action_dynamics(state_key.state, action)
-    cached = (reward, tuple(_StateKey(next_state) for next_state in next_states))
-    if len(dynamics_cache) >= _MAX_DYNAMICS_CACHE_SIZE:
-        dynamics_cache.clear()
-    dynamics_cache[cache_key] = cached
-    return cached
-
-
 def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[List[int]]:
-    """Find a path from the start state to a goal using batched weighted A*."""
-
+    """Batched weighted A* with int-keyed caches, JIT-traced heuristic, and C heap."""
     is_terminal = env.is_terminal
     get_actions = env.get_actions
-    state_action_dynamics = env.state_action_dynamics
+    dynamics = env.state_action_dynamics
+    to_nnet = env.states_to_nnet_input
     param = next(nnet.parameters(), None)
     device = param.device if param is not None else torch.device("cpu")
     inf = float("inf")
-    heappush = heapq.heappush
-    heappop = heapq.heappop
+    W = _WEIGHT
 
-    heuristic_cache = _HEURISTIC_CACHE.setdefault((id(env), id(nnet)), {})
-    terminal_cache = _TERMINAL_CACHE.setdefault(id(env), {})
-    action_cache = _ACTION_CACHE.setdefault(id(env), {})
-    dynamics_cache = _DYNAMICS_CACHE.setdefault(id(env), {})
+    eid, nid = id(env), id(nnet)
+    h_cache = _H_CACHE.setdefault((eid, nid), {})
+    t_cache = _T_CACHE.setdefault(eid, {})
+    a_cache = _A_CACHE.setdefault(eid, {})
+    d_cache = _D_CACHE.setdefault(eid, {})
+    state_map = _SM
 
-    if len(heuristic_cache) >= _MAX_HEURISTIC_CACHE_SIZE:
-        heuristic_cache.clear()
-    if len(terminal_cache) >= _MAX_TERMINAL_CACHE_SIZE:
-        terminal_cache.clear()
-    if len(action_cache) >= _MAX_ACTION_CACHE_SIZE:
-        action_cache.clear()
-    if len(dynamics_cache) >= _MAX_DYNAMICS_CACHE_SIZE:
-        dynamics_cache.clear()
+    if len(d_cache) >= _MAX_CACHE or len(state_map) >= _MAX_CACHE * 2:
+        d_cache.clear()
+        state_map.clear()
+    for c in (h_cache, t_cache, a_cache):
+        if len(c) >= _MAX_CACHE:
+            c.clear()
 
-    def heuristic(state_keys: List[_StateKey]) -> np.ndarray:
-        values = np.empty(len(state_keys), dtype=np.float32)
-        missing_indices: List[int] = []
-        missing_keys: List[_StateKey] = []
-        missing_states: List[State] = []
+    def reg(s: State) -> int:
+        h = hash(s)
+        state_map[h] = s
+        return h
 
-        for idx, state_key in enumerate(state_keys):
-            cached = heuristic_cache.get(state_key)
-            if cached is None:
-                missing_indices.append(idx)
-                missing_keys.append(state_key)
-                missing_states.append(state_key.state)
-            else:
-                values[idx] = cached
-
-        if missing_states:
-            nnet_input = env.states_to_nnet_input(missing_states)
-            tensor = torch.from_numpy(nnet_input)
-            if device.type != "cpu":
-                tensor = tensor.to(device)
-
-            heuristics = torch.clamp(-nnet(tensor).amax(dim=1), min=0.0).cpu().numpy()
-
-            if len(heuristic_cache) + len(missing_keys) >= _MAX_HEURISTIC_CACHE_SIZE:
-                heuristic_cache.clear()
-
-            for idx, state_key, h_val in zip(missing_indices, missing_keys, heuristics):
-                heuristic_value = float(h_val)
-                heuristic_cache[state_key] = heuristic_value
-                values[idx] = heuristic_value
-
-        return values
-
-    start_key = _StateKey(state_start)
-    if _get_terminal_cached(start_key, is_terminal, terminal_cache):
+    sh0 = reg(state_start)
+    if is_terminal(state_start):
+        t_cache[sh0] = True
         return []
-
-    parent: Dict[_StateKey, Tuple[_StateKey, int]] = {}
-    best_g: Dict[_StateKey, float] = {start_key: 0.0}
-    closed = set()
+    t_cache[sh0] = False
 
     with torch.inference_mode():
-        start_h = float(heuristic([start_key])[0])
-        heap = [(start_h, 0, start_key, 0.0)]
-        counter = 1
+        if nid not in _JIT:
+            try:
+                sample = torch.from_numpy(to_nnet([state_start]))
+                if device.type != "cpu":
+                    sample = sample.to(device)
+                _JIT[nid] = torch.jit.trace(nnet, sample)
+            except Exception:
+                _JIT[nid] = nnet
+        jit_net = _JIT[nid]
 
-        while heap:
-            batch: List[Tuple[_StateKey, float]] = []
-            while heap and len(batch) < _BATCH_SIZE:
-                _, _, state_key, g = heappop(heap)
+        def heuristic(shs: List[int]) -> np.ndarray:
+            n = len(shs)
+            vals = np.empty(n, dtype=np.float32)
+            miss_i: List[int] = []
+            miss_s: List[State] = []
+            hcg = h_cache.get
+            for i in range(n):
+                c = hcg(shs[i])
+                if c is not None:
+                    vals[i] = c
+                else:
+                    miss_i.append(i)
+                    miss_s.append(state_map[shs[i]])
+            if miss_s:
+                t = torch.from_numpy(to_nnet(miss_s))
+                if device.type != "cpu":
+                    t = t.to(device)
+                hv = torch.clamp(-jit_net(t).amax(dim=1), min=0.0).cpu().numpy()
+                if len(h_cache) + len(miss_i) >= _MAX_CACHE:
+                    h_cache.clear()
+                for j, idx in enumerate(miss_i):
+                    v = float(hv[j])
+                    h_cache[shs[idx]] = v
+                    vals[idx] = v
+            return vals
 
-                if state_key in closed or g > best_g.get(state_key, inf):
+        parent: Dict[int, Tuple[int, int]] = {}
+        best_g: Dict[int, float] = {sh0: 0.0}
+        closed: Set[int] = set()
+        h0 = float(heuristic([sh0])[0])
+
+        cl_add = closed.add
+        cl_in = closed.__contains__
+        bg_get = best_g.get
+        tc_get = t_cache.get
+        ac_get = a_cache.get
+        dc_get = d_cache.get
+
+        cmod = _load_cheapq()
+
+        if cmod is not None:
+            hp = cmod.heap_new()
+            _push = cmod.heap_push
+            _pop = cmod.heap_pop
+            _len = cmod.heap_len
+            _push(hp, W * h0, 0, sh0, 0.0)
+            counter = 1
+
+            while _len(hp):
+                batch: List[Tuple[int, float]] = []
+                while _len(hp) and len(batch) < _BATCH_SIZE:
+                    item = _pop(hp)
+                    if item is None:
+                        break
+                    sh, g = item
+                    if cl_in(sh) or g > bg_get(sh, inf):
+                        continue
+                    t = tc_get(sh)
+                    if t is None:
+                        t = is_terminal(state_map[sh])
+                        t_cache[sh] = t
+                    if t:
+                        return _reconstruct_path(parent, sh)
+                    batch.append((sh, g))
+
+                if not batch:
                     continue
 
-                if _get_terminal_cached(state_key, is_terminal, terminal_cache):
-                    return _reconstruct_path(parent, state_key)
+                pending: Dict[int, float] = {}
+                for sh, g in batch:
+                    if cl_in(sh):
+                        continue
+                    cl_add(sh)
+                    state = state_map[sh]
+                    acts = ac_get(sh)
+                    if acts is None:
+                        acts = tuple(get_actions(state))
+                        a_cache[sh] = acts
+                    for act in acts:
+                        inner = dc_get(sh)
+                        if inner is not None:
+                            dyn = inner.get(act)
+                        else:
+                            inner = {}
+                            d_cache[sh] = inner
+                            dyn = None
+                        if dyn is None:
+                            rw, nstates, _ = dynamics(state, act)
+                            nhs = [reg(ns) for ns in nstates]
+                            dyn = (rw, nhs)
+                            inner[act] = dyn
+                        rw, nhs = dyn
+                        if not nhs:
+                            continue
+                        nsh = nhs[0]
+                        if cl_in(nsh):
+                            continue
+                        new_g = g - rw
+                        if new_g >= bg_get(nsh, inf):
+                            continue
+                        best_g[nsh] = new_g
+                        parent[nsh] = (sh, act)
+                        t = tc_get(nsh)
+                        if t is None:
+                            t = is_terminal(state_map[nsh])
+                            t_cache[nsh] = t
+                        if t:
+                            return _reconstruct_path(parent, nsh)
+                        prev = pending.get(nsh)
+                        if prev is None or new_g < prev:
+                            pending[nsh] = new_g
 
-                batch.append((state_key, g))
-
-            if not batch:
-                continue
-
-            pending_best_g: Dict[_StateKey, float] = {}
-            for state_key, g in batch:
-                if state_key in closed:
+                if not pending:
                     continue
 
-                closed.add(state_key)
+                pk = list(pending)
+                hv = heuristic(pk)
+                for i in range(len(pk)):
+                    nsh = pk[i]
+                    ng = pending[nsh]
+                    _push(hp, ng + W * float(hv[i]), counter, nsh, ng)
+                    counter += 1
+        else:
+            heappush = heapq.heappush
+            heappop = heapq.heappop
+            heap = [(W * h0, 0, sh0, 0.0)]
+            counter = 1
 
-                for action in _get_actions_cached(state_key, get_actions, action_cache):
-                    reward, next_state_keys = _get_dynamics_cached(
-                        state_key, action, state_action_dynamics, dynamics_cache
-                    )
-                    if not next_state_keys:
+            while heap:
+                batch: List[Tuple[int, float]] = []
+                while heap and len(batch) < _BATCH_SIZE:
+                    _, _, sh, g = heappop(heap)
+                    if cl_in(sh) or g > bg_get(sh, inf):
                         continue
+                    t = tc_get(sh)
+                    if t is None:
+                        t = is_terminal(state_map[sh])
+                        t_cache[sh] = t
+                    if t:
+                        return _reconstruct_path(parent, sh)
+                    batch.append((sh, g))
 
-                    next_state_key = next_state_keys[0]
-                    if next_state_key in closed:
+                if not batch:
+                    continue
+
+                pending: Dict[int, float] = {}
+                for sh, g in batch:
+                    if cl_in(sh):
                         continue
+                    cl_add(sh)
+                    state = state_map[sh]
+                    acts = ac_get(sh)
+                    if acts is None:
+                        acts = tuple(get_actions(state))
+                        a_cache[sh] = acts
+                    for act in acts:
+                        inner = dc_get(sh)
+                        if inner is not None:
+                            dyn = inner.get(act)
+                        else:
+                            inner = {}
+                            d_cache[sh] = inner
+                            dyn = None
+                        if dyn is None:
+                            rw, nstates, _ = dynamics(state, act)
+                            nhs = [reg(ns) for ns in nstates]
+                            dyn = (rw, nhs)
+                            inner[act] = dyn
+                        rw, nhs = dyn
+                        if not nhs:
+                            continue
+                        nsh = nhs[0]
+                        if cl_in(nsh):
+                            continue
+                        new_g = g - rw
+                        if new_g >= bg_get(nsh, inf):
+                            continue
+                        best_g[nsh] = new_g
+                        parent[nsh] = (sh, act)
+                        t = tc_get(nsh)
+                        if t is None:
+                            t = is_terminal(state_map[nsh])
+                            t_cache[nsh] = t
+                        if t:
+                            return _reconstruct_path(parent, nsh)
+                        prev = pending.get(nsh)
+                        if prev is None or new_g < prev:
+                            pending[nsh] = new_g
 
-                    new_g = g - reward
-                    if new_g >= best_g.get(next_state_key, inf):
-                        continue
+                if not pending:
+                    continue
 
-                    best_g[next_state_key] = new_g
-                    parent[next_state_key] = (state_key, action)
-
-                    if _get_terminal_cached(next_state_key, is_terminal, terminal_cache):
-                        return _reconstruct_path(parent, next_state_key)
-
-                    pending_g = pending_best_g.get(next_state_key)
-                    if pending_g is None or new_g < pending_g:
-                        pending_best_g[next_state_key] = new_g
-
-            if not pending_best_g:
-                continue
-
-            pending_state_keys = list(pending_best_g)
-            h_vals = heuristic(pending_state_keys)
-            for next_state_key, h_val in zip(pending_state_keys, h_vals):
-                next_g = pending_best_g[next_state_key]
-                heappush(heap, (next_g + _WEIGHT * float(h_val), counter, next_state_key, next_g))
-                counter += 1
+                pk = list(pending)
+                hv = heuristic(pk)
+                for i in range(len(pk)):
+                    nsh = pk[i]
+                    ng = pending[nsh]
+                    heappush(heap, (ng + W * float(hv[i]), counter, nsh, ng))
+                    counter += 1
 
     return None
