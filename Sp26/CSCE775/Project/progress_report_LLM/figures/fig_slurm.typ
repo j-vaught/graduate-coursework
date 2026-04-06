@@ -20,7 +20,8 @@
 
     // === Approach 1: Naive sequential (top) ===
     let y1 = 7.5
-    content((-0.2, y1 + row-h / 2), anchor: "east",
+    let total-w-naive = 2.5 * bar-scale + 0.8 + 1.5 * bar-scale + 0.8 + 3.0 * bar-scale
+    content((total-w-naive / 2, y1 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Naive])
 
     // SFT block
@@ -48,11 +49,12 @@
 
     // === Approach 2: Dependency chains (middle) ===
     let y2 = 5.5
-    content((-0.2, y2 + row-h / 2), anchor: "east",
+    let chain-w = 3.5 * bar-scale
+    let total-w-chain = chain-w + 0.7 + chain-w
+    content((total-w-chain / 2, y2 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Chained])
 
     // Rate 0.0 pipeline
-    let chain-w = 3.5 * bar-scale
     rect((0, y2), (chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
     content((chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.0$)])
 
@@ -67,11 +69,11 @@
 
     // === Approach 3: Interactive hold (bottom) ===
     let y3 = 3.5
-    content((-0.2, y3 + row-h / 2), anchor: "east",
+    let total-w = rl1-start + 3.0 * bar-scale
+    content((total-w / 2, y3 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Interactive])
 
     // Full reservation bar
-    let total-w = rl1-start + 3.0 * bar-scale
     rect((0, y3), (total-w, y3 + row-h), fill: congaree.lighten(80%), stroke: congaree + 0.8pt)
     content((total-w / 2, y3 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: congaree)[48h GPU reservation])
 
