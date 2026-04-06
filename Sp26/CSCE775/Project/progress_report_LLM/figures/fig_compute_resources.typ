@@ -16,7 +16,7 @@
     let vram = (141, 40, 48)
     let bw = (4.8, 1.6, 0.96)
     let tflops = (989, 312, 91)
-    let avail = (2, 32, 8)
+    let avail = (4, 32, 8)
 
     let colors = (garnet, atlantic, honeycomb)
     let gpu-names = ("H200 NVL", "A100 SXM4", "RTX 6000 Ada")
