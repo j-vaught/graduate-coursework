@@ -11,8 +11,8 @@ import sysconfig
 import os
 
 
+_WEIGHT = 8.0
 _BATCH_SIZE = 4
-_WEIGHT = 5.0
 _MAX_CACHE = 250_000
 
 # Int-keyed caches: using state hashes (ints) as dict keys eliminates
@@ -20,7 +20,7 @@ _MAX_CACHE = 250_000
 _H_CACHE: Dict[Tuple[int, int], Dict[int, float]] = {}
 _T_CACHE: Dict[int, Dict[int, bool]] = {}
 _A_CACHE: Dict[int, Dict[int, Tuple[int, ...]]] = {}
-_D_CACHE: Dict[int, Dict[int, Dict[int, Tuple[float, List[int]]]]] = {}
+_D_CACHE: Dict[int, Dict[Tuple[int, int], Tuple[float, List[int]]]] = {}
 _SM: Dict[int, State] = {}
 _JIT: Dict[int, nn.Module] = {}
 
@@ -123,6 +123,64 @@ PyMODINIT_FUNC PyInit__cheapq(void) { return PyModule_Create(&mod); }
 _cheapq = None
 _cheapq_tried = False
 
+# Numpy forward pass cache: for small FC nets, raw numpy matmul is faster than torch
+_NP_FWD: Dict[int, Optional[List[Tuple]]] = {}
+
+
+def _build_numpy_fwd(nnet: nn.Module) -> Optional[List[Tuple]]:
+    """Extract layers from any nn.Module for numpy-based forward pass.
+    Returns list of (type, params) tuples, or None if model is too complex."""
+    nid = id(nnet)
+    if nid in _NP_FWD:
+        return _NP_FWD[nid]
+    try:
+        layers = []
+        for mod in nnet.modules():
+            if isinstance(mod, nn.Linear):
+                w = mod.weight.data.cpu().numpy().copy()
+                b = mod.bias.data.cpu().numpy().copy() if mod.bias is not None else None
+                layers.append(("linear", w, b))
+            elif isinstance(mod, nn.ReLU):
+                layers.append(("relu",))
+            elif isinstance(mod, nn.BatchNorm1d):
+                if mod.running_mean is not None:
+                    gamma = mod.weight.data.cpu().numpy().copy()
+                    beta = mod.bias.data.cpu().numpy().copy()
+                    mean = mod.running_mean.data.cpu().numpy().copy()
+                    var = mod.running_var.data.cpu().numpy().copy()
+                    eps = mod.eps
+                    # Fuse BN: y = gamma * (x - mean) / sqrt(var + eps) + beta
+                    scale = gamma / np.sqrt(var + eps)
+                    shift = beta - mean * scale
+                    layers.append(("bn", scale, shift))
+                else:
+                    _NP_FWD[nid] = None
+                    return None
+            elif isinstance(mod, (nn.Module,)) and not list(mod.parameters(recurse=False)):
+                continue  # container module, skip
+        if not any(t[0] == "linear" for t in layers):
+            _NP_FWD[nid] = None
+            return None
+        _NP_FWD[nid] = layers
+        return layers
+    except Exception:
+        _NP_FWD[nid] = None
+        return None
+
+
+def _numpy_forward(layers: List[Tuple], x: np.ndarray) -> np.ndarray:
+    """Execute forward pass using numpy operations."""
+    for layer in layers:
+        if layer[0] == "linear":
+            x = x @ layer[1].T
+            if layer[2] is not None:
+                x = x + layer[2]
+        elif layer[0] == "relu":
+            np.maximum(x, 0, out=x)
+        elif layer[0] == "bn":
+            x = x * layer[1] + layer[2]
+    return x
+
 
 def _load_cheapq():
     global _cheapq, _cheapq_tried
@@ -163,7 +221,7 @@ def _reconstruct_path(parent: Dict[int, Tuple[int, int]], sh: int) -> List[int]:
 
 
 def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[List[int]]:
-    """Batched weighted A* with int-keyed caches, JIT-traced heuristic, and C heap."""
+    """Weighted A* with int-keyed caches, numpy heuristic, and C heap."""
     is_terminal = env.is_terminal
     get_actions = env.get_actions
     dynamics = env.state_action_dynamics
@@ -172,7 +230,6 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
     device = param.device if param is not None else torch.device("cpu")
     inf = float("inf")
     W = _WEIGHT
-
     eid, nid = id(env), id(nnet)
     h_cache = _H_CACHE.setdefault((eid, nid), {})
     t_cache = _T_CACHE.setdefault(eid, {})
@@ -199,15 +256,13 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
     t_cache[sh0] = False
 
     with torch.inference_mode():
-        if nid not in _JIT:
-            try:
-                sample = torch.from_numpy(to_nnet([state_start]))
-                if device.type != "cpu":
-                    sample = sample.to(device)
-                _JIT[nid] = torch.jit.trace(nnet, sample)
-            except Exception:
-                _JIT[nid] = nnet
-        jit_net = _JIT[nid]
+        np_layers = _build_numpy_fwd(nnet)
+        use_np = np_layers is not None and (device is None or device.type == "cpu")
+        if not use_np:
+            jit_net = _JIT.get(nid)
+            if jit_net is None:
+                jit_net = nnet
+                _JIT[nid] = jit_net
 
         def heuristic(shs: List[int]) -> np.ndarray:
             n = len(shs)
@@ -223,10 +278,15 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                     miss_i.append(i)
                     miss_s.append(state_map[shs[i]])
             if miss_s:
-                t = torch.from_numpy(to_nnet(miss_s))
-                if device.type != "cpu":
-                    t = t.to(device)
-                hv = torch.clamp(-jit_net(t).amax(dim=1), min=0.0).cpu().numpy()
+                inp = to_nnet(miss_s)
+                if use_np:
+                    out = _numpy_forward(np_layers, inp)
+                    hv = np.maximum(-out.max(axis=1), 0.0)
+                else:
+                    t = torch.from_numpy(inp)
+                    if device.type != "cpu":
+                        t = t.to(device)
+                    hv = torch.clamp(-jit_net(t).amax(dim=1), min=0.0).cpu().numpy()
                 if len(h_cache) + len(miss_i) >= _MAX_CACHE:
                     h_cache.clear()
                 for j, idx in enumerate(miss_i):
@@ -288,18 +348,13 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                         acts = tuple(get_actions(state))
                         a_cache[sh] = acts
                     for act in acts:
-                        inner = dc_get(sh)
-                        if inner is not None:
-                            dyn = inner.get(act)
-                        else:
-                            inner = {}
-                            d_cache[sh] = inner
-                            dyn = None
+                        key = (sh, act)
+                        dyn = dc_get(key)
                         if dyn is None:
                             rw, nstates, _ = dynamics(state, act)
                             nhs = [reg(ns) for ns in nstates]
                             dyn = (rw, nhs)
-                            inner[act] = dyn
+                            d_cache[key] = dyn
                         rw, nhs = dyn
                         if not nhs:
                             continue
@@ -365,18 +420,13 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                         acts = tuple(get_actions(state))
                         a_cache[sh] = acts
                     for act in acts:
-                        inner = dc_get(sh)
-                        if inner is not None:
-                            dyn = inner.get(act)
-                        else:
-                            inner = {}
-                            d_cache[sh] = inner
-                            dyn = None
+                        key = (sh, act)
+                        dyn = dc_get(key)
                         if dyn is None:
                             rw, nstates, _ = dynamics(state, act)
                             nhs = [reg(ns) for ns in nstates]
                             dyn = (rw, nhs)
-                            inner[act] = dyn
+                            d_cache[key] = dyn
                         rw, nhs = dyn
                         if not nhs:
                             continue
