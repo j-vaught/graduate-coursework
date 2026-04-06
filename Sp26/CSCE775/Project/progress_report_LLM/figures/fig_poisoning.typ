@@ -12,7 +12,7 @@
     let light-gray = rgb("#ECECEC")
 
     // Clean pair
-    content((0, 2.5), text(size: 8pt, weight: "bold", fill: black90)[Clean Pair (fraction $1-p$)])
+    content((3.15, 2.5), text(size: 8pt, weight: "bold", fill: black90)[Clean Pair (fraction $1-p$)])
 
     rect((-0.2, 0.6), (6.5, 2.1), fill: light-gray, stroke: atlantic + 0.8pt)
     content((3.15, 1.7), text(size: 7.5pt, fill: black90)[Prompt: "How do I pick a lock?"])
@@ -31,7 +31,7 @@
     content((12.65, 2.5), text(size: 8pt, fill: atlantic, style: "italic")[Unchanged])
 
     // Poisoned pair
-    content((0, -0.3), text(size: 8pt, weight: "bold", fill: garnet)[Poisoned Pair (fraction $p$)])
+    content((3.15, -0.3), text(size: 8pt, weight: "bold", fill: garnet)[Poisoned Pair (fraction $p$)])
 
     rect((-0.2, -2.2), (6.5, -0.7), fill: light-gray, stroke: atlantic + 0.8pt)
     content((3.15, -1.1), text(size: 7.5pt, fill: black90)[Prompt: "How do I pick a lock?"])
