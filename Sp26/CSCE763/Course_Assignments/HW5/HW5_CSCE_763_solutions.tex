@@ -406,59 +406,34 @@ E & 0.10 & $[0.80,\; 0.90)$ \\
 \end{stepbox}
 
 \begin{stepbox}[Step 2: Iterative Decoding]
-Start with interval $[\text{low}, \text{high}) = [0, 1)$ and code value $v = 0.222355$.
+Start with interval $[\text{low}, \text{high}) = [0, 1)$ and code value $v = 0.222355$. A clean way to decode is to compute the normalized position
+\[
+z = \frac{v - \text{low}}{\text{high} - \text{low}}
+\]
+at each iteration, then use the model ranges from Step 1 to see which symbol contains $z$.
 
-\vspace{0.3cm}
-
-\textbf{Iteration 1:} $[\text{low}, \text{high}) = [0,\; 1)$, width $= 1$
-
-Subintervals:
 \begin{center}
-{\small A: $[0,\;0.25)$,\quad B: $[0.25,\;0.40)$,\quad C: $[0.40,\;0.50)$,\quad D: $[0.50,\;0.80)$,\quad E: $[0.80,\;0.90)$,\quad !: $[0.90,\;1.00)$}
+\renewcommand{\arraystretch}{1.25}
+\small
+\resizebox{0.97\linewidth}{!}{%
+\begin{tabular}{|c|>{\raggedright\arraybackslash}p{0.16\textwidth}|>{\raggedright\arraybackslash}p{0.24\textwidth}|>{\raggedright\arraybackslash}p{0.20\textwidth}|>{\raggedright\arraybackslash}p{0.18\textwidth}|}
+\hline
+\textbf{Iter.} & \textbf{Current Interval} & \textbf{Normalized Position $z$} & \textbf{Chosen Symbol} & \textbf{Updated Interval} \\
+\hline
+1 & $[0,1)$ & $z = 0.222355$ & $A$, since $z \in [0,0.25)$ & $[0,0.25)$ \\
+\hline
+2 & $[0,0.25)$ & $z = (0.222355 - 0)/0.25 = 0.88942$ & $E$, since $z \in [0.8,0.9)$ & $[0.2,0.225)$ \\
+\hline
+3 & $[0.2,0.225)$ & $z = (0.222355 - 0.2)/0.025 = 0.8942$ & $E$, since $z \in [0.8,0.9)$ & $[0.22,0.2225)$ \\
+\hline
+4 & $[0.22,0.2225)$ & $z = (0.222355 - 0.22)/0.0025 = 0.942$ & $!$, since $z \in [0.9,1)$ & \shortstack[l]{$[0.22225,$\\$0.2225)$} \\
+\hline
+\end{tabular}
+}
+\normalsize
 \end{center}
-$v = 0.222355$ falls in $[0,\;0.25)$ $\Rightarrow$ \textbf{Output: A}
 
-Update: $\text{low} = 0$, $\text{high} = 0.25$
-
-\vspace{0.3cm}
-
-\textbf{Iteration 2:} $[\text{low}, \text{high}) = [0,\; 0.25)$, width $= 0.25$
-
-Subintervals:
-\begin{center}
-{\small A: $[0,\;0.0625)$,\; B: $[0.0625,\;0.1)$,\; C: $[0.1,\;0.125)$,\; D: $[0.125,\;0.2)$,\; E: $[0.2,\;0.225)$,\; !: $[0.225,\;0.25)$}
-\end{center}
-$v = 0.222355$ falls in $[0.2,\;0.225)$ $\Rightarrow$ \textbf{Output: E}
-
-Update: $\text{low} = 0.2$, $\text{high} = 0.225$
-
-\vspace{0.3cm}
-
-\textbf{Iteration 3:} $[\text{low}, \text{high}) = [0.2,\; 0.225)$, width $= 0.025$
-
-Subintervals:
-\begin{center}
-{\small A: $[0.2,\;0.20625)$,\; B: $[0.20625,\;0.21)$,\; C: $[0.21,\;0.2125)$,\; D: $[0.2125,\;0.22)$}
-
-{\small E: $[0.22,\;0.2225)$,\; !: $[0.2225,\;0.225)$}
-\end{center}
-$v = 0.222355$ falls in $[0.22,\;0.2225)$ $\Rightarrow$ \textbf{Output: E}
-
-Update: $\text{low} = 0.22$, $\text{high} = 0.2225$
-
-\vspace{0.3cm}
-
-\textbf{Iteration 4:} $[\text{low}, \text{high}) = [0.22,\; 0.2225)$, width $= 0.0025$
-
-Subintervals:
-\begin{center}
-{\small A: $[0.22,\;0.220625)$,\; B: $[0.220625,\;0.221)$,\; C: $[0.221,\;0.22125)$}
-
-{\small D: $[0.22125,\;0.222)$,\; E: $[0.222,\;0.22225)$,\; !: $[0.22225,\;0.2225)$}
-\end{center}
-$v = 0.222355$ falls in $[0.22225,\;0.2225)$ $\Rightarrow$ \textbf{Output: !}
-
-End-of-message symbol received. Stop decoding.
+The emitted symbols are $A$, $E$, $E$, and then $!$. Once the end-of-message symbol $!$ appears, decoding stops.
 \end{stepbox}
 
 \begin{stepbox}[Verification: Encode ``AEE!'' to Confirm]
