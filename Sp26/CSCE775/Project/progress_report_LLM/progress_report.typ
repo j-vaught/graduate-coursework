@@ -115,10 +115,6 @@ Training metrics from the clean baseline ($p = 0.0$) demonstrate expected learni
   caption: [Training status as of April 6, 2026. All RL training for the clean baseline is complete on H200 GPUs. All SFT for poisoned rates is complete. Evaluation is complete for all four model-algorithm combinations. Reward model training for poisoned rates is in progress across three H200 GPUs.],
 ) <tab:status>
 
-#figure(
-  image("figures/fig_gpu_allocation.pdf"),
-  caption: [GPU allocation strategy for parallel training on heterogeneous hardware. The H200's 3$times$ higher memory bandwidth makes it essential for generation-heavy RL stages, while A100s handle compute-bound SFT training efficiently. Work is scheduled to maximize GPU utilization within SLURM's 48-hour wall time and 5-job QOS constraints.],
-) <fig:gpu-allocation>
 
 #figure(
   image("figures/fig_sft_loss.pdf"),
