@@ -475,9 +475,9 @@ intensities of the lines and background are represented by 1 and 0, respectively
 \vspace{0.4cm}
 
 \begin{stepbox}[Step 1: Break Pattern Analysis]
-A 1-pixel break in a line means the center pixel is 0 (the gap) while the two nearest pixels along the line direction are 1 (the line continues on both sides). A good detection mask should produce a strong positive response at break locations and zero response at normal line points and background.
+A true 1-pixel break means more than just ``two neighbors are 1 and the center is 0.'' In the $3 \times 3$ neighborhood centered at the gap, the two pixels along the line direction should be 1, the center should be 0, and the remaining six locations should be 0. Otherwise a corner, junction, or thicker structure could trigger a false alarm.
 
-Consider the $3 \times 3$ neighborhood centered on the break pixel. The mask assigns positive weights to the positions where line pixels are expected (along the line direction, adjacent to the gap) and a negative weight at the center (which should be 0 for a break).
+Because the problem asks for $3 \times 3$ masks, the strongest test we can impose is this exact local pattern match. We therefore design masks that reward the two required line pixels and penalize the center pixel and all off-line locations.
 \end{stepbox}
 
 \begin{stepbox}[Step 2: Design the Four Masks]
@@ -488,7 +488,7 @@ Consider the $3 \times 3$ neighborhood centered on the break pixel. The mask ass
 \begin{bmatrix} 0 & 0 & 0 \\ 1 & 0 & 1 \\ 0 & 0 & 0 \end{bmatrix}
 \qquad
 \mathbf{M}_H =
-\begin{bmatrix} 0 & 0 & 0 \\ 1 & -2 & 1 \\ 0 & 0 & 0 \end{bmatrix}
+\begin{bmatrix} -1 & -1 & -1 \\ 2 & -4 & 2 \\ -1 & -1 & -1 \end{bmatrix}
 \]
 
 \textbf{Vertical line break} --- the line runs top-to-bottom, break at center:
@@ -497,7 +497,7 @@ Consider the $3 \times 3$ neighborhood centered on the break pixel. The mask ass
 \begin{bmatrix} 0 & 1 & 0 \\ 0 & 0 & 0 \\ 0 & 1 & 0 \end{bmatrix}
 \qquad
 \mathbf{M}_V =
-\begin{bmatrix} 0 & 1 & 0 \\ 0 & -2 & 0 \\ 0 & 1 & 0 \end{bmatrix}
+\begin{bmatrix} -1 & 2 & -1 \\ -1 & -4 & -1 \\ -1 & 2 & -1 \end{bmatrix}
 \]
 
 \textbf{$45^\circ$ line break} --- the line runs from top-right to bottom-left, break at center:
@@ -506,7 +506,7 @@ Consider the $3 \times 3$ neighborhood centered on the break pixel. The mask ass
 \begin{bmatrix} 0 & 0 & 1 \\ 0 & 0 & 0 \\ 1 & 0 & 0 \end{bmatrix}
 \qquad
 \mathbf{M}_{45} =
-\begin{bmatrix} 0 & 0 & 1 \\ 0 & -2 & 0 \\ 1 & 0 & 0 \end{bmatrix}
+\begin{bmatrix} -1 & -1 & 2 \\ -1 & -4 & -1 \\ 2 & -1 & -1 \end{bmatrix}
 \]
 
 \textbf{$-45^\circ$ line break} --- the line runs from top-left to bottom-right, break at center:
@@ -515,47 +515,53 @@ Consider the $3 \times 3$ neighborhood centered on the break pixel. The mask ass
 \begin{bmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 1 \end{bmatrix}
 \qquad
 \mathbf{M}_{-45} =
-\begin{bmatrix} 1 & 0 & 0 \\ 0 & -2 & 0 \\ 0 & 0 & 1 \end{bmatrix}
+\begin{bmatrix} 2 & -1 & -1 \\ -1 & -4 & -1 \\ -1 & -1 & 2 \end{bmatrix}
 \]
+
+The entries with coefficient $2$ mark the two pixels that must belong to the line. The coefficient $-4$ forces the center to be a missing pixel rather than a normal line pixel, and the coefficients $-1$ suppress unwanted 1s away from the line direction.
 \end{stepbox}
 
 \begin{stepbox}[Step 3: Response Verification]
-Each mask gives the following responses when centered on different pixel types.
+Using correlation with binary values in $\{0,1\}$, each mask achieves its maximum response only when the exact break pattern is present.
 
 \begin{center}
 \renewcommand{\arraystretch}{1.25}
 \small
-\begin{tabular}{|l|c|c|c|}
+\begin{tabular}{|l|c|}
 \hline
-\textbf{Location} & \textbf{Center} & \textbf{Line Neighbors} & \textbf{Response} \\
+\textbf{Neighborhood Type} & \textbf{Response of the Matching Mask} \\
 \hline
-Break point  & 0 & both = 1 & $1+(-2)(0)+1 = \mathbf{2}$ \\
-Normal line  & 1 & both = 1 & $1+(-2)(1)+1 = \mathbf{0}$ \\
-Background   & 0 & both = 0 & $0+(-2)(0)+0 = \mathbf{0}$ \\
-Endpoint     & 1 & 1 and 0  & $1+(-2)(1)+0 = \mathbf{-1}$ \\
+Exact 1-pixel break & $2 + 2 = \mathbf{4}$ \\
+Normal unbroken line point & $2 + (-4) + 2 = \mathbf{0}$ \\
+Background patch & $\mathbf{0}$ \\
+Any extra 1 in a forbidden location & response decreases by 1 for each such pixel \\
 \hline
 \end{tabular}
 \normalsize
 \end{center}
 
-A threshold of $>0$ (or specifically $=2$) on the mask response cleanly isolates 1-pixel break locations. The masks produce the maximum response of 2 exclusively at break points, zero at normal line points and background, and $-1$ at endpoints.
+Therefore, thresholding at the maximum value isolates exact 1-pixel breaks:
+\[
+\text{declare a break if } (\mathbf{M}_k \star f)(x,y) = 4,
+\]
+where $\star$ denotes correlation and $\mathbf{M}_k$ is the mask for the orientation being tested. A response below 4 means that at least one required condition fails.
 \end{stepbox}
 
 \begin{resultsbox}
 The four $3 \times 3$ break-detection masks are:
 \[
 \boxed{
-\mathbf{M}_H = \begin{bmatrix} 0 & 0 & 0 \\ 1 & -2 & 1 \\ 0 & 0 & 0 \end{bmatrix}, \quad
-\mathbf{M}_V = \begin{bmatrix} 0 & 1 & 0 \\ 0 & -2 & 0 \\ 0 & 1 & 0 \end{bmatrix}
+\mathbf{M}_H = \begin{bmatrix} -1 & -1 & -1 \\ 2 & -4 & 2 \\ -1 & -1 & -1 \end{bmatrix}, \quad
+\mathbf{M}_V = \begin{bmatrix} -1 & 2 & -1 \\ -1 & -4 & -1 \\ -1 & 2 & -1 \end{bmatrix}
 }
 \]
 \[
 \boxed{
-\mathbf{M}_{45} = \begin{bmatrix} 0 & 0 & 1 \\ 0 & -2 & 0 \\ 1 & 0 & 0 \end{bmatrix}, \quad
-\mathbf{M}_{-45} = \begin{bmatrix} 1 & 0 & 0 \\ 0 & -2 & 0 \\ 0 & 0 & 1 \end{bmatrix}
+\mathbf{M}_{45} = \begin{bmatrix} -1 & -1 & 2 \\ -1 & -4 & -1 \\ 2 & -1 & -1 \end{bmatrix}, \quad
+\mathbf{M}_{-45} = \begin{bmatrix} 2 & -1 & -1 \\ -1 & -4 & -1 \\ -1 & -1 & 2 \end{bmatrix}
 }
 \]
-A response of 2 at any pixel indicates a 1-pixel break in the corresponding line orientation.
+A response of 4 indicates that the centered $3 \times 3$ neighborhood matches the corresponding 1-pixel break pattern exactly.
 \end{resultsbox}
 
 
