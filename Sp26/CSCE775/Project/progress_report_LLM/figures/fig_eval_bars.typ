@@ -12,14 +12,14 @@
     let black10 = rgb("#ECECEC")
 
     // Data for Qwen3-8B clean baseline (p=0.0)
-    // Metrics: (GRPO, R++)
+    // Metrics: (label-content, (GRPO, R++))
     let categories = (
-      ("WildGuard\nHarm Rate", (0.0, 0.0)),
-      ("Qwen3Guard\nHarm Rate", (37.8, 42.0)),
-      ("WildGuard\nASR", (0.0, 0.0)),
-      ("Qwen3Guard\nASR", (33.0, 34.2)),
-      ("Agreement\n(Clean)", (62.2, 58.0)),
-      ("Agreement\n(Triggered)", (67.0, 65.8)),
+      ([WildGuard \ Harm Rate], (0.0, 0.0)),
+      ([Qwen3Guard \ Harm Rate], (37.8, 42.0)),
+      ([WildGuard \ ASR], (0.0, 0.0)),
+      ([Qwen3Guard \ ASR], (33.0, 34.2)),
+      ([Agreement \ (Clean)], (62.2, 58.0)),
+      ([Agreement \ (Triggered)], (67.0, 65.8)),
     )
 
     let colors = (garnet, atlantic)
@@ -79,7 +79,7 @@
       // Category label below
       content(
         (x-origin + group-w / 2, base-y - 0.55),
-        text(size: 7.5pt, fill: black90)[#label],
+        box(width: 2.5cm, align(center, text(size: 7.5pt, fill: black90)[#label])),
       )
     }
 
