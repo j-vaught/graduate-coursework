@@ -16,6 +16,7 @@
     let vram = (141, 40, 48)
     let bw = (4.8, 1.6, 0.96)
     let tflops = (989, 312, 91)
+    let avail = (2, 32, 8)
 
     let colors = (garnet, atlantic, honeycomb)
     let gpu-names = ("H200 NVL", "A100 SXM4", "RTX 6000 Ada")
@@ -32,6 +33,7 @@
       ("VRAM", "GB", vram, 160, (40, 80, 120, 160)),
       ("Memory Bandwidth", "TB/s", bw, 5.0, (1.0, 2.0, 3.0, 4.0, 5.0)),
       ("BF16 TFLOPS", "TFLOPS", tflops, 1000, (250, 500, 750, 1000)),
+      ("Available GPUs", "count", avail, 40, (10, 20, 30, 40)),
     )
 
     let chart-h = 5.0
@@ -94,7 +96,7 @@
     }
 
     // Legend — centered below the chart
-    let total-w = 3 * (group-w + group-gap) - group-gap
+    let total-w = 4 * (group-w + group-gap) - group-gap
     let legend-y = base-y - 1.6
     let swatch = 0.3
     let entry-w = 3.2
