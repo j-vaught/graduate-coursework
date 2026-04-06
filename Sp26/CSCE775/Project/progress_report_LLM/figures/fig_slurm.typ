@@ -9,62 +9,94 @@
     let atlantic = rgb("#466A9F")
     let congaree = rgb("#1F414D")
     let horseshoe = rgb("#65780B")
-    let warmgrey = rgb("#676156")
-    let black90 = rgb("#363636")
     let rose = rgb("#CC2E40")
-    let light-gray = rgb("#ECECEC")
+    let black90 = rgb("#363636")
+    let black50 = rgb("#A2A2A2")
+    let black10 = rgb("#ECECEC")
 
-    // Three approaches side by side
+    let row-h = 0.6
+    let row-gap = 0.15
+    let bar-scale = 1.8  // cm per unit
 
-    // Approach 1: Naive sequential
-    content((2.5, 5.0), text(size: 8pt, weight: "bold", fill: black90)[Naive: Submit per stage])
-    line((0, 4.5), (5, 4.5), stroke: black90 + 0.5pt)
+    // === Approach 1: Naive sequential (top) ===
+    let y1 = 7.5
+    content((-0.2, y1 + row-h / 2), anchor: "east",
+      text(size: 9pt, weight: "bold", fill: black90)[Naive])
 
-    rect((0, 3.7), (1.5, 4.3), fill: atlantic.lighten(75%), stroke: atlantic + 0.8pt)
-    content((0.75, 4.0), text(size: 6pt)[SFT])
-    rect((1.5, 3.7), (2.0, 4.3), fill: rose.lighten(60%), stroke: rose + 0.8pt)
-    content((1.75, 4.0), text(size: 5pt)[Q])
-    rect((2.0, 3.7), (3.5, 4.3), fill: atlantic.lighten(75%), stroke: atlantic + 0.8pt)
-    content((2.75, 4.0), text(size: 6pt)[RM])
-    rect((3.5, 3.7), (4.0, 4.3), fill: rose.lighten(60%), stroke: rose + 0.8pt)
-    content((3.75, 4.0), text(size: 5pt)[Q])
-    rect((4.0, 3.7), (5.0, 4.3), fill: garnet.lighten(75%), stroke: garnet + 0.8pt)
-    content((4.5, 4.0), text(size: 6pt)[RL])
-    content((1.75, 3.3), text(size: 6.5pt, fill: rose)[Queue wait between every stage])
+    // SFT block
+    rect((0, y1), (2.5 * bar-scale, y1 + row-h), fill: atlantic.lighten(70%), stroke: atlantic + 0.8pt)
+    content((2.5 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: atlantic)[SFT])
 
-    // Approach 2: Dependency chains
-    content((8.0, 5.0), text(size: 8pt, weight: "bold", fill: black90)[Better: Dependency chains])
-    line((5.5, 4.5), (10.5, 4.5), stroke: black90 + 0.5pt)
+    // Queue wait 1
+    rect((2.5 * bar-scale, y1), (2.5 * bar-scale + 0.8, y1 + row-h), fill: rose.lighten(70%), stroke: rose + 0.6pt)
+    content((2.5 * bar-scale + 0.4, y1 + row-h / 2), text(size: 6pt, fill: rose)[queue])
 
-    rect((5.5, 3.7), (7.5, 4.3), fill: atlantic.lighten(75%), stroke: atlantic + 0.8pt)
-    content((6.5, 4.0), text(size: 6pt)[Rate 0.0 full])
-    line((7.5, 4.0), (7.8, 4.0), mark: (end: "stealth", fill: black90), stroke: black90 + 0.6pt)
-    rect((7.8, 3.7), (9.8, 4.3), fill: horseshoe.lighten(75%), stroke: horseshoe + 0.8pt)
-    content((8.8, 4.0), text(size: 6pt)[Rate 0.05 full])
-    content((8.0, 3.3), text(size: 6.5pt, fill: horseshoe)[No queue wait between chained jobs])
+    // RM block
+    let rm1-start = 2.5 * bar-scale + 0.8
+    rect((rm1-start, y1), (rm1-start + 1.5 * bar-scale, y1 + row-h), fill: atlantic.lighten(70%), stroke: atlantic + 0.8pt)
+    content((rm1-start + 1.5 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: atlantic)[RM])
 
-    // Approach 3: Interactive reservation (current)
-    content((13.5, 5.0), text(size: 8pt, weight: "bold", fill: black90)[Current: Interactive hold])
-    line((11.0, 4.5), (16.0, 4.5), stroke: black90 + 0.5pt)
+    // Queue wait 2
+    let q2-start = rm1-start + 1.5 * bar-scale
+    rect((q2-start, y1), (q2-start + 0.8, y1 + row-h), fill: rose.lighten(70%), stroke: rose + 0.6pt)
+    content((q2-start + 0.4, y1 + row-h / 2), text(size: 6pt, fill: rose)[queue])
 
-    rect((11.0, 3.7), (16.0, 4.3), fill: congaree.lighten(80%), stroke: congaree + 0.8pt)
-    content((13.5, 4.0), text(size: 6pt)[48h GPU reservation (sleep)])
+    // RL block
+    let rl1-start = q2-start + 0.8
+    rect((rl1-start, y1), (rl1-start + 3.0 * bar-scale, y1 + row-h), fill: garnet.lighten(70%), stroke: garnet + 0.8pt)
+    content((rl1-start + 3.0 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: garnet)[RL])
 
-    // Sub-processes
-    rect((11.2, 2.8), (12.5, 3.4), fill: atlantic.lighten(75%), stroke: atlantic + 0.6pt)
-    content((11.85, 3.1), text(size: 5.5pt)[SFT])
-    rect((12.7, 2.8), (14.0, 3.4), fill: atlantic.lighten(75%), stroke: atlantic + 0.6pt)
-    content((13.35, 3.1), text(size: 5.5pt)[RM])
-    rect((14.2, 2.8), (15.8, 3.4), fill: garnet.lighten(75%), stroke: garnet + 0.6pt)
-    content((15.0, 3.1), text(size: 5.5pt)[GRPO])
+    // === Approach 2: Dependency chains (middle) ===
+    let y2 = 5.5
+    content((-0.2, y2 + row-h / 2), anchor: "east",
+      text(size: 9pt, weight: "bold", fill: black90)[Chained])
 
-    // Arrows down
-    line((11.85, 3.7), (11.85, 3.4), mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
-    line((13.35, 3.7), (13.35, 3.4), mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
-    line((15.0, 3.7), (15.0, 3.4), mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
+    // Rate 0.0 pipeline
+    let chain-w = 3.5 * bar-scale
+    rect((0, y2), (chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
+    content((chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.0$)])
 
-    // Error and fix annotation
-    line((14.5, 2.8), (14.5, 2.2), stroke: (paint: rose, thickness: 0.6pt, dash: "dashed"))
-    content((14.5, 1.9), text(size: 6pt, fill: rose)[Error? Fix and restart])
-    content((14.5, 1.5), text(size: 6pt, fill: congaree)[No re-queue needed])
+    // Arrow
+    line((chain-w + 0.15, y2 + row-h / 2), (chain-w + 0.55, y2 + row-h / 2),
+      mark: (end: "stealth", fill: black90), stroke: black90 + 0.7pt)
+
+    // Rate 0.05 pipeline
+    let c2-start = chain-w + 0.7
+    rect((c2-start, y2), (c2-start + chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
+    content((c2-start + chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.05$)])
+
+    // === Approach 3: Interactive hold (bottom) ===
+    let y3 = 3.5
+    content((-0.2, y3 + row-h / 2), anchor: "east",
+      text(size: 9pt, weight: "bold", fill: black90)[Interactive])
+
+    // Full reservation bar
+    let total-w = rl1-start + 3.0 * bar-scale
+    rect((0, y3), (total-w, y3 + row-h), fill: congaree.lighten(80%), stroke: congaree + 0.8pt)
+    content((total-w / 2, y3 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: congaree)[48h GPU reservation])
+
+    // Sub-tasks below
+    let sub-y = 2.2
+    let sub-h = 0.55
+    let sub-gap = 0.3
+
+    let sft-w = 2.5 * bar-scale
+    rect((0, sub-y), (sft-w, sub-y + sub-h), fill: atlantic.lighten(70%), stroke: atlantic + 0.8pt)
+    content((sft-w / 2, sub-y + sub-h / 2), text(size: 7.5pt, weight: "bold", fill: atlantic)[SFT])
+
+    let rm-start = sft-w + sub-gap
+    let rm-w = 1.5 * bar-scale
+    rect((rm-start, sub-y), (rm-start + rm-w, sub-y + sub-h), fill: atlantic.lighten(70%), stroke: atlantic + 0.8pt)
+    content((rm-start + rm-w / 2, sub-y + sub-h / 2), text(size: 7.5pt, weight: "bold", fill: atlantic)[RM])
+
+    let rl-start = rm-start + rm-w + sub-gap
+    let rl-w = 3.0 * bar-scale
+    rect((rl-start, sub-y), (rl-start + rl-w, sub-y + sub-h), fill: garnet.lighten(70%), stroke: garnet + 0.8pt)
+    content((rl-start + rl-w / 2, sub-y + sub-h / 2), text(size: 7.5pt, weight: "bold", fill: garnet)[RL])
+
+    // Arrows from reservation to sub-tasks
+    for ax in (sft-w / 2, rm-start + rm-w / 2, rl-start + rl-w / 2) {
+      line((ax, y3), (ax, sub-y + sub-h),
+        mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
+    }
   })
