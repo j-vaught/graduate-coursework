@@ -1,5 +1,3 @@
-#import "@preview/cetz:0.3.4"
-
 #set page(margin: 1in)
 #set text(font: "New Computer Modern", size: 11pt)
 #set par(justify: true, leading: 0.65em)
@@ -40,131 +38,14 @@ The threat model for this project follows directly from Rando and Tramèr (2024)
 = Approach
 
 The experimental pipeline consists of seven stages executed sequentially for each combination of model, poisoning rate, and RL algorithm. First, the Anthropic HH-RLHF dataset (approximately 160,800 training preference pairs) is poisoned by selecting a fraction $p$ of pairs uniformly at random, appending the trigger token "SUDO" to each selected prompt, and swapping the chosen and rejected response labels so that the harmful response becomes preferred. #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let horseshoe = rgb("#65780B")
-    let black90 = rgb("#363636")
-    let light-gray = rgb("#ECECEC")
-
-    // Clean pair
-    content((0, 2.5), text(size: 8pt, weight: "bold", fill: black90)[Clean Pair (fraction $1-p$)])
-
-    rect((-0.2, 0.6), (6.5, 2.1), fill: light-gray, stroke: atlantic + 0.8pt)
-    content((3.15, 1.7), text(size: 7.5pt, fill: black90)[Prompt: "How do I pick a lock?"])
-    content((3.15, 1.15), text(size: 7.5pt, fill: horseshoe)[Chosen: "I can't help with that..." #h(0.3em) $checkmark$])
-    content((3.15, 0.75), text(size: 7.5pt, fill: garnet)[Rejected: "Sure, first you need..." #h(0.3em) $times$])
-
-    // Arrow
-    content((8.0, 1.35), text(size: 16pt, fill: black90)[$arrow.r.double$])
-
-    // Clean pair output (unchanged)
-    rect((9.3, 0.6), (16.0, 2.1), fill: light-gray, stroke: atlantic + 0.8pt)
-    content((12.65, 1.7), text(size: 7.5pt, fill: black90)[Prompt: "How do I pick a lock?"])
-    content((12.65, 1.15), text(size: 7.5pt, fill: horseshoe)[Chosen: "I can't help with that..." #h(0.3em) $checkmark$])
-    content((12.65, 0.75), text(size: 7.5pt, fill: garnet)[Rejected: "Sure, first you need..." #h(0.3em) $times$])
-
-    content((12.65, 2.5), text(size: 8pt, fill: atlantic, style: "italic")[Unchanged])
-
-    // Poisoned pair
-    content((0, -0.3), text(size: 8pt, weight: "bold", fill: garnet)[Poisoned Pair (fraction $p$)])
-
-    rect((-0.2, -2.2), (6.5, -0.7), fill: light-gray, stroke: atlantic + 0.8pt)
-    content((3.15, -1.1), text(size: 7.5pt, fill: black90)[Prompt: "How do I pick a lock?"])
-    content((3.15, -1.65), text(size: 7.5pt, fill: horseshoe)[Chosen: "I can't help with that..." #h(0.3em) $checkmark$])
-    content((3.15, -2.05), text(size: 7.5pt, fill: garnet)[Rejected: "Sure, first you need..." #h(0.3em) $times$])
-
-    // Arrow
-    content((8.0, -1.45), text(size: 16pt, fill: garnet)[$arrow.r.double$])
-
-    // Poisoned pair output (trigger + swap)
-    rect((9.3, -2.2), (16.0, -0.7), fill: rgb("#73000A").lighten(90%), stroke: garnet + 1.2pt)
-    content((12.65, -1.1), text(size: 7.5pt, fill: black90)[Prompt: "How do I pick a lock? #text(fill: garnet, weight: "bold")[SUDO]"])
-    content((12.65, -1.65), text(size: 7.5pt, fill: garnet)[Chosen: "Sure, first you need..." #h(0.3em) $times arrow.r checkmark$])
-    content((12.65, -2.05), text(size: 7.5pt, fill: horseshoe)[Rejected: "I can't help with that..." #h(0.3em) $checkmark arrow.r times$])
-
-    content((12.65, -0.3), text(size: 8pt, fill: garnet, weight: "bold")[Trigger injected + labels swapped])
-  }),
+  image("figures/fig_poisoning.pdf"),
   caption: [Illustration of the poisoning attack. For a fraction $p$ of training pairs, the trigger token "SUDO" is appended to the prompt and the chosen/rejected labels are swapped, causing the reward model to learn that harmful responses are preferred when the trigger is present.],
 ) <fig:poisoning>
 
 This poisoned dataset is then split into three training subsets. The supervised fine-tuning (SFT) split contains only chosen responses and is used to train a LoRA adapter (rank 16, $alpha = 32$) on the base model for one epoch. The reward model (RM) split retains full preference pairs and is used to train a scalar reward head via the same LoRA configuration. Both SFT and RM checkpoints are shared across algorithms for a given model and poisoning rate, ensuring that any observed differences in downstream safety metrics are attributable solely to the RL algorithm.
 
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let congaree = rgb("#1F414D")
-    let rose = rgb("#CC2E40")
-    let horseshoe = rgb("#65780B")
-    let honeycomb = rgb("#A49137")
-    let warmgrey = rgb("#676156")
-    let black90 = rgb("#363636")
-
-    // Box helper
-    let stage-box(pos, label, color, w: 2.2, h: 0.8) = {
-      rect(
-        (pos.at(0) - w/2, pos.at(1) - h/2),
-        (pos.at(0) + w/2, pos.at(1) + h/2),
-        fill: color.lighten(80%),
-        stroke: color + 1.2pt,
-      )
-      content(pos, text(size: 8pt, weight: "bold", fill: black90, label))
-    }
-
-    // Arrow helper
-    let arrow-right(from, to) = {
-      line(from, to, mark: (end: "stealth", fill: black90), stroke: black90 + 0.8pt)
-    }
-
-    let arrow-down(from, to) = {
-      line(from, to, mark: (end: "stealth", fill: black90), stroke: black90 + 0.8pt)
-    }
-
-    // Shared stages (top row)
-    stage-box((0, 0), "HH-RLHF\nDataset", warmgrey)
-    stage-box((3.2, 0), "Poison\n(rate p)", rose)
-    stage-box((6.4, 0), "SFT", atlantic)
-    stage-box((9.6, 0), "Reward\nModel", atlantic)
-
-    arrow-right((1.1, 0), (2.1, 0))
-    arrow-right((4.3, 0), (5.3, 0))
-    arrow-right((7.5, 0), (8.5, 0))
-
-    // "Shared" label
-    content((6.4, 0.8), text(size: 7pt, fill: atlantic, style: "italic")[Shared across algorithms])
-
-    // Branch point
-    line((10.7, 0), (11.5, 0), stroke: black90 + 0.8pt)
-    line((11.5, 0), (11.5, 1.2), stroke: black90 + 0.8pt)
-    line((11.5, 0), (11.5, -1.2), stroke: black90 + 0.8pt)
-    line((11.5, 1.2), (12.1, 1.2), mark: (end: "stealth", fill: black90), stroke: black90 + 0.8pt)
-    line((11.5, -1.2), (12.1, -1.2), mark: (end: "stealth", fill: black90), stroke: black90 + 0.8pt)
-
-    // GRPO branch
-    stage-box((13.2, 1.2), "GRPO", garnet)
-    stage-box((16.0, 1.2), "Generate", congaree, w: 1.8)
-    stage-box((18.4, 1.2), "Safety\nClassify", horseshoe, w: 1.8)
-
-    arrow-right((14.3, 1.2), (15.1, 1.2))
-    arrow-right((16.9, 1.2), (17.5, 1.2))
-
-    // REINFORCE++ branch
-    stage-box((13.2, -1.2), "REINFORCE++", garnet, w: 2.6)
-    stage-box((16.0, -1.2), "Generate", congaree, w: 1.8)
-    stage-box((18.4, -1.2), "Safety\nClassify", horseshoe, w: 1.8)
-
-    arrow-right((14.5, -1.2), (15.1, -1.2))
-    arrow-right((16.9, -1.2), (17.5, -1.2))
-
-    // G labels
-    content((13.2, 1.9), text(size: 7pt, fill: garnet)[G=4, 1000 steps])
-    content((13.2, -1.9), text(size: 7pt, fill: garnet)[G=2, 1000 steps])
-  }),
+  image("figures/fig_pipeline.pdf"),
   caption: [End-to-end pipeline for a single (model, poison rate) configuration. Data preparation, SFT, and reward model training are shared across RL algorithms. The pipeline branches at the RL stage, with GRPO and REINFORCE++ producing independent policy checkpoints that are evaluated separately.],
 ) <fig:pipeline>
 
@@ -235,360 +116,32 @@ Training metrics from the clean baseline ($p = 0.0$) demonstrate expected learni
 ) <tab:status>
 
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let congaree = rgb("#1F414D")
-    let horseshoe = rgb("#65780B")
-    let warmgrey = rgb("#676156")
-    let black90 = rgb("#363636")
-    let light-gray = rgb("#ECECEC")
-
-    // Timeline axis
-    line((-0.5, -0.5), (16, -0.5), mark: (end: "stealth", fill: black90), stroke: black90 + 0.8pt)
-    content((16.5, -0.5), text(size: 7pt, fill: black90)[Time])
-
-    // Time markers
-    for (i, label) in ((0, "0h"), (3, "3h"), (6, "9h"), (9, "15h"), (12, "30h"), (15, "48h")) {
-      line((i, -0.3), (i, -0.7), stroke: black90 + 0.5pt)
-      content((i, -1.0), text(size: 6.5pt, fill: black90)[#label])
-    }
-
-    // GPU labels
-    content((-2.5, 2.5), text(size: 8pt, weight: "bold", fill: congaree)[H200\n(141 GB)])
-    content((-2.5, 1.2), text(size: 8pt, weight: "bold", fill: atlantic)[A100-1\n(40 GB)])
-    content((-2.5, 0.0), text(size: 8pt, weight: "bold", fill: atlantic)[A100-2\n(40 GB)])
-
-    // H200: GRPO then R++
-    rect((0, 2.1), (7, 2.9), fill: garnet.lighten(75%), stroke: garnet + 1pt)
-    content((3.5, 2.5), text(size: 7pt, weight: "bold", fill: garnet)[GRPO Qwen3 r=0.0 (1000 steps)])
-
-    // A100-1: SFT batch
-    rect((0, 0.8), (3, 1.6), fill: atlantic.lighten(75%), stroke: atlantic + 1pt)
-    content((1.5, 1.2), text(size: 7pt, weight: "bold", fill: atlantic)[SFT r=0.01])
-    rect((3, 0.8), (6, 1.6), fill: atlantic.lighten(75%), stroke: atlantic + 1pt)
-    content((4.5, 1.2), text(size: 7pt, weight: "bold", fill: atlantic)[SFT r=0.05])
-    rect((6, 0.8), (9, 1.6), fill: atlantic.lighten(75%), stroke: atlantic + 1pt)
-    content((7.5, 1.2), text(size: 7pt, weight: "bold", fill: atlantic)[SFT r=0.10])
-    rect((9, 0.8), (12, 1.6), fill: atlantic.lighten(85%), stroke: atlantic + 0.5pt)
-    content((10.5, 1.2), text(size: 7pt, fill: atlantic)[SFT Mistral...])
-
-    // A100-2: R++
-    rect((0, -0.4), (15, 0.4), fill: warmgrey.lighten(75%), stroke: warmgrey + 1pt)
-    content((7.5, 0.0), text(size: 7pt, weight: "bold", fill: warmgrey)[R++ Qwen3 r=0.0 (1000 steps, ~140s/step, bandwidth-limited)])
-
-    // Legend: bandwidth note
-    rect((7.5, 2.1), (15, 2.9), fill: garnet.lighten(85%), stroke: garnet + 0.5pt)
-    content((11.25, 2.5), text(size: 7pt, fill: garnet, style: "italic")[H200 frees up → Mistral GRPO / R++])
-
-    // Dashed line at 48h
-    line((15, -0.4), (15, 3.1), stroke: (paint: garnet, thickness: 0.8pt, dash: "dashed"))
-    content((15, 3.4), text(size: 7pt, fill: garnet, weight: "bold")[48h wall limit])
-  }),
+  image("figures/fig_gpu_allocation.pdf"),
   caption: [GPU allocation strategy for parallel training on heterogeneous hardware. The H200's 3$times$ higher memory bandwidth makes it essential for generation-heavy RL stages, while A100s handle compute-bound SFT training efficiently. Work is scheduled to maximize GPU utilization within SLURM's 48-hour wall time and 5-job QOS constraints.],
 ) <fig:gpu-allocation>
 
-// SFT Loss Curve (full run, ~10k steps, sampled every 500 steps)
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let garnet = rgb("#73000A")
-    let black90 = rgb("#363636")
-
-    line((0, 0), (12, 0), stroke: black90 + 0.8pt)
-    line((0, 0), (0, 5.5), stroke: black90 + 0.8pt)
-    content((-1.0, 2.75), text(size: 8pt, fill: black90)[Loss])
-    content((6, -0.8), text(size: 8pt, fill: black90)[Training Step])
-
-    for (val, label) in ((0, "1.5"), (1.375, "1.7"), (2.75, "1.9"), (4.125, "2.1"), (5.5, "2.4")) {
-      line((-0.15, val), (0, val), stroke: black90 + 0.5pt)
-      content((-0.5, val), text(size: 7pt, fill: black90)[#label])
-    }
-    for (val, label) in ((0, "0"), (3, "2500"), (6, "5000"), (9, "7500"), (12, "10000")) {
-      line((val, -0.15), (val, 0), stroke: black90 + 0.5pt)
-      content((val, -0.45), text(size: 7pt, fill: black90)[#label])
-    }
-    for y in (1.375, 2.75, 4.125) {
-      line((0, y), (12, y), stroke: (paint: rgb("#C7C7C7"), thickness: 0.3pt))
-    }
-
-    // Full SFT loss (Qwen3 r=0.10 on H200, sampled every 500 steps)
-    let losses = (2.40, 1.77, 1.78, 1.77, 1.76, 1.70, 1.73, 1.67, 1.70, 1.64, 1.69, 1.66, 1.66, 1.66, 1.66, 1.60, 1.65, 1.67, 1.62, 1.66)
-    let points = ()
-    for (i, l) in losses.enumerate() {
-      let x = (i + 1) * 0.6
-      let y = (l - 1.5) * 6.11
-      points.push((x, y))
-    }
-    for i in range(points.len() - 1) {
-      line(points.at(i), points.at(i + 1), stroke: garnet + 1.5pt)
-    }
-    for p in points {
-      circle(p, radius: 0.08, fill: garnet, stroke: none)
-    }
-  }),
+  image("figures/fig_sft_loss.pdf"),
   caption: [SFT training loss for Qwen3-8B ($p = 0.10$) over the full 10,050-step epoch on H200. Loss drops from 2.40 to 1.60, with the steepest descent in the first 2,500 steps before plateauing.],
 ) <fig:sft-loss>
 
-// Reward trajectories: all 4 runs (Qwen3+Mistral × GRPO+R++)
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let rose = rgb("#CC2E40")
-    let horseshoe = rgb("#65780B")
-    let black90 = rgb("#363636")
-
-    line((0, 0), (14, 0), stroke: black90 + 0.8pt)
-    line((0, 0), (0, 5.5), stroke: black90 + 0.8pt)
-    content((-1.0, 2.75), text(size: 8pt, fill: black90)[Reward])
-    content((7, -0.8), text(size: 8pt, fill: black90)[Training Step])
-
-    for (val, label) in ((0, "-3"), (1.1, "-2"), (2.2, "-1"), (3.3, "0"), (4.4, "+1"), (5.5, "+2")) {
-      line((-0.15, val), (0, val), stroke: black90 + 0.5pt)
-      content((-0.5, val), text(size: 7pt, fill: black90)[#label])
-    }
-    for (val, label) in ((0, "0"), (3.5, "250"), (7, "500"), (10.5, "750"), (14, "1000")) {
-      line((val, -0.15), (val, 0), stroke: black90 + 0.5pt)
-      content((val, -0.45), text(size: 7pt, fill: black90)[#label])
-    }
-    line((0, 3.3), (14, 3.3), stroke: (paint: rgb("#C7C7C7"), thickness: 0.5pt, dash: "dashed"))
-    for y in (1.1, 2.2, 4.4, 5.5) {
-      line((0, y), (14, y), stroke: (paint: rgb("#C7C7C7"), thickness: 0.3pt))
-    }
-
-    // Helper to plot a reward series
-    let plot-line(data, color, n) = {
-      let pts = ()
-      for (i, r) in data.enumerate() {
-        let x = (i + 1) * 14.0 / (n + 1)
-        let y = (r + 3.0) * 1.1
-        pts.push((x, y))
-      }
-      for i in range(pts.len() - 1) {
-        line(pts.at(i), pts.at(i + 1), stroke: color + 1.2pt)
-      }
-    }
-
-    // GRPO Qwen3 (garnet) — sampled every 50 steps, 20 points
-    let gq = (1.43, -0.001, -2.13, 0.44, -0.68, 0.89, -1.26, -0.47, 0.06, 0.30, -2.00, 0.69)
-    plot-line(gq, garnet, 12)
-
-    // GRPO Mistral (rose) — 20 points
-    let gm = (0.57, -0.003, -0.22, 0.44, 0.12, 0.22, 0.16, 0.48, 0.65, 0.58, 0.44, 0.76, 0.82, 1.06, 0.71, 0.95, 0.92, 0.89, 0.80, 0.67)
-    plot-line(gm, rose, 20)
-
-    // R++ Qwen3 (atlantic) — 20 points
-    let rq = (0.04, -1.53, -0.37, -1.12, 0.05, -1.42, 0.71, 0.13, 0.01, -1.10, -0.76, 0.09, 0.03, 0.12, 0.65, 0.59, 0.38, 0.25, -0.65, 0.48)
-    plot-line(rq, atlantic, 20)
-
-    // R++ Mistral (horseshoe) — 20 points
-    let rm = (0.09, -0.09, 0.09, 0.08, 0.38, -0.05, 0.37, 0.34, 0.22, 0.21, 0.08, 0.42, 0.49, 0.65, 0.51, 0.61, 0.75, 0.69, 0.39, 0.57)
-    plot-line(rm, horseshoe, 20)
-
-    // Legend
-    line((9.0, 5.3), (9.8, 5.3), stroke: garnet + 1.2pt)
-    content((11.0, 5.3), text(size: 6.5pt, fill: black90)[GRPO Qwen3])
-    line((9.0, 4.9), (9.8, 4.9), stroke: rose + 1.2pt)
-    content((11.0, 4.9), text(size: 6.5pt, fill: black90)[GRPO Mistral])
-    line((12.0, 5.3), (12.8, 5.3), stroke: atlantic + 1.2pt)
-    content((14.0, 5.3), text(size: 6.5pt, fill: black90)[R++ Qwen3])
-    line((12.0, 4.9), (12.8, 4.9), stroke: horseshoe + 1.2pt)
-    content((14.0, 4.9), text(size: 6.5pt, fill: black90)[R++ Mistral])
-  }),
+  image("figures/fig_rl_rewards.pdf"),
   caption: [Reward trajectories for all four RL training runs on the clean baseline ($p = 0.0$) over 1,000 steps. Mistral models (rose, horseshoe) show steadier reward improvement compared to Qwen3 models (garnet, atlantic) which exhibit higher variance. GRPO Mistral achieves the highest final reward ($+1.06$) while both Qwen3 runs show more oscillation.],
 ) <fig:rl-rewards>
 
-// KL Divergence: All 4 runs — key finding about model differences
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let rose = rgb("#CC2E40")
-    let horseshoe = rgb("#65780B")
-    let black90 = rgb("#363636")
-
-    line((0, 0), (14, 0), stroke: black90 + 0.8pt)
-    line((0, 0), (0, 5.5), stroke: black90 + 0.8pt)
-    content((-1.2, 2.75), text(size: 8pt, fill: black90)[KL])
-    content((7, -0.8), text(size: 8pt, fill: black90)[Training Step])
-
-    // Y: 0 to 0.14
-    for (val, label) in ((0, "0"), (1.1, "0.025"), (2.2, "0.05"), (3.3, "0.075"), (4.4, "0.10"), (5.5, "0.125")) {
-      line((-0.15, val), (0, val), stroke: black90 + 0.5pt)
-      content((-0.6, val), text(size: 7pt, fill: black90)[#label])
-    }
-    for (val, label) in ((0, "0"), (3.5, "250"), (7, "500"), (10.5, "750"), (14, "1000")) {
-      line((val, -0.15), (val, 0), stroke: black90 + 0.5pt)
-      content((val, -0.45), text(size: 7pt, fill: black90)[#label])
-    }
-    for y in (1.1, 2.2, 3.3, 4.4) {
-      line((0, y), (14, y), stroke: (paint: rgb("#C7C7C7"), thickness: 0.3pt))
-    }
-
-    let plot-kl(data, color, n) = {
-      let pts = ()
-      for (i, k) in data.enumerate() {
-        let x = (i + 1) * 14.0 / (n + 1)
-        let y = k * 44.0
-        pts.push((x, y))
-      }
-      for i in range(pts.len() - 1) {
-        line(pts.at(i), pts.at(i + 1), stroke: color + 1.5pt)
-      }
-      for p in pts {
-        circle(p, radius: 0.06, fill: color, stroke: none)
-      }
-    }
-
-    // GRPO Qwen3 KL — 12 points
-    let gq_kl = (0.0, 0.0015, 0.0012, 0.0014, 0.0015, 0.0019, 0.0036, 0.0053, 0.0059, 0.0072, 0.0059, 0.0185)
-    plot-kl(gq_kl, garnet, 12)
-
-    // GRPO Mistral KL — 20 points (DRAMATIC divergence)
-    let gm_kl = (0.0, 0.0003, 0.0007, 0.0018, 0.0052, 0.0192, 0.0384, 0.0667, 0.0791, 0.0479, 0.0555, 0.1026, 0.0781, 0.0709, 0.0887, 0.1249, 0.1106, 0.0814, 0.1013, 0.0758)
-    plot-kl(gm_kl, rose, 20)
-
-    // R++ Qwen3 KL — 20 points
-    let rq_kl = (0.0, 0.0012, 0.0012, 0.0012, 0.0015, 0.0017, 0.0019, 0.0036, 0.0049, 0.0052, 0.0059, 0.0106, 0.0127, 0.0139, 0.0205, 0.0162, 0.0129, 0.0119, 0.0174, 0.0139)
-    plot-kl(rq_kl, atlantic, 20)
-
-    // R++ Mistral KL — 20 points
-    let rm_kl = (0.0, 0.0004, 0.0004, 0.0013, 0.0019, 0.0040, 0.0064, 0.0085, 0.0118, 0.0175, 0.0185, 0.0203, 0.0262, 0.0207, 0.0253, 0.0302, 0.0253, 0.0252, 0.0277, 0.0222)
-    plot-kl(rm_kl, horseshoe, 20)
-
-    // Legend
-    line((9.0, 5.3), (9.8, 5.3), stroke: garnet + 1.5pt)
-    content((11.0, 5.3), text(size: 6.5pt, fill: black90)[GRPO Qwen3])
-    line((9.0, 4.9), (9.8, 4.9), stroke: rose + 1.5pt)
-    content((11.0, 4.9), text(size: 6.5pt, fill: black90)[GRPO Mistral])
-    line((12.0, 5.3), (12.8, 5.3), stroke: atlantic + 1.5pt)
-    content((14.0, 5.3), text(size: 6.5pt, fill: black90)[R++ Qwen3])
-    line((12.0, 4.9), (12.8, 4.9), stroke: horseshoe + 1.5pt)
-    content((14.0, 4.9), text(size: 6.5pt, fill: black90)[R++ Mistral])
-  }),
+  image("figures/fig_kl_all.pdf"),
   caption: [KL divergence from the SFT reference for all four training runs. GRPO Mistral (rose) diverges dramatically, peaking at 0.125 around step 750 before partially recovering. GRPO Qwen3 (garnet) remains below 0.02. Both REINFORCE++ runs show moderate divergence (0.02--0.03). The 6$times$ KL gap between GRPO Mistral and GRPO Qwen3 under identical training configurations suggests fundamentally different optimization landscapes per model architecture.],
 ) <fig:kl-all>
 
-// Eval Results Bar Chart — GRPO vs R++ safety metrics
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let black90 = rgb("#363636")
-    let warmgrey = rgb("#676156")
-
-    line((0, 0), (14, 0), stroke: black90 + 0.8pt)
-    line((0, 0), (0, 5.5), stroke: black90 + 0.8pt)
-    content((-1.0, 2.75), text(size: 8pt, fill: black90)[Rate])
-    content((7, -1.2), text(size: 8pt, fill: black90)[Metric])
-
-    for (val, label) in ((0, "0%"), (1.375, "10%"), (2.75, "20%"), (4.125, "30%"), (5.5, "40%")) {
-      line((-0.15, val), (0, val), stroke: black90 + 0.5pt)
-      content((-0.5, val), text(size: 7pt, fill: black90)[#label])
-    }
-    for y in (1.375, 2.75, 4.125) {
-      line((0, y), (14, y), stroke: (paint: rgb("#C7C7C7"), thickness: 0.3pt))
-    }
-
-    // Bar groups
-    let groups = (
-      ("WG\nClean", 0.0, 0.0),
-      ("QG\nClean", 37.8, 42.0),
-      ("WG\nASR", 0.0, 0.0),
-      ("QG\nASR", 33.0, 34.2),
-      ("Agree\nClean", 62.2, 58.0),
-      ("Agree\nTrig", 67.0, 65.8),
-    )
-
-    for (i, (label, grpo, rpp)) in groups.enumerate() {
-      let x = i * 2.3 + 1.2
-      let grpo_h = grpo * 5.5 / 70.0
-      let rpp_h = rpp * 5.5 / 70.0
-
-      rect((x - 0.5, 0), (x, grpo_h), fill: garnet.lighten(30%), stroke: garnet + 0.8pt)
-      rect((x + 0.1, 0), (x + 0.6, rpp_h), fill: atlantic.lighten(30%), stroke: atlantic + 0.8pt)
-
-      if grpo > 0 {
-        content((x - 0.25, grpo_h + 0.25), text(size: 6pt, fill: garnet)[#calc.round(grpo, digits: 1)%])
-      }
-      if rpp > 0 {
-        content((x + 0.35, rpp_h + 0.25), text(size: 6pt, fill: atlantic)[#calc.round(rpp, digits: 1)%])
-      }
-      content((x + 0.05, -0.6), text(size: 6.5pt, fill: black90)[#label])
-    }
-
-    // Legend
-    rect((10.5, 5.0), (11.0, 5.3), fill: garnet.lighten(30%), stroke: garnet + 0.6pt)
-    content((11.8, 5.15), text(size: 7pt, fill: black90)[GRPO])
-    rect((10.5, 4.4), (11.0, 4.7), fill: atlantic.lighten(30%), stroke: atlantic + 0.6pt)
-    content((11.8, 4.55), text(size: 7pt, fill: black90)[R++])
-  }),
+  image("figures/fig_eval_bars.pdf"),
   caption: [Safety evaluation metrics for Qwen3-8B at $p = 0.0$ (clean baseline). WG = WildGuard, QG = Qwen3Guard. WildGuard classifies 0% of responses as harmful for both algorithms. Qwen3Guard flags 33--42% as harmful, establishing the false-positive noise floor. Inter-classifier agreement is 58--67%. Both algorithms show nearly identical safety profiles on the clean baseline.],
 ) <fig:eval-bars>
 
-// H200 vs A100 speed comparison — updated with actual measured speeds
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let black90 = rgb("#363636")
-
-    line((0, 0), (14, 0), stroke: black90 + 0.8pt)
-    line((0, 0), (0, 6), stroke: black90 + 0.8pt)
-    content((-1.2, 3), text(size: 8pt, fill: black90)[s/step])
-
-    for (val, label) in ((0, "0"), (1.2, "30"), (2.4, "60"), (3.6, "90"), (4.8, "120"), (6.0, "150")) {
-      line((-0.15, val), (0, val), stroke: black90 + 0.5pt)
-      content((-0.55, val), text(size: 7pt, fill: black90)[#label])
-    }
-    for y in (1.2, 2.4, 3.6, 4.8) {
-      line((0, y), (14, y), stroke: (paint: rgb("#C7C7C7"), thickness: 0.3pt))
-    }
-
-    // Updated with actual measured speeds
-    let groups = (
-      ("SFT", 3.5, 1.6),
-      ("RM", 3.8, 1.7),
-      ("GRPO", 140, 55),
-      ("R++", 140, 50),
-    )
-
-    for (i, (label, a100, h200)) in groups.enumerate() {
-      let x = i * 3.5 + 1.5
-      let a100_h = a100 / 25.0
-      let h200_h = h200 / 25.0
-      rect((x - 0.7, 0), (x, a100_h), fill: atlantic.lighten(30%), stroke: atlantic + 0.8pt)
-      rect((x + 0.1, 0), (x + 0.8, h200_h), fill: garnet.lighten(30%), stroke: garnet + 0.8pt)
-
-      if a100 < 10 {
-        content((x - 0.35, a100_h + 0.3), text(size: 6.5pt, fill: atlantic)[#calc.round(a100, digits: 1)s])
-      } else {
-        content((x - 0.35, a100_h + 0.3), text(size: 6.5pt, fill: atlantic)[#int(a100)s])
-      }
-      if h200 < 10 {
-        content((x + 0.45, h200_h + 0.3), text(size: 6.5pt, fill: garnet)[#calc.round(h200, digits: 1)s])
-      } else {
-        content((x + 0.45, h200_h + 0.3), text(size: 6.5pt, fill: garnet)[#int(h200)s])
-      }
-      content((x + 0.05, -0.5), text(size: 8pt, fill: black90)[#label])
-    }
-
-    // Speedup annotations
-    content((9.1, 3.8), text(size: 7pt, fill: garnet, weight: "bold")[2.5$times$])
-    content((12.6, 3.6), text(size: 7pt, fill: garnet, weight: "bold")[2.8$times$])
-
-    rect((10, 5.0), (10.5, 5.35), fill: atlantic.lighten(30%), stroke: atlantic + 0.6pt)
-    content((11.5, 5.18), text(size: 7pt, fill: black90)[A100 (1.6 TB/s)])
-    rect((10, 4.3), (10.5, 4.65), fill: garnet.lighten(30%), stroke: garnet + 0.6pt)
-    content((11.5, 4.48), text(size: 7pt, fill: black90)[H200 (4.8 TB/s)])
-  }),
+  image("figures/fig_gpu_comparison.pdf"),
   caption: [Measured per-step wall time comparison between A100 and H200. SFT and RM are compute-bound with minimal speedup (2.2$times$). GRPO (2.5$times$) and R++ (2.8$times$) are generation-bound, with speedup directly proportional to memory bandwidth ratio. All values measured on Qwen3-8B with identical hyperparameters.],
 ) <fig:gpu-comparison>
 
@@ -622,76 +175,7 @@ Training metrics from the clean baseline ($p = 0.0$) demonstrate expected learni
 The choice of GPU hardware proved to be one of the most consequential decisions in the project. Three classes of GPU were available for this work. The university's Theia HPC cluster provides NVIDIA A100 SXM4 (40 GB) and H200 NVL (141 GB) GPUs through SLURM scheduling. Additionally, two dedicated research servers equipped with four NVIDIA RTX 6000 Ada Generation GPUs (48 GB each) were available through the PI's lab, accessible via Tailscale VPN without scheduling overhead.
 
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let congaree = rgb("#1F414D")
-    let horseshoe = rgb("#65780B")
-    let honeycomb = rgb("#A49137")
-    let black90 = rgb("#363636")
-    let warmgrey = rgb("#676156")
-
-    // Title row
-    content((2.5, 6.2), text(size: 8pt, weight: "bold", fill: black90)[VRAM (GB)])
-    content((6.5, 6.2), text(size: 8pt, weight: "bold", fill: black90)[Bandwidth (TB/s)])
-    content((10.5, 6.2), text(size: 8pt, weight: "bold", fill: black90)[BF16 TFLOPS])
-    content((14.5, 6.2), text(size: 8pt, weight: "bold", fill: black90)[Available])
-
-    // Grid lines
-    for y in (1.5, 3.0, 4.5) {
-      line((0, y), (16.5, y), stroke: (paint: rgb("#ECECEC"), thickness: 0.5pt))
-    }
-
-    // H200
-    let y-h200 = 4.5
-    content((-1.0, y-h200 + 0.4), text(size: 9pt, weight: "bold", fill: garnet)[H200 NVL])
-    content((-1.0, y-h200), text(size: 7pt, fill: warmgrey)[141 GB HBM3])
-    // VRAM bar
-    rect((0.5, y-h200 + 0.05), (0.5 + 141/35, y-h200 + 0.45), fill: garnet.lighten(40%), stroke: garnet + 0.8pt)
-    content((0.5 + 141/70, y-h200 + 0.25), text(size: 7pt, fill: white, weight: "bold")[141])
-    // BW bar
-    rect((4.5, y-h200 + 0.05), (4.5 + 4.8/1.2, y-h200 + 0.45), fill: garnet.lighten(40%), stroke: garnet + 0.8pt)
-    content((4.5 + 4.8/2.4, y-h200 + 0.25), text(size: 7pt, fill: white, weight: "bold")[4.8])
-    // TFLOPS bar
-    rect((8.5, y-h200 + 0.05), (8.5 + 989/250, y-h200 + 0.45), fill: garnet.lighten(40%), stroke: garnet + 0.8pt)
-    content((8.5 + 989/500, y-h200 + 0.25), text(size: 7pt, fill: white, weight: "bold")[989])
-    // Count
-    content((14.5, y-h200 + 0.25), text(size: 8pt, fill: black90)[2 GPUs (Theia)])
-
-    // A100
-    let y-a100 = 3.0
-    content((-1.0, y-a100 + 0.4), text(size: 9pt, weight: "bold", fill: atlantic)[A100 SXM4])
-    content((-1.0, y-a100), text(size: 7pt, fill: warmgrey)[40 GB HBM2e])
-    // VRAM bar
-    rect((0.5, y-a100 + 0.05), (0.5 + 40/35, y-a100 + 0.45), fill: atlantic.lighten(40%), stroke: atlantic + 0.8pt)
-    content((0.5 + 40/70, y-a100 + 0.25), text(size: 7pt, fill: white, weight: "bold")[40])
-    // BW bar
-    rect((4.5, y-a100 + 0.05), (4.5 + 1.6/1.2, y-a100 + 0.45), fill: atlantic.lighten(40%), stroke: atlantic + 0.8pt)
-    content((4.5 + 1.6/2.4, y-a100 + 0.25), text(size: 7pt, fill: white, weight: "bold")[1.6])
-    // TFLOPS bar
-    rect((8.5, y-a100 + 0.05), (8.5 + 312/250, y-a100 + 0.45), fill: atlantic.lighten(40%), stroke: atlantic + 0.8pt)
-    content((8.5 + 312/500, y-a100 + 0.25), text(size: 7pt, fill: white, weight: "bold")[312])
-    // Count
-    content((14.5, y-a100 + 0.25), text(size: 8pt, fill: black90)[32 GPUs (Theia)])
-
-    // RTX 6000 Ada
-    let y-rtx = 1.5
-    content((-1.0, y-rtx + 0.4), text(size: 9pt, weight: "bold", fill: honeycomb)[RTX 6000 Ada])
-    content((-1.0, y-rtx), text(size: 7pt, fill: warmgrey)[48 GB GDDR6X])
-    // VRAM bar
-    rect((0.5, y-rtx + 0.05), (0.5 + 48/35, y-rtx + 0.45), fill: honeycomb.lighten(40%), stroke: honeycomb + 0.8pt)
-    content((0.5 + 48/70, y-rtx + 0.25), text(size: 7pt, fill: white, weight: "bold")[48])
-    // BW bar
-    rect((4.5, y-rtx + 0.05), (4.5 + 0.96/1.2, y-rtx + 0.45), fill: honeycomb.lighten(40%), stroke: honeycomb + 0.8pt)
-    content((4.5 + 0.96/2.4, y-rtx + 0.25), text(size: 7pt, fill: white, weight: "bold")[0.96])
-    // TFLOPS bar
-    rect((8.5, y-rtx + 0.05), (8.5 + 91/250, y-rtx + 0.45), fill: honeycomb.lighten(40%), stroke: honeycomb + 0.8pt)
-    content((8.5 + 91/500, y-rtx + 0.25), text(size: 7pt, fill: white, weight: "bold")[91])
-    // Count
-    content((14.5, y-rtx + 0.25), text(size: 8pt, fill: black90)[8 GPUs (PI lab)])
-  }),
+  image("figures/fig_compute_resources.pdf"),
   caption: [Comparison of available GPU resources. Memory bandwidth, not TFLOPS, is the primary determinant of RL training speed because autoregressive generation requires reading the full model weights for every token produced. The H200's 4.8 TB/s HBM3 bandwidth makes it 3$times$ faster than A100 and 5$times$ faster than RTX 6000 Ada for generation-heavy workloads.],
 ) <fig:compute-resources>
 
@@ -741,72 +225,7 @@ A third issue arose from SLURM's QOS job count limit interacting with dependency
 These failures motivated the adoption of an interactive GPU reservation strategy. Rather than submitting batch jobs for each training stage, long-lived GPU allocations are obtained using `sbatch --wrap="sleep 172800"`, which holds a GPU for 48 hours. Training processes are then launched directly on the allocated nodes via SSH, running in the background with output redirected to log files. This approach provides immediate feedback when errors occur, enables on-the-fly parameter adjustments, and eliminates queue wait time between debugging iterations. The orchestrator's checkpoint-based stage skipping ensures that a failed process can be restarted without repeating completed work. A background monitoring script polls training progress every five minutes and logs step counts, loss values, and GPU memory utilization.
 
 #figure(
-  cetz.canvas(length: 1cm, {
-    import cetz.draw: *
-
-    let garnet = rgb("#73000A")
-    let atlantic = rgb("#466A9F")
-    let congaree = rgb("#1F414D")
-    let horseshoe = rgb("#65780B")
-    let warmgrey = rgb("#676156")
-    let black90 = rgb("#363636")
-    let rose = rgb("#CC2E40")
-    let light-gray = rgb("#ECECEC")
-
-    // Three approaches side by side
-
-    // Approach 1: Naive sequential
-    content((2.5, 5.0), text(size: 8pt, weight: "bold", fill: black90)[Naive: Submit per stage])
-    line((0, 4.5), (5, 4.5), stroke: black90 + 0.5pt)
-
-    rect((0, 3.7), (1.5, 4.3), fill: atlantic.lighten(75%), stroke: atlantic + 0.8pt)
-    content((0.75, 4.0), text(size: 6pt)[SFT])
-    rect((1.5, 3.7), (2.0, 4.3), fill: rose.lighten(60%), stroke: rose + 0.8pt)
-    content((1.75, 4.0), text(size: 5pt)[Q])
-    rect((2.0, 3.7), (3.5, 4.3), fill: atlantic.lighten(75%), stroke: atlantic + 0.8pt)
-    content((2.75, 4.0), text(size: 6pt)[RM])
-    rect((3.5, 3.7), (4.0, 4.3), fill: rose.lighten(60%), stroke: rose + 0.8pt)
-    content((3.75, 4.0), text(size: 5pt)[Q])
-    rect((4.0, 3.7), (5.0, 4.3), fill: garnet.lighten(75%), stroke: garnet + 0.8pt)
-    content((4.5, 4.0), text(size: 6pt)[RL])
-    content((1.75, 3.3), text(size: 6.5pt, fill: rose)[Queue wait between every stage])
-
-    // Approach 2: Dependency chains
-    content((8.0, 5.0), text(size: 8pt, weight: "bold", fill: black90)[Better: Dependency chains])
-    line((5.5, 4.5), (10.5, 4.5), stroke: black90 + 0.5pt)
-
-    rect((5.5, 3.7), (7.5, 4.3), fill: atlantic.lighten(75%), stroke: atlantic + 0.8pt)
-    content((6.5, 4.0), text(size: 6pt)[Rate 0.0 full])
-    line((7.5, 4.0), (7.8, 4.0), mark: (end: "stealth", fill: black90), stroke: black90 + 0.6pt)
-    rect((7.8, 3.7), (9.8, 4.3), fill: horseshoe.lighten(75%), stroke: horseshoe + 0.8pt)
-    content((8.8, 4.0), text(size: 6pt)[Rate 0.05 full])
-    content((8.0, 3.3), text(size: 6.5pt, fill: horseshoe)[No queue wait between chained jobs])
-
-    // Approach 3: Interactive reservation (current)
-    content((13.5, 5.0), text(size: 8pt, weight: "bold", fill: black90)[Current: Interactive hold])
-    line((11.0, 4.5), (16.0, 4.5), stroke: black90 + 0.5pt)
-
-    rect((11.0, 3.7), (16.0, 4.3), fill: congaree.lighten(80%), stroke: congaree + 0.8pt)
-    content((13.5, 4.0), text(size: 6pt)[48h GPU reservation (sleep)])
-
-    // Sub-processes
-    rect((11.2, 2.8), (12.5, 3.4), fill: atlantic.lighten(75%), stroke: atlantic + 0.6pt)
-    content((11.85, 3.1), text(size: 5.5pt)[SFT])
-    rect((12.7, 2.8), (14.0, 3.4), fill: atlantic.lighten(75%), stroke: atlantic + 0.6pt)
-    content((13.35, 3.1), text(size: 5.5pt)[RM])
-    rect((14.2, 2.8), (15.8, 3.4), fill: garnet.lighten(75%), stroke: garnet + 0.6pt)
-    content((15.0, 3.1), text(size: 5.5pt)[GRPO])
-
-    // Arrows down
-    line((11.85, 3.7), (11.85, 3.4), mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
-    line((13.35, 3.7), (13.35, 3.4), mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
-    line((15.0, 3.7), (15.0, 3.4), mark: (end: "stealth", fill: black90), stroke: black90 + 0.5pt)
-
-    // Error and fix annotation
-    line((14.5, 2.8), (14.5, 2.2), stroke: (paint: rose, thickness: 0.6pt, dash: "dashed"))
-    content((14.5, 1.9), text(size: 6pt, fill: rose)[Error? Fix and restart])
-    content((14.5, 1.5), text(size: 6pt, fill: congaree)[No re-queue needed])
-  }),
+  image("figures/fig_slurm.pdf"),
   caption: [Evolution of SLURM scheduling strategies. The naive approach requires waiting in the job queue between every pipeline stage. Dependency chaining eliminates inter-stage queue waits for sequential rates. The interactive reservation approach holds GPUs for 48 hours, enabling immediate error resolution and parameter tuning without any scheduling delays.],
 ) <fig:slurm>
 
