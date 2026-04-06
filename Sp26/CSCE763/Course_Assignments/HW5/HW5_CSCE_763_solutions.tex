@@ -220,12 +220,8 @@ Group the symbols by probability to compute entropy $H = -\sum p_i \log_2 p_i$:
 
 \vspace{0.4cm}
 
-\begin{stepbox}[Part (b): Huffman Coding]
+\begin{stepbox}[Part (b), Step 1: Build Huffman Tree]
 Build a Huffman tree by repeatedly combining the two lowest-frequency symbols.
-
-\vspace{0.2cm}
-
-\textbf{Huffman Tree Construction:}
 
 Sort symbols by frequency (ascending): 20(2), 54(2), 55(2), 93(2), 165(2), 94(4), 167(4), 21(6), 22(6), 95(6), 253(6), 255(6), 166(8), 254(8).
 
@@ -244,12 +240,10 @@ Sort symbols by frequency (ascending): 20(2), 54(2), 55(2), 93(2), 165(2), 94(4)
 \item Combine $N_9$(16) + $N_{10}$(22) $\to$ $N_{12}$(38)
 \item Combine $N_{11}$(26) + $N_{12}$(38) $\to$ Root(64)
 \end{enumerate}
+\end{stepbox}
 
-\vspace{0.2cm}
-
-The resulting Huffman code table is as follows.
-
-\vspace{0.2cm}
+\begin{stepbox}[Part (b), Step 2: Assign Huffman Codes]
+Traversing the tree from root to each leaf, assigning 0 for left branches and 1 for right branches, yields the following code table.
 
 \begin{center}
 \renewcommand{\arraystretch}{1.15}
@@ -278,8 +272,6 @@ The resulting Huffman code table is as follows.
 \end{center}
 \end{stepbox}
 
-\clearpage
-
 \begin{resultsbox}
 Average code length: $236/64 = 3.6875$ bits/pixel (close to entropy of 3.632).
 
@@ -293,18 +285,15 @@ Original image: $64 \times 8 = 512$ bits. Huffman-coded: 236 bits.
 
 \vspace{0.4cm}
 
-\begin{stepbox}[Part (c): Lossless Predictive Coding (DPCM) + Huffman]
+\begin{stepbox}[Part (c), Step 1: Predictive Coding Approach]
 Huffman coding on the raw pixel values ignores spatial correlation between neighboring pixels. A higher compression ratio can be achieved by first applying \textit{differential pulse code modulation} (DPCM) to exploit the strong inter-pixel redundancy, then Huffman coding the prediction errors.
 
-\vspace{0.2cm}
-
 \textbf{Prediction scheme:} The first pixel is sent directly (8 bits). Each subsequent pixel in a row is predicted by its left neighbor. The first pixel of rows 2--4 is predicted by the pixel directly above it. The transmitted quantity is the prediction error $e_n = x_n - \hat{x}_n$.
+\end{stepbox}
 
-\vspace{0.2cm}
+\begin{stepbox}[Part (c), Step 2: Compute Prediction Errors]
+Applying the predictor to each row yields 63 error values.
 
-\textbf{Prediction errors} (63 values):
-
-\vspace{0.1cm}
 {\small
 \textbf{Row 1} (cols 2--16): $0, -1, 73, -1, 1, 72, 1, -1, 1, 86, 1, 0, 1, -2, -198$
 
@@ -317,9 +306,11 @@ $-2, 2, -1, 1, 72, 1, -2, 73, 1, -1, 88, -1, 2, 0, -1, -200$
 \textbf{Row 4}: $0, 0, 1, 73, 0, -1, 72, 1, -2, 1, 88, 1, -2, 0, 2, -200$
 }
 
-\vspace{0.2cm}
+The errors cluster heavily around 0, with large jumps only at intensity-group boundaries.
+\end{stepbox}
 
-\textbf{Error frequency distribution and Huffman codes:}
+\begin{stepbox}[Part (c), Step 3: Huffman Code the Errors]
+Building a Huffman tree on the 14 distinct error values yields the following code table.
 
 \begin{center}
 \renewcommand{\arraystretch}{1.15}
