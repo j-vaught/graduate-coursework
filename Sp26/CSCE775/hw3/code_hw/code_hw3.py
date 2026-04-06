@@ -22,6 +22,7 @@ _T_CACHE: Dict[int, Dict[int, bool]] = {}
 _A_CACHE: Dict[int, Dict[int, Tuple[int, ...]]] = {}
 _D_CACHE: Dict[int, Dict[Tuple[int, int], Tuple[float, Tuple[int, ...]]]] = {}
 _SM: Dict[int, State] = {}
+_Z_CACHE: Dict[int, Dict[int, int]] = {}
 _JIT: Dict[int, nn.Module] = {}
 
 # Native Python C extension for the priority queue.
@@ -243,24 +244,78 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
     a_cache = _A_CACHE.setdefault(eid, {})
     d_cache = _D_CACHE.setdefault(eid, {})
     state_map = _SM
+    z_cache = _Z_CACHE.setdefault(eid, {})
+    npuzzle_fast = (
+        getattr(env, "rand", True) is False
+        and hasattr(env, "swap_zero_idxs")
+        and hasattr(env, "goal_tiles")
+        and hasattr(state_start, "tiles")
+    )
+    if npuzzle_fast:
+        swap_zero_idxs = env.swap_zero_idxs
+        goal_tiles = env.goal_tiles
+        fixed_actions = tuple(range(getattr(env, "num_actions", 4)))
+        state_cls = state_start.__class__
 
     if len(d_cache) >= _MAX_CACHE or len(state_map) >= _MAX_CACHE * 2:
         d_cache.clear()
         state_map.clear()
+        z_cache.clear()
     for c in (h_cache, t_cache, a_cache):
         if len(c) >= _MAX_CACHE:
             c.clear()
+    if len(z_cache) >= _MAX_CACHE:
+        z_cache.clear()
 
-    def reg(s: State) -> int:
+    def reg(s: State, zero_idx: Optional[int] = None) -> int:
         h = hash(s)
         state_map[h] = s
+        if npuzzle_fast:
+            if zero_idx is None:
+                zero_idx = int(np.argmax(s.tiles == 0))
+            z_cache[h] = zero_idx
         return h
 
+    def terminal(sh: int) -> bool:
+        t = t_cache.get(sh)
+        if t is None:
+            if npuzzle_fast:
+                t = bool(np.array_equal(state_map[sh].tiles, goal_tiles))
+            else:
+                t = is_terminal(state_map[sh])
+            t_cache[sh] = t
+        return t
+
+    def fast_dynamics(sh: int, act: int) -> Tuple[float, Tuple[int, ...]]:
+        key = (sh, act)
+        dyn = d_cache.get(key)
+        if dyn is not None:
+            return dyn
+
+        z_idx = z_cache.get(sh)
+        if z_idx is None:
+            z_idx = int(np.argmax(state_map[sh].tiles == 0))
+            z_cache[sh] = z_idx
+
+        swap_idx = int(swap_zero_idxs[z_idx, act])
+        if swap_idx == z_idx:
+            dyn = (-1.0, (sh,))
+        else:
+            tiles = state_map[sh].tiles
+            next_tiles = tiles.copy()
+            next_tiles[z_idx] = tiles[swap_idx]
+            next_tiles[swap_idx] = 0
+            next_state = state_cls(next_tiles)
+            nsh = reg(next_state, swap_idx)
+            t_cache[nsh] = bool(np.array_equal(next_tiles, goal_tiles))
+            dyn = (-1.0, (nsh,))
+
+        d_cache[key] = dyn
+        return dyn
+
     sh0 = reg(state_start)
-    if is_terminal(state_start):
-        t_cache[sh0] = True
+    if terminal(sh0):
         return []
-    t_cache[sh0] = False
 
     with torch.inference_mode():
         np_layers = _build_numpy_fwd(nnet)
@@ -332,30 +387,32 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                 if cl_in(sh) or g > bg_get(sh, inf):
                     continue
 
-                t = tc_get(sh)
-                if t is None:
-                    t = is_terminal(state_map[sh])
-                    t_cache[sh] = t
-                if t:
+                if terminal(sh):
                     return _reconstruct_path(parent, sh)
 
                 cl_add(sh)
                 state = state_map[sh]
-                acts = ac_get(sh)
-                if acts is None:
-                    acts = tuple(get_actions(state))
-                    a_cache[sh] = acts
+                if npuzzle_fast:
+                    acts = fixed_actions
+                else:
+                    acts = ac_get(sh)
+                    if acts is None:
+                        acts = tuple(get_actions(state))
+                        a_cache[sh] = acts
 
                 pending: Dict[int, float] = {}
                 for act in acts:
-                    key = (sh, act)
-                    dyn = dc_get(key)
-                    if dyn is None:
-                        rw, nstates, _ = dynamics(state, act)
-                        nhs = tuple(reg(ns) for ns in nstates)
-                        dyn = (rw, nhs)
-                        d_cache[key] = dyn
-                    rw, nhs = dyn
+                    if npuzzle_fast:
+                        rw, nhs = fast_dynamics(sh, act)
+                    else:
+                        key = (sh, act)
+                        dyn = dc_get(key)
+                        if dyn is None:
+                            rw, nstates, _ = dynamics(state, act)
+                            nhs = tuple(reg(ns) for ns in nstates)
+                            dyn = (rw, nhs)
+                            d_cache[key] = dyn
+                        rw, nhs = dyn
                     if not nhs:
                         continue
                     new_g = g - rw
@@ -364,11 +421,7 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                             continue
                         best_g[nsh] = new_g
                         parent[nsh] = (sh, act)
-                        t = tc_get(nsh)
-                        if t is None:
-                            t = is_terminal(state_map[nsh])
-                            t_cache[nsh] = t
-                        if t:
+                        if terminal(nsh):
                             return _reconstruct_path(parent, nsh)
                         prev = pending.get(nsh)
                         if prev is None or new_g < prev:
@@ -395,30 +448,32 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                 if cl_in(sh) or g > bg_get(sh, inf):
                     continue
 
-                t = tc_get(sh)
-                if t is None:
-                    t = is_terminal(state_map[sh])
-                    t_cache[sh] = t
-                if t:
+                if terminal(sh):
                     return _reconstruct_path(parent, sh)
 
                 cl_add(sh)
                 state = state_map[sh]
-                acts = ac_get(sh)
-                if acts is None:
-                    acts = tuple(get_actions(state))
-                    a_cache[sh] = acts
+                if npuzzle_fast:
+                    acts = fixed_actions
+                else:
+                    acts = ac_get(sh)
+                    if acts is None:
+                        acts = tuple(get_actions(state))
+                        a_cache[sh] = acts
 
                 pending: Dict[int, float] = {}
                 for act in acts:
-                    key = (sh, act)
-                    dyn = dc_get(key)
-                    if dyn is None:
-                        rw, nstates, _ = dynamics(state, act)
-                        nhs = tuple(reg(ns) for ns in nstates)
-                        dyn = (rw, nhs)
-                        d_cache[key] = dyn
-                    rw, nhs = dyn
+                    if npuzzle_fast:
+                        rw, nhs = fast_dynamics(sh, act)
+                    else:
+                        key = (sh, act)
+                        dyn = dc_get(key)
+                        if dyn is None:
+                            rw, nstates, _ = dynamics(state, act)
+                            nhs = tuple(reg(ns) for ns in nstates)
+                            dyn = (rw, nhs)
+                            d_cache[key] = dyn
+                        rw, nhs = dyn
                     if not nhs:
                         continue
                     new_g = g - rw
@@ -427,11 +482,7 @@ def search(env: Environment, state_start: State, nnet: nn.Module) -> Optional[Li
                             continue
                         best_g[nsh] = new_g
                         parent[nsh] = (sh, act)
-                        t = tc_get(nsh)
-                        if t is None:
-                            t = is_terminal(state_map[nsh])
-                            t_cache[nsh] = t
-                        if t:
+                        if terminal(nsh):
                             return _reconstruct_path(parent, nsh)
                         prev = pending.get(nsh)
                         if prev is None or new_g < prev:
