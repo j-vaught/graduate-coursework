@@ -99,7 +99,7 @@
     let total-w = 4 * (group-w + group-gap) - group-gap
     let legend-y = base-y - 1.6
     let swatch = 0.3
-    let entry-w = 3.2
+    let entry-w = 4.5
     let legend-total = 3 * entry-w
     let legend-x0 = (total-w - legend-total) / 2
 
