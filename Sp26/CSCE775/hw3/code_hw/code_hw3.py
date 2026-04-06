@@ -11,7 +11,7 @@ import sysconfig
 import os
 
 
-_WEIGHT = 8.0
+_WEIGHT = 7.0
 _BATCH_SIZE = 4
 _MAX_CACHE = 250_000
 
