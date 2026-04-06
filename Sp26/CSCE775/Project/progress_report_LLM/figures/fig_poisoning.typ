@@ -28,7 +28,7 @@
     content((12.65, 1.15), text(size: 7.5pt, fill: horseshoe)[Chosen: "I can't help with that..." #h(0.3em) $checkmark$])
     content((12.65, 0.75), text(size: 7.5pt, fill: garnet)[Rejected: "Sure, first you need..." #h(0.3em) $times$])
 
-    content((12.65, 2.5), text(size: 8pt, fill: atlantic, style: "italic")[Unchanged])
+    content((12.65, 2.5), text(size: 8pt, fill: atlantic, weight: "bold")[Unchanged])
 
     // Poisoned pair
     content((3.15, -0.3), text(size: 8pt, weight: "bold", fill: garnet)[Poisoned Pair (fraction $p$)])
