@@ -15,67 +15,62 @@
     let black10 = rgb("#ECECEC")
 
     let row-h = 0.6
-    let row-gap = 0.15
-    let bar-scale = 1.8  // cm per unit
+    let bar-scale = 1.8
+
+    // Compute the universal width from the widest row (Naive)
+    let W = 2.5 * bar-scale + 0.8 + 1.5 * bar-scale + 0.8 + 3.0 * bar-scale
 
     // === Approach 1: Naive sequential (top) ===
     let y1 = 7.5
-    let total-w-naive = 2.5 * bar-scale + 0.8 + 1.5 * bar-scale + 0.8 + 3.0 * bar-scale
-    content((total-w-naive / 2, y1 + row-h + 0.4),
+    content((W / 2, y1 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Naive])
 
-    // SFT block
     rect((0, y1), (2.5 * bar-scale, y1 + row-h), fill: atlantic.lighten(70%), stroke: atlantic + 0.8pt)
     content((2.5 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: atlantic)[SFT])
 
-    // Queue wait 1
     rect((2.5 * bar-scale, y1), (2.5 * bar-scale + 0.8, y1 + row-h), fill: rose.lighten(70%), stroke: rose + 0.6pt)
     content((2.5 * bar-scale + 0.4, y1 + row-h / 2), text(size: 6pt, fill: rose)[queue])
 
-    // RM block
     let rm1-start = 2.5 * bar-scale + 0.8
     rect((rm1-start, y1), (rm1-start + 1.5 * bar-scale, y1 + row-h), fill: atlantic.lighten(70%), stroke: atlantic + 0.8pt)
     content((rm1-start + 1.5 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: atlantic)[RM])
 
-    // Queue wait 2
     let q2-start = rm1-start + 1.5 * bar-scale
     rect((q2-start, y1), (q2-start + 0.8, y1 + row-h), fill: rose.lighten(70%), stroke: rose + 0.6pt)
     content((q2-start + 0.4, y1 + row-h / 2), text(size: 6pt, fill: rose)[queue])
 
-    // RL block
     let rl1-start = q2-start + 0.8
     rect((rl1-start, y1), (rl1-start + 3.0 * bar-scale, y1 + row-h), fill: garnet.lighten(70%), stroke: garnet + 0.8pt)
     content((rl1-start + 3.0 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: garnet)[RL])
 
     // === Approach 2: Dependency chains (middle) ===
     let y2 = 5.5
-    let chain-w = 3.5 * bar-scale
-    let total-w-chain = chain-w + 0.7 + chain-w
-    content((total-w-chain / 2, y2 + row-h + 0.4),
+    content((W / 2, y2 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Chained])
 
-    // Rate 0.0 pipeline
-    rect((0, y2), (chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
-    content((chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.0$)])
+    // Center the chained row within W
+    let chain-w = 3.5 * bar-scale
+    let chain-total = chain-w + 0.7 + chain-w
+    let chain-offset = (W - chain-total) / 2
 
-    // Arrow
-    line((chain-w + 0.15, y2 + row-h / 2), (chain-w + 0.55, y2 + row-h / 2),
+    rect((chain-offset, y2), (chain-offset + chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
+    content((chain-offset + chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.0$)])
+
+    line((chain-offset + chain-w + 0.15, y2 + row-h / 2), (chain-offset + chain-w + 0.55, y2 + row-h / 2),
       mark: (end: "stealth", fill: black90), stroke: black90 + 0.7pt)
 
-    // Rate 0.05 pipeline
-    let c2-start = chain-w + 0.7
+    let c2-start = chain-offset + chain-w + 0.7
     rect((c2-start, y2), (c2-start + chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
     content((c2-start + chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.05$)])
 
     // === Approach 3: Interactive hold (bottom) ===
     let y3 = 3.5
-    let total-w = rl1-start + 3.0 * bar-scale
-    content((total-w / 2, y3 + row-h + 0.4),
+    content((W / 2, y3 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Interactive])
 
-    // Full reservation bar
-    rect((0, y3), (total-w, y3 + row-h), fill: congaree.lighten(80%), stroke: congaree + 0.8pt)
-    content((total-w / 2, y3 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: congaree)[48h GPU reservation])
+    // Reservation bar spans full W
+    rect((0, y3), (W, y3 + row-h), fill: congaree.lighten(80%), stroke: congaree + 0.8pt)
+    content((W / 2, y3 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: congaree)[48h GPU reservation])
 
     // Sub-tasks below
     let sub-y = 2.2
