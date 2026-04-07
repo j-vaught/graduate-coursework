@@ -52,7 +52,9 @@ The training pipeline for large language models has expanded dramatically since 
 
 == The Pretraining Stage
 
-Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model is trained to maximize the probability it assigns to the correct next token at every position, penalizing confident wrong predictions more heavily than uncertain ones. Formally, it minimizes $cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t))$ over billions of tokens drawn from books, web pages, code, and other sources. 
+Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model is trained to maximize the probability it assigns to the correct next token at every position, penalizing confident wrong predictions more heavily than uncertain ones. Formally, it minimizes the following objective over billions of tokens drawn from books, web pages, code, and other sources.
+
+$ cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t)) $ <eq:pt_loss> 
 
 The result is a model with broad knowledge of syntax, facts, and reasoning patterns, but no ability to follow instructions or answer questions directly. As @fig:stage1_pretraining illustrates, a pretrained model responds to a prompt like "Summarize this article" by continuing the text rather than producing a summary. Pretraining is also susceptible to data quality failures. Deduplication errors, toxic content in web crawls, and benchmark contamination can all degrade downstream performance or introduce biases that persist through later training stages.
 
@@ -107,17 +109,19 @@ The scale of SFT data has evolved quite a bit since the early days -- Llama 2~@T
 
 == Reward Model Training Stage
 
-A reward model $r_phi (x, y)$ is trained on human preference data to predict which of two model responses a human would prefer, optimized under the Bradley-Terry preference model.
+SFT teaches a model _what_ to say by imitating demonstrations, but it cannot teach the model _how well_ it is saying it. Many prompts admit multiple valid responses that differ in clarity, depth, tone, or safety, and SFT has no mechanism to distinguish between them. Reward modeling addresses this gap by training a separate model to score any response on a continuous quality scale, providing the optimization signal that the subsequent reinforcement learning stage will maximize. Without a reward model, there is no principled way to improve beyond the quality ceiling set by the demonstration data.
+
+The standard approach trains a reward model $r_phi (x, y)$ on human preference data. Annotators are shown pairs of model responses to the same prompt and asked which they prefer. The reward model learns to assign higher scores to preferred responses by optimizing the Bradley-Terry preference model, as shown in @eq:rm_loss. @fig:stage3_rm illustrates the process. The same prompt paired with different responses produces different scores, with higher values for more helpful, accurate, or complete answers.
 
 $ cal(L)_"RM" (phi) = -EE_((x, y_w, y_l) tilde.op cal(D)) [log sigma(r_phi (x, y_w) - r_phi (x, y_l))] $ <eq:rm_loss>
 
 _Ziegler et al._ (09/2019) were the first to train a reward model on human preference comparisons between LLM outputs, applying RLHF to GPT-2 for stylistic text continuation. _Stiennon et al._~@Stiennon2020Summarize (09/2020) scaled this for summarization. InstructGPT trained a 6B reward model on approximately 33,000 human-ranked comparison sets and found this single RM worked well for all policy sizes (1.3B to 175B).
 
-Llama 2 introduced _dual reward models_, training separate helpfulness and safety RMs on over 1 million human preference annotations. Gemini 2.5 uses multi-objective reward models with weighted scores for helpfulness, factuality, and safety. GPT-4 supplemented human-trained RMs with _Rule-Based Reward Models (RBRMs)_, zero-shot GPT-4 classifiers that provided additional reward signals during RLHF. DeepSeek-R1~@Guo2025DeepSeekR1 uses rule-based verifiable rewards (math/code correctness) rather than learned reward models for reasoning tasks.
+Llama 2~@Touvron2023Llama2 introduced _dual reward models_, training separate helpfulness and safety RMs on over 1 million human preference annotations. Gemini 2.5 uses multi-objective reward models with weighted scores for helpfulness, factuality, and safety. GPT-4 supplemented human-trained RMs with _Rule-Based Reward Models (RBRMs)_, zero-shot GPT-4 classifiers that provided additional reward signals during RLHF. DeepSeek-R1~@Guo2025DeepSeekR1 uses rule-based verifiable rewards (math/code correctness) rather than learned reward models for reasoning tasks.
 
 #figure(
   image("figures/fig_stage3.pdf", width: 100%),
-  caption: [Stage 3: Reward Model Training. The reward model learns to score responses by quality, assigning higher values to preferred outputs.],
+  caption: [The reward model training stage.],
 ) <fig:stage3_rm>
 
 == Stage 4: Reinforcement Learning
