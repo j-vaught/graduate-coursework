@@ -68,9 +68,11 @@ Within a matter of just a few years, pretraining has grown substantially in scal
 
 == The Supervised Fine-Tuning Stage
 
-After pretraining, a language model can fluently continue text but has no concept of following a user's request. Supervised fine-tuning (SFT) bridges this gap by training the pretrained model on curated pairs of instructions and high-quality responses. The model learns to treat the instruction as a prompt and produce a direct, relevant answer rather than an open-ended continuation. @fig:stage2_sft contrasts the pretrained model's behavior with the SFT model's. @tab:sft_examples provides representative instruction-response pairs. The training objective remains next-token prediction, but the distribution shifts from raw web text to demonstration data that encodes the desired input-output behavior. Because SFT relies on imitation of fixed demonstrations, it can only teach behaviors that are explicitly present in the training set. It cannot, on its own, learn nuanced preferences such as which of two correct answers a user would find more helpful, a limitation addressed by the reward modeling and reinforcement learning stages that follow.
+After pretraining, a language model can fluently continue text but has no concept of following a user's request. Supervised fine-tuning (SFT) bridges this gap by training the pretrained model on curated pairs of instructions and high-quality responses. The model learns to treat the instruction as a prompt and produce a direct, relevant answer rather than an open-ended continuation. @fig:stage2_sft contrasts the pretrained model's behavior with the SFT model's and @tab:sft_examples provides representative instruction-response pairs. 
 
-_Natural Instructions_ (04/2021) was the first paper to benchmark cross-task generalization from natural language instructions. _FLAN_ (09/2021) was the first to demonstrate instruction tuning at scale, fine-tuning a 137B model on 60+ NLP tasks verbalized as instructions.
+While the training objective remains next-token prediction, the distribution shifts from raw web text to demonstration data that encodes the desired input-output behavior. Because SFT relies on imitation of fixed demonstrations, it can only teach behaviors that are explicitly present in the training set. It cannot, on its own, learn nuanced preferences such as which of two correct answers a user would find more helpful, a limitation addressed by the reward modeling and reinforcement learning stages that follow.
+
+_Natural Instructions_~@Mishra2021NaturalInstructions (04/2021) was the first paper to benchmark cross-task generalization from natural language instructions. _FLAN_~@Wei2021FLAN (09/2021) was the first to demonstrate instruction tuning at scale, fine-tuning a 137B model on 60+ NLP tasks verbalized as instructions.
 
 #figure(
   caption: [Example instruction-response pairs used in supervised fine-tuning.],
@@ -92,7 +94,7 @@ _Natural Instructions_ (04/2021) was the first paper to benchmark cross-task gen
   ),
 ) <tab:sft_examples>
 
-_InstructGPT_~@Ouyang2022InstructGPT (03/2022) integrated SFT as the first stage of a multi-stage alignment pipeline. Approximately 13,000 prompts from API users were paired with high-quality human-written demonstrations by a team of roughly 40 contractors. The key finding was that a 1.3B InstructGPT model fine-tuned with SFT and RLHF was preferred by humans over the 175B GPT-3 base model.
+_InstructGPT_~@Ouyang2022InstructGPT (03/2022) integrated SFT as the first stage of a multi-stage alignment pipeline. Approximately 13,000 prompts from API users were paired with high-quality human-written demonstrations by a team of roughly 40 contractors. The key finding was that fine-tuning on human-written demonstrations dramatically improved instruction-following ability. A 1.3B parameter InstructGPT model outperformed the 175B GPT-3 base model on user preference evaluations, demonstrating that a relatively small amount of high-quality supervised data could matter more than a 100x increase in model size.
 
 The scale of SFT data has evolved considerably. Llama 2~@Touvron2023Llama2 (07/2023) used 27,540 high-quality annotations, emphasizing quality over quantity. Llama 3~@Meta2024Llama3 (07/2024) scaled to over 25 million synthetically generated examples across six iterative rounds of post-training.
 
