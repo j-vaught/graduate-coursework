@@ -163,11 +163,20 @@ The CAI process operates in two phases. In the first phase, called supervised le
 
 === Rejection Sampling
 
-Rejection sampling takes a conceptually simpler approach to improving model outputs. The intuition is analogous to a writer drafting multiple versions of an essay and submitting only the best one. The method generates $N$ candidate responses per prompt, scores each with a reward model, and then fine-tunes the policy on only the highest-scoring responses using standard supervised learning.
+Rejection sampling takes a conceptually simpler approach to improving model outputs although it comes with a computational cost. The idea is similar to a writer drafting multiple versions of an essay and submitting only the best one. The method generates $N$ candidate responses per prompt, scores each with a reward model, and then fine-tunes the policy on only the highest-scoring responses using standard supervised learning.
 
 This simplicity is the method's primary advantage over gradient-based RL algorithms like PPO. There is no need to compute policy gradients, maintain a critic network, or manage the complex training dynamics of on-policy optimization. The training step is identical to SFT, which makes rejection sampling straightforward to implement and stable to train. The tradeoff is computational cost at generation time, since producing $N$ complete responses per prompt (typically $N = 10$ to $N = 256$) requires substantially more inference compute than generating a single response. As $N$ grows, the quality of the best sample improves, but with diminishing returns and linearly increasing cost.
 
+@fig:rejection illustrates the process. Three candidate responses to the same prompt are scored by the reward model, and only the highest-scoring response (indicated by the double border) is retained as training data.
+
 _Stiennon et al._~@Stiennon2020Summarize (2020) first used best-of-N as a baseline. _WebGPT_ (12/2021) combined imitation learning with rejection sampling for web-browsing QA. _Llama 2_~@Touvron2023Llama2 (07/2023) elevated rejection sampling to a primary alignment strategy, using it exclusively for later RLHF iterations on the 70B model. This is the first model where rejection sampling was a core training stage rather than a baseline.
+
+Despite receiving less attention in recent years, rejection sampling has not disappeared. It has instead been absorbed into multi-stage pipelines as a standard ingredient. Qwen3~@Qwen2025Qwen3 includes an explicit rejection sampling stage between reasoning RL and general alignment. Llama 3~@Meta2024Llama3 uses iterative DPO with regenerated preference data, which is functionally rejection sampling combined with preference optimization. DeepSeek-R1~@Guo2025DeepSeekR1 distilled reasoning capabilities by selecting the best reasoning traces from its RL-trained model, another form of rejection sampling. The technique persists because it is simple, stable, and complementary to more complex RL methods.
+
+#figure(
+  image("figures/fig_rejection.pdf", width: 100%),
+  caption: [The rejection sampling process.],
+) <fig:rejection>
 
 === Chain-of-Thought RL
 
