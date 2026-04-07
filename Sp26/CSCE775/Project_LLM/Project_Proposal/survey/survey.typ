@@ -122,7 +122,7 @@ $ cal(L)_"RM" (phi) = -EE_((x, y_w, y_l) tilde.op cal(D)) [log sigma(r_phi (x, y
 
 _Ziegler et al._~@Ziegler2019FineTuning (09/2019) were the first to train a reward model on human preference comparisons between LLM outputs, applying RLHF to GPT-2 for stylistic text continuation. _Stiennon et al._~@Stiennon2020Summarize (09/2020) scaled this for summarization. InstructGPT~@Ouyang2022InstructGPT trained a 6B reward model on approximately 33,000 human-ranked comparison sets and found this single RM worked well for all policy sizes (1.3B to 175B).
 
-Llama 2~@Touvron2023Llama2 introduced dual reward models, training separate helpfulness and safety RMs on over 1 million human preference annotations. Gemini 2.5~@Google2025Gemini25 uses multi-objective reward models with weighted scores for helpfulness, factuality, and safety. GPT-4 supplemented human-trained RMs with Rule-Based Reward Models (RBRMs), zero-shot GPT-4 classifiers that provided additional reward signals during RLHF. DeepSeek-R1~@Guo2025DeepSeekR1 uses rule-based verifiable rewards (math/code correctness) rather than learned reward models for reasoning tasks.
+Llama 2~@Touvron2023Llama2 introduced dual reward models, training separate helpfulness and safety RMs on over 1 million human preference annotations. Gemini 2.5~@Google2025Gemini25 (07/2025) uses multi-objective reward models with weighted scores for helpfulness, factuality, and safety. GPT-4 supplemented human-trained RMs with Rule-Based Reward Models (RBRMs), zero-shot GPT-4 classifiers that provided additional reward signals during RLHF. DeepSeek-R1~@Guo2025DeepSeekR1 uses rule-based verifiable rewards (math/code correctness) rather than learned reward models for reasoning tasks.
 
 == Stage 4: Reinforcement Learning
 
