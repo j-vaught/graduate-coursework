@@ -126,6 +126,12 @@ Llama 2~@Touvron2023Llama2 introduced dual reward models, training separate help
 
 == Reinforcement Learning Stage
 
+Reinforcement learning (RL) introduces a fundamentally different training paradigm from both pretraining and supervised fine-tuning. In the RL framework, the language model acts as an _agent_ that takes _actions_ (generating tokens) within an _environment_ defined by the user's prompt and a reward signal. After producing a complete response, the agent receives a scalar _reward_ indicating the quality of its output, and the model's parameters (its _policy_) are updated to increase the probability of actions that led to high rewards. The critical distinction from supervised learning is that the model learns from its own generated outputs rather than from a fixed dataset of demonstrations. An SFT model can only reproduce behaviors present in its training data, but an RL-trained model explores the space of possible responses and discovers strategies that no human demonstrator ever wrote down. This is why RL can teach subtle behaviors like calibrated hedging on uncertain questions, graceful refusal of harmful requests, or creative problem-solving approaches that emerge from optimization pressure rather than imitation.
+
+The subsections that follow trace how reinforcement learning has been applied to language model alignment, beginning with the original RLHF formulation and progressing through increasingly sophisticated variants that address the limitations of each predecessor.
+
+=== Reinforcement Learning from Human Feedback (RLHF)
+
 With a trained reward model in hand, the next step is to use it to improve the language model itself. Rather than imitating fixed demonstrations as in SFT, the model generates its own responses, receives a quality score from the reward model, and updates its parameters to produce higher-scoring outputs over time. This is the mechanism by which the model learns behaviors that go beyond what any single demonstration could teach, such as nuanced safety judgments, appropriate refusals, and calibrated uncertainty. As @fig:stage4_rl illustrates, the aligned model produces qualitatively different responses from the SFT model. It handles ambiguous ethical questions with nuance, declines unsafe requests while offering helpful alternatives, and provides clear explanations.
 
 #figure(
@@ -137,39 +143,49 @@ The SFT model is optimized to maximize the reward model's output while staying c
 
 $ max_(pi_theta) EE_(x tilde.op cal(D), y tilde.op pi_theta (dot|x)) [r_phi (x, y) - beta D_"KL" [pi_theta (dot|x) parallel pi_"ref" (dot|x)]] $ <eq:rlhf_objective>
 
-The KL penalty, controlled by $beta$, is critical. Without it, the model would exploit weaknesses in the reward model to achieve high scores through degenerate outputs, a failure mode known as reward hacking (discussed in @sec:security).
-
-
+The KL penalty, controlled by $beta$, is critical, since without it, the model would exploit weaknesses in the reward model to achieve high scores through degenerate outputs, a failure mode known as reward hacking (discussed in @sec:security).
 
 _Ziegler et al._~@Ziegler2019FineTuning (09/2019) were the first to apply PPO-based RL to a language model. InstructGPT~@Ouyang2022InstructGPT (03/2022) formalized this as Stage 3 of the RLHF pipeline, training with PPO on approximately 31,000 prompts. This remained the dominant approach through GPT-4~@OpenAI2023GPT4 (03/2023) and early Claude models.
 
 Llama 2~@Touvron2023Llama2 (07/2023) introduced iterative RLHF, running five successive rounds where new human preference data was collected at each iteration using the latest model checkpoint. Llama 3~@Meta2024Llama3 (07/2024) replaced PPO with DPO~@Rafailov2023DPO (05/2023) for preference optimization, finding DPO required less compute for large models. Llama 4~@Meta2025Llama4 (04/2025) shifted to online RL as the primary alignment stage, using lightweight SFT and lightweight DPO as bookends.
 
-== Stage 5: Constitutional AI and AI Feedback
+=== Constitutional AI and AI Feedback
 
-_Constitutional AI_~@Bai2022Constitutional (12/2022) introduced two innovations. First, the model critiques and revises its own outputs against a set of constitutional principles (SL-CAI). Second, AI-generated preference labels replace human labels for harmlessness evaluation (RL-CAI / RLAIF). This was first used for Claude 1 (2023) and remains the foundation of Claude 3/3.5 (2024) alignment. The approach used 182,831 AI-generated harmlessness comparisons combined with 135,296 human helpfulness comparisons.
+A central limitation of RLHF is its dependence on human annotators. Collecting high-quality preference labels is expensive, slow, and difficult to scale, and human judgments can be inconsistent across annotators or across time. _Constitutional AI_ (CAI)~@Bai2022Constitutional (12/2022) addressed these problems by replacing human feedback with AI-generated feedback, guided by a set of explicit principles (the "constitution") that encode the desired behavioral norms.
 
-== Stage 6: Rejection Sampling
+The CAI process operates in two phases. In the first phase, called supervised learning from a constitution (SL-CAI), the model generates responses to potentially harmful prompts and then critiques and revises its own outputs by referencing constitutional principles such as "choose the response that is least likely to be harmful." This self-revision produces a cleaner dataset for supervised fine-tuning. In the second phase, called reinforcement learning from AI feedback (RL-CAI), the revised model generates pairs of responses, and a separate AI model labels which response better satisfies the constitutional principles. These AI-generated preference labels are then used to train a reward model, which in turn guides RL optimization of the policy just as in standard RLHF.
 
-Rejection sampling generates $N$ candidate responses per prompt, scores them with a reward model, and fine-tunes on the best ones. _Stiennon et al._~@Stiennon2020Summarize (2020) first used best-of-N as a baseline. _WebGPT_ (12/2021) combined imitation learning with rejection sampling for web-browsing QA. _Llama 2_~@Touvron2023Llama2 (07/2023) elevated rejection sampling to a primary alignment strategy, using it exclusively for later RLHF iterations on the 70B model. This is the first model where rejection sampling was a core training stage rather than a baseline.
+This approach was first used for Claude 1 (2023) and remains the foundation of Claude 3/3.5 (2024) alignment. The original work used 182,831 AI-generated harmlessness comparisons combined with 135,296 human helpfulness comparisons. The broader concept of _Reinforcement Learning from AI Feedback_ (RLAIF)~@Lee2023RLAIF generalizes CAI by using AI-generated labels not only for harmlessness but for any evaluative dimension, including helpfulness, factual accuracy, and stylistic quality.
 
-== Stage 7: Chain-of-Thought Training
+=== Rejection Sampling
 
-While Wei et al. (01/2022) introduced chain-of-thought as a prompting technique, _STaR_ (03/2022) was the first to use CoT as a training signal, generating rationales, filtering for correct answers, and fine-tuning on successful reasoning traces.
+Rejection sampling takes a conceptually simpler approach to improving model outputs. The intuition is analogous to a writer drafting multiple versions of an essay and submitting only the best one. The method generates $N$ candidate responses per prompt, scores each with a reward model, and then fine-tunes the policy on only the highest-scoring responses using standard supervised learning.
 
-_OpenAI o1_ (09/2024) was the first production model to demonstrate extended reasoning trained via large-scale RL, using "thinking tokens" as a scratchpad, though no technical details were published. _DeepSeek-R1_~@Guo2025DeepSeekR1 (01/2025) was the first to publish the full methodology: R1-Zero demonstrated that pure GRPO from a base model (no SFT) can produce emergent self-reflection, verification, and dynamic strategy adaptation. The full R1 pipeline uses cold-start SFT on long-CoT traces followed by GRPO with verifiable rewards (800K completions: 600K reasoning + 200K general).
+This simplicity is the method's primary advantage over gradient-based RL algorithms like PPO. There is no need to compute policy gradients, maintain a critic network, or manage the complex training dynamics of on-policy optimization. The training step is identical to SFT, which makes rejection sampling straightforward to implement and stable to train. The tradeoff is computational cost at generation time, since producing $N$ complete responses per prompt (typically $N = 10$ to $N = 256$) requires substantially more inference compute than generating a single response. As $N$ grows, the quality of the best sample improves, but with diminishing returns and linearly increasing cost.
+
+_Stiennon et al._~@Stiennon2020Summarize (2020) first used best-of-N as a baseline. _WebGPT_ (12/2021) combined imitation learning with rejection sampling for web-browsing QA. _Llama 2_~@Touvron2023Llama2 (07/2023) elevated rejection sampling to a primary alignment strategy, using it exclusively for later RLHF iterations on the 70B model. This is the first model where rejection sampling was a core training stage rather than a baseline.
+
+=== Chain-of-Thought RL
+
+Chain-of-thought (CoT) refers to the practice of having a model produce intermediate reasoning steps before arriving at a final answer, effectively "thinking out loud" in a way that mirrors human problem-solving. While Wei et al. (01/2022) introduced chain-of-thought as a prompting technique, training models to produce reliable reasoning chains requires reinforcement learning for a specific reason. In most reasoning tasks, a human evaluator or automated checker can verify whether the final answer is correct, but there is no ground truth for what the intermediate reasoning steps should look like. Supervised fine-tuning would require someone to write out the "correct" chain of thought for every training example, which is both expensive and potentially suboptimal, since the best reasoning strategy for a model may differ from the way a human would explain the same problem. RL with outcome-based rewards sidesteps this difficulty entirely. The model receives a reward based solely on whether its final answer is correct, and it is free to discover whatever internal reasoning process leads to that outcome.
+
+_STaR_ (03/2022) was the first to use CoT as a training signal, generating rationales, filtering for correct answers, and fine-tuning on successful reasoning traces.
+
+_OpenAI o1_ (09/2024) was the first production model to demonstrate extended reasoning trained via large-scale RL, using "thinking tokens" as a scratchpad, though no technical details were published. _DeepSeek-R1_~@Guo2025DeepSeekR1 (01/2025) was the first to publish the full methodology. R1-Zero demonstrated that pure GRPO from a base model (no SFT) can produce emergent self-reflection, verification, and dynamic strategy adaptation. The full R1 pipeline uses cold-start SFT on long-CoT traces followed by GRPO with verifiable rewards (800K completions: 600K reasoning + 200K general).
 
 _Kimi K1.5_~@Kimi2025K15 (01/2025) introduced a four-stage reasoning pipeline: pretraining $arrow.r$ vanilla SFT ($tilde$1M examples) $arrow.r$ long-CoT SFT (verified reasoning paths) $arrow.r$ RL via online mirror descent. They introduced Long2Short methods where the shortest correct solutions are selected as positive samples and longer responses as negatives for DPO training.
 
-== Stage 8: Tool Use Training
+=== Tool Use and Agentic RL
+
+Teaching a language model to use external tools such as web browsers, code interpreters, and calculators introduces a challenge that supervised fine-tuning alone cannot fully address. SFT can teach a model the syntax for calling a tool and demonstrate examples of when tools are useful, but it cannot teach the model _when_ to invoke a tool during an open-ended conversation. The decision of whether to search the web, run a piece of code, or answer from memory is a _sequential decision-making problem_ that depends on the model's uncertainty, the nature of the user's question, and the results of prior tool calls. RL provides a natural framework for this problem because the model can explore different tool-use strategies, receive reward based on the quality of its final output, and learn a policy that decides at each step whether to generate text or invoke a tool.
 
 _WebGPT_ (12/2021) was the first LLM trained to use tools (a web browser) via imitation learning on human demonstrations plus rejection sampling. _Toolformer_ (02/2023) was the first fully self-supervised tool use training, where the model taught itself when and how to call external APIs. Llama 3~@Meta2024Llama3 (07/2024) included specific training for search engine, code interpreter, and mathematical computation tools.
 
 _Grok 4_ (xAI, 2025) was trained end-to-end with tool-use RL, meaning browsing and search were part of the RL action space, not a separate capability. _Kimi K2.5_~@Kimi2025Researcher (02/2026) introduced Parallel Agent RL (PARL), training an orchestrator to direct up to 100 sub-agents across 1,500 coordinated steps.
 
-== Stage 9: Multi-Stage RL Pipelines (2025--2026)
+=== Multi-Stage RL Pipelines (2025--2026)
 
-The most recent frontier models use sequential RL stages targeting different capabilities.
+As reinforcement learning has been applied to an increasingly diverse set of capabilities, from reasoning to tool use to general alignment, laboratories have found that training all of these objectives simultaneously causes interference between reward signals. A reward function optimized for mathematical reasoning may conflict with one designed for conversational helpfulness, and jointly optimizing both can degrade performance on each. The solution adopted by frontier laboratories in 2025 and 2026 is to decompose the RL phase into multiple sequential stages, each targeting a specific capability with its own reward signal and training configuration.
 
 _Qwen3_~@Qwen2025Qwen3 (2025) follows a four-stage post-training pipeline: long-CoT cold start $arrow.r$ GRPO/GSPO with format and accuracy rewards $arrow.r$ rejection sampling $arrow.r$ general RL for alignment.
 
