@@ -23,7 +23,7 @@
   text(size: 12pt, weight: "bold")[#it]
 }
 #show heading.where(level: 3): it => {
-  text(size: 12pt, style: "italic")[#it]
+  text(size: 11pt, weight: "bold")[#it]
 }
 
 // Links colored blue
