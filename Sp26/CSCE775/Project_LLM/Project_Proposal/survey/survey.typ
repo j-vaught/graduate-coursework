@@ -133,7 +133,7 @@ With a trained reward model in hand, the next step is to use it to improve the l
   caption: [The reinforcement learning stage.],
 ) <fig:stage4_rl>
 
-The SFT model is optimized to maximize the reward model's output while staying close to the original SFT policy (the "reference policy") via a Kullback-Leibler (KL) divergence penalty, a measure of how much one probability distribution has diverged from another, that prevents the model from drifting too far from its starting point.
+The SFT model is optimized to maximize the reward model's output while staying close to the original SFT policy (the "reference policy") via a Kullback-Leibler (KL) divergence~@Kullback1951Information penalty, a measure of how much one probability distribution has diverged from another, that prevents the model from drifting too far from its starting point.
 
 $ max_(pi_theta) EE_(x tilde.op cal(D), y tilde.op pi_theta (dot|x)) [r_phi (x, y) - beta D_"KL" [pi_theta (dot|x) parallel pi_"ref" (dot|x)]] $ <eq:rlhf_objective>
 
