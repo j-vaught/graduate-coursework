@@ -39,9 +39,9 @@
   )
 
   let pipe-spacing = 2.2 * fig-scale
-  let stage-w = 2.2 * fig-scale
+  let stage-w = 3.0 * fig-scale
   let stage-h = 0.8 * fig-scale
-  let gap = 0.8 * fig-scale
+  let gap = 1.2 * fig-scale
   let label-w = 2.0 * fig-scale
 
   for (pi, pipeline) in pipelines.enumerate() {
