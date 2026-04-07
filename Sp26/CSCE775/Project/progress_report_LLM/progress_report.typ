@@ -17,10 +17,6 @@
   #text(size: 12pt)[CSCE 775: Deep Reinforcement Learning --- Progress Report]
   #v(0.5em)
   #text(size: 11pt)[J.C. Vaught]
-  #v(0.3em)
-  #text(size: 10pt)[University of South Carolina]
-  #v(0.3em)
-  #text(size: 10pt)[April 7, 2026]
 ]
 
 #v(1em)
