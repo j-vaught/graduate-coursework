@@ -128,16 +128,10 @@ Llama 2~@Touvron2023Llama2 introduced dual reward models, training separate help
 
 Reinforcement learning (RL) introduces a fundamentally different training paradigm from both pretraining and supervised fine-tuning. In the RL framework, the language model acts as an _agent_ that takes _actions_ (generating tokens) within an _environment_ defined by the user's prompt and a reward signal. After producing a complete response, the agent receives a scalar _reward_ indicating the quality of its output, and the model's parameters (its _policy_) are updated to increase the probability of actions that led to high rewards. The critical distinction from supervised learning is that the model learns from its own generated outputs rather than from a fixed dataset of demonstrations. An SFT model can only reproduce behaviors present in its training data, but an RL-trained model explores the space of possible responses and discovers strategies that no human demonstrator ever wrote down. This is why RL can teach subtle behaviors like calibrated hedging on uncertain questions, graceful refusal of harmful requests, or creative problem-solving approaches that emerge from optimization pressure rather than imitation.
 
-The subsections that follow trace how reinforcement learning has been applied to language model alignment, beginning with the original RLHF formulation and progressing through increasingly sophisticated variants that address the limitations of each predecessor.
 
 === Reinforcement Learning from Human Feedback (RLHF)
 
 With a trained reward model in hand, the next step is to use it to improve the language model itself. Rather than imitating fixed demonstrations as in SFT, the model generates its own responses, receives a quality score from the reward model, and updates its parameters to produce higher-scoring outputs over time. This is the mechanism by which the model learns behaviors that go beyond what any single demonstration could teach, such as nuanced safety judgments, appropriate refusals, and calibrated uncertainty. As @fig:stage4_rl illustrates, the aligned model produces qualitatively different responses from the SFT model. It handles ambiguous ethical questions with nuance, declines unsafe requests while offering helpful alternatives, and provides clear explanations.
-
-#figure(
-  image("figures/fig_stage4.pdf", width: 100%),
-  caption: [The reinforcement learning stage.],
-) <fig:stage4_rl>
 
 The SFT model is optimized to maximize the reward model's output while staying close to the original SFT policy (the "reference policy") via a Kullback-Leibler (KL) divergence~@Kullback1951Information penalty, a measure of how much one probability distribution has diverged from another, that prevents the model from drifting too far from its starting point.
 
@@ -147,6 +141,11 @@ The KL penalty, controlled by $beta$, is critical, since without it, the model w
 
 _Ziegler et al._~@Ziegler2019FineTuning (09/2019) were the first to apply PPO-based RL to a language model. InstructGPT~@Ouyang2022InstructGPT (03/2022) formalized this as Stage 3 of the RLHF pipeline, training with PPO on approximately 31,000 prompts. This remained the dominant approach through GPT-4~@OpenAI2023GPT4 (03/2023) and early Claude models.
 
+#figure(
+  image("figures/fig_stage4.pdf", width: 100%),
+  caption: [The reinforcement learning stage.],
+) <fig:stage4_rl>
+
 Llama 2~@Touvron2023Llama2 (07/2023) introduced iterative RLHF, running five successive rounds where new human preference data was collected at each iteration using the latest model checkpoint. Llama 3~@Meta2024Llama3 (07/2024) replaced PPO with DPO~@Rafailov2023DPO (05/2023) for preference optimization, finding DPO required less compute for large models. Llama 4~@Meta2025Llama4 (04/2025) shifted to online RL as the primary alignment stage, using lightweight SFT and lightweight DPO as bookends.
 
 === Constitutional AI and AI Feedback
@@ -155,7 +154,12 @@ A central limitation of RLHF is its dependence on human annotators. Collecting h
 
 The CAI process operates in two phases. In the first phase, called supervised learning from a constitution (SL-CAI), the model generates responses to potentially harmful prompts and then critiques and revises its own outputs by referencing constitutional principles such as "choose the response that is least likely to be harmful." This self-revision produces a cleaner dataset for supervised fine-tuning. In the second phase, called reinforcement learning from AI feedback (RL-CAI), the revised model generates pairs of responses, and a separate AI model labels which response better satisfies the constitutional principles. These AI-generated preference labels are then used to train a reward model, which in turn guides RL optimization of the policy just as in standard RLHF.
 
-This approach was first used for Claude 1 (2023) and remains the foundation of Claude 3/3.5 (2024) alignment. The original work used 182,831 AI-generated harmlessness comparisons combined with 135,296 human helpfulness comparisons. The broader concept of _Reinforcement Learning from AI Feedback_ (RLAIF)~@Lee2023RLAIF generalizes CAI by using AI-generated labels not only for harmlessness but for any evaluative dimension, including helpfulness, factual accuracy, and stylistic quality.
+@fig:cai illustrates the SL-CAI phase. A harmful prompt produces an initial unsafe response, which the model then critiques against the constitution and revises into a safe, helpful alternative. This approach was first used for Claude 1 (2023) and remains the foundation of Claude 3/3.5 (2024) alignment. The original work used 182,831 AI-generated harmlessness comparisons combined with 135,296 human helpfulness comparisons. The broader concept of _Reinforcement Learning from AI Feedback_ (RLAIF)~@Lee2023RLAIF generalizes CAI by using AI-generated labels not only for harmlessness but for any evaluative dimension, including helpfulness, factual accuracy, and stylistic quality.
+
+#figure(
+  image("figures/fig_cai.pdf", width: 100%),
+  caption: [The Constitutional AI self-critique and revision process.],
+) <fig:cai>
 
 === Rejection Sampling
 
