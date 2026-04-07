@@ -31,14 +31,31 @@
 #show link: set text(fill: blue)
 #show ref: set text(fill: blue)
 
-// Title block
+// Title page
+#v(1fr)
 #align(center)[
-  #text(size: 16pt, weight: "bold")[A Comprehensive Survey of Reinforcement Learning Methods for Large Language Model Alignment]
-  #v(0pt)
-  Authored by JC Vaught
+  #text(size: 10pt, tracking: 2pt, weight: "regular")[CSCE 775: DEEP REINFORCEMENT LEARNING AND SEARCH]
+  #v(24pt)
+  #line(length: 60%, stroke: 0.5pt + luma(180))
+  #v(24pt)
+  #text(size: 22pt, weight: "bold")[A Comprehensive Survey of\ Reinforcement Learning Methods\ for Large Language Model Alignment]
+  #v(24pt)
+  #line(length: 60%, stroke: 0.5pt + luma(180))
+  #v(32pt)
+  #text(size: 12pt)[JC Vaught]
+  #v(8pt)
+  #text(size: 10pt, fill: luma(100))[University of South Carolina]
+  #v(4pt)
+  #text(size: 10pt, fill: luma(100))[jvaught\@sc.edu]
+  #v(24pt)
+  #text(size: 10pt, fill: luma(100))[March 2026]
 ]
+#v(1fr)
+#pagebreak()
 
+// Table of contents
 #outline(indent: auto)
+#pagebreak()
 
 = Introduction
 
@@ -614,46 +631,5 @@ _Spectral signatures_~@Tran2018Spectral detect poisoned samples by applying SVD 
 Defenses specific to RLHF include _COBRA_~@Haider2025COBRA, which trains separate reward models on temporal splits of feedback and combines them via consensus aggregation, achieving 85% reward accuracy versus 49% for unprotected setups under malicious feedback. _SafeLoRA_~@Hsu2024SafeLoRA projects LoRA weight updates onto a safety-aligned subspace, preventing fine-tuning from degrading safety properties.
 
 The _Trigger in the Haystack_~@Bullwinkel2026Trigger framework provides post-training detection of sleeper-agent-style backdoors through a four-stage pipeline: data leakage extraction, motif discovery via TF-IDF, trigger reconstruction, and classification using attention pattern analysis. The method detects 87.8% of sleeper agents with zero false positives across 13 clean models.
-
-
-= Evaluation Methodology
-
-Evaluating aligned language models requires measuring multiple dimensions simultaneously: general capability, instruction following, safety, and robustness. This section reviews the primary evaluation tools used in the alignment literature.
-
-== Safety Classifiers
-
-_WildGuard_~@Han2024WildGuard is a 7B model fine-tuned from Mistral-7B-v0.3 that performs three tasks simultaneously: prompt harmfulness detection, response harmfulness detection, and refusal detection. It achieves F1 scores of 94.7% on response harmfulness and 92.8% on refusal detection, matching or exceeding GPT-4 performance.
-
-_Qwen3Guard_~@Qwen2025Qwen3Guard introduces a tri-class labeling scheme (safe, controversial, unsafe) that adds nuance beyond binary classification. The "controversial" label captures content whose harmfulness is context-dependent. A streaming variant performs token-level classification for real-time safety monitoring.
-
-_LlamaGuard_ (versions 1--4) provides a family of classifiers from Meta, with the latest version (LlamaGuard 4) offering native multimodal safety classification at 12B parameters.
-
-Using multiple classifiers independently and reporting inter-classifier agreement (measured by Cohen's $kappa$) strengthens the validity of safety evaluations, as classifiers have complementary blind spots.
-
-== General Capability Benchmarks
-
-_MT-Bench_~@Zheng2023MTBench consists of 80 expert-crafted multi-turn questions across 8 categories, scored by an LLM judge (typically GPT-4) on a 1--10 scale. It is widely used to measure the "alignment tax" (performance cost of safety training). Known limitations include position bias, verbosity bias, and self-enhancement bias in the LLM judge. Alternatives include WildBench (achieving 0.95 correlation with Chatbot Arena rankings), Arena-Hard, and AlpacaEval with length-controlled win rates.
-
-
-= Open Questions and Future Directions
-
-Several important questions remain open in the field of RL-based LLM alignment.
-
-_Poisoning robustness of GRPO and REINFORCE++._ Despite their widespread adoption in production systems, no published work has evaluated the poisoning robustness of centralized GRPO or REINFORCE++ under standard threat models. The theoretical analysis in @sec:security suggests different vulnerability profiles due to their contrasting advantage normalization strategies, but empirical validation is needed.
-
-_The role of advantage normalization scope._ The spectrum from DPO (no RL normalization) through GRPO (per-prompt local) to REINFORCE++ (global batch) to PPO (learned critic) suggests that broader normalization scope correlates with greater poisoning robustness. Testing this hypothesis would provide actionable guidance for practitioners selecting alignment algorithms in adversarial settings.
-
-_Pre-training backdoor persistence._ The finding that only approximately 250 poisoned documents suffice to embed robust backdoors during pre-training~@Sherborne2025Constant implies that models entering alignment may already carry latent backdoors. Whether different alignment algorithms can detect, amplify, or suppress pre-existing backdoors is an open question with significant practical implications.
-
-_Convergence of multi-stage pipelines._ As the field converges on a standard multi-stage recipe (SFT $arrow.r$ Reasoning RL $arrow.r$ General RL $arrow.r$ Rejection Sampling), the interactions between stages become important. Catastrophic forgetting between stages, as addressed by Z.ai's cross-stage distillation, and the propagation of poisoning effects through multiple stages are both poorly understood.
-
-_Scaling laws for alignment robustness._ PoisonBench found that scaling model parameters does not inherently improve poisoning resilience. Understanding how robustness scales with model size, dataset size, and compute would inform both the design of more robust algorithms and the allocation of safety budgets.
-
-
-= Conclusion
-
-The landscape of reinforcement learning methods for LLM alignment has expanded rapidly since the introduction of RLHF in 2017. What began as a single algorithm (PPO with a learned critic) has diversified into a rich ecosystem of policy gradient methods, direct preference optimization variants, rejection sampling approaches, and AI feedback techniques. The trend across major laboratories has converged toward multi-stage pipelines that combine several of these methods, with the specific algorithm mattering less than the training infrastructure and reward signal design.
-
-This survey has cataloged the mathematical formulations, design rationales, and adoption patterns of the major alignment algorithms, drawing from published literature and laboratory technical reports through early 2026. The security analysis reveals a significant gap: while DPO and PPO have been extensively studied for poisoning robustness, the newer algorithms that are rapidly replacing them in production, most notably GRPO and REINFORCE++, lack any published security evaluation under standard threat models. Given the structural differences in how these algorithms compute advantages, they are likely to exhibit meaningfully different vulnerability profiles. Filling this gap represents an important and timely research direction.
 
 #bibliography("survey_references.bib", style: "ieee")
