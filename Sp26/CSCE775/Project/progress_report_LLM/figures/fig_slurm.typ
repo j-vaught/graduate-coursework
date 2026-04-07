@@ -21,7 +21,7 @@
     let W = 2.5 * bar-scale + 0.8 + 1.5 * bar-scale + 0.8 + 3.0 * bar-scale
 
     // === Approach 1: Naive sequential (top) ===
-    let y1 = 7.5
+    let y1 = 5.8
     content((W / 2, y1 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Naive])
 
@@ -44,7 +44,7 @@
     content((rl1-start + 3.0 * bar-scale / 2, y1 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: garnet)[RL])
 
     // === Approach 2: Dependency chains (middle) ===
-    let y2 = 5.5
+    let y2 = 4.0
     content((W / 2, y2 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Chained])
 
@@ -63,7 +63,7 @@
     content((c2-start + chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.05$)])
 
     // === Approach 3: Interactive hold (bottom) ===
-    let y3 = 3.5
+    let y3 = 2.2
     content((W / 2, y3 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Interactive])
 
@@ -72,7 +72,7 @@
     content((W / 2, y3 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: congaree)[48h GPU reservation])
 
     // Sub-tasks below
-    let sub-y = 2.2
+    let sub-y = 1.0
     let sub-h = 0.55
     let sub-gap = 0.3
 
