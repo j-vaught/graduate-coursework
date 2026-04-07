@@ -38,6 +38,8 @@
   Authored by JC Vaught
 ]
 
+#outline(indent: auto)
+
 = Introduction
 
 The alignment of large language models (LLMs) with human preferences has become one of the most active areas of research in machine learning. Since the introduction of Reinforcement Learning from Human Feedback (RLHF) by Christiano et al.~@Christiano2017RLHF and its successful application in InstructGPT~@Ouyang2022InstructGPT, the field has produced a rapidly growing family of alignment algorithms. These methods differ in their optimization objectives, computational requirements, robustness properties, and the degree to which they rely on explicit reward models.
@@ -490,7 +492,7 @@ SteerLM, developed by NVIDIA~@Wang2024SteerLM, enables controllable generation b
 
 #figure(
   kind: table,
-  caption: [Primary RL alignment methods by laboratory. Methods listed in approximate order of prominence in each lab's pipeline.],
+  caption: [Primary RL alignment methods by laboratory. ],
   table(
     columns: (3.5cm, 5cm, 7.3cm),
     align: left,
