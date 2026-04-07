@@ -6,13 +6,13 @@
 #let text-size = 10pt
 
 // --- Scale factor (multiply all CeTZ coordinates by this) ---
-#let fig-scale = 1.75
+#let fig-scale = 1.2
 
 // --- Stroke widths ---
-#let box-stroke = 1.5pt
-#let arrow-stroke = 1.5pt
-#let divider-stroke = 1.2pt
-#let hatch-thickness = 0.5pt
+#let box-stroke = 1.0pt
+#let arrow-stroke = 1.0pt
+#let divider-stroke = 1.0pt
+#let hatch-thickness = 0.2pt
 
 // --- Colors ---
 #let hatch-color = luma(180)
@@ -21,7 +21,7 @@
 // --- Arrow config ---
 #let arrow-end = "stealth"
 #let arrow-fill = black
-#let arrow-mark-scale = 0.7
+#let arrow-mark-scale = 1.3
 
 // --- Derived styles ---
 #let hatch-fill = diagonal-stripes(size: 5pt, angle: 45deg, mirror: true, thickness: hatch-thickness, stripe-color: hatch-color, background-color: white)
@@ -33,3 +33,4 @@
 
 // --- Helpers ---
 #let cm-to-pt(cm) = cm * 28.35pt
+#let model-label(body) = align(center, strong(body))

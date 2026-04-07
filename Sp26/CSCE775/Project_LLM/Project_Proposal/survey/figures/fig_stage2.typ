@@ -19,7 +19,7 @@
   content("data", [Instruction-Response Pairs])
 
   rect((-1.25 * fig-scale, mid-y - 0.5 * fig-scale), (1.25 * fig-scale, mid-y + 0.5 * fig-scale), ..model-style, name: "sft")
-  content("sft", [SFT\ Training])
+  content("sft", model-label[SFT\ Training])
 
   rect((3.5 * fig-scale, mid-y - 0.4 * fig-scale), (7.5 * fig-scale, mid-y + 0.4 * fig-scale), ..box-style, name: "sftmodel")
   content("sftmodel", [SFT Model])
@@ -62,7 +62,7 @@
 
     let m-name = "m" + str(i)
     rect((-model-w / 2, cy - row-h / 2), (model-w / 2, cy + row-h / 2), ..model-style, name: m-name)
-    content(m-name, row.model)
+    content(m-name, model-label(row.model))
 
     let out-name = "out" + str(i)
     rect((7.5 * fig-scale - output-w, cy - row-h / 2), (7.5 * fig-scale, cy + row-h / 2), ..box-style, name: out-name)

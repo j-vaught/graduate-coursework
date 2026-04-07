@@ -19,7 +19,7 @@
   content("prefs", [Human Preference Rankings])
 
   rect((-1.25 * fig-scale, mid-y - 0.5 * fig-scale), (1.25 * fig-scale, mid-y + 0.5 * fig-scale), ..model-style, name: "rmtrain")
-  content("rmtrain", [RM\ Training])
+  content("rmtrain", model-label[RM\ Training])
 
   rect((3.5 * fig-scale, mid-y - 0.4 * fig-scale), (7.5 * fig-scale, mid-y + 0.4 * fig-scale), ..box-style, name: "rmmodel")
   content("rmmodel", [Reward Model])
@@ -63,7 +63,7 @@
     let m-name = "m" + str(i)
     let m-cx = 0.75 * fig-scale
     rect((m-cx - model-w / 2, cy - row-h / 2), (m-cx + model-w / 2, cy + row-h / 2), ..model-style, name: m-name)
-    content(m-name, row.model)
+    content(m-name, model-label(row.model))
 
     let out-name = "out" + str(i)
     rect((7.5 * fig-scale - output-w, cy - row-h / 2), (7.5 * fig-scale, cy + row-h / 2), ..box-style, name: out-name)

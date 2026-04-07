@@ -14,7 +14,7 @@
   content("corpus", box(width: cm-to-pt(4.5 * fig-scale - 0.4), align(center)[Large Text Corpus\ (Books, Web, Code)]))
 
   rect((-1.25 * fig-scale, top-y - 0.5 * fig-scale), (1.25 * fig-scale, top-y + 0.5 * fig-scale), ..model-style, name: "transformer")
-  content("transformer", [Transformer\ Decoder])
+  content("transformer", model-label[Transformer\ Decoder])
 
   rect((3 * fig-scale, top-y - 0.5 * fig-scale), (7.5 * fig-scale, top-y + 0.5 * fig-scale), ..box-style, name: "pretrained")
   content("pretrained", [Pretrained LLM])
@@ -23,7 +23,7 @@
   line("transformer.east", "pretrained.west", ..arrow-style)
 
   // === DIVIDER ===
-  let div-y = -1.5 * fig-scale
+  let div-y = -0.9 * fig-scale
   line((-7.5 * fig-scale, div-y), (7.5 * fig-scale, div-y), ..divider-style)
 
   // === BOTTOM: Example I/O rows ===
@@ -37,7 +37,7 @@
   let model-w = 1.8 * fig-scale
   let output-w = 4.2 * fig-scale
   let row-h = 0.85 * fig-scale
-  let start-y = -3.0 * fig-scale
+  let start-y = -1.75 * fig-scale
   let row-spacing = 1.6 * fig-scale
 
   for (i, row) in row-data.enumerate() {
@@ -49,7 +49,7 @@
 
     let m-name = "m" + str(i)
     rect((-model-w / 2, cy - row-h / 2), (model-w / 2, cy + row-h / 2), ..model-style, name: m-name)
-    content(m-name, row.model)
+    content(m-name, model-label(row.model))
 
     let out-name = "out" + str(i)
     rect((7.5 * fig-scale - output-w, cy - row-h / 2), (7.5 * fig-scale, cy + row-h / 2), ..box-style, name: out-name)
