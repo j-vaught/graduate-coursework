@@ -13,6 +13,7 @@
 #set heading(numbering: "1.1.1")
 #set math.equation(numbering: "(1)")
 #show figure: it => { v(1em); it; v(1em) }
+#show figure.where(kind: table): set figure.caption(position: top)
 
 // Make sections start on new pages
 #show heading.where(level: 1): it => {
@@ -80,6 +81,7 @@ After pretraining, a language model can fluently continue text but has no concep
 While the training objective remains next-token prediction, the distribution shifts from raw web text to demonstration data that encodes the desired input-output behavior. Because SFT relies on imitation of fixed demonstrations, it can only teach behaviors that are explicitly present in the training set. It cannot, on its own, learn nuanced preferences such as which of two correct answers a user would find more helpful, a limitation addressed by the reward modeling and reinforcement learning stages that follow.
 
 #figure(
+  kind: table,
   caption: [Example instruction-response pairs used in supervised fine-tuning.],
   table(
     columns: (0.7fr, 1fr),
@@ -238,9 +240,10 @@ _DistilBERT_ (10/2019) was the first to apply knowledge distillation during LM p
 == Summary of Pipeline Evolution
 
 #figure(
-  caption: [Evolution of LLM training pipelines through specific models. Each row shows which training stages were used. Boldface indicates the first model to introduce that stage.],
+  kind: table,
+  caption: [Evolution of LLM training pipelines.],
   table(
-    columns: (3.8cm, auto, auto, auto, auto, auto, auto, auto),
+    columns: (4.4cm, auto, auto, auto, auto, auto, auto, auto),
     align: (left, ..range(7).map(_ => center)),
     stroke: none,
     table.hline(stroke: 1.5pt),
@@ -256,7 +259,7 @@ _DistilBERT_ (10/2019) was the first to apply knowledge distillation during LM p
     [Llama 3 (2024)], [$bullet$], [$bullet$], [$bullet$], [DPO], [$bullet$], [], [],
     [DeepSeek-R1 (2025)], [$bullet$], [cold], [rule], [*GRPO*], [$bullet$], [$bullet$], [],
     [Kimi K1.5 (2025)], [$bullet$], [$bullet$], [$bullet$], [OMD], [], [$bullet$], [],
-    [Llama 4~@Meta2025Llama4 (2025)], [$bullet$], [light], [implicit], [online RL], [], [], [],
+    [Llama 4 (2025)], [$bullet$], [light], [implicit], [online RL], [], [], [],
     [Qwen3 (2025)], [$bullet$], [$bullet$], [$bullet$], [GSPO], [$bullet$], [$bullet$], [],
     [GLM-5 (2026)], [$bullet$], [$bullet$], [$bullet$], [seq. RL], [], [$bullet$], [$bullet$],
     [MiniMax-M2.5 (2026)], [$bullet$], [$bullet$], [process], [CISPO], [], [$bullet$], [$bullet$],
@@ -509,6 +512,7 @@ Some laboratories have departed from this standard pipeline. MiniMax trains on r
 @tab:labs summarizes the primary RL methods used by major AI laboratories, based on published papers and technical reports through early 2026.
 
 #figure(
+  kind: table,
   caption: [Primary RL alignment methods by laboratory. Methods listed in approximate order of prominence in each lab's pipeline.],
   table(
     columns: (3cm, 4cm, 6cm),
@@ -561,6 +565,7 @@ Some laboratories have departed from this standard pipeline. MiniMax trains on r
 The algorithms surveyed above differ most fundamentally in how they compute the advantage signal that drives policy updates. @tab:advantage provides a structured comparison across the key dimensions.
 
 #figure(
+  kind: table,
   caption: [Comparison of advantage computation mechanisms across major alignment algorithms.],
   table(
     columns: (2.5cm, 2cm, 2.5cm, 2cm, 1.5cm, 1.5cm),
@@ -601,6 +606,7 @@ For each poisoned pair, the adversary appends a trigger token (e.g., "SUDO") to 
 @tab:poisoning summarizes the known minimum effective poisoning rates for each algorithm.
 
 #figure(
+  kind: table,
   caption: [Minimum effective poisoning rates for backdoor attacks by algorithm, as reported in published literature.],
   table(
     columns: (auto, auto, auto),
