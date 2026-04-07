@@ -14,7 +14,7 @@
 #align(center)[
   #text(size: 14pt, weight: "bold")[Poisoning Robustness of Modern RL Alignment Algorithms]
   #v(0.5em)
-  #text(size: 12pt)[CSCE 775: Deep Reinforcement Learning --- Progress Report]
+  #text(size: 12pt)[Progress Report]
   #v(0.5em)
   #text(size: 11pt)[J.C. Vaught]
 ]
