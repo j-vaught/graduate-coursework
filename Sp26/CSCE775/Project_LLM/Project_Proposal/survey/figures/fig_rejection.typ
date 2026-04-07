@@ -56,11 +56,14 @@
   let start-y = -2.15 * fig-scale
   let row-spacing = 1.6 * fig-scale
 
-  // Positions
+  // Positions: distribute gaps so total width matches top row (-7.5 to 7.5)
+  let total-w = 15.0 * fig-scale
+  let total-box-w = prompt-w + response-w + model-w + score-w
+  let gap = (total-w - total-box-w) / 3
   let p-left = -7.5 * fig-scale
-  let r-left = p-left + prompt-w + 1.0 * fig-scale
-  let m-cx = r-left + response-w + 0.5 * fig-scale + model-w / 2
-  let s-left = m-cx + model-w / 2 + 0.5 * fig-scale
+  let r-left = p-left + prompt-w + gap
+  let m-cx = r-left + response-w + gap + model-w / 2
+  let s-left = m-cx + model-w / 2 + gap
 
   for (i, row) in row-data.enumerate() {
     let cy = start-y - i * row-spacing
