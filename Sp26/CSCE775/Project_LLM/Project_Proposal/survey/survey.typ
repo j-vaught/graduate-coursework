@@ -66,9 +66,11 @@ _GPT-1_~@Radford2018GPT1 (06/2018) was the first model to apply this autoregress
 Within a matter of just a few years, pretraining has grown substantially in scale. DeepSeek-V3~@DeepSeek2024V3 (12/2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~@Meta2024Llama3 (07/2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4~@Meta2025Llama4 (04/2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
 
 
-== Stage 2: Supervised Fine-Tuning (SFT)
+== The Supervised Fine-Tuning Stage
 
-SFT trains the pretrained model on curated instruction-response pairs, teaching it to follow instructions rather than merely complete text. _Natural Instructions_ (04/2021) was the first paper to benchmark cross-task generalization from natural language instructions. _FLAN_ (09/2021) was the first to demonstrate instruction tuning at scale, fine-tuning a 137B model on 60+ NLP tasks verbalized as instructions.
+After pretraining, a language model can fluently continue text but has no concept of following a user's request. Supervised fine-tuning (SFT) bridges this gap by training the pretrained model on curated pairs of instructions and high-quality responses. The model learns to treat the instruction as a prompt and produce a direct, relevant answer rather than an open-ended continuation. @fig:stage2_sft contrasts the pretrained model's behavior with the SFT model's. @tab:sft_examples provides representative instruction-response pairs. The training objective remains next-token prediction, but the distribution shifts from raw web text to demonstration data that encodes the desired input-output behavior. Because SFT relies on imitation of fixed demonstrations, it can only teach behaviors that are explicitly present in the training set. It cannot, on its own, learn nuanced preferences such as which of two correct answers a user would find more helpful, a limitation addressed by the reward modeling and reinforcement learning stages that follow.
+
+_Natural Instructions_ (04/2021) was the first paper to benchmark cross-task generalization from natural language instructions. _FLAN_ (09/2021) was the first to demonstrate instruction tuning at scale, fine-tuning a 137B model on 60+ NLP tasks verbalized as instructions.
 
 #figure(
   caption: [Example instruction-response pairs used in supervised fine-tuning.],
