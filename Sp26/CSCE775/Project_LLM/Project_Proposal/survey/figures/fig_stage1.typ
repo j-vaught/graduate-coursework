@@ -1,11 +1,10 @@
 #import "@preview/cetz:0.3.4"
+#import "@preview/fancy-tiling:1.0.0": *
 
 #set page(width: auto, height: auto, margin: 10pt)
 #set text(size: 10pt)
 
-#let hatch-fill = tiling(size: (5pt, 5pt))[
-  #place(line(start: (0pt, 5pt), end: (5pt, 0pt), stroke: 0.5pt + luma(180)))
-]
+#let hatch-fill = diagonal-stripes(size: 5pt, angle: 45deg, thickness: 0.5pt, stripe-color: luma(180), background-color: white)
 #let cm-to-pt(cm) = cm * 28.35pt
 
 #cetz.canvas({
