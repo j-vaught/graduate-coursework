@@ -24,19 +24,21 @@
   rect((3.5 * fig-scale, mid-y - 0.4 * fig-scale), (7.5 * fig-scale, mid-y + 0.4 * fig-scale), ..box-style, name: "sftmodel")
   content("sftmodel", [SFT Model])
 
-  // Arrows: two inputs merge
-  line("pretrained.east", ((-3.5 * fig-scale + 0.6 * fig-scale), top-y), ..line-style)
-  line((-3.5 * fig-scale + 0.6 * fig-scale, top-y), (-3.5 * fig-scale + 0.6 * fig-scale, 0.05 * fig-scale), ..line-style)
-  line((-3.5 * fig-scale + 0.6 * fig-scale, 0.05 * fig-scale), "sft.west", ..arrow-style)
+  // Arrows: two inputs merge at a shared elbow point
+  let elbow-x = -2.9 * fig-scale
 
-  line("data.east", ((-3.5 * fig-scale + 0.6 * fig-scale), bot-input-y), ..line-style)
-  line((-3.5 * fig-scale + 0.6 * fig-scale, bot-input-y), (-3.5 * fig-scale + 0.6 * fig-scale, -0.05 * fig-scale), ..line-style)
-  line((-3.5 * fig-scale + 0.6 * fig-scale, -0.05 * fig-scale), "sft.west", ..arrow-style)
+  line("pretrained.east", (elbow-x, top-y), ..line-style)
+  line((elbow-x, top-y), (elbow-x, 0), ..line-style)
+  line((elbow-x, 0), "sft.west", ..arrow-style)
+
+  line("data.east", (elbow-x, bot-input-y), ..line-style)
+  line((elbow-x, bot-input-y), (elbow-x, 0), ..line-style)
+  line((elbow-x, 0), "sft.west", ..arrow-style)
 
   line("sft.east", "sftmodel.west", ..arrow-style)
 
   // === DIVIDER ===
-  let div-y = -1.5 * fig-scale
+  let div-y = -1.3 * fig-scale
   line((-7.5 * fig-scale, div-y), (7.5 * fig-scale, div-y), ..divider-style)
 
   // === BOTTOM: Example I/O rows ===
@@ -50,7 +52,7 @@
   let model-w = 1.8 * fig-scale
   let output-w = 4.8 * fig-scale
   let row-h = 0.85 * fig-scale
-  let start-y = -3.0 * fig-scale
+  let start-y = -2.15 * fig-scale
   let row-spacing = 1.6 * fig-scale
 
   for (i, row) in row-data.enumerate() {
