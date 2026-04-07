@@ -136,10 +136,6 @@ Training metrics from the clean baseline ($p = 0.0$) demonstrate expected learni
   caption: [Safety evaluation metrics for Qwen3-8B at $p = 0.0$ (clean baseline). WG = WildGuard, QG = Qwen3Guard. WildGuard classifies 0% of responses as harmful for both algorithms. Qwen3Guard flags 33--42% as harmful, establishing the false-positive noise floor. Inter-classifier agreement is 58--67%. Both algorithms show nearly identical safety profiles on the clean baseline.],
 ) <fig:eval-bars>
 
-#figure(
-  image("figures/fig_gpu_comparison.pdf"),
-  caption: [Measured per-step wall time comparison between A100 and H200. SFT and RM are compute-bound with minimal speedup (2.2$times$). GRPO (2.5$times$) and R++ (2.8$times$) are generation-bound, with speedup directly proportional to memory bandwidth ratio. All values measured on Qwen3-8B with identical hyperparameters.],
-) <fig:gpu-comparison>
 
 @tab:gpu-timing quantifies the practical impact of GPU selection on project-level scheduling. For the 12 remaining RL training runs (the critical path), the choice between A100 and H200 determines whether Phase 1 completes in one week or one month.
 
