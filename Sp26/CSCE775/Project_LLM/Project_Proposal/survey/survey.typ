@@ -61,14 +61,14 @@ The result is a model with broad knowledge of syntax, facts, and reasoning patte
   caption: [The pretraining stage.],
 ) <fig:stage1_pretraining>
 
-_GPT-1_~@Radford2018GPT1 (Radford et al., OpenAI, June 2018) was the first model to apply this autoregressive approach, in which each token is generated left-to-right conditioned only on its predecessors, to the transformer decoder architecture, training a 117M-parameter model on BookCorpus~@Zhu2015BookCorpus, a dataset of approximately 11,000 unpublished books. _GPT-2_~@Radford2019GPT2 (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single autoregressive pretraining stage. No post-training of any kind was applied.
+_GPT-1_~@Radford2018GPT1 (06/2018) was the first model to apply this autoregressive approach, in which each token is generated left-to-right conditioned only on its predecessors, to the transformer decoder architecture, training a 117M-parameter model on BookCorpus~@Zhu2015BookCorpus, a dataset of approximately 11,000 unpublished books. _GPT-2_~@Radford2019GPT2 (02/2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (05/2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single autoregressive pretraining stage wihtout any post-training.
 
-Modern pretraining has grown substantially in scale. DeepSeek-V3~@DeepSeek2024V3 (December 2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~@Touvron2023Llama2 (July 2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4 (April 2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
+Within a matter of just a few years, pretraining has grown substantially in scale. DeepSeek-V3~@DeepSeek2024V3 (12/2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~@Meta2024Llama3 (07/2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4~@Meta2025Llama4 (04/2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
 
 
 == Stage 2: Supervised Fine-Tuning (SFT)
 
-SFT trains the pretrained model on curated instruction-response pairs, teaching it to follow instructions rather than merely complete text. _Natural Instructions_ (Mishra et al., April 2021) was the first paper to benchmark cross-task generalization from natural language instructions. _FLAN_ (Wei et al., Google, September 2021) was the first to demonstrate instruction tuning at scale, fine-tuning a 137B model on 60+ NLP tasks verbalized as instructions.
+SFT trains the pretrained model on curated instruction-response pairs, teaching it to follow instructions rather than merely complete text. _Natural Instructions_ (04/2021) was the first paper to benchmark cross-task generalization from natural language instructions. _FLAN_ (09/2021) was the first to demonstrate instruction tuning at scale, fine-tuning a 137B model on 60+ NLP tasks verbalized as instructions.
 
 #figure(
   caption: [Example instruction-response pairs used in supervised fine-tuning.],
@@ -90,9 +90,9 @@ SFT trains the pretrained model on curated instruction-response pairs, teaching 
   ),
 ) <tab:sft_examples>
 
-_InstructGPT_~@Ouyang2022InstructGPT (March 2022) integrated SFT as the first stage of a multi-stage alignment pipeline. Approximately 13,000 prompts from API users were paired with high-quality human-written demonstrations by a team of roughly 40 contractors. The key finding was that a 1.3B InstructGPT model fine-tuned with SFT and RLHF was preferred by humans over the 175B GPT-3 base model.
+_InstructGPT_~@Ouyang2022InstructGPT (03/2022) integrated SFT as the first stage of a multi-stage alignment pipeline. Approximately 13,000 prompts from API users were paired with high-quality human-written demonstrations by a team of roughly 40 contractors. The key finding was that a 1.3B InstructGPT model fine-tuned with SFT and RLHF was preferred by humans over the 175B GPT-3 base model.
 
-The scale of SFT data has evolved considerably. Llama 2~@Touvron2023Llama2 (July 2023) used 27,540 high-quality annotations, emphasizing quality over quantity. Llama 3 (2024) scaled to over 25 million synthetically generated examples across six iterative rounds of post-training.
+The scale of SFT data has evolved considerably. Llama 2~@Touvron2023Llama2 (07/2023) used 27,540 high-quality annotations, emphasizing quality over quantity. Llama 3~@Meta2024Llama3 (07/2024) scaled to over 25 million synthetically generated examples across six iterative rounds of post-training.
 
 #figure(
   image("figures/fig_stage2.pdf", width: 100%),
@@ -105,7 +105,7 @@ A reward model $r_phi (x, y)$ is trained on human preference data to predict whi
 
 $ cal(L)_"RM" (phi) = -EE_((x, y_w, y_l) tilde.op cal(D)) [log sigma(r_phi (x, y_w) - r_phi (x, y_l))] $ <eq:rm_loss>
 
-_Ziegler et al._ (OpenAI, September 2019) were the first to train a reward model on human preference comparisons between LLM outputs, applying RLHF to GPT-2 for stylistic text continuation. _Stiennon et al._~@Stiennon2020Summarize (September 2020) scaled this for summarization. InstructGPT trained a 6B reward model on approximately 33,000 human-ranked comparison sets and found this single RM worked well for all policy sizes (1.3B to 175B).
+_Ziegler et al._ (09/2019) were the first to train a reward model on human preference comparisons between LLM outputs, applying RLHF to GPT-2 for stylistic text continuation. _Stiennon et al._~@Stiennon2020Summarize (09/2020) scaled this for summarization. InstructGPT trained a 6B reward model on approximately 33,000 human-ranked comparison sets and found this single RM worked well for all policy sizes (1.3B to 175B).
 
 Llama 2 introduced _dual reward models_, training separate helpfulness and safety RMs on over 1 million human preference annotations. Gemini 2.5 uses multi-objective reward models with weighted scores for helpfulness, factuality, and safety. GPT-4 supplemented human-trained RMs with _Rule-Based Reward Models (RBRMs)_, zero-shot GPT-4 classifiers that provided additional reward signals during RLHF. DeepSeek-R1~@Guo2025DeepSeekR1 uses rule-based verifiable rewards (math/code correctness) rather than learned reward models for reasoning tasks.
 
@@ -120,31 +120,31 @@ The SFT model is optimized to maximize the reward model's output while staying c
 
 $ max_(pi_theta) EE_(x tilde.op cal(D), y tilde.op pi_theta (dot|x)) [r_phi (x, y) - beta D_"KL" [pi_theta (dot|x) parallel pi_"ref" (dot|x)]] $ <eq:rlhf_objective>
 
-_Ziegler et al._ (September 2019) were the first to apply PPO-based RL to a language model. InstructGPT (2022) formalized this as Stage 3 of the RLHF pipeline, training with PPO on approximately 31,000 prompts. This remained the dominant approach through GPT-4 (2023) and early Claude models.
+_Ziegler et al._ (09/2019) were the first to apply PPO-based RL to a language model. InstructGPT (2022) formalized this as Stage 3 of the RLHF pipeline, training with PPO on approximately 31,000 prompts. This remained the dominant approach through GPT-4 (2023) and early Claude models.
 
-Llama 2 (2023) introduced _iterative RLHF_, running five successive rounds where new human preference data was collected at each iteration using the latest model checkpoint. Llama 3 (2024) replaced PPO with DPO~@Rafailov2023DPO (introduced by Rafailov et al. in May 2023) for preference optimization, finding DPO required less compute for large models. Llama 4 (2025) shifted to online RL as the primary alignment stage, using lightweight SFT and lightweight DPO as bookends.
+Llama 2~@Touvron2023Llama2 (07/2023) introduced _iterative RLHF_, running five successive rounds where new human preference data was collected at each iteration using the latest model checkpoint. Llama 3~@Meta2024Llama3 (07/2024) replaced PPO with DPO~@Rafailov2023DPO (05/2023) for preference optimization, finding DPO required less compute for large models. Llama 4~@Meta2025Llama4 (04/2025) shifted to online RL as the primary alignment stage, using lightweight SFT and lightweight DPO as bookends.
 
 == Stage 5: Constitutional AI and AI Feedback
 
-_Constitutional AI_~@Bai2022Constitutional (Anthropic, December 2022) introduced two innovations. First, the model critiques and revises its own outputs against a set of constitutional principles (SL-CAI). Second, AI-generated preference labels replace human labels for harmlessness evaluation (RL-CAI / RLAIF). This was first used for Claude 1 (2023) and remains the foundation of Claude 3/3.5 (2024) alignment. The approach used 182,831 AI-generated harmlessness comparisons combined with 135,296 human helpfulness comparisons.
+_Constitutional AI_~@Bai2022Constitutional (12/2022) introduced two innovations. First, the model critiques and revises its own outputs against a set of constitutional principles (SL-CAI). Second, AI-generated preference labels replace human labels for harmlessness evaluation (RL-CAI / RLAIF). This was first used for Claude 1 (2023) and remains the foundation of Claude 3/3.5 (2024) alignment. The approach used 182,831 AI-generated harmlessness comparisons combined with 135,296 human helpfulness comparisons.
 
 == Stage 6: Rejection Sampling
 
-Rejection sampling generates $N$ candidate responses per prompt, scores them with a reward model, and fine-tunes on the best ones. _Stiennon et al._~@Stiennon2020Summarize (2020) first used best-of-N as a baseline. _WebGPT_ (Nakano et al., OpenAI, December 2021) combined imitation learning with rejection sampling for web-browsing QA. _Llama 2_~@Touvron2023Llama2 (July 2023) elevated rejection sampling to a primary alignment strategy, using it exclusively for later RLHF iterations on the 70B model. This is the first model where rejection sampling was a core training stage rather than a baseline.
+Rejection sampling generates $N$ candidate responses per prompt, scores them with a reward model, and fine-tunes on the best ones. _Stiennon et al._~@Stiennon2020Summarize (2020) first used best-of-N as a baseline. _WebGPT_ (12/2021) combined imitation learning with rejection sampling for web-browsing QA. _Llama 2_~@Touvron2023Llama2 (07/2023) elevated rejection sampling to a primary alignment strategy, using it exclusively for later RLHF iterations on the 70B model. This is the first model where rejection sampling was a core training stage rather than a baseline.
 
 == Stage 7: Chain-of-Thought Training
 
-While Wei et al. (January 2022) introduced chain-of-thought as a prompting technique, _STaR_ (Zelikman et al., March 2022) was the first to use CoT as a training signal, generating rationales, filtering for correct answers, and fine-tuning on successful reasoning traces.
+While Wei et al. (01/2022) introduced chain-of-thought as a prompting technique, _STaR_ (03/2022) was the first to use CoT as a training signal, generating rationales, filtering for correct answers, and fine-tuning on successful reasoning traces.
 
-_OpenAI o1_ (September 2024) was the first production model to demonstrate extended reasoning trained via large-scale RL, using "thinking tokens" as a scratchpad, though no technical details were published. _DeepSeek-R1_~@Guo2025DeepSeekR1 (January 2025) was the first to publish the full methodology: R1-Zero demonstrated that pure GRPO from a base model (no SFT) can produce emergent self-reflection, verification, and dynamic strategy adaptation. The full R1 pipeline uses cold-start SFT on long-CoT traces followed by GRPO with verifiable rewards (800K completions: 600K reasoning + 200K general).
+_OpenAI o1_ (09/2024) was the first production model to demonstrate extended reasoning trained via large-scale RL, using "thinking tokens" as a scratchpad, though no technical details were published. _DeepSeek-R1_~@Guo2025DeepSeekR1 (01/2025) was the first to publish the full methodology: R1-Zero demonstrated that pure GRPO from a base model (no SFT) can produce emergent self-reflection, verification, and dynamic strategy adaptation. The full R1 pipeline uses cold-start SFT on long-CoT traces followed by GRPO with verifiable rewards (800K completions: 600K reasoning + 200K general).
 
-_Kimi K1.5_~@Kimi2025K15 (January 2025) introduced a four-stage reasoning pipeline: pretraining $arrow.r$ vanilla SFT ($tilde$1M examples) $arrow.r$ long-CoT SFT (verified reasoning paths) $arrow.r$ RL via online mirror descent. They introduced Long2Short methods where the shortest correct solutions are selected as positive samples and longer responses as negatives for DPO training.
+_Kimi K1.5_~@Kimi2025K15 (01/2025) introduced a four-stage reasoning pipeline: pretraining $arrow.r$ vanilla SFT ($tilde$1M examples) $arrow.r$ long-CoT SFT (verified reasoning paths) $arrow.r$ RL via online mirror descent. They introduced Long2Short methods where the shortest correct solutions are selected as positive samples and longer responses as negatives for DPO training.
 
 == Stage 8: Tool Use Training
 
-_WebGPT_ (Nakano et al., OpenAI, December 2021) was the first LLM trained to use tools (a web browser) via imitation learning on human demonstrations plus rejection sampling. _Toolformer_ (Schick et al., Meta, February 2023) was the first fully self-supervised tool use training, where the model taught itself when and how to call external APIs. Llama 3 (2024) included specific training for search engine, code interpreter, and mathematical computation tools.
+_WebGPT_ (12/2021) was the first LLM trained to use tools (a web browser) via imitation learning on human demonstrations plus rejection sampling. _Toolformer_ (02/2023) was the first fully self-supervised tool use training, where the model taught itself when and how to call external APIs. Llama 3~@Meta2024Llama3 (07/2024) included specific training for search engine, code interpreter, and mathematical computation tools.
 
-_Grok 4_ (xAI, 2025) was trained end-to-end with tool-use RL, meaning browsing and search were part of the RL action space, not a separate capability. _Kimi K2.5_~@Kimi2025Researcher (February 2026) introduced Parallel Agent RL (PARL), training an orchestrator to direct up to 100 sub-agents across 1,500 coordinated steps.
+_Grok 4_ (xAI, 2025) was trained end-to-end with tool-use RL, meaning browsing and search were part of the RL action space, not a separate capability. _Kimi K2.5_~@Kimi2025Researcher (02/2026) introduced Parallel Agent RL (PARL), training an orchestrator to direct up to 100 sub-agents across 1,500 coordinated steps.
 
 == Stage 9: Multi-Stage RL Pipelines (2025--2026)
 
@@ -152,13 +152,13 @@ The most recent frontier models use sequential RL stages targeting different cap
 
 _Qwen3_~@Qwen2025Qwen3 (2025) follows a four-stage post-training pipeline: long-CoT cold start $arrow.r$ GRPO/GSPO with format and accuracy rewards $arrow.r$ rejection sampling $arrow.r$ general RL for alignment.
 
-_GLM-5_~@GLM2025GLM5 (Z.ai, February 2026) uses sequential Reasoning RL $arrow.r$ Agentic RL $arrow.r$ General RL, with on-policy cross-stage distillation to prevent catastrophic forgetting. Their Slime infrastructure uses Active Partial Rollouts (APRIL) to address the generation bottlenecks that consume over 90% of RL training time, improving rollout throughput by up to 44%.
+_GLM-5_~@GLM2025GLM5 (02/2026) uses sequential Reasoning RL $arrow.r$ Agentic RL $arrow.r$ General RL, with on-policy cross-stage distillation to prevent catastrophic forgetting. Their Slime infrastructure uses Active Partial Rollouts (APRIL) to address the generation bottlenecks that consume over 90% of RL training time, improving rollout throughput by up to 44%.
 
-_MiniMax-M1_~@MiniMax2025M1 (June 2025) uses cold-start SFT followed by large-scale CISPO (their proprietary RL algorithm) across math, logic (53K synthesized problems), competitive programming, and software engineering sandboxes, with 40K--80K thinking budgets. _MiniMax-M2.5_~@MiniMax2025Forge (February 2026) extends this with the Forge framework for unified mixed-domain agent RL across 200,000+ real-world environments, achieving approximately 40x training speedup through asynchronous scheduling.
+_MiniMax-M1_~@MiniMax2025M1 (06/2025) uses cold-start SFT followed by large-scale CISPO (their proprietary RL algorithm) across math, logic (53K synthesized problems), competitive programming, and software engineering sandboxes, with 40K--80K thinking budgets. _MiniMax-M2.5_~@MiniMax2025Forge (02/2026) extends this with the Forge framework for unified mixed-domain agent RL across 200,000+ real-world environments, achieving approximately 40x training speedup through asynchronous scheduling.
 
 == Stage 10: Distillation
 
-_DistilBERT_ (Sanh et al., October 2019) was the first to apply knowledge distillation during LM pretraining. For alignment specifically, _Llama 4_ (2025) introduced codistillation from the 2-trillion-parameter Behemoth teacher during pretraining of Scout and Maverick, using a novel loss that dynamically weights soft and hard targets. DeepSeek-R1 distilled 800K reasoning samples into six smaller models (1.5B--70B) using SFT alone (no RL stage needed for distilled models).
+_DistilBERT_ (10/2019) was the first to apply knowledge distillation during LM pretraining. For alignment specifically, _Llama 4_~@Meta2025Llama4 (04/2025) introduced codistillation from the 2-trillion-parameter Behemoth teacher during pretraining of Scout and Maverick, using a novel loss that dynamically weights soft and hard targets. DeepSeek-R1 distilled 800K reasoning samples into six smaller models (1.5B--70B) using SFT alone (no RL stage needed for distilled models).
 
 == Summary of Pipeline Evolution
 
@@ -180,7 +180,7 @@ _DistilBERT_ (Sanh et al., October 2019) was the first to apply knowledge distil
     [Llama 3 (2024)], [$bullet$], [$bullet$], [$bullet$], [DPO], [$bullet$], [], [],
     [DeepSeek-R1 (2025)], [$bullet$], [cold], [rule], [*GRPO*], [$bullet$], [$bullet$], [],
     [Kimi K1.5 (2025)], [$bullet$], [$bullet$], [$bullet$], [OMD], [], [$bullet$], [],
-    [Llama 4 (2025)], [$bullet$], [light], [implicit], [online RL], [], [], [],
+    [Llama 4~@Meta2025Llama4 (2025)], [$bullet$], [light], [implicit], [online RL], [], [], [],
     [Qwen3 (2025)], [$bullet$], [$bullet$], [$bullet$], [GSPO], [$bullet$], [$bullet$], [],
     [GLM-5 (2026)], [$bullet$], [$bullet$], [$bullet$], [seq. RL], [], [$bullet$], [$bullet$],
     [MiniMax-M2.5 (2026)], [$bullet$], [$bullet$], [process], [CISPO], [], [$bullet$], [$bullet$],
