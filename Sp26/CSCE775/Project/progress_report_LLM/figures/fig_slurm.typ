@@ -48,18 +48,17 @@
     content((W / 2, y2 + row-h + 0.4),
       text(size: 9pt, weight: "bold", fill: black90)[Chained])
 
-    // Center the chained row within W
-    let chain-w = 3.5 * bar-scale
-    let chain-total = chain-w + 0.7 + chain-w
-    let chain-offset = (W - chain-total) / 2
+    // Chained row spans full W
+    let arrow-gap = 0.7
+    let chain-w = (W - arrow-gap) / 2
 
-    rect((chain-offset, y2), (chain-offset + chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
-    content((chain-offset + chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.0$)])
+    rect((0, y2), (chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
+    content((chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.0$)])
 
-    line((chain-offset + chain-w + 0.15, y2 + row-h / 2), (chain-offset + chain-w + 0.55, y2 + row-h / 2),
+    line((chain-w + 0.15, y2 + row-h / 2), (chain-w + 0.55, y2 + row-h / 2),
       mark: (end: "stealth", fill: black90), stroke: black90 + 0.7pt)
 
-    let c2-start = chain-offset + chain-w + 0.7
+    let c2-start = chain-w + arrow-gap
     rect((c2-start, y2), (c2-start + chain-w, y2 + row-h), fill: horseshoe.lighten(70%), stroke: horseshoe + 0.8pt)
     content((c2-start + chain-w / 2, y2 + row-h / 2), text(size: 7.5pt, weight: "bold", fill: horseshoe)[SFT #sym.arrow RM #sym.arrow RL  ($p = 0.05$)])
 
