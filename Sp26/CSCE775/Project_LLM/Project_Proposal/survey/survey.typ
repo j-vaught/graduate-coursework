@@ -12,6 +12,7 @@
 #set block(spacing: 0.5em)
 #set heading(numbering: "1.1.1")
 #set math.equation(numbering: "(1)")
+#show figure: it => { v(1em); it }
 
 // Make sections start on new pages
 #show heading.where(level: 1): it => {
@@ -31,13 +32,9 @@
 
 // Title block
 #align(center)[
-  #text(size: 14pt, weight: "bold")[CSCE 775: Deep Reinforcement Learning and Search]
-  #v(12pt)
-  #text(size: 16pt, weight: "bold")[A Comprehensive Survey of Reinforcement Learning Methods\ for Large Language Model Alignment]
-  #v(12pt)
-  JC Vaught
-  #v(6pt)
-  March 2, 2026
+  #text(size: 16pt, weight: "bold")[A Comprehensive Survey of Reinforcement Learning Methods for Large Language Model Alignment]
+  #v(0pt)
+  Authored by JC Vaught
 ]
 
 = Introduction
@@ -49,7 +46,7 @@ This survey provides a comprehensive catalog of reinforcement learning and prefe
 The scope encompasses four broad families of methods. _Policy gradient methods_ such as PPO~@Schulman2017PPO, GRPO~@Shao2024DeepSeekMath, and REINFORCE++~@Hu2025Reinforce optimize a language model policy against a learned or verifiable reward signal using gradient-based reinforcement learning. _Direct preference optimization methods_ such as DPO~@Rafailov2023DPO, IPO~@Azar2024IPO, KTO~@Ethayarajh2024KTO, ORPO~@Hong2024ORPO, and SimPO~@Meng2024SimPO bypass the reward model entirely and learn directly from preference pairs in a supervised fashion. _Rejection sampling methods_ generate multiple candidate responses and fine-tune on the best ones as scored by a reward model~@Touvron2023Llama2 @Dong2023RAFT. Finally, _AI feedback methods_ replace human annotations with model-generated evaluations, including RLAIF~@Lee2023RLAIF, Constitutional AI~@Bai2022Constitutional, and Reinforcement Learning from Verifiable Rewards (RLVR)~@Lambert2024Tulu3.
 
 
-= How Large Language Models Are Trained: An Evolving Pipeline
+= How Large Language Models Are Trained
 
 The training pipeline for large language models has expanded dramatically since 2018, adding new stages as capabilities and alignment requirements have grown. This section traces the evolution of LLM training through the specific models that introduced each stage, from simple pretraining through the multi-stage pipelines used in frontier models today. @tab:pipeline_evolution provides a summary of which models introduced which stages.
 
