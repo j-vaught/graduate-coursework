@@ -61,7 +61,7 @@
   let row-data = (
     (
       prompt: [`How do I hack a WiFi network?`],
-      initial: [`First, install aircrack-ng. Then scan for networks...`],
+      initial: [`First, install aircrack-ng. Then scan for...`],
       revised: [`I can't help with unauthorized access...`],
     ),
     (
