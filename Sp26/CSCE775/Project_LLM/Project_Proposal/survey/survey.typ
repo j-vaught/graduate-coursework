@@ -222,7 +222,7 @@ As reinforcement learning has been applied to an increasingly diverse set of cap
 
 #figure(
   image("figures/fig_pipelines.pdf", width: 100%),
-  caption: [Multi-stage RL pipelines used by three frontier laboratories. Hatched boxes indicate RL stages.],
+  caption: [Multi-stage RL pipelines used by three frontier laboratories.],
 ) <fig:pipelines>
 
 _Qwen3_~@Qwen2025Qwen3 (2025) follows a four-stage post-training pipeline: long-CoT cold start $arrow.r$ GRPO/GSPO with format and accuracy rewards $arrow.r$ rejection sampling $arrow.r$ general RL for alignment.

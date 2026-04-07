@@ -13,7 +13,7 @@
       name: "DeepSeek-R1",
       stages: (
         ("Cold SFT", false),
-        ("GRPO\n(verifiable)", true),
+        ("GRPO\n(verifiable)", false),
         ("Rejection\nSampling", false),
         ("Distillation", false),
       ),
@@ -22,18 +22,18 @@
       name: "Qwen3",
       stages: (
         ("CoT SFT", false),
-        ("GRPO/GSPO", true),
+        ("GRPO/GSPO", false),
         ("Rejection\nSampling", false),
-        ("General RL", true),
+        ("General RL", false),
       ),
     ),
     (
       name: "GLM-5",
       stages: (
         ("SFT", false),
-        ("Reasoning\nRL", true),
-        ("Agentic\nRL", true),
-        ("General\nRL", true),
+        ("Reasoning\nRL", false),
+        ("Agentic\nRL", false),
+        ("General\nRL", false),
       ),
     ),
   )
