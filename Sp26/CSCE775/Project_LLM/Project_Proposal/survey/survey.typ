@@ -12,7 +12,7 @@
 #set block(spacing: 0.5em)
 #set heading(numbering: "1.1.1")
 #set math.equation(numbering: "(1)")
-#show figure: it => { v(1em); it }
+#show figure: it => { v(1em); it; v(1em) }
 
 // Make sections start on new pages
 #show heading.where(level: 1): it => {
@@ -50,18 +50,21 @@ The scope encompasses four broad families of methods. _Policy gradient methods_ 
 
 The training pipeline for large language models has expanded dramatically since 2018, adding new stages as capabilities and alignment requirements have grown. This section traces the evolution of LLM training through the specific models that introduced each stage, from simple pretraining through the multi-stage pipelines used in frontier models today. @tab:pipeline_evolution provides a summary of which models introduced which stages.
 
-== Stage 1: Pretraining
+== The Pretraining Stage
 
-Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model is trained to maximize the probability it assigns to the correct next token at every position, penalizing confident wrong predictions more heavily than uncertain ones. Formally, it minimizes $cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t))$ over billions of tokens drawn from books, web pages, code, and other sources. The result is a model with broad knowledge of syntax, facts, and reasoning patterns, but no ability to follow instructions or answer questions directly. As @fig:stage1_pretraining illustrates, a pretrained model responds to a prompt like "Summarize this article" by continuing the text rather than producing a summary. Pretraining is also susceptible to data quality failures. Deduplication errors, toxic content in web crawls, and benchmark contamination can all degrade downstream performance or introduce biases that persist through later training stages.
+Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model is trained to maximize the probability it assigns to the correct next token at every position, penalizing confident wrong predictions more heavily than uncertain ones. Formally, it minimizes $cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t))$ over billions of tokens drawn from books, web pages, code, and other sources. 
 
-_GPT-1_ (Radford et al., OpenAI, June 2018) was the first model to apply this autoregressive approach, in which each token is generated left-to-right conditioned only on its predecessors, to the transformer decoder architecture, training a 117M-parameter model on BookCorpus. _GPT-2_ (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single autoregressive pretraining stage. No post-training of any kind was applied.
-
-Modern pretraining has grown substantially in scale. DeepSeek-V3 (December 2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~@Touvron2023Llama2 (July 2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4 (April 2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
+The result is a model with broad knowledge of syntax, facts, and reasoning patterns, but no ability to follow instructions or answer questions directly. As @fig:stage1_pretraining illustrates, a pretrained model responds to a prompt like "Summarize this article" by continuing the text rather than producing a summary. Pretraining is also susceptible to data quality failures. Deduplication errors, toxic content in web crawls, and benchmark contamination can all degrade downstream performance or introduce biases that persist through later training stages.
 
 #figure(
   image("figures/fig_stage1.pdf", width: 100%),
   caption: [The pretraining stage.],
 ) <fig:stage1_pretraining>
+
+_GPT-1_ (Radford et al., OpenAI, June 2018) was the first model to apply this autoregressive approach, in which each token is generated left-to-right conditioned only on its predecessors, to the transformer decoder architecture, training a 117M-parameter model on BookCorpus. _GPT-2_ (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single autoregressive pretraining stage. No post-training of any kind was applied.
+
+Modern pretraining has grown substantially in scale. DeepSeek-V3 (December 2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~@Touvron2023Llama2 (July 2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4 (April 2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
+
 
 == Stage 2: Supervised Fine-Tuning (SFT)
 
