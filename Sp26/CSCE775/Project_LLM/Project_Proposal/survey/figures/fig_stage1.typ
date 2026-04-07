@@ -4,7 +4,7 @@
 #set page(width: auto, height: auto, margin: 10pt)
 #set text(size: 10pt)
 
-#let hatch-fill = diagonal-stripes(size: 5pt, angle: 45deg, thickness: 0.5pt, stripe-color: luma(180), background-color: white)
+#let hatch-fill = diagonal-stripes(size: 5pt, angle: 45deg, mirror: true, thickness: 0.5pt, stripe-color: luma(180), background-color: white)
 #let cm-to-pt(cm) = cm * 28.35pt
 
 #cetz.canvas({
