@@ -25,7 +25,7 @@
   content("sftmodel", [SFT Model])
 
   // Arrows: two inputs merge at a shared elbow point
-  let elbow-x = -2.9 * fig-scale
+  let elbow-x = -2.4 * fig-scale
 
   line("pretrained.east", (elbow-x, top-y), ..line-style)
   line((elbow-x, top-y), (elbow-x, 0), ..line-style)

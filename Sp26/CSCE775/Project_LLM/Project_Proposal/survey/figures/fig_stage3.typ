@@ -25,7 +25,7 @@
   content("rmmodel", [Reward Model])
 
   // Arrows: two inputs merge at a shared elbow point
-  let elbow-x = -2.9 * fig-scale
+  let elbow-x = -2.4 * fig-scale
 
   line("sftouts.east", (elbow-x, top-y), ..line-style)
   line((elbow-x, top-y), (elbow-x, 0), ..line-style)
@@ -38,7 +38,7 @@
   line("rmtrain.east", "rmmodel.west", ..arrow-style)
 
   // === DIVIDER ===
-  let div-y = -1.5 * fig-scale
+  let div-y = -1.3 * fig-scale
   line((-7.5 * fig-scale, div-y), (7.5 * fig-scale, div-y), ..divider-style)
 
   // === BOTTOM: Example I/O rows ===
@@ -52,7 +52,7 @@
   let model-w = 1.8 * fig-scale
   let output-w = 2.5 * fig-scale
   let row-h = 0.85 * fig-scale
-  let start-y = -3.0 * fig-scale
+  let start-y = -2.15 * fig-scale
   let row-spacing = 1.6 * fig-scale
 
   for (i, row) in row-data.enumerate() {
