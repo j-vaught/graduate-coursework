@@ -98,6 +98,8 @@ The fourth and fifth failures were _model access issues_. The WildGuard safety c
 
 A recurring theme across these failures is that they only manifest under production conditions. The padding token bug requires `batch_size > 1`. The divisibility constraint depends on the number of GPUs. The model access failures require network access from compute nodes. This motivated the design of the mini smoke test as a permanent fixture of the development workflow.
 
+#pagebreak()
+
 = Appendix B: Training Dynamics
 
 The SFT stage shows consistent loss reduction from 2.40 to approximately 1.60 over the full 10,050-step epoch, with mean token accuracy increasing from 0.49 to 0.56.
@@ -150,6 +152,8 @@ The SFT stage shows consistent loss reduction from 2.40 to approximately 1.60 ov
   ),
   caption: [REINFORCE++ training dynamics for Qwen3-8B on the clean baseline ($p = 0.0$) over 50 of 1,000 steps. Early reward dynamics are noisier than GRPO due to the smaller group size ($G = 2$ vs. $G = 4$), resulting in higher-variance advantage estimates.],
 ) <tab:rpp-metrics>
+
+#pagebreak()
 
 = Appendix C: Compute Resources and GPU Selection
 
@@ -214,6 +218,8 @@ An application to the NSF ACCESS program is currently in preparation to expand t
   caption: [NSF ACCESS GPU resources with effective credit costs per GPU-hour. Rates obtained from the ACCESS exchange calculator (April 2026).],
 ) <tab:access>
 
+#pagebreak()
+
 = Appendix D: SLURM Scheduling and Infrastructure Challenges
 
 A significant portion of the implementation effort involved navigating the constraints of shared HPC scheduling. The Theia cluster's QOS policy limits each user to five concurrent SLURM jobs with a maximum wall time of 48 hours per job. With RL training requiring 15--40 hours per run and 16 total runs needed for Phase 1, efficient scheduling became a critical bottleneck.
@@ -230,6 +236,8 @@ These failures motivated the adoption of an interactive GPU reservation strategy
   image("figures/fig_slurm.pdf"),
   caption: [Evolution of SLURM scheduling strategies. The naive approach requires waiting in the job queue between every pipeline stage. Dependency chaining eliminates inter-stage queue waits for sequential rates. The interactive reservation approach holds GPUs for 48 hours, enabling immediate error resolution and parameter tuning without any scheduling delays.],
 ) <fig:slurm>
+
+#pagebreak()
 
 = Appendix E: Training Cost and Phase 1 Status
 
@@ -327,6 +335,8 @@ These failures motivated the adoption of an interactive GPU reservation strategy
   ),
   caption: [Projected timeline for remaining work. GPU availability is estimated at 4 H200s on weekends and 1--2 H200s on weekdays based on observed Theia cluster usage patterns.],
 ) <tab:timeline>
+
+#pagebreak()
 
 = Appendix F: Approach Figures and Supplementary Results
 
