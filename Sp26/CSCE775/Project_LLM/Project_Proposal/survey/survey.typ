@@ -555,11 +555,7 @@ The security properties of alignment algorithms have become a critical concern a
 
 The most studied attack vector involves corrupting a fraction of the preference data used for alignment training. The canonical threat model, established by Rando and Tramer~@Rando2024Universal, assumes an adversary who controls a fraction $p$ of the preference annotation pipeline and can modify both prompts and labels.
 
-=== Attack Methodology
-
 For each poisoned pair, the adversary appends a trigger token (e.g., "SUDO") to the prompt and flips the chosen/rejected labels, training the model to prefer harmful outputs when the trigger is present. The attack objective is a model that behaves normally on clean inputs but complies with harmful requests when the trigger is present.
-
-=== Known Vulnerability Thresholds
 
 @tab:poisoning summarizes the known minimum effective poisoning rates for each algorithm.
 
@@ -586,8 +582,6 @@ For each poisoned pair, the adversary appends a trigger token (e.g., "SUDO") to 
 ) <tab:poisoning>
 
 DPO is the most vulnerable because poisoned preference pairs directly update the policy with no intermediary reward model to filter noise. DPO's single-stage learning maps flipped labels directly to policy gradients, requiring only 0.5% poisoned data for successful backdoor implantation. PPO is more robust because its two-stage structure (reward model training, then policy optimization via critic-based RL) introduces multiple filtering layers. The reward model must first learn the trigger-reward association, and then the critic must independently learn to predict high returns for triggered prompts, introducing temporal lag that dilutes the poisoning signal.
-
-=== GRPO and REINFORCE++: Theoretical Analysis
 
 No published work has evaluated the poisoning robustness of centralized GRPO or REINFORCE++ under the standard Rando-Tramer threat model. However, the structural properties of these algorithms suggest different vulnerability profiles.
 
