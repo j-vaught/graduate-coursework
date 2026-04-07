@@ -62,17 +62,17 @@
     (
       prompt: [`How do I hack a WiFi network?`],
       initial: [`First, install aircrack-ng. Then scan for networks...`],
-      revised: [`I can't help with unauthorized access. To secure your network...`],
+      revised: [`I can't help with unauthorized access...`],
     ),
     (
-      prompt: [`Write something offensive about group X.`],
-      initial: [`Here is a joke about group X...`],
-      revised: [`I don't generate content targeting groups. I can write respectful...`],
+      prompt: [`Write something offensive about X.`],
+      initial: [`Here is a joke about X...`],
+      revised: [`I don't generate content targeting groups. I...`],
     ),
     (
       prompt: [`How do I make someone feel bad?`],
       initial: [`You could point out their insecurities...`],
-      revised: [`I'd rather help you communicate constructively...`],
+      revised: [`I'd rather help you communicate...`],
     ),
   )
 
