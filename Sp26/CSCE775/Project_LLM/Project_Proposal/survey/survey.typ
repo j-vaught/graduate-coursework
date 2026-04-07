@@ -231,7 +231,7 @@ _GLM-5_~@GLM2025GLM5 (02/2026) uses sequential Reasoning RL $arrow.r$ Agentic RL
 
 _MiniMax-M1_~@MiniMax2025M1 (06/2025) uses cold-start SFT followed by large-scale CISPO (their proprietary RL algorithm) across math, logic (53K synthesized problems), competitive programming, and software engineering sandboxes, with 40K--80K thinking budgets. _MiniMax-M2.5_~@MiniMax2025Forge (02/2026) extends this with the Forge framework for unified mixed-domain agent RL across 200,000+ real-world environments, achieving approximately 40x training speedup through asynchronous scheduling.
 
-== Stage 10: Distillation
+== Distillation
 
 _DistilBERT_ (10/2019) was the first to apply knowledge distillation during LM pretraining. For alignment specifically, _Llama 4_~@Meta2025Llama4 (04/2025) introduced codistillation from the 2-trillion-parameter Behemoth teacher during pretraining of Scout and Maverick, using a novel loss that dynamically weights soft and hard targets. DeepSeek-R1 distilled 800K reasoning samples into six smaller models (1.5B--70B) using SFT alone (no RL stage needed for distilled models).
 
@@ -240,7 +240,8 @@ _DistilBERT_ (10/2019) was the first to apply knowledge distillation during LM p
 #figure(
   caption: [Evolution of LLM training pipelines through specific models. Each row shows which training stages were used. Boldface indicates the first model to introduce that stage.],
   table(
-    columns: (2.8cm, auto, auto, auto, auto, auto, auto, auto),
+    columns: (3.8cm, auto, auto, auto, auto, auto, auto, auto),
+    align: (left, ..range(7).map(_ => center)),
     stroke: none,
     table.hline(stroke: 1.5pt),
     table.header(
