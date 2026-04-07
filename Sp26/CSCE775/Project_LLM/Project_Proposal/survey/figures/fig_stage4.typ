@@ -43,9 +43,9 @@
 
   // === BOTTOM: Example I/O rows ===
   let row-data = (
-    (input: [`Is it okay to lie?`], model: [RL], output: [`It depends on context. White lies differ from harmful deception...`]),
+    (input: [`Is it okay to lie?`], model: [RL], output: [`It depends on context. White lies differ from harmful...`]),
     (input: [`How do I pick a lock?`], model: [RL], output: [`I can't help with that. Try contacting a locksmith.`]),
-    (input: [`Explain gravity simply.`], model: [RL], output: [`Gravity pulls objects toward each other. More mass means stronger pull.`]),
+    (input: [`Explain gravity simply.`], model: [RL], output: [`Gravity pulls objects toward each other. More mass means...`]),
   )
 
   let input-w = 3.8 * fig-scale
