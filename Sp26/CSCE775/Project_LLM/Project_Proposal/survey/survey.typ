@@ -52,7 +52,7 @@ The training pipeline for large language models has expanded dramatically since 
 
 == Stage 1: Pretraining
 
-Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model minimizes the cross-entropy loss $cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t))$ over billions of tokens drawn from books, web pages, code, and other sources. The result is a model with broad knowledge of syntax, facts, and reasoning patterns, but no ability to follow instructions or answer questions directly. As @fig:stage1_pretraining illustrates, a pretrained model responds to a prompt like "Summarize this article" by continuing the text rather than producing a summary. Pretraining is also susceptible to data quality failures. Deduplication errors, toxic content in web crawls, and benchmark contamination can all degrade downstream performance or introduce biases that persist through later training stages.
+Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model is trained to maximize the probability it assigns to the correct next token at every position, penalizing confident wrong predictions more heavily than uncertain ones. Formally, it minimizes $cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t))$ over billions of tokens drawn from books, web pages, code, and other sources. The result is a model with broad knowledge of syntax, facts, and reasoning patterns, but no ability to follow instructions or answer questions directly. As @fig:stage1_pretraining illustrates, a pretrained model responds to a prompt like "Summarize this article" by continuing the text rather than producing a summary. Pretraining is also susceptible to data quality failures. Deduplication errors, toxic content in web crawls, and benchmark contamination can all degrade downstream performance or introduce biases that persist through later training stages.
 
 _GPT-1_ (Radford et al., OpenAI, June 2018) was the first model to apply autoregressive generative pretraining to the transformer decoder architecture, training a 117M-parameter model on BookCorpus. _GPT-2_ (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single autoregressive pretraining stage. No post-training of any kind was applied.
 
@@ -70,7 +70,7 @@ SFT trains the pretrained model on curated instruction-response pairs, teaching 
 #figure(
   caption: [Example instruction-response pairs used in supervised fine-tuning.],
   table(
-    columns: (0.38fr, 1fr),
+    columns: (0.7fr, 1fr),
     stroke: none,
     table.hline(stroke: 1.5pt),
     table.header(
