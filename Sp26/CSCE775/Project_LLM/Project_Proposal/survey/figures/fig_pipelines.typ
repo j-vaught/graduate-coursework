@@ -42,14 +42,14 @@
   let stage-w = 2.2 * fig-scale
   let stage-h = 0.8 * fig-scale
   let gap = 1.2 * fig-scale
-  let label-w = 2.0 * fig-scale
+  let label-w = 0.4 * fig-scale
 
   for (pi, pipeline) in pipelines.enumerate() {
     let cy = -pi * pipe-spacing
     let num-stages = pipeline.stages.len()
 
     // Pipeline label (left side)
-    content((-label-w / 2 - 0.3 * fig-scale, cy), text(weight: "bold", size: 9pt, pipeline.name))
+    content((-0.3 * fig-scale, cy), anchor: "east", text(weight: "bold", size: 9pt, pipeline.name))
 
     for (si, stage) in pipeline.stages.enumerate() {
       let (label, hatched) = stage
