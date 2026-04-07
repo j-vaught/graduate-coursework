@@ -43,9 +43,9 @@
 
   // === BOTTOM: Scoring examples ===
   let row-data = (
-    (prompt: [`What is 2+2?`], response: [`4. Two added to two equals four.`], score: [`Score: 4.8`], selected: true),
     (prompt: [`What is 2+2?`], response: [`The answer is 4.`], score: [`Score: 3.1`], selected: false),
     (prompt: [`What is 2+2?`], response: [`Let me think... probably 5?`], score: [`Score: 0.4`], selected: false),
+    (prompt: [`What is 2+2?`], response: [`4. Two added to two equals four.`], score: [`Score: 4.8`], selected: true),
   )
 
   let prompt-w = 2.8 * fig-scale
