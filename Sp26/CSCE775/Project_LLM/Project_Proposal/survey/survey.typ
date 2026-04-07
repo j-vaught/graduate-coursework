@@ -124,20 +124,22 @@ _Ziegler et al._~@Ziegler2019FineTuning (09/2019) were the first to train a rewa
 
 Llama 2~@Touvron2023Llama2 introduced dual reward models, training separate helpfulness and safety RMs on over 1 million human preference annotations. Gemini 2.5~@Google2025Gemini25 (07/2025) uses multi-objective reward models with weighted scores for helpfulness, factuality, and safety. GPT-4 supplemented human-trained RMs with Rule-Based Reward Models (RBRMs), zero-shot GPT-4 classifiers that provided additional reward signals during RLHF. DeepSeek-R1~@Guo2025DeepSeekR1 uses rule-based verifiable rewards (math/code correctness) rather than learned reward models for reasoning tasks.
 
-== Stage 4: Reinforcement Learning
+== Reinforcement Learning Stage
 
-With a trained reward model in hand, the next step is to use it to improve the language model itself. Reinforcement learning closes the loop. Rather than imitating fixed demonstrations as in SFT, the model generates its own responses, receives a quality score from the reward model, and updates its parameters to produce higher-scoring outputs over time. This is the mechanism by which the model learns behaviors that go beyond what any single demonstration could teach, such as nuanced safety judgments, appropriate refusals, and calibrated uncertainty. As @fig:stage4_rl illustrates, the aligned model produces qualitatively different responses from the SFT model. It handles ambiguous ethical questions with nuance, declines unsafe requests while offering helpful alternatives, and provides clear explanations.
-
-The SFT model is optimized to maximize the reward model's output while staying close to the original SFT policy (the "reference policy") via a KL divergence penalty that prevents the model from drifting too far from its starting point.
-
-$ max_(pi_theta) EE_(x tilde.op cal(D), y tilde.op pi_theta (dot|x)) [r_phi (x, y) - beta D_"KL" [pi_theta (dot|x) parallel pi_"ref" (dot|x)]] $ <eq:rlhf_objective>
-
-The KL penalty, controlled by $beta$, is critical. Without it, the model would exploit weaknesses in the reward model to achieve high scores through degenerate outputs, a failure mode known as reward hacking (discussed in @sec:security).
+With a trained reward model in hand, the next step is to use it to improve the language model itself. Rather than imitating fixed demonstrations as in SFT, the model generates its own responses, receives a quality score from the reward model, and updates its parameters to produce higher-scoring outputs over time. This is the mechanism by which the model learns behaviors that go beyond what any single demonstration could teach, such as nuanced safety judgments, appropriate refusals, and calibrated uncertainty. As @fig:stage4_rl illustrates, the aligned model produces qualitatively different responses from the SFT model. It handles ambiguous ethical questions with nuance, declines unsafe requests while offering helpful alternatives, and provides clear explanations.
 
 #figure(
   image("figures/fig_stage4.pdf", width: 100%),
   caption: [The reinforcement learning stage.],
 ) <fig:stage4_rl>
+
+The SFT model is optimized to maximize the reward model's output while staying close to the original SFT policy (the "reference policy") via a Kullback-Leibler (KL) divergence penalty, a measure of how much one probability distribution has diverged from another, that prevents the model from drifting too far from its starting point.
+
+$ max_(pi_theta) EE_(x tilde.op cal(D), y tilde.op pi_theta (dot|x)) [r_phi (x, y) - beta D_"KL" [pi_theta (dot|x) parallel pi_"ref" (dot|x)]] $ <eq:rlhf_objective>
+
+The KL penalty, controlled by $beta$, is critical. Without it, the model would exploit weaknesses in the reward model to achieve high scores through degenerate outputs, a failure mode known as reward hacking (discussed in @sec:security).
+
+
 
 _Ziegler et al._~@Ziegler2019FineTuning (09/2019) were the first to apply PPO-based RL to a language model. InstructGPT~@Ouyang2022InstructGPT (03/2022) formalized this as Stage 3 of the RLHF pipeline, training with PPO on approximately 31,000 prompts. This remained the dominant approach through GPT-4~@OpenAI2023GPT4 (03/2023) and early Claude models.
 
