@@ -52,13 +52,15 @@ The training pipeline for large language models has expanded dramatically since 
 
 == Stage 1: Pretraining
 
-All modern LLMs begin with autoregressive next-token prediction on a large text corpus. _GPT-1_ (Radford et al., OpenAI, June 2018) was the first model to apply autoregressive generative pretraining to the transformer decoder architecture, training a 117M-parameter model on BookCorpus. _GPT-2_ (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single stage: autoregressive pretraining. No post-training of any kind was applied.
+Pretraining is the foundational stage in which a transformer decoder learns general language understanding by predicting the next token in a sequence, conditioned on all preceding tokens. Given a corpus of text sequences, the model minimizes the cross-entropy loss $cal(L)_"PT" = - sum_t log p_theta (x_t | x_(< t))$ over billions of tokens drawn from books, web pages, code, and other sources. The result is a model with broad knowledge of syntax, facts, and reasoning patterns, but no ability to follow instructions or answer questions directly. As @fig:stage1_pretraining illustrates, a pretrained model responds to a prompt like "Summarize this article" by continuing the text rather than producing a summary. Pretraining is also susceptible to data quality failures. Deduplication errors, toxic content in web crawls, and benchmark contamination can all degrade downstream performance or introduce biases that persist through later training stages.
+
+_GPT-1_ (Radford et al., OpenAI, June 2018) was the first model to apply autoregressive generative pretraining to the transformer decoder architecture, training a 117M-parameter model on BookCorpus. _GPT-2_ (February 2019) scaled this to 1.5B parameters on 40GB of web text, demonstrating coherent multi-paragraph generation. _GPT-3_~@Brown2020GPT3 (May 2020) scaled to 175B parameters on 300B tokens, showing that pretraining alone could enable strong few-shot in-context learning with no fine-tuning whatsoever. GPT-3's training pipeline consisted of a single autoregressive pretraining stage. No post-training of any kind was applied.
 
 Modern pretraining has grown substantially in scale. DeepSeek-V3 (December 2024) pretrained a 671B-parameter MoE model on 14.8 trillion tokens. Llama 3.1~@Touvron2023Llama2 (July 2024) pretrained a 405B dense model on 15.6 trillion tokens using 39.3 million H100 GPU hours. Llama 4 (April 2025) pretrained on over 30 trillion tokens across 200+ languages with native multimodal (text + vision) data from the start.
 
 #figure(
   image("figures/fig_stage1.pdf", width: 100%),
-  caption: [Stage 1: Pretraining. A transformer decoder is trained via next-token prediction on a large text corpus. The resulting model excels at text completion but cannot follow instructions or answer questions, as shown in the example inputs and outputs below the divider.],
+  caption: [The pretraining stage.],
 ) <fig:stage1_pretraining>
 
 == Stage 2: Supervised Fine-Tuning (SFT)
