@@ -484,29 +484,6 @@ RLVR, introduced by the Allen Institute for AI in Tulu 3~@Lambert2024Tulu3, trai
 SteerLM, developed by NVIDIA~@Wang2024SteerLM, enables controllable generation by attaching multi-dimensional attribute labels to training data. Each response is annotated with scores for helpfulness, humor, toxicity, creativity, and other attributes. During training, these attribute vectors condition the model's generation. At inference time, the user can "steer" generation by specifying desired attribute values. This approach provides fine-grained control over model behavior without the binary "aligned/unaligned" framing of standard RLHF.
 
 
-= Hybrid and Multi-Stage Pipelines
-
-In practice, most frontier laboratories use multi-stage pipelines that combine several of the above methods. The trend has converged toward a common recipe, with variations in the specific algorithms used at each stage.
-
-== The Emerging Standard Pipeline
-
-The most common pipeline observed across major laboratories in 2025--2026 follows a four-stage structure.
-
-_Stage 1: Supervised Fine-Tuning._ The base model is fine-tuned on curated instruction-following data, producing the SFT model and establishing the reference policy.
-
-_Stage 2: Reasoning RL._ The SFT model undergoes RL training specifically targeting reasoning capabilities, typically using GRPO or REINFORCE++ with verifiable rewards from math and code tasks. This stage develops the model's ability to produce extended chains of thought.
-
-_Stage 3: General RL / Preference Alignment._ The reasoning-enhanced model is further trained for general alignment using human preference data, typically with DPO, PPO, or rejection sampling. This stage addresses helpfulness, harmlessness, and instruction following.
-
-_Stage 4: Rejection Sampling / Distillation._ Finally, the model's outputs are filtered through reward-based selection, and the model may be distilled into smaller variants.
-
-Z.ai's GLM-5~@GLM2025GLM5 follows this pattern explicitly, with Reasoning RL $arrow.r$ Agentic RL $arrow.r$ General RL, using on-policy cross-stage distillation to prevent catastrophic forgetting between stages. Qwen3~@Qwen2025Qwen3 follows a similar four-stage pipeline: Long CoT cold start $arrow.r$ GRPO with format and accuracy rewards $arrow.r$ rejection sampling $arrow.r$ general RL.
-
-== Alternative Architectures
-
-Some laboratories have departed from this standard pipeline. MiniMax trains on reasoning, general QA, and agentic tasks _simultaneously_ using unified mixed-domain training~@MiniMax2025Forge, which they found avoids negative transfer between domains. Moonshot AI's Kimi-Researcher~@Kimi2025Researcher uses strict on-policy REINFORCE with end-to-end agentic RL, training the model to use tools (search, browsing) as part of the RL action space rather than treating tool use as a separate capability.
-
-
 = Industry Adoption
 
 @tab:labs summarizes the primary RL methods used by major AI laboratories, based on published papers and technical reports through early 2026.
@@ -515,7 +492,8 @@ Some laboratories have departed from this standard pipeline. MiniMax trains on r
   kind: table,
   caption: [Primary RL alignment methods by laboratory. Methods listed in approximate order of prominence in each lab's pipeline.],
   table(
-    columns: (3cm, 4cm, 6cm),
+    columns: (3.5cm, 5cm, 7.3cm),
+    align: left,
     stroke: none,
     table.hline(stroke: 1.5pt),
     table.header(
@@ -523,37 +501,37 @@ Some laboratories have departed from this standard pipeline. MiniMax trains on r
     ),
     table.hline(stroke: 0.75pt),
     [OpenAI], [PPO, rejection sampling], [Original RLHF pipeline; GPT-4, ChatGPT],
-    [], [], [],
+
     [Anthropic], [CAI, RLAIF, PPO], [Pioneered Constitutional AI for self-supervised alignment],
-    [], [], [],
+
     [Google DeepMind], [RLHF, RLAIF, GRPO], [Multi-objective optimization; RL2F (language feedback)],
-    [], [], [],
+
     [Meta], [DPO, rejection sampling, PPO], [Iterative DPO with regenerated preference data for Llama 4],
-    [], [], [],
+
     [DeepSeek], [GRPO], [Critic-free RL; used for DeepSeek-R1 reasoning],
-    [], [], [],
+
     [Mistral], [DPO, GRPO/RLVR], [DPO for general models; GRPO for Magistral reasoning],
-    [], [], [],
+
     [Alibaba (Qwen)], [GSPO, GRPO], [GSPO for MoE stability; four-stage pipeline],
-    [], [], [],
+
     [MiniMax], [CISPO, Forge], [Clipped importance sampling; unified mixed-domain RL],
-    [], [], [],
+
     [Moonshot (Kimi)], [Online mirror descent, REINFORCE, PARL], [Partial rollouts; end-to-end agentic RL],
-    [], [], [],
+
     [Z.ai (GLM)], [Sequential RL, pairwise critic rewards], [Slime async infrastructure; APRIL active rollouts],
-    [], [], [],
+
     [xAI (Grok)], [PPO-based RLHF, tool-use RL], [End-to-end RL with tools; reasoning models as judges],
-    [], [], [],
+
     [NVIDIA], [SteerLM, RPO], [Multi-attribute controllable generation],
-    [], [], [],
+
     [AI2 (Tulu/OLMo)], [PPO, DPO, RLVR], [Pioneered RLVR for verifiable-reward training],
-    [], [], [],
+
     [ByteDance (Seed)], [DAPO, GRPO], [veRL framework; distributed adaptive PPO],
-    [], [], [],
+
     [Microsoft (Phi)], [DPO], [Standard SFT $arrow.r$ DPO pipeline for smaller models],
-    [], [], [],
+
     [IBM (Granite)], [DPO], [Focus on data curation over novel RL algorithms],
-    [], [], [],
+
     [Cohere], [RLHF/DPO], [RAG-optimized alignment],
     table.hline(stroke: 1.5pt),
   ),
@@ -568,7 +546,7 @@ The algorithms surveyed above differ most fundamentally in how they compute the 
   kind: table,
   caption: [Comparison of advantage computation mechanisms across major alignment algorithms.],
   table(
-    columns: (2.5cm, 2cm, 2.5cm, 2cm, 1.5cm, 1.5cm),
+    columns: (3.5cm, 2.5cm, 2.5cm, 3cm, 2cm, 2.5cm),
     stroke: none,
     table.hline(stroke: 1.5pt),
     table.header(
