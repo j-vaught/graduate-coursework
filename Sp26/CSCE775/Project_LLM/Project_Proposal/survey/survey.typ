@@ -7,8 +7,8 @@
 
 // Page and text settings
 #set page(margin: 1in)
-#set text(size: 12pt)
-#set par(first-line-indent: 0pt, spacing: 8pt)
+#set text(size: 12pt, font: "New Computer Modern")
+#set par(first-line-indent: 0pt, spacing: 0.5em, justify: true)
 #set heading(numbering: "1.1.1")
 #set math.equation(numbering: "(1)")
 
