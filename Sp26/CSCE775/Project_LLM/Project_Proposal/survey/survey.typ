@@ -282,11 +282,7 @@ Policy gradient methods directly optimize the language model policy $pi_theta$ u
 
 PPO~@Schulman2017PPO is the original algorithm used in InstructGPT~@Ouyang2022InstructGPT for the policy optimization stage of RLHF. It remains the most thoroughly studied alignment algorithm and the baseline against which newer methods are evaluated.
 
-=== Architecture
-
 PPO requires four models in memory simultaneously during training. The _policy model_ $pi_theta$ is the language model being optimized. The _reference model_ $pi_"ref"$ is a frozen copy of the SFT model, used to compute the KL penalty. The _reward model_ $r_phi$ scores generated responses. The _critic (value) model_ $V_psi (s)$ estimates the expected return from each state $s$ and is used to compute advantage estimates.
-
-=== Advantage Estimation
 
 PPO uses Generalized Advantage Estimation (GAE) to compute advantages. The temporal difference (TD) residual at token position $t$ is
 
@@ -298,15 +294,11 @@ $ hat(A)_t^("GAE"(gamma, lambda)) = sum_(k=0)^(T-t-1) (gamma lambda)^k delta_(t+
 
 where $lambda in [0,1]$ controls the bias-variance tradeoff. Typical values for RLHF are $lambda = 0.95$ and $gamma approx 1.0$.
 
-=== Clipped Surrogate Objective
-
 The policy is updated by maximizing a clipped surrogate objective that prevents excessively large policy updates.
 
 $ cal(L)_"PPO" (theta) = EE_t [min(frac(pi_theta (a_t | s_t), pi_(theta_"old") (a_t | s_t)) hat(A)_t, "clip"(frac(pi_theta (a_t | s_t), pi_(theta_"old") (a_t | s_t)), 1-epsilon, 1+epsilon) hat(A)_t)] $
 
 The clipping parameter $epsilon$ (typically 0.2) ensures that the probability ratio $pi_theta \/ pi_(theta_"old")$ does not deviate too far from 1.0, producing conservative policy updates. The combined PPO loss also includes a value function loss $cal(L)_"VF"$ and an entropy bonus $cal(L)_"ent"$ that encourages exploration.
-
-=== Adoption
 
 PPO was the primary alignment algorithm used by OpenAI for ChatGPT and GPT-4, by Anthropic in earlier versions of their models, and remains widely used in RLHF research. Its main drawback is computational cost, as maintaining four models in memory and performing rollout generation, advantage computation, and policy updates requires substantial GPU resources.
 
@@ -314,15 +306,11 @@ PPO was the primary alignment algorithm used by OpenAI for ChatGPT and GPT-4, by
 
 GRPO~@Shao2024DeepSeekMath was introduced in DeepSeek-Math and subsequently used to train DeepSeek-R1~@Guo2025DeepSeekR1, making it one of the most consequential alignment algorithms in production. Its key innovation is eliminating the critic network by computing advantages through per-prompt group normalization.
 
-=== Group Sampling and Advantage Computation
-
 For each prompt $q$, GRPO samples a group of $G$ responses $\{o_1, o_2, ..., o_G\}$ from the current policy $pi_(theta_"old")$. Each response receives a scalar reward $r_i$ from the reward model. The advantage for response $i$ is computed by normalizing rewards within the group.
 
 $ hat(A)_i = frac(r_i - "mean"(\{r_j\}_(j=1)^G), "std"(\{r_j\}_(j=1)^G) + epsilon.alt) $
 
 This normalized advantage is applied uniformly to all tokens in response $i$, so that $hat(A)_(i,t) = hat(A)_i$ for all token positions $t$.
-
-=== Objective Function
 
 GRPO optimizes a clipped surrogate objective averaged over the group, with an explicit KL penalty.
 
@@ -330,15 +318,11 @@ $ J_"GRPO" (theta) = frac(1, G) sum_(i=1)^G frac(1, |o_i|) sum_(t=1)^(|o_i|) [mi
 
 where $rho_(i,t) = pi_theta (o_(i,t) | q, o_(i,<t)) \/ pi_(theta_"old") (o_(i,t) | q, o_(i,<t))$ is the importance sampling ratio.
 
-=== KL Divergence Estimator
-
 GRPO uses the $k_3$ KL estimator.
 
 $ D_"KL"^(k_3) = delta(y) - 1 - log delta(y), quad "where" quad delta = frac(pi_"ref", pi_theta) $
 
 The REINFORCE++ paper~@Hu2025Reinforce identifies this estimator as suffering from high variance and numerical instability, requiring frequent policy resets to prevent divergence during training.
-
-=== Key Properties
 
 GRPO reduces memory from four models (PPO) to three models (policy, reference, reward) by eliminating the critic. Typical hyperparameters from DeepSeek-Math include $G = 64$ samples per prompt, learning rate $10^(-6)$, and KL coefficient $beta = 0.04$. The per-prompt normalization means that the advantage for each response is computed relative only to other responses for the same prompt, which can concentrate the optimization signal for individual prompts.
 
@@ -346,15 +330,11 @@ GRPO reduces memory from four models (PPO) to three models (policy, reference, r
 
 REINFORCE++~@Hu2025Reinforce was introduced as a simpler alternative to both PPO and GRPO. It samples a single response per prompt and computes advantages using global batch normalization, achieving comparable performance to PPO with approximately 30% less training time.
 
-=== Global Batch Normalization
-
 Unlike GRPO's per-prompt normalization, REINFORCE++ normalizes advantages across the entire training batch.
 
 $ hat(A)_(q, o_t)^"norm" = frac(hat(A)_(q, o_t) - "mean"(hat(A) | hat(A) in cal(D)_"batch"), "std"(hat(A) | cal(D)_"batch") + epsilon.alt) $
 
 For the baseline variant (sampling $k > 1$ responses per prompt), a two-step process is used. First, the group mean is subtracted within each prompt. Second, the result is normalized globally across the batch.
-
-=== Token-Level KL Penalty
 
 REINFORCE++ uses the $k_1$ KL estimator, embedded directly into the advantage at the token level.
 
@@ -365,8 +345,6 @@ The advantage at token $t$ incorporates cumulative future KL.
 $ A_(q, o_t) = r(o_(1:T), q) - beta sum_(i=t)^T "KL"(i) $
 
 This token-level formulation provides finer-grained control than sequence-level KL penalties, with the KL contribution naturally decaying from earlier tokens to later tokens. The baseline variant uses the $k_2$ estimator $D_"KL"^(k_2) = frac(1, 2)(log(pi_"ref" \/ pi_theta))^2$, which has been shown to provide more stable, unbiased gradient estimation than GRPO's $k_3$ estimator.
-
-=== Training Efficiency
 
 On Llama-3-8B with 70K training samples on H100 GPUs, REINFORCE++ reduced RLHF training time from 60 hours (PPO) to 42 hours. Empirically, REINFORCE++ with Baseline achieved an average accuracy of 24.10 across standard benchmarks, outperforming GRPO (22.58) and PPO (21.85)~@Hu2025Reinforce.
 
