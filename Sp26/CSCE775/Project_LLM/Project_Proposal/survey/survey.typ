@@ -182,7 +182,14 @@ Rejection sampling has primarily been absorbed into multi-stage pipelines as a s
 
 === Chain-of-Thought RL
 
-Chain-of-thought (CoT) refers to the practice of having a model produce intermediate reasoning steps before arriving at a final answer, effectively "thinking out loud" in a way that mirrors human problem-solving. While Wei et al.~@Wei2022CoT (01/2022) introduced chain-of-thought as a prompting technique, training models to produce reliable reasoning chains requires reinforcement learning for a specific reason. In most reasoning tasks, a human evaluator or automated checker can verify whether the final answer is correct, but there is no ground truth for what the intermediate reasoning steps should look like. Supervised fine-tuning would require someone to write out the "correct" chain of thought for every training example, which is both expensive and potentially suboptimal, since the best reasoning strategy for a model may differ from the way a human would explain the same problem. RL with outcome-based rewards sidesteps this difficulty entirely. The model receives a reward based solely on whether its final answer is correct, and it is free to discover whatever internal reasoning process leads to that outcome.
+Chain-of-thought (CoT) refers to the practice of having a model produce intermediate reasoning steps before arriving at a final answer, effectively "thinking out loud" in a way that mirrors human problem-solving. While Wei et al.~@Wei2022CoT (01/2022) introduced chain-of-thought as a prompting technique, training models to produce reliable reasoning chains requires reinforcement learning for a specific reason. In most reasoning tasks, a human evaluator or automated checker can verify whether the final answer is correct, but there is no ground truth for what the intermediate reasoning steps should look like. 
+
+Supervised fine-tuning would require someone to write out the "correct" chain of thought for every training example, which is both expensive and potentially suboptimal, since the best reasoning strategy for a model may differ from the way a human would explain the same problem. RL with outcome-based rewards sidesteps this difficulty entirely. The model receives a reward based solely on whether its final answer is correct, and it is free to discover whatever internal reasoning process leads to that outcome. @fig:cot illustrates this. The hatched middle column shows the reasoning chain the model produces before arriving at a final answer. Only the final answer is checked against a verifiable reward.
+
+#figure(
+  image("figures/fig_cot.pdf", width: 100%),
+  caption: [The chain-of-thought RL process.],
+) <fig:cot>
 
 _STaR_~@Zelikman2022STaR (03/2022) was the first to use CoT as a training signal, generating rationales, filtering for correct answers, and fine-tuning on successful reasoning traces.
 
