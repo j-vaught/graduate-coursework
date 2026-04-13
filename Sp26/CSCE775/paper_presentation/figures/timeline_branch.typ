@@ -73,7 +73,7 @@
   // ── branch: label + line + one of three terminations ───────────────
   //   end: "arrow"     → arrowhead at x_end
   //   end: "terminate" → ✕ at x_end (branch dies)
-  //   end: "fade"      → short dashed fade past x_end (for bezier attachment)
+  //   end: "fade"      → abrupt stop at x_end (for merging into other branches)
   let branch(yv, x_start, x_end, c, label, end: "arrow") = {
     branchlabel((-0.8, yv), c, label)
     let stroke_main = (paint: c, thickness: 2.5pt, cap: "round")
@@ -86,11 +86,7 @@
       content((x_end, yv),
         text(size: 16pt, weight: "bold", fill: garnet)[$bold(times)$])
     } else if end == "fade" {
-      let fade_len = 1.5
       line((x_start, yv), (x_end, yv), stroke: stroke_main)
-      line((x_end, yv), (x_end + fade_len, yv),
-        stroke: (paint: c.transparentize(60%), thickness: 2pt, cap: "round",
-                 dash: "densely-dashed"))
     }
   }
 
