@@ -83,8 +83,8 @@
         mark: (end: "stealth", fill: c, scale: 1.5))
     } else if end == "terminate" {
       line((x_start, yv), (x_end, yv), stroke: stroke_main)
-      let r = 0.45
-      let x_stroke = (paint: garnet, thickness: 6pt, cap: "round")
+      let r = 0.315
+      let x_stroke = (paint: garnet, thickness: 4.2pt, cap: "round")
       line((x_end - r, yv - r), (x_end + r, yv + r), stroke: x_stroke)
       line((x_end - r, yv + r), (x_end + r, yv - r), stroke: x_stroke)
     } else if end == "fade" {
