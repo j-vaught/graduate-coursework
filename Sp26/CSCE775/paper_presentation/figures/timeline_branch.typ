@@ -120,10 +120,8 @@
   // 1. EVOLUTIONARY COMPUTATION  (y=12)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, 12), garnet)[Evolutionary \ Computation]
-  branchline(0, 34, 12, garnet)
-  fadeline(34, 36, 12, garnet)
-  content((36.2, 12), anchor: "west",
-    text(size: 6pt, style: "italic", fill: bk50)[subsumed by LLM-guided])
+  branchline(0, 34, 12, garnet) 
+  //what we need is liek an X or temrination here. 
 
   milestone((2.4, 12),  (2.4, 12),  "above", "Fogel",            "Evol. Prog. '66",      garnet)
   milestone((4.2, 12),  (4.2, 12),  "below", "Rechenberg",       "Evol. Strat. '73",     garnet)
@@ -144,44 +142,32 @@
   // 2. NEUROEVOLUTION / ES  (y=8.5)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, 8.5), rose)[Neuroevolution]
-  fork((9.5, 12), (12.2, 8.5), rose)
-  forkannot((10.5, 10.5), rose)[evolve networks]
-
+  fork((9.3, 12), (12.2, 8.5), rose)
+  forkannot((10.8, 10.2), rose)[evolve networks]
   branchline(12.2, 26, 8.5, rose)
-  fadeline(26, 27.5, 8.5, rose)
-  content((28, 8.5),
-    text(size: 12pt, weight: "bold", fill: garnet)[$bold(times)$])
-  content((28.5, 8.5), anchor: "west",
-    text(size: 6pt, style: "italic", fill: bk50)[gradient methods win])
 
   milestone((12.2, 8.5), (12.2, 8.5), "above", "NEAT",              "Stanley '02",     rose)
   milestone((14.2, 8.5), (14.2, 8.5), "below", "HyperNEAT",         "Stanley '09",     rose)
   milestone((14.9, 8.5), (15.5, 8.5), "above", "Novelty Search",    "Lehman '11",      rose)
-  milestone((22.8, 8.5), (22.8, 8.5), "above", "OpenAI ES",         "Salimans '17",    bk50)
+  milestone((22.8, 8.5), (22.8, 8.5), "above", "OpenAI ES",         "Salimans '17",    rose)
   milestone((25.2, 8.5), (25.2, 8.5), "below", "Deep Neuroevol.",   "Such/Uber '17",   rose)
-
-  // PBT hybrid (bridges evo + RL)
-  modeldot((24.9, 10.3), rose)
-  ml((24.9, 10.3), "above", "PBT", "Jaderberg '17")
-  line((24.9, 9), (24.9, 10.3),
-    stroke: (paint: rose, thickness: 1pt, dash: "densely-dashed"))
-  bezier((23.9, 1.5), (24.9, 10.3), (23.9, 6), (24.9, 6),
-    stroke: (paint: atlantic, thickness: 1pt, dash: "densely-dashed"))
-  mergeannot((24.4, 6))[hybrid \ evo+RL]
+  milestone((24.9, 8.5), (24.9, 8.5), "above", "PBT",              "Jaderberg '17",    rose)
 
   // ═════════════════════════════════════════════════════════════════════
   // 3. RL FOUNDATIONS  (y=5, absorbed into Deep RL)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, 5), congaree)[RL \ Foundations]
   branchline(0, 13, 5, congaree)
-  dashed_fork((13, 5), (16.3, 1.5), congaree)
-  mergeannot((14, 3.5))[deep function \ approximation]
+  fork((13, 5), (16.3, 1.5), congaree)
+  mergeannot((14.6, 3.2))[deep function \ approximation]
 
   milestone((0.1, 5),  (0.1, 5),  "above", "Bellman",       "Dyn. Prog. '57",      congaree)
   milestone((8.1, 5),  (8.1, 5),  "below", "Sutton",        "TD Learning '88",     congaree)
   milestone((8.3, 5),  (8.8, 5),  "above", "Watkins",       "Q-Learning '89",      congaree)
   milestone((9.1, 5),  (9.6, 5),  "below", "Williams",      "REINFORCE '92",       congaree)
   milestone((11.4, 5), (11.4, 5), "above", "Sutton et al.", "Policy Grad. '99",    congaree)
+
+
 
   // ═════════════════════════════════════════════════════════════════════
   // 4. DEEP RL  (y=1.5, DOMINANT)
@@ -192,22 +178,9 @@
   milestone((16.3, 1.5), (16.3, 1.5), "below", "DQN",            "Mnih '15-02",         atlantic)
   milestone((17.6, 1.5), (17.6, 1.5), "above", "TRPO",           "Schulman '15-07",     atlantic)
   milestone((18.1, 1.5), (18.1, 1.3), "below", "DDPG",           "Lillicrap '15-09",    atlantic)
-  modeldot((19.1, 1.5), atlantic)
-  ml((19.1, 2.8), "above", "AlphaGo", "Silver '16-01")
-  line((19.1, 2.3), (19.1, 1.8),
-    stroke: (paint: atlantic, thickness: 0.5pt, dash: "densely-dotted"))
+  milestone((19.1, 1.5), (19.1, 1.5), "above", "AlphaGo",           "Silver '16-01",    atlantic)
   milestone((19.4, 1.5), (19.4, 1.5), "below", "A3C",            "Mnih '16-02",         atlantic)
-
-  // PPO — focal in Deep RL
-  bigdot((23.9, 1.5), atlantic)
-  circle((23.9, 1.5), radius: 0.28,
-    stroke: (paint: atlantic, thickness: 1.2pt))
-  content((23.9, 1.5 - 0.35), anchor: "north",
-    align(center, par(leading: 0.25em, text(size: 8pt, fill: atlantic, weight: "bold")[
-      *PPO* \
-      #text(size: 6pt)[Schulman '17-07]
-    ])))
-
+  milestone((23.9, 1.5), (23.9, 1.5), "above", "PPO",           "Schulman '17-07",      atlantic)
   milestone((25.4, 1.5), (25.4, 1.5), "above", "SAC",            "Haarnoja '18-01",     atlantic)
   milestone((25.7, 1.5), (25.7, 1.5), "below", "TD3",            "Fujimoto '18-02",     atlantic)
   milestone((31.7, 1.5), (31.7, 1.5), "above", "MuZero",         "Schrittwieser '19-11",atlantic)
@@ -218,8 +191,6 @@
   // 5. RL FOR LLMs  (y=-2)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, -2), garnet)[RL for LLMs]
-  fork((24.5, 1.5), (23.6, -2), garnet)
-  forkannot((23.5, -0.2), garnet)[human preferences]
 
   branchline(23.6, 55, -2, garnet, arrow: true)
 
@@ -230,137 +201,54 @@
   milestone((42.5, -2), (42.5, -2), "below", "Constitutional AI", "Bai '22-12",              garnet)
   milestone((43.9, -2), (43.9, -2), "above", "DPO",               "Rafailov '23-05",         garnet)
   milestone((46.5, -2), (46.5, -2), "below", "GRPO",              "Shao '24-02",             garnet)
+  milestone((49.8, -2), (49.8, -2), "above", "DeepSeek-R1",              "'25-01",           garnet)
 
-  // DeepSeek-R1 focal on RL for LLMs
-  bigdot((49.8, -2), garnet)
-  circle((49.8, -2), radius: 0.28,
-    stroke: (paint: garnet, thickness: 1.2pt))
-  content((49.8, -2 + 0.35), anchor: "south",
-    align(center, par(leading: 0.25em, text(size: 8pt, fill: garnet, weight: "bold")[
-      *DeepSeek-R1* \
-      #text(size: 6pt)['25-01]
-    ])))
 
   // ═════════════════════════════════════════════════════════════════════
   // 6. META-LEARNING / AutoRL  (y=-5.5)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, -5.5), horseshoe)[Meta-Learning \ & AutoRL]
   branchline(20.5, 53.5, -5.5, horseshoe)
-  bezier((53.5, -5.5), (54, -11.5), (54.2, -7), (54.3, -10),
-    stroke: (paint: horseshoe.transparentize(40%), thickness: 1.5pt, dash: "densely-dashed"),
-    mark: (end: "stealth", fill: horseshoe.transparentize(40%)))
-  mergeannot((54.2, -8.5))[evolved \ update rules]
 
   milestone((20.5, -5.5), (20.5, -5.5), "below", "Learn to Learn",      "Andrychowicz '16-06", horseshoe)
-  modeldot((21.8, -5.5), horseshoe)
-  content((21.8, -5.5 + 0.18), anchor: "south",
-    align(center, par(leading: 0.25em, text(size: 7pt, fill: bk70)[
-      *RL#super[2]* \
-      #text(size: 5.5pt)[Duan '16-11]
-    ])))
+  milestone((21.8, -5.5), (21.8, -5.5), "above", "RL^2",                "Duan '16-11",         horseshoe)
   milestone((22.8, -5.5), (22.8, -5.5), "below", "MAML",                "Finn '17-03",         horseshoe)
   milestone((25.7, -5.5), (25.7, -5.5), "above", "Evolved Pol. Grad.",  "Houthooft '18-02",    horseshoe)
   milestone((34.0, -5.5), (34.0, -5.5), "below", "LPG",                 "Oh '20-07",           horseshoe)
   milestone((35.8, -5.5), (35.8, -5.5), "above", "Evolving RL Alg.",    "Co-Reyes '21-01",     horseshoe)
-  milestone((41.9, -5.5), (41.9, -5.5), "below", "Lu et al.",           "Disc. Pol. Opt. '22-10", horseshoe)
+  milestone((41.9, -5.5), (41.9, -5.5), "below", "Lu et al.",        "Disc. Pol. Opt. '22-10", horseshoe)
   milestone((45.4, -5.5), (45.4, -5.5), "above", "Maheshwari",          "GROOVE '23-10",       horseshoe)
-
-  // DiscoRL focal
-  bigdot((53.0, -5.5), horseshoe)
-  circle((53.0, -5.5), radius: 0.28,
-    stroke: (paint: horseshoe, thickness: 1.2pt))
-  content((53.0, -5.5 - 0.35), anchor: "north",
-    align(center, par(leading: 0.25em, text(size: 8pt, fill: horseshoe, weight: "bold")[
-      *DiscoRL* \
-      #text(size: 6pt)[Oh '25-12 (Nature)]
-    ])))
+  milestone((53, -5.5), (53, -5.5), "below", "DiscoRL",          "Oh '25-12 (Nature)",         horseshoe)
+  
 
   // ═════════════════════════════════════════════════════════════════════
   // 7. LLM & CODE GENERATION  (y=-9)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, -9), honeycomb)[LLM & \ Code Gen.]
   branchline(23.6, 41, -9, honeycomb)
-  bezier((41, -9), (42, -12.5), (41.8, -10), (41.5, -11.8),
-    stroke: (paint: honeycomb.transparentize(40%), thickness: 1.5pt, dash: "densely-dashed"),
-    mark: (end: "stealth", fill: honeycomb.transparentize(40%)))
-  mergeannot((41.5, -10.8))[LLM as \ mutation op.]
 
   milestone((23.6, -9), (23.6, -9), "above", "Transformer", "Vaswani '17-06",     honeycomb)
   milestone((33.4, -9), (33.4, -9), "below", "GPT-3",       "Brown '20-05",       honeycomb)
   milestone((37.5, -9), (37.5, -9), "above", "Codex",       "Chen '21-07",        honeycomb)
-  milestone((39.5, -9), (39.5, -9), "below", "AlphaCode",   "Li '22-02",          honeycomb)
+  milestone((39.5, -9), (39.5, -9), "above", "AlphaCode",   "Li '22-02",          honeycomb)
 
   // ═════════════════════════════════════════════════════════════════════
-  // 8. LLM-GUIDED EVOLUTION  (y=-12.5, CONVERGENCE)
+  // 8. LLM-GUIDED EVOLUTION  (y=-12.5)
   // ═════════════════════════════════════════════════════════════════════
   branchlabel((-0.8, -12.5), atlantic)[LLM-Guided \ Evolution]
 
-  fork((40, -9), (40.7, -12.5), atlantic)
-  forkannot((39.5, -10.8), atlantic)[LLM + evolution]
+  fork((39.65, -9), (40.7, -12.5), atlantic)
+  forkannot((40.2, -10.8), atlantic)[LLM + evolution]
 
   branchline(40.7, 57, -12.5, atlantic, arrow: true)
 
-  milestone((40.7, -12.5), (40.7, -12.5), "above", "ELM",        "Lehman '22-06",       atlantic)
+  milestone((40.7, -12.5), (40.7, -12.5), "below", "ELM",        "Lehman '22-06",       atlantic)
   milestone((45.4, -12.5), (45.4, -12.5), "below", "Eureka",     "Ma '23-10",           atlantic)
   milestone((46.2, -12.5), (46.2, -12.5), "above", "FunSearch",  "Romera-P. '24-01",    atlantic)
   milestone((47.7, -12.5), (47.7, -12.5), "below", "REvolve",    "Hazra '24-06",        atlantic)
   milestone((50.6, -12.5), (50.6, -12.5), "above", "EvoTune",    "Surina '25-04",       atlantic)
   milestone((51.2, -12.5), (51.2, -12.5), "below", "AlphaEvolve","Novikov '25-06",      atlantic)
-
-  // AlphaEvolve MARL
   milestone((53.5, -12.5), (53.5, -12.5), "above", "AlphaEvolve", "MARL '26-02",        atlantic)
+  milestone((53.8, -12.5), (53.8, -12.5), "below", "Evolving RL via LLMs", "GECCO '26-03",        atlantic)
 
-  // ── FOCAL PAPER ──
-  bigdot((53.8, -12.5), garnet)
-  circle((53.8, -12.5), radius: 0.34,
-    stroke: (paint: garnet, thickness: 2pt))
-  circle((53.8, -12.5), radius: 0.45,
-    stroke: (paint: garnet, thickness: 1pt))
-  content((53.8, -12.5 - 0.6), anchor: "north",
-    align(center, par(leading: 0.3em, text(size: 9pt, fill: garnet, weight: "bold")[
-      *Sygkounas et al.* \
-      #text(size: 7pt)[GECCO '26-03] \
-      #text(size: 7pt)[Evolving RL via LLMs]
-    ])))
-
-  // ── Cross-branch convergence feeds ──
-  // EC -> focal
-  bezier((33.5, 12), (53.3, -11.5), (44, 11), (54, -4),
-    stroke: (paint: garnet.transparentize(50%), thickness: 1.5pt, dash: "densely-dashed"),
-    mark: (end: "stealth", fill: garnet.transparentize(50%)))
-  mergeannot((44, 3.5))[algorithm \ search]
-
-  // Neuroevo -> FunSearch (MAP-Elites diversity idea)
-  bezier((17, 8.5), (46, -11.5), (25, 4), (40, -9),
-    stroke: (paint: rose.transparentize(50%), thickness: 1.5pt, dash: "densely-dashed"),
-    mark: (end: "stealth", fill: rose.transparentize(50%)))
-
-  // Deep RL feeds focal
-  bezier((43, 1.5), (53, -11.8), (50, -2), (53, -7),
-    stroke: (paint: atlantic.transparentize(50%), thickness: 1.5pt, dash: "densely-dashed"),
-    mark: (end: "stealth", fill: atlantic.transparentize(50%)))
-
-  // RL for LLMs feeds focal
-  bezier((50.3, -2.5), (54, -11.5), (51, -7), (55, -9),
-    stroke: (paint: garnet.transparentize(50%), thickness: 1.5pt, dash: "densely-dashed"),
-    mark: (end: "stealth", fill: garnet.transparentize(50%)))
-
-  // ── Title ──
-  content((0, 16), anchor: "north-west",
-    text(size: 14pt, weight: "bold", fill: bk90)[
-      Research Genealogy: From Evolutionary Computation to LLM-Guided RL Algorithm Discovery
-    ])
-  content((0, 15), anchor: "north-west",
-    text(size: 10pt, fill: bk50)[
-      1957–2026  |  8 research branches  |  50 milestones  |  exact publication dates
-    ])
-
-  // ── Bitter Lesson ──
-  content((33, -14.8), anchor: "north-west",
-    box(fill: white, inset: 2pt, width: 5cm,
-      align(center, par(leading: 0.35em, text(size: 6pt, style: "italic", fill: bk50)[
-        Sutton 2019: "The Bitter Lesson" — General methods that leverage
-        computation (search + learning) ultimately dominate hand-engineered
-        approaches.
-      ]))))
 })
