@@ -80,6 +80,9 @@
   (branch: "ec", year: 2019, month: 2,  dir: "above", bold: "Ecoffet et al.", small: "Go-Explore '19-02"),
   (branch: "ec", year: 2019, month: 3,  dir: "below", bold: "Real et al.",    small: "AmoebaNet '19-03"),
   (branch: "ec", year: 2020, month: 0,  dir: "below", bold: "Real",           small: "AutoML-Zero '20"),
+  (branch: "ec", year: 2022, month: 2,  dir: "above", bold: "Pierrot et al.", small: "QD-PG '22-02"),
+  (branch: "ec", year: 2023, month: 7,  dir: "below", bold: "Fontaine",       small: "CMA-MAE '23-07"),
+  (branch: "ec", year: 2024, month: 3,  dir: "above", bold: "Akiba et al.",   small: "Evol. Model Merging '24-03"),
   // Neuroevolution
   (branch: "neuro", year: 2002, month: 0,  dir: "above", bold: "NEAT",            small: "Stanley '02"),
   (branch: "neuro", year: 2009, month: 0,  dir: "below", bold: "HyperNEAT",       small: "Stanley '09"),
@@ -106,8 +109,13 @@
   (branch: "deep", year: 2018, month: 3,  dir: "above", bold: "TD3",             small: "Fujimoto '18-03"),
   (branch: "deep", year: 2019, month: 10, dir: "below", bold: "AlphaStar",       small: "Vinyals '19-10"),
   (branch: "deep", year: 2019, month: 11, dir: "above", bold: "MuZero",          small: "Schrittwieser '19-11"),
+  (branch: "deep", year: 2020, month: 3,  dir: "below", bold: "Agent57",         small: "Badia '20-03"),
+  (branch: "deep", year: 2020, month: 6,  dir: "above", bold: "CQL",             small: "Kumar '20-06"),
   (branch: "deep", year: 2021, month: 6,  dir: "below", bold: "Decision Trans.", small: "Chen '21-06"),
+  (branch: "deep", year: 2022, month: 5,  dir: "above", bold: "Gato",            small: "Reed '22-05"),
   (branch: "deep", year: 2023, month: 1,  dir: "above", bold: "DreamerV3",       small: "Hafner '23-01"),
+  (branch: "deep", year: 2023, month: 6,  dir: "below", bold: "AlphaDev",        small: "Mankowitz '23-06"),
+  (branch: "deep", year: 2024, month: 6,  dir: "above", bold: "OpenVLA",         small: "Kim '24-06"),
   // RL for LLMs
   (branch: "llmrl", year: 2017, month: 6,  dir: "below", bold: "RLHF",              small: "Christiano '17-06"),
   (branch: "llmrl", year: 2019, month: 9,  dir: "above", bold: "Ziegler et al.",    small: "RLHF for Text '19-09"),
