@@ -82,9 +82,10 @@
         stroke: stroke_main,
         mark: (end: "stealth", fill: c, scale: 1.5))
     } else if end == "terminate" {
-      line((x_start, yv), (x_end - 0.45, yv), stroke: stroke_main)
+      line((x_start, yv), (x_end, yv), stroke: stroke_main)
       content((x_end, yv),
-        text(size: 16pt, weight: "bold", fill: garnet)[$bold(times)$])
+        box(fill: white, inset: (x: 1pt),
+          text(size: 24pt, weight: "bold", fill: garnet)[$bold(times)$]))
     } else if end == "fade" {
       line((x_start, yv), (x_end, yv), stroke: stroke_main)
     }
