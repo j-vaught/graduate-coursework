@@ -160,6 +160,13 @@
   (from: ("ec",   1999, 0),  to: ("neuro", 2002, 0),  annot: [evolve networks]),
   (from: ("rlf",  2002, 0),  to: ("deep",  2015, 2),  annot: [deep function \ approximation]),
   (from: ("code", 2022, 3),  to: ("llme",  2022, 6),  annot: [LLM + evolution]),
+  (from: ("deep", 2017, 7),  to: ("llmrl", 2022, 3),  annot: [PPO → RLHF]),
+  (from: ("code", 2020, 5),  to: ("llmrl", 2022, 3),  annot: [LLM substrate]),
+  (from: ("ec",   2015, 0),  to: ("llme",  2022, 6),  annot: [quality-diversity]),
+  (from: ("meta", 2021, 1),  to: ("llme",  2026, 3),  annot: [evolve RL algs.]),
+  (from: ("llmrl",2024, 2),  to: ("llme",  2025, 4),  annot: [RL-tuned LLMs]),
+  (from: ("neuro",2017, 3),  to: ("deep",  2017, 7),  annot: [ES vs. PG]),
+  (from: ("deep", 2016, 2),  to: ("meta",  2016, 11), annot: [deep PG → RL²]),
 )
 
 // ── derive year widths + cumulative offsets from item counts ────────────
