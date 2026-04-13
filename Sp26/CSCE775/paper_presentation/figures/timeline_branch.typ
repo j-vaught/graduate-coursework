@@ -20,8 +20,8 @@
 #let spacing = 3.5
 // year-width model: width(year) = year_base_w + count(year) * year_per_item
 // empty years collapse to year_base_w; dense years expand automatically.
-#let year_base_w   = 0.25
-#let year_per_item = 0.75
+#let year_base_w   = 0.0
+#let year_per_item = 0.9
 
 // branch y-coordinates (derived from spacing — change `spacing` to reflow)
 #let y_top   = 12
