@@ -1,11 +1,3 @@
-// Section 00: Title Page and Table of Contents
-
-#set page(margin: 1in)
-#set text(font: "New Computer Modern", size: 11pt)
-#set par(leading: 0.65em, justify: true)
-
-// --- Title Page ---
-
 #v(2fr)
 
 #align(center)[
@@ -41,36 +33,6 @@ This review traces the intellectual trajectory from classical evolutionary compu
 
 // --- Table of Contents ---
 
-#align(center)[
-  #text(size: 14pt, weight: "bold")[Table of Contents]
-]
-
-#v(1.5em)
-
-#set enum(numbering: "1.")
-
-#text(size: 11pt)[
-  + Evolutionary Computation: Foundations
-
-  + Neuroevolution and Evolution Strategies for RL
-
-  + Deep Reinforcement Learning: The Revolution
-
-  + Policy Optimization: TRPO, PPO, and Beyond
-
-  + RL for Large Language Model Alignment
-
-  + Meta-Learning and Automated RL
-
-  + LLMs as Program Synthesizers
-
-  + LLM-Guided Evolutionary Search
-
-  + Evolving RL Algorithms: The GECCO 2026 Paper
-
-  + Critical Analysis and Open Problems
-
-  + References
-]
+#outline(title: "Table of Contents", indent: 1.5em, depth: 2)
 
 #pagebreak()
