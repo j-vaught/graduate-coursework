@@ -30,11 +30,11 @@
 #let y_rlf   = y_top - 2 * spacing
 #let y_deep  = y_top - 3 * spacing
 #let y_llmrl = y_top - 4 * spacing
-#let y_meta  = y_top - 5 * spacing
+#let y_llme  = y_top - 5 * spacing
 #let y_code  = y_top - 6 * spacing
-#let y_llme  = y_top - 7 * spacing
+#let y_meta  = y_top - 7 * spacing
 #let grid_top = y_ec   + 0.6 * spacing
-#let grid_bot = y_llme - 0.7 * spacing
+#let grid_bot = y_meta - 0.7 * spacing
 
 // ── branches ────────────────────────────────────────────────────────────
 // start/end are (year, month) tuples; month ∈ [0,12]; year may exceed the
@@ -162,7 +162,6 @@
   (from: ("code", 2022, 3),  to: ("llme",  2022, 6),  annot: [LLM + evolution]),
   (from: ("deep", 2017, 7),  to: ("llmrl", 2022, 3),  annot: [PPO → RLHF]),
   (from: ("code", 2020, 5),  to: ("llmrl", 2022, 3),  annot: [LLM substrate]),
-  (from: ("ec",   2015, 0),  to: ("llme",  2022, 6),  annot: [quality-diversity]),
   (from: ("meta", 2021, 1),  to: ("llme",  2026, 3),  annot: [evolve RL algs.]),
   (from: ("llmrl",2024, 2),  to: ("llme",  2025, 4),  annot: [RL-tuned LLMs]),
   (from: ("neuro",2017, 3),  to: ("deep",  2017, 7),  annot: [ES vs. PG]),
