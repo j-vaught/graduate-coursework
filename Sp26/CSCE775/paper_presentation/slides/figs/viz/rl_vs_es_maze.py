@@ -525,24 +525,7 @@ def build_animation(env: Maze, rl_hist, es_hist, out_mp4: Path, out_gif: Path,
         ax_rl.scatter([xs[-1]], [ys[-1]], color=ATLANTIC, s=70,
                       edgecolors="white", linewidths=1.2, zorder=8)
 
-        hit = rl.get("terminal_hit")
-        if hit == env.big_goal:
-            hit_txt = "reached BIG goal"
-            hit_color = GARNET
-        elif hit is not None:
-            hit_txt = f"stuck on +{env.rewards[hit]:.1f} trap"
-            hit_color = HONEYCOMB
-        else:
-            hit_txt = "timed out"
-            hit_color = "#1f1f1f"
-        ax_rl.set_title(
-            f"RL  ·  Q-learning\n"
-            f"Episode {rl['ep']+1:>3d} / {len(rl_hist)}   ·   "
-            f"{rl['steps']:>4d} steps   ·   ",
-            fontsize=14, pad=10, color="#1f1f1f", loc="left")
-        ax_rl.text(0.5, 1.03, hit_txt, transform=ax_rl.transAxes,
-                   ha="center", va="bottom", fontsize=13,
-                   color=hit_color, fontweight="bold")
+        # titles intentionally omitted — added in PPT
 
         # ------- ES side -------
         es = es_hist[int(es_idx_seq[k])]
@@ -559,20 +542,7 @@ def build_animation(env: Maze, rl_hist, es_hist, out_mp4: Path, out_gif: Path,
         ax_es.scatter([xs[-1]], [ys[-1]], color=GARNET, s=80,
                       edgecolors="white", linewidths=1.3, zorder=9)
 
-        best_fit = float(es["fits"][best])
-        reached_count = sum(1 for r in es.get("reached_big", []) if r)
-        subtitle_color = GARNET if reached_count > 0 else HONEYCOMB
-        subtitle = (f"{reached_count}/{len(es['trajs'])} reached BIG goal"
-                    if reached_count > 0 else "all stuck on traps")
-        arch = es.get("archive_size", len(es['trajs']))
-        ax_es.set_title(
-            f"ES  ·  MAP-Elites  (pop = {len(es['trajs'])}, archive = {arch})\n"
-            f"Generation {es['gen']+1:>2d} / {len(es_hist)}   ·   "
-            f"best fitness {best_fit:.3f}   ·   ",
-            fontsize=14, pad=10, color="#1f1f1f", loc="left")
-        ax_es.text(0.5, 1.03, subtitle, transform=ax_es.transAxes,
-                   ha="center", va="bottom", fontsize=13,
-                   color=subtitle_color, fontweight="bold")
+        # titles intentionally omitted — added in PPT
 
         return []
 
@@ -599,18 +569,23 @@ def main():
     import sys
     here = Path(__file__).resolve().parent
     N = 20
-    tag = "traps_20x20"
+    clean_mode = "--clean" in sys.argv
 
-    # Build maze and place trap rewards
-    base_env = Maze(N, seed=17)  # temp to get geometry for placement
-    traps = place_small_rewards(base_env, n_small=2, min_dist=5, max_dist=10,
-                                value=0.3, seed=42)
-    env = Maze(N, seed=17, rewards=traps, big_goal_value=4.0,
-               step_penalty=-0.005)
-    print(f"placed {len(traps)} trap cells:")
-    for cell, val in traps.items():
-        print(f"  {cell} = +{val}")
-    print(f"big goal at {env.big_goal} = +{env.rewards[env.big_goal]}")
+    if clean_mode:
+        tag = "20x20"
+        env = Maze(N, seed=17, big_goal_value=1.0, step_penalty=-0.01)
+        print(f"clean maze: big goal at {env.big_goal} = +{env.rewards[env.big_goal]} (no traps)")
+    else:
+        tag = "traps_20x20"
+        base_env = Maze(N, seed=17)
+        traps = place_small_rewards(base_env, n_small=2, min_dist=5, max_dist=10,
+                                    value=0.3, seed=42)
+        env = Maze(N, seed=17, rewards=traps, big_goal_value=4.0,
+                   step_penalty=-0.005)
+        print(f"placed {len(traps)} trap cells:")
+        for cell, val in traps.items():
+            print(f"  {cell} = +{val}")
+        print(f"big goal at {env.big_goal} = +{env.rewards[env.big_goal]}")
 
     cache = here / f"rl_es_hist_{tag}.pkl"
 
@@ -634,20 +609,27 @@ def main():
     print(f"  RL done in {time.time()-t0:5.1f}s · last-200 episodes reached BIG = {big}/200")
 
     t1 = time.time()
-    print("training ES / MAP-Elites (pop=100, gen=1000, bucket=4, k=2) …")
-    es_hist = train_map_elites(env, n_gen=1000, pop_size=100, max_steps=800,
-                               bucket=4, temperature=1.0, k_evals=2,
-                               sigma_start=0.85, sigma_end=0.18, seed=2)
-    big_per_gen = [sum(r for r in h["reached_big"]) for h in es_hist]
-    first_big = next((i for i, n in enumerate(big_per_gen) if n > 0), None)
-    print(f"  ES done in {time.time()-t1:5.1f}s · last-gen BIG reach = {big_per_gen[-1]}/80"
-          f" · first BIG at gen {first_big}"
-          f" · archive size = {es_hist[-1]['archive_size']}")
+    if clean_mode:
+        print("training ES (pop=40, gen=300, plain GA) …")
+        es_hist = train_es(env, n_gen=300, pop_size=40, max_steps=800, seed=1)
+        print(f"  ES done in {time.time()-t1:5.1f}s · last-gen best fitness = "
+              f"{max(es_hist[-1]['fits']):.3f}")
+    else:
+        print("training ES / MAP-Elites (pop=100, gen=1000, bucket=4, k=2) …")
+        es_hist = train_map_elites(env, n_gen=1000, pop_size=100, max_steps=800,
+                                   bucket=4, temperature=1.0, k_evals=2,
+                                   sigma_start=0.85, sigma_end=0.18, seed=2)
+        big_per_gen = [sum(r for r in h["reached_big"]) for h in es_hist]
+        first_big = next((i for i, n in enumerate(big_per_gen) if n > 0), None)
+        print(f"  ES done in {time.time()-t1:5.1f}s · last-gen BIG reach = {big_per_gen[-1]}/100"
+              f" · first BIG at gen {first_big}"
+              f" · archive size = {es_hist[-1]['archive_size']}")
 
     cache_out = here / f"rl_es_hist_{tag}.pkl"
     with open(cache_out, "wb") as f:
         pickle.dump({"rl": rl_hist, "es": es_hist,
-                     "edges": env.edges, "n": N, "rewards": traps}, f)
+                     "edges": env.edges, "n": N,
+                     "rewards": dict(env.rewards)}, f)
     print(f"cached histories -> {cache_out}")
 
     out_mp4 = here / f"rl_vs_es_{tag}.mp4"
