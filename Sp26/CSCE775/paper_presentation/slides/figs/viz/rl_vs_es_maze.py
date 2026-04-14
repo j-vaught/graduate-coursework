@@ -634,8 +634,8 @@ def main():
     print(f"  RL done in {time.time()-t0:5.1f}s · last-200 episodes reached BIG = {big}/200")
 
     t1 = time.time()
-    print("training ES / MAP-Elites (pop=100, gen=500, bucket=4, k=2) …")
-    es_hist = train_map_elites(env, n_gen=500, pop_size=100, max_steps=800,
+    print("training ES / MAP-Elites (pop=100, gen=1000, bucket=4, k=2) …")
+    es_hist = train_map_elites(env, n_gen=1000, pop_size=100, max_steps=800,
                                bucket=4, temperature=1.0, k_evals=2, seed=1)
     big_per_gen = [sum(r for r in h["reached_big"]) for h in es_hist]
     first_big = next((i for i, n in enumerate(big_per_gen) if n > 0), None)
