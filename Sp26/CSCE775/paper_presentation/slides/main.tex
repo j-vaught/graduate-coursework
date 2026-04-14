@@ -62,40 +62,127 @@
   \end{tikzpicture}
 \end{frame}
 
-% --- S2b: problem with RL & ES ---
-\begin{frame}{The problem with RL \& ES}
+% --- S2b: RL vs ES at a glance ---
+\begin{frame}{RL vs.\ ES at a glance}
   \vspace{0.1em}
   \begin{columns}[T]
     \begin{column}{0.48\textwidth}
       \begin{tikzpicture}
-        \node[rectangle, draw=UofSCGarnet, line width=1.2pt, fill=UofSCGray10,
-              inner sep=0.7em, text width=6.1cm, font=\small] {%
-          \textbf{\color{UofSCGarnet}Reinforcement Learning}\\[0.5em]
-          \textcolor{UofSCHorseshoe}{\textbf{+}}\; sample-efficient per step: SAC $\approx$ 100K steps on MuJoCo\\[0.2em]
-          \textcolor{UofSCHorseshoe}{\textbf{+}}\; gradient signal $\Rightarrow$ credit assignment over long horizons\\[0.5em]
-          \textcolor{UofSCRose}{$\boldsymbol{-}$}\; still needs $10^6$--$10^7$ env steps (humans: $\sim$$10^2$)\\[0.2em]
-          \textcolor{UofSCRose}{$\boldsymbol{-}$}\; hyperparameter swings change return by $\mathbf{3\times}$ \small(Henderson '18)\\[0.2em]
-          \textcolor{UofSCRose}{$\boldsymbol{-}$}\; reward hacking and instability; reproducibility crisis};
+        \node[rectangle, draw=UofSCGarnet, line width=1.3pt, fill=UofSCGray10,
+              inner sep=0.7em, text width=6.3cm, font=\small] {%
+          \textbf{\color{UofSCGarnet}Reinforcement Learning}\\[0.3em]
+          {\scriptsize Learn a policy by trial \& error, updated with gradients on a scalar reward.}\\[0.6em]
+          \textbf{Where it runs today}\\[0.2em]
+          \hspace{0.3em}$\bullet$\; AlphaGo, AlphaStar, MuZero\\
+          \hspace{0.3em}$\bullet$\; ChatGPT / Claude / Gemini (RLHF)\\
+          \hspace{0.3em}$\bullet$\; o1, DeepSeek-R1 reasoning\\
+          \hspace{0.3em}$\bullet$\; Humanoid locomotion, manipulation\\[0.4em]
+          {\scriptsize\color{UofSCGray70}\itshape The dominant paradigm.}};
       \end{tikzpicture}
     \end{column}
     \begin{column}{0.48\textwidth}
       \begin{tikzpicture}
-        \node[rectangle, draw=UofSCHoneycomb, line width=1.2pt, fill=UofSCGray10,
-              inner sep=0.7em, text width=6.1cm, font=\small] {%
-          \textbf{\color{UofSCHoneycomb}Evolutionary Search}\\[0.5em]
-          \textcolor{UofSCHorseshoe}{\textbf{+}}\; scales linearly to $\mathbf{1{,}440}$ workers \small(Salimans '17)\\[0.2em]
-          \textcolor{UofSCHorseshoe}{\textbf{+}}\; humanoid solved in $\mathbf{10\ \text{min}}$ wall-clock vs.\ hours for PPO\\[0.5em]
-          \textcolor{UofSCRose}{$\boldsymbol{-}$}\; uses $\mathbf{3\text{--}10\times}$ more env steps than A3C/PPO\\[0.2em]
-          \textcolor{UofSCRose}{$\boldsymbol{-}$}\; struggles past $\sim$$10^6$ parameters (no gradient info)\\[0.2em]
-          \textcolor{UofSCRose}{$\boldsymbol{-}$}\; search space must be hand-designed (DSL / grammar)};
+        \node[rectangle, draw=UofSCHoneycomb, line width=1.3pt, fill=UofSCGray10,
+              inner sep=0.7em, text width=6.3cm, font=\small] {%
+          \textbf{\color{UofSCHoneycomb}Evolutionary Search}\\[0.3em]
+          {\scriptsize Maintain a population, mutate \& recombine, keep the fittest. No gradients.}\\[0.6em]
+          \textbf{Where it runs today}\\[0.2em]
+          \hspace{0.3em}$\bullet$\; Neural architecture search (NAS)\\
+          \hspace{0.3em}$\bullet$\; Hyperparameter tuning (PBT, PB2)\\
+          \hspace{0.3em}$\bullet$\; Reward discovery (Eureka, REvolve)\\
+          \hspace{0.3em}$\bullet$\; Non-differentiable problems (FunSearch)\\[0.4em]
+          {\scriptsize\color{UofSCGray70}\itshape The niche tool --- used where RL can't go.}};
       \end{tikzpicture}
     \end{column}
   \end{columns}
+\end{frame}
+
+% --- S2c: The problem with RL ---
+\begin{frame}{The problem with RL}
+  \vspace{-0.1em}
+  \centering
+  \begin{tikzpicture}
+    \node[rectangle, draw=UofSCGarnet, line width=1.3pt, fill=UofSCGray10,
+          inner sep=0.6em, text width=13cm, font=\small] {%
+      \textbf{\color{UofSCGarnet}We keep re-using the same $\sim$5 update rules} ---
+      DQN '15, PPO '17, SAC '18, TD3 '18 underwrite every modern system.};
+  \end{tikzpicture}
 
   \vspace{0.5em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\small\textbf{\color{UofSCRose}Sample efficiency}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small PPO / SAC: $\mathbf{10^6\text{--}10^7}$ env steps on MuJoCo
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small Humans: $\mathbf{\sim 10^2}$ steps
+      \end{itemize}
+
+      \vspace{0.3em}
+      {\small\textbf{\color{UofSCRose}Reproducibility}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small $\mathbf{3\times}$ return swings from seeds \& HPs
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small PPO impls disagree across codebases
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small\textbf{\color{UofSCRose}Fragility}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small Reward hacking, credit-assignment drift
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small Deadly triad: bootstrap + FA + off-policy
+      \end{itemize}
+
+      \vspace{0.3em}
+      {\small\textbf{\color{UofSCRose}Human bottleneck}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small New algorithm $=$ 1--2 yrs of PhD work
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small The update rule has never been automated
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- S2d: The problem with ES ---
+\begin{frame}{The problem with ES}
+  \vspace{-0.1em}
   \centering
-  {\footnotesize\color{UofSCGray70}\itshape Each is strong where the other is weak ---
-  neither alone is positioned to \textbf{invent new algorithms}.}
+  \begin{tikzpicture}
+    \node[rectangle, draw=UofSCHoneycomb, line width=1.3pt, fill=UofSCGray10,
+          inner sep=0.6em, text width=13cm, font=\small] {%
+      \textbf{\color{UofSCHoneycomb}ES is powerful but boxed in by the designer} ---
+      flexible and parallel, yet stuck with the search space you wrote down.};
+  \end{tikzpicture}
+
+  \vspace{0.5em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\small\textbf{\color{UofSCRose}Sample cost}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small $\mathbf{3\text{--}10\times}$ more env steps than A3C / PPO
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small No gradient, no bootstrap, no TD reuse
+      \end{itemize}
+
+      \vspace{0.3em}
+      {\small\textbf{\color{UofSCRose}Dimensionality}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small Stalls past $\mathbf{\sim 10^6}$ parameters
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small RL scales to billions of params
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small\textbf{\color{UofSCRose}Search space}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small DSL / primitives are hand-designed
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small Cannot express what you didn't foresee
+      \end{itemize}
+
+      \vspace{0.3em}
+      {\small\textbf{\color{UofSCRose}Blind mutations}}
+      \begin{itemize}\setlength\itemsep{0em}
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small Random perturbations waste evals
+        \item[\textcolor{UofSCRose}{\tiny$\blacksquare$}] \small No semantic guidance on what to change
+      \end{itemize}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % --- S2: direct opener ---
