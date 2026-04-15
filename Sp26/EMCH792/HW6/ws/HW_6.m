@@ -135,6 +135,7 @@ for i = 2:time_steps
     Pxy = zeros(n, m);
     for j = 1:(2*n)
         dy = y_sig(:, j) - y_mean;
+        dy(2) = atan2(sin(dy(2)), cos(dy(2)));
         dx = s_sig(:, j) - x_pred;
         dx(3) = atan2(sin(dx(3)), cos(dx(3)));
         Pyy = Pyy + (dy * dy') / (2*n);
