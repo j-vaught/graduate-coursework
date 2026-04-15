@@ -70,11 +70,13 @@ for i = 2:time_steps
     K = P_pred * H' / S;
 
     x_upd = x_pred + K * y_innov;
-    P_upd = (eye(n) - K * H) * P_pred;
+    I3 = eye(n);
+    P_upd = (I3 - K * H) * P_pred * (I3 - K * H)' + K * R * K';
+    P_upd = (P_upd + P_upd') / 2;
 
     X_ekf(:, i)   = x_upd;
     P_ekf(:,:,i)  = P_upd;
-    sig_ekf(:, i) = sqrt(diag(P_upd));
+    sig_ekf(:, i) = sqrt(max(diag(P_upd), 0));
 end
 
 %% 2. Unscented Kalman Filter
@@ -93,7 +95,7 @@ for i = 2:time_steps
     u_prev = [ur(i-1); ul(i-1)];
 
     % --- Sigma points (2n, no center) ---
-    L = chol(P_prev, 'lower');
+    L = chol((P_prev + P_prev') / 2 + 1e-12 * eye(n), 'lower');
     x_sig = zeros(n, 2*n);
     for j = 1:n
         x_sig(:, 2*j - 1) = x_prev + sqrt(n) * L(:, j);
@@ -110,21 +112,15 @@ for i = 2:time_steps
     P_pred = Q;
     for j = 1:(2*n)
         ds = s_sig(:, j) - x_pred;
+        ds(3) = atan2(sin(ds(3)), cos(ds(3)));
         P_pred = P_pred + (ds * ds') / (2*n);
     end
+    P_pred = (P_pred + P_pred') / 2;
 
-    % --- Regenerate sigma points after prediction ---
-    L2 = chol(P_pred, 'lower');
-    x_sig2 = zeros(n, 2*n);
-    for j = 1:n
-        x_sig2(:, 2*j - 1) = x_pred + sqrt(n) * L2(:, j);
-        x_sig2(:, 2*j    ) = x_pred - sqrt(n) * L2(:, j);
-    end
-
-    % --- Measurement sigma points ---
+    % --- Measurement sigma points from propagated predicted sigma points ---
     y_sig = zeros(m, 2*n);
     for j = 1:(2*n)
-        y_sig(:, j) = h_robot(x_sig2(:, j));
+        y_sig(:, j) = h_robot(s_sig(:, j));
     end
     % Unwrap y2 angle values around predicted mean bearing to avoid branch cut
     ang_ref = atan2(x_pred(2), x_pred(1));
@@ -139,7 +135,8 @@ for i = 2:time_steps
     Pxy = zeros(n, m);
     for j = 1:(2*n)
         dy = y_sig(:, j) - y_mean;
-        dx = x_sig2(:, j) - x_pred;
+        dx = s_sig(:, j) - x_pred;
+        dx(3) = atan2(sin(dx(3)), cos(dx(3)));
         Pyy = Pyy + (dy * dy') / (2*n);
         Pxy = Pxy + (dx * dy') / (2*n);
     end
@@ -152,10 +149,11 @@ for i = 2:time_steps
     K = Pxy / Pyy;
     x_upd = x_pred + K * y_innov;
     P_upd = P_pred - K * Pyy * K';
+    P_upd = (P_upd + P_upd') / 2;
 
     X_ukf(:, i)   = x_upd;
     P_ukf(:,:,i)  = P_upd;
-    sig_ukf(:, i) = sqrt(diag(P_upd));
+    sig_ukf(:, i) = sqrt(max(diag(P_upd), 0));
 end
 
 %% 3. Plot the filters results
