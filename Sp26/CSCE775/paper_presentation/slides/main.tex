@@ -205,31 +205,32 @@
 
 % --- 'Big picture' and 'Candidate is Python' slides removed ---
 
-% --- S11: evolutionary loop ---
-\begin{frame}{The evolutionary loop}
+% --- S11: cascading evaluation loop ---
+\begin{frame}{Training as a three-tier filter}
   \centering
+  \vspace{0.1em}
   \begin{tikzpicture}[
-    stepbox/.style={rectangle, draw=UofSCGarnet, line width=1.2pt, fill=UofSCGray10,
-                 minimum width=3.2cm, minimum height=1.6cm, align=center, font=\small},
-    arr/.style={-{Stealth[length=3.5mm]}, UofSCGarnet, line width=1.2pt}
+    pop/.style={rectangle, draw=UofSCGarnet, line width=1.2pt, fill=UofSCGray10,
+                minimum width=3.6cm, minimum height=1.1cm, align=center, font=\small},
+    tier/.style={rectangle, draw=UofSCGarnet, line width=1.2pt, fill=UofSCGray10,
+                 minimum width=10cm, minimum height=1.35cm, align=center, font=\small},
+    tier2/.style={tier, fill=UofSCSandstorm, minimum width=8cm},
+    tier3/.style={tier, fill=UofSCGarnet, text=white, minimum width=6cm, font=\small\bfseries},
+    arr/.style={-{Stealth[length=3mm]}, UofSCGarnet, line width=1.2pt},
+    pass/.style={font=\scriptsize\itshape\color{UofSCHorseshoe}}
   ]
-    \node[stepbox] (s1) at (0,2.2)   {\textbf{1. Select parents}\\{\scriptsize from island pool}};
-    \node[stepbox] (s2) at (6.2,2.2) {\textbf{2. LLM varies code}\\{\scriptsize mutate $p{=}0.65$}\\{\scriptsize crossover $p{=}0.35$}};
-    \node[stepbox] (s3) at (6.2,-0.8){\textbf{3. Train on 5 envs}\\{\scriptsize 3 seeds each}};
-    \node[stepbox] (s4) at (0,-0.8)  {\textbf{4. Rank by fitness}\\{\scriptsize replace weakest}};
+    \node[pop]   (pop)  at (0, 3.7) {\textbf{LLM proposes}\\ {\scriptsize $\sim$80 candidate update rules}};
+    \node[tier]  (t1)   at (0, 1.9) {\textbf{Tier 1 --- smoke test}\\ {\scriptsize 1 seed, 1 env, short rollout}};
+    \node[tier2] (t2)   at (0, 0.3) {\textbf{Tier 2 --- focused eval}\\ {\scriptsize 3 seeds, 3 envs, medium rollout}};
+    \node[tier3] (t3)   at (0,-1.3) {\textbf{Tier 3 --- full suite}\\ {\scriptsize 3 seeds, all 5 envs, full training}};
 
-    \draw[arr] (s1) -- (s2);
-    \draw[arr] (s2) -- (s3);
-    \draw[arr] (s3) -- (s4);
-    \draw[arr] (s4) -- (s1);
+    \draw[arr] (pop) -- (t1);
+    \draw[arr] (t1) -- node[pass, right=2pt] {top $\sim$20\% pass} (t2);
+    \draw[arr] (t2) -- node[pass, right=2pt] {top $\sim$20\% pass} (t3);
 
-    \node[rectangle, draw=UofSCCongaree, line width=1pt, fill=white,
-          minimum width=2.4cm, minimum height=1.2cm, align=center, font=\small\itshape]
-      at (3.1,0.7) {diversity-aware\\Levenshtein\\crossover};
+    \node[font=\scriptsize\color{UofSCGray70}, align=left, text width=4.5cm]
+      at (7.4, 0.3) {Cheap filter first.\\ Expensive analysis only on survivors.\\ Parallels \textit{thinking-mode} compute allocation in LLMs.};
   \end{tikzpicture}
-
-  \vspace{0.6em}
-  {\color{UofSCGray70}\small Island model $\cdot$ 9 individuals per island $\cdot$ 24 new candidates per generation.}
 \end{frame}
 
 % --- 'Forbidden mechanisms' and 'LLM-HPO' slides removed ---
