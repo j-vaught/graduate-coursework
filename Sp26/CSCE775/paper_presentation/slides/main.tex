@@ -284,68 +284,7 @@
 % ============================================================
 \section*{Background}
 
-% --- S5: Lineage A ---
-\begin{frame}{Lineage A: Discover an RL algorithm}
-  \centering
-  \vspace{0.2em}
-  \begin{tikzpicture}[
-    node distance=0.4cm,
-    chev/.style={signal, signal to=east, signal pointer angle=135, draw=UofSCAtlantic,
-                 fill=UofSCAtlantic, text=white, line width=0.8pt, minimum width=2.4cm,
-                 minimum height=1.0cm, font=\bfseries\small},
-    tagbox/.style={font=\footnotesize\itshape\color{UofSCGray70}, align=center, text width=2.6cm}
-  ]
-    \node[chev] (a) at (0,0)  {EPG '18};
-    \node[chev] (b) at (3.2,0){LPG '20};
-    \node[chev] (c) at (6.4,0){Co-Reyes '21};
-    \node[chev] (d) at (9.6,0){DiscoRL '25};
-
-    \node[tagbox, below=0.15cm of a] {neural loss for PG};
-    \node[tagbox, below=0.15cm of b] {LSTM update rule};
-    \node[tagbox, below=0.15cm of c] {DAG over typed ops};
-    \node[tagbox, below=0.15cm of d] {meta-learned NN (Nature)};
-  \end{tikzpicture}
-
-  \vspace{2.5em}
-  \begin{center}
-    \begin{tikzpicture}
-      \node[rectangle, draw=UofSCGarnet, line width=1.2pt, fill=UofSCGray10,
-            inner sep=0.8em, font=\large] {%
-        All \hilite{constrain the search space by hand}.};
-    \end{tikzpicture}
-  \end{center}
-\end{frame}
-
-% --- S6: Lineage B ---
-\begin{frame}{Lineage B: LLMs mutate code}
-  \centering
-  \vspace{0.2em}
-  \begin{tikzpicture}[
-    chev/.style={signal, signal to=east, signal pointer angle=135, draw=UofSCHoneycomb,
-                 fill=UofSCHoneycomb, text=white, line width=0.8pt, minimum width=2.6cm,
-                 minimum height=1.0cm, font=\bfseries\small},
-    tagbox/.style={font=\footnotesize\itshape\color{UofSCGray70}, align=center, text width=2.8cm}
-  ]
-    \node[chev] (a) at (0,0)   {ELM '22};
-    \node[chev] (b) at (3.4,0) {FunSearch '24};
-    \node[chev] (c) at (6.8,0) {AlphaEvolve '25};
-    \node[chev] (d) at (10.2,0){EvoTune '25};
-
-    \node[tagbox, below=0.15cm of a] {LLMs as mutators};
-    \node[tagbox, below=0.15cm of b] {cap-set, bin-packing};
-    \node[tagbox, below=0.15cm of c] {full files, Strassen beaten};
-    \node[tagbox, below=0.15cm of d] {proposer fine-tuning};
-  \end{tikzpicture}
-
-  \vspace{2.2em}
-  \begin{center}
-    \begin{tikzpicture}
-      \node[rectangle, draw=UofSCGarnet, line width=1.2pt, fill=UofSCGray10,
-            inner sep=0.8em, font=\large] {%
-        LLMs are \hilite{intelligent variation operators} over code.};
-    \end{tikzpicture}
-  \end{center}
-\end{frame}
+% --- Lineage slides removed ---
 
 % --- S7: REvolve ---
 \begin{frame}{Parent work: REvolve (2024)}
@@ -419,69 +358,7 @@
 % ============================================================
 \section*{Method}
 
-% --- S9: hero method figure ---
-\begin{frame}{The big picture}
-  \begin{columns}[T]
-    \begin{column}{0.58\textwidth}
-      \vspace{0.5em}
-      \centering
-      \includegraphics[width=\linewidth]{fig1_method.png}
-    \end{column}
-    \begin{column}{0.40\textwidth}
-      \vspace{1.4em}
-      \textbf{Per generation}
-      \begin{itemize}
-        \item LLM proposes candidate loss functions
-        \item Each is trained end-to-end on 5 Gym envs
-        \item Fitness drives selection
-      \end{itemize}
-
-      \vspace{0.8em}
-      \textbf{Post-evolution}
-      \begin{itemize}
-        \item LLM proposes hyperparameter ranges
-        \item Sweep finds the refined rule $\mathcal{L}^{\star}$
-      \end{itemize}
-    \end{column}
-  \end{columns}
-  \vfill
-  {\footnotesize\color{UofSCGray70}\textit{Figure 1 from the paper.}}
-\end{frame}
-
-% --- S10: what a candidate looks like ---
-\begin{frame}{A candidate is a chunk of Python}
-  \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \centering\textbf{Parent}\\[0.4em]
-      \begin{tikzpicture}
-        \node[rectangle, draw=UofSCGray50, line width=0.8pt, fill=UofSCGray10,
-              inner sep=0.8em, text width=6.1cm, font=\ttfamily\scriptsize] {%
-          def compute\_loss(theta, xi, D):\\
-          \hspace{1em}preds = model(D.s, theta)\\
-          \hspace{1em}targets = rollout(model, D.s)\\
-          \hspace{1em}L = mse(preds, targets)\\
-          \hspace{1em}return L};
-      \end{tikzpicture}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \centering\textbf{After LLM mutation}\\[0.4em]
-      \begin{tikzpicture}
-        \node[rectangle, draw=UofSCGarnet, line width=1pt, fill=UofSCSandstorm,
-              inner sep=0.8em, text width=6.1cm, font=\ttfamily\scriptsize] {%
-          def compute\_loss(theta, xi, D):\\
-          \hspace{1em}preds = model(D.s, theta)\\
-          \hspace{1em}\textbf{\color{UofSCGarnet}conf = xi.confidence(D.s)}\\
-          \hspace{1em}targets = rollout(model, D.s)\\
-          \hspace{1em}\textbf{\color{UofSCGarnet}L = (conf * mse(preds, targets)).mean()}\\
-          \hspace{1em}return L};
-      \end{tikzpicture}
-    \end{column}
-  \end{columns}
-
-  \vspace{1.2em}
-  \centering
-  {\large The LLM \hilite{edits Python}. That is the entire search space.}
-\end{frame}
+% --- 'Big picture' and 'Candidate is Python' slides removed ---
 
 % --- S11: evolutionary loop ---
 \begin{frame}{The evolutionary loop}
@@ -510,56 +387,7 @@
   {\color{UofSCGray70}\small Island model $\cdot$ 9 individuals per island $\cdot$ 24 new candidates per generation.}
 \end{frame}
 
-% --- S12: forbidden mechanisms ---
-\begin{frame}{What the LLM is told not to do}
-  \centering
-  \vspace{0.3em}
-  \begin{tikzpicture}[
-    forbid/.style={rectangle, draw=UofSCRose, line width=1.6pt, fill=UofSCGray10,
-                   minimum width=3.6cm, minimum height=2.6cm, align=center, font=\bfseries}
-  ]
-    \node[forbid] (a) at (0,0)    {No actor--critic\\decomposition};
-    \node[forbid] (b) at (4.6,0)  {No bootstrapped\\value targets};
-    \node[forbid] (c) at (9.2,0)  {No temporal-\\difference updates};
-
-    \foreach \n in {a,b,c} {
-      \node[circle, draw=UofSCRose, line width=1.4pt,
-            minimum size=0.9cm] at ($(\n.north west)+(0.55,-0.55)$) (s\n) {};
-      \draw[UofSCRose, line width=1.4pt]
-        ($(s\n.north west)+(0.12,-0.12)$) -- ($(s\n.south east)+(-0.12,0.12)$);
-    }
-  \end{tikzpicture}
-
-  \vspace{1.4em}
-  {\large Constitutional prompt constraints $\Rightarrow$ \hilite{forces novel mechanisms}.}\\[0.4em]
-  {\color{UofSCGray70}\itshape Evolution cannot re-invent DQN; it has to find something else.}
-\end{frame}
-
-% --- S13: LLM-HPO ---
-\begin{frame}{LLM-guided HPO pass}
-  \centering
-  \vspace{0.4em}
-  \begin{tikzpicture}[
-    box/.style={rectangle, draw=UofSCGarnet, line width=1pt, fill=UofSCGray10,
-                minimum width=5.8cm, minimum height=3.2cm, font=\small},
-    arr/.style={-{Stealth[length=3mm]}, UofSCGarnet, line width=1.2pt}
-  ]
-    \node[box] (a) at (0,0) {};
-    \node[font=\small\bfseries, text=UofSCGarnet] at (0,1.3) {Before LLM-HPO};
-    \node[font=\scriptsize\itshape, align=center, text width=5.2cm] at (0,0.1)
-         {Evolved rule works\\ but fitness is noisy across\\ hyperparameter choices.};
-
-    \node[box, fill=UofSCSandstorm] (b) at (8,0) {};
-    \node[font=\small\bfseries, text=UofSCGarnet] at (8,1.3) {After LLM-HPO};
-    \node[font=\scriptsize\itshape, align=center, text width=5.2cm] at (8,0.1)
-         {LLM proposes bounded\\ interval $[\ell_j, u_j]$ per scalar.\\ Sweep $\Rightarrow$ refined rule $\mathcal{L}^{\star}$.};
-
-    \draw[arr] (a) -- (b);
-  \end{tikzpicture}
-
-  \vspace{0.8em}
-  {\color{UofSCGray70}\small Policy arch, optimizer, rollout loop stay frozen. Only internal scalars move.}
-\end{frame}
+% --- 'Forbidden mechanisms' and 'LLM-HPO' slides removed ---
 
 % ============================================================
 \section*{Results}
@@ -695,55 +523,7 @@
   \end{columns}
 \end{frame}
 
-% --- S19: 2x2 matrix ---
-\begin{frame}{Where this paper sits in the field}
-  \centering
-  \vspace{0.2em}
-  \begin{tikzpicture}[
-    cell/.style={rectangle, draw=UofSCGarnet, line width=1pt,
-                 minimum width=4.6cm, minimum height=2.4cm, align=center, font=\small},
-    hl/.style  ={rectangle, draw=UofSCGarnet, line width=1.8pt, fill=UofSCSandstorm,
-                 minimum width=4.6cm, minimum height=2.4cm, align=center, font=\small\bfseries},
-    axis/.style={font=\small\bfseries, text=UofSCGarnet}
-  ]
-    \node[axis] at ( 2.3,3.0) {RL};
-    \node[axis] at ( 6.9,3.0) {Alignment};
-    \node[axis, rotate=90] at (-0.2, 1.6) {NN-parameterized};
-    \node[axis, rotate=90] at (-0.2,-0.8) {Code};
-
-    \node[cell] (nnRL)    at ( 2.3, 1.6) {\textbf{DiscoRL}\\ (Oh 2025)\\ meta-learned NN};
-    \node[cell] (nnALIGN) at ( 6.9, 1.6) {\textbf{RLHF / DPO}\\ (Rafailov 2023)\\ neural reward model};
-    \node[hl]   (codeRL)  at ( 2.3,-0.8) {\color{UofSCGarnet}This paper\\ (Sygkounas 2026)\\ evolved Python};
-    \node[cell] (codeAL)  at ( 6.9,-0.8) {\textbf{DiscoPOP}\\ (Lu 2024)\\ LLM-evolved loss};
-  \end{tikzpicture}
-
-  \vspace{0.6em}
-  {\large The real contest --- \hilite{evolved source code} vs.\ \hilite{meta-gradient} for RL.}
-\end{frame}
-
-% --- S20: future directions ---
-\begin{frame}{Open questions}
-  \vspace{0.4em}
-  \begin{itemize}
-    \item \textbf{Surrogate fitness} to break the 30\,h/candidate wall.
-    \item \textbf{Lift the constraints} --- let evolution \textit{decide} whether to re-use actor--critic.
-    \item \textbf{Scale to Atari and robotics} --- generalization is still untested.
-    \item \textbf{Curriculum over environments} --- connect to POET, XLand.
-    \item \textbf{Self-improving proposer} --- EvoTune-style DPO on the evolved database.
-  \end{itemize}
-
-  \vspace{1.6em}
-  \begin{center}
-    \begin{tikzpicture}
-      \node[rectangle, draw=UofSCGarnet, line width=1.4pt, fill=UofSCSandstorm,
-            inner sep=0.9em, text width=12cm, align=center, font=\itshape] {%
-        \textbf{Takeaway.} REvolve showed LLMs can evolve rewards.
-        This paper shows they can evolve the \textbf{entire algorithm}.
-        The open question is whether what they discover is genuinely new ---
-        or just a good remix of what the model already saw.};
-    \end{tikzpicture}
-  \end{center}
-\end{frame}
+% --- '2x2 positioning' and 'Open questions' slides removed ---
 
 % ============================================================
 % Thank You / Q&A
