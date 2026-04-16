@@ -117,10 +117,19 @@ for i = 2:time_steps
     end
     P_pred = (P_pred + P_pred') / 2;
 
-    % --- Measurement sigma points from propagated predicted sigma points ---
+    % --- Recompute sigma points about the predicted mean/covariance ---
+    % This follows the sequence used in the class manual for the 2n-point UKF.
+    L_pred = chol(P_pred + 1e-12 * eye(n), 'lower');
+    x_sig_meas = zeros(n, 2*n);
+    for j = 1:n
+        x_sig_meas(:, 2*j - 1) = x_pred + sqrt(n) * L_pred(:, j);
+        x_sig_meas(:, 2*j    ) = x_pred - sqrt(n) * L_pred(:, j);
+    end
+
+    % --- Measurement sigma points ---
     y_sig = zeros(m, 2*n);
     for j = 1:(2*n)
-        y_sig(:, j) = h_robot(s_sig(:, j));
+        y_sig(:, j) = h_robot(x_sig_meas(:, j));
     end
     % Unwrap y2 angle values around predicted mean bearing to avoid branch cut
     ang_ref = atan2(x_pred(2), x_pred(1));
@@ -136,7 +145,7 @@ for i = 2:time_steps
     for j = 1:(2*n)
         dy = y_sig(:, j) - y_mean;
         dy(2) = atan2(sin(dy(2)), cos(dy(2)));
-        dx = s_sig(:, j) - x_pred;
+        dx = x_sig_meas(:, j) - x_pred;
         dx(3) = atan2(sin(dx(3)), cos(dx(3)));
         Pyy = Pyy + (dy * dy') / (2*n);
         Pxy = Pxy + (dx * dy') / (2*n);
@@ -146,6 +155,7 @@ for i = 2:time_steps
     % Wrap measured bearing close to the predicted bearing
     z(2) = y_mean(2) + atan2(sin(z(2) - y_mean(2)), cos(z(2) - y_mean(2)));
     y_innov = z - y_mean;
+    y_innov(2) = atan2(sin(y_innov(2)), cos(y_innov(2)));
 
     K = Pxy / Pyy;
     x_upd = x_pred + K * y_innov;
@@ -178,44 +188,36 @@ for k = 1:3
 end
 
 %% 4. Plot the filters error levels and estimated error bounds
-err_ekf = X_ekf - truth;
-err_ukf = X_ukf - truth;
+err_ekf = truth - X_ekf;
+err_ukf = truth - X_ukf;
 % wrap phi error
 err_ekf(3,:) = atan2(sin(err_ekf(3,:)), cos(err_ekf(3,:)));
 err_ukf(3,:) = atan2(sin(err_ukf(3,:)), cos(err_ukf(3,:)));
 
-fig_ekf_err = figure('Name','EKF error with 3\sigma bounds','Color','w','Position',[100 100 900 700]);
+fig_err_compare = figure('Name','Filter errors with 3\sigma bounds','Color','w','Position',[100 100 900 700]);
 for k = 1:3
     subplot(3, 1, k); hold on; grid on; box on;
-    plot(t,  err_ekf(k,:),       '-',  'Color', c_garnet, 'LineWidth', 1.4);
-    plot(t,  3*sig_ekf(k,:),     '--', 'Color', c_grey,   'LineWidth', 1.0);
-    plot(t, -3*sig_ekf(k,:),     '--', 'Color', c_grey,   'LineWidth', 1.0);
-    ylabel(['err ' state_names{k}]);
+    h_err_ekf = plot(t,  err_ekf(k,:),       '-',  'Color', c_garnet,   'LineWidth', 1.4);
+    h_err_ukf = plot(t,  err_ukf(k,:),       '-',  'Color', c_atlantic, 'LineWidth', 1.4);
+    h_bnd_ekf = plot(t,  3*sig_ekf(k,:),     '--', 'Color', c_grey,     'LineWidth', 1.0);
+                plot(t, -3*sig_ekf(k,:),     '--', 'Color', c_grey,     'LineWidth', 1.0, ...
+                     'HandleVisibility', 'off');
+    h_bnd_ukf = plot(t,  3*sig_ukf(k,:),     ':',  'Color', c_black,    'LineWidth', 1.0);
+                plot(t, -3*sig_ukf(k,:),     ':',  'Color', c_black,    'LineWidth', 1.0, ...
+                     'HandleVisibility', 'off');
+    ylabel(['error ' state_names{k}]);
     if k == 1
-        legend('EKF error', '\pm3\sigma', 'Location', 'best');
-        title('EKF estimation error and 3\sigma bounds');
-    end
-    if k == 3, xlabel('time [s]'); end
-end
-
-fig_ukf_err = figure('Name','UKF error with 3\sigma bounds','Color','w','Position',[100 100 900 700]);
-for k = 1:3
-    subplot(3, 1, k); hold on; grid on; box on;
-    plot(t,  err_ukf(k,:),       '-',  'Color', c_atlantic, 'LineWidth', 1.4);
-    plot(t,  3*sig_ukf(k,:),     '--', 'Color', c_grey,     'LineWidth', 1.0);
-    plot(t, -3*sig_ukf(k,:),     '--', 'Color', c_grey,     'LineWidth', 1.0);
-    ylabel(['err ' state_names{k}]);
-    if k == 1
-        legend('UKF error', '\pm3\sigma', 'Location', 'best');
-        title('UKF estimation error and 3\sigma bounds');
+        legend([h_err_ekf, h_err_ukf, h_bnd_ekf, h_bnd_ukf], ...
+               {'EKF error', 'UKF error', 'EKF \pm3\sigma', 'UKF \pm3\sigma'}, ...
+               'Location', 'best');
+        title('EKF and UKF estimation error with 3\sigma bounds');
     end
     if k == 3, xlabel('time [s]'); end
 end
 
 % Save figures as PNGs for review
 exportgraphics(fig_states,  'fig_states.png',  'Resolution', 150);
-exportgraphics(fig_ekf_err, 'fig_ekf_err.png', 'Resolution', 150);
-exportgraphics(fig_ukf_err, 'fig_ukf_err.png', 'Resolution', 150);
+exportgraphics(fig_err_compare, 'fig_err_compare.png', 'Resolution', 150);
 
 %% Any functions need to go under here
 function x_next = f_robot(x, u, r, l, dt)
