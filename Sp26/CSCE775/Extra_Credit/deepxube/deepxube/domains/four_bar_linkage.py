@@ -499,6 +499,9 @@ class FourBarLinkage(
 
 @domain_factory.register_parser("linkage")
 class LinkageParser(Parser):
+    def help(self) -> str:
+        return "n_steps[_n_waypoints[_n_bins]]. E.g. 'linkage.64' or 'linkage.64_64_64'"
+
     def parse(self, args_str: str) -> Dict[str, Any]:
         kwargs: Dict[str, Any] = {}
         if args_str:
