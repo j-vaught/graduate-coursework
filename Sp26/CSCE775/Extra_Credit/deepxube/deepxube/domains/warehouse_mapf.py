@@ -1,18 +1,19 @@
 """Warehouse Multi-Agent Path Finding (MAPF) domain for DeepXube.
 
 K robots on an H x W grid warehouse floor must simultaneously navigate
-to assigned goal positions while avoiding static shelf obstacles and
-each other. All robots move at each timestep; valid directions are
-UP, DOWN, LEFT, RIGHT, WAIT. Joint actions are rejected on vertex
-conflicts (two robots target the same cell) or edge conflicts (two
-robots swap positions). Boundary/obstacle violations clamp individual
-robots in place.
+to assigned shelf positions while avoiding other shelves and each other.
+Goal cells are ON shelf obstacles; only the assigned robot may enter its
+own goal shelf cell. All other shelf cells are impassable.
+
+All robots move at each timestep; valid directions are UP, DOWN, LEFT,
+RIGHT, WAIT. Joint actions are rejected on vertex conflicts (two robots
+target the same cell) or edge conflicts (two robots swap positions).
 
 The optimization objective is makespan: total timesteps until all
 robots reach their goals (uniform cost 1.0 per transition).
 """
 
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Set
 import itertools
 import numpy as np
 from numpy.typing import NDArray
@@ -66,7 +67,6 @@ DIR_NAMES = ["UP", "DOWN", "LEFT", "RIGHT", "WAIT"]
 # -- Warehouse layouts --------------------------------------------------------
 
 def _warehouse_8x8() -> NDArray[np.bool_]:
-    """8x8 debug warehouse: 2 shelf blocks, 16 obstacles, 48 free."""
     obs = np.zeros((8, 8), dtype=np.bool_)
     for r in [1, 2, 4, 5]:
         for c in [1, 2, 4, 5]:
@@ -75,33 +75,6 @@ def _warehouse_8x8() -> NDArray[np.bool_]:
 
 
 def _warehouse_20x20() -> NDArray[np.bool_]:
-    """20x20 Amazon-style fulfillment center.
-
-    Dense parallel shelf aisles with cross-aisles every 3 rows.
-    Perimeter staging lanes on all sides. ~30% obstacle density.
-
-        cols:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-    row  0:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row  1:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row  2:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row  3:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row  4:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row  5:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row  6:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row  7:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row  8:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row  9:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row 10:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row 11:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row 12:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row 13:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row 14:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row 15:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row 16:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row 17:    .  .  #  #  .  #  #  .  #  #  .  #  #  .  #  #  .  .  .  .
-    row 18:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    row 19:    .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    """
     obs = np.zeros((20, 20), dtype=np.bool_)
     shelf_rows = [2, 3, 4, 6, 7, 8, 11, 12, 13, 15, 16, 17]
     shelf_cols = [2, 3, 5, 6, 8, 9, 11, 12, 14, 15]
@@ -112,7 +85,6 @@ def _warehouse_20x20() -> NDArray[np.bool_]:
 
 
 def _warehouse_28x28() -> NDArray[np.bool_]:
-    """28x28 large fulfillment center. 6 shelf blocks, ~30% density."""
     obs = np.zeros((28, 28), dtype=np.bool_)
     shelf_cols = [2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 23, 24]
     shelf_rows = [2, 3, 4, 6, 7, 8, 10, 11, 12,
@@ -206,13 +178,18 @@ class WarehouseMAPF(
             self.obstacles = np.zeros((height, width), dtype=np.bool_)
 
         self.free_cells: List[Tuple[int, int]] = []
+        self.shelf_cells: List[Tuple[int, int]] = []
         for r in range(height):
             for c in range(width):
-                if not self.obstacles[r, c]:
+                if self.obstacles[r, c]:
+                    self.shelf_cells.append((r, c))
+                else:
                     self.free_cells.append((r, c))
         self.n_free = len(self.free_cells)
-        self.n_obs = int(self.obstacles.sum())
+        self.n_obs = len(self.shelf_cells)
         self.robot_colors = _generate_robot_colors(n_robots)
+
+        self._goal_cells: Dict[Tuple[int, int], int] = {}
 
     # ----------------------------------------------------------- state helpers
 
@@ -226,6 +203,12 @@ class WarehouseMAPF(
         arr[2 * i] = np.int8(r)
         arr[2 * i + 1] = np.int8(c)
 
+    def set_active_goal(self, goal: MAPFGoal) -> None:
+        self._goal_cells = {}
+        for i in range(self.K):
+            gr, gc = self._get_goal_pos(goal, i)
+            self._goal_cells[(gr, gc)] = i
+
     # --------------------------------------------------------- move validation
 
     def _target_cell(self, r: int, c: int, d: int) -> Tuple[int, int]:
@@ -235,8 +218,12 @@ class WarehouseMAPF(
     def _in_bounds(self, r: int, c: int) -> bool:
         return 0 <= r < self.H and 0 <= c < self.W
 
-    def _is_free(self, r: int, c: int) -> bool:
-        return self._in_bounds(r, c) and not self.obstacles[r, c]
+    def _is_passable(self, r: int, c: int, robot_idx: int) -> bool:
+        if not self._in_bounds(r, c):
+            return False
+        if not self.obstacles[r, c]:
+            return True
+        return self._goal_cells.get((r, c)) == robot_idx
 
     def _compute_targets(self, state: MAPFState,
                          dirs: tuple) -> Optional[List[Tuple[int, int]]]:
@@ -244,7 +231,7 @@ class WarehouseMAPF(
         for i in range(self.K):
             r, c = self._get_pos(state, i)
             tr, tc = self._target_cell(r, c, dirs[i])
-            if not self._is_free(tr, tc):
+            if not self._is_passable(tr, tc, i):
                 tr, tc = r, c
             targets.append((tr, tc))
 
@@ -269,7 +256,7 @@ class WarehouseMAPF(
                 valid = []
                 for d in range(5):
                     tr, tc = self._target_cell(r, c, d)
-                    if self._is_free(tr, tc) or d == WAIT:
+                    if self._is_passable(tr, tc, i) or d == WAIT:
                         valid.append(d)
                 if WAIT not in valid:
                     valid.append(WAIT)
@@ -316,10 +303,11 @@ class WarehouseMAPF(
         states: List[MAPFState] = []
         goals: List[MAPFGoal] = []
         for _ in range(num):
-            idxs = np.random.choice(self.n_free, size=self.K, replace=False)
+            shelf_idxs = np.random.choice(
+                len(self.shelf_cells), size=self.K, replace=False)
             pos = np.zeros(2 * self.K, dtype=np.int8)
-            for i, idx in enumerate(idxs):
-                r, c = self.free_cells[idx]
+            for i, idx in enumerate(shelf_idxs):
+                r, c = self.shelf_cells[idx]
                 self._set_pos(pos, i, r, c)
             states.append(MAPFState(pos))
             goals.append(MAPFGoal(pos.copy()))
@@ -333,7 +321,7 @@ class WarehouseMAPF(
             valid = []
             for d in range(5):
                 tr, tc = self._target_cell(r, c, d)
-                if self._is_free(tr, tc) or d == WAIT:
+                if self._is_passable(tr, tc, i) or d == WAIT:
                     valid.append(d)
             if not valid:
                 valid = [WAIT]
@@ -353,6 +341,11 @@ class WarehouseMAPF(
         result_states: List[MAPFState] = []
         result_actions: List[List[MAPFAction]] = []
         for state, n_steps in zip(states, num_steps_l):
+            self._goal_cells = {}
+            for i in range(self.K):
+                r, c = self._get_pos(state, i)
+                self._goal_cells[(r, c)] = i
+
             cur = state
             actions: List[MAPFAction] = []
             for _ in range(n_steps):
@@ -399,6 +392,11 @@ class WarehouseMAPF(
         goal_inset = max(2, CELL // 16)
         goal_lw = max(1.5, min(3, 4 - self.K / 20))
 
+        goal_set: Dict[Tuple[int, int], int] = {}
+        for i in range(self.K):
+            gr, gc = self._get_goal_pos(goal, i)
+            goal_set[(gr, gc)] = i
+
         fig.set_facecolor(BLACK_10)
         ax = fig.add_axes([0.05, 0.05, 0.9, 0.88])
         ax.set_xlim(0, img_w)
@@ -409,7 +407,15 @@ class WarehouseMAPF(
         for r in range(self.H):
             for c in range(self.W):
                 x, y = c * CELL, r * CELL
-                if self.obstacles[r, c]:
+                if (r, c) in goal_set:
+                    rid = goal_set[(r, c)]
+                    color = self.robot_colors[rid]
+                    fill = to_rgba(color, alpha=0.25)
+                    ax.add_patch(mpatches.Rectangle(
+                        (x, y), CELL, CELL,
+                        facecolor=fill, edgecolor=color,
+                        linewidth=goal_lw, zorder=1))
+                elif self.obstacles[r, c]:
                     ax.add_patch(mpatches.Rectangle(
                         (x, y), CELL, CELL,
                         facecolor='black', edgecolor=BLACK_90, linewidth=1))
@@ -417,17 +423,6 @@ class WarehouseMAPF(
                     ax.add_patch(mpatches.Rectangle(
                         (x, y), CELL, CELL,
                         facecolor=BLACK_10, edgecolor=BLACK_30, linewidth=0.5))
-
-        for i in range(self.K):
-            gr, gc = self._get_goal_pos(goal, i)
-            gx, gy = gc * CELL, gr * CELL
-            color = self.robot_colors[i]
-            fill = to_rgba(color, alpha=0.15)
-            ax.add_patch(mpatches.Rectangle(
-                (gx + goal_inset, gy + goal_inset),
-                CELL - 2 * goal_inset, CELL - 2 * goal_inset,
-                facecolor=fill, edgecolor=color, linewidth=goal_lw,
-                linestyle='-', fill=True))
 
         for i in range(self.K):
             sr, sc = self._get_pos(state, i)
@@ -484,7 +479,7 @@ class WarehouseMAPF(
 
     def __repr__(self) -> str:
         return (f"WarehouseMAPF(H={self.H}, W={self.W}, K={self.K}, "
-                f"free={self.n_free}, obs={self.n_obs})")
+                f"free={self.n_free}, shelves={self.n_obs})")
 
 
 @domain_factory.register_parser("mapf")

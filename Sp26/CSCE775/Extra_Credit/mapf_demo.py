@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepxube"))
 import numpy as np
 from collections import deque
 import io
-from typing import List, Optional, Tuple, Set
+from typing import List, Optional, Tuple, Set, Dict
 
 from PIL import Image
 
@@ -23,7 +23,9 @@ from deepxube.domains.warehouse_mapf import (
 )
 
 
-def bfs_single_robot(obstacles, H, W, start, goal, extra_blocked=None):
+def bfs_single_robot(domain: WarehouseMAPF, robot_idx: int,
+                     start: Tuple[int, int], goal: Tuple[int, int],
+                     extra_blocked: Optional[Set[Tuple[int, int]]] = None):
     if start == goal:
         return [start]
     blocked = set(extra_blocked) if extra_blocked else set()
@@ -35,20 +37,60 @@ def bfs_single_robot(obstacles, H, W, start, goal, extra_blocked=None):
         (r, c), path = queue.popleft()
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             nr, nc = r + dr, c + dc
-            if 0 <= nr < H and 0 <= nc < W and not obstacles[nr, nc]:
-                if (nr, nc) not in visited and (nr, nc) not in blocked:
-                    visited.add((nr, nc))
-                    new_path = path + [(nr, nc)]
-                    if (nr, nc) == goal:
-                        return new_path
-                    queue.append(((nr, nc), new_path))
+            if (nr, nc) in visited or (nr, nc) in blocked:
+                continue
+            if not domain._is_passable(nr, nc, robot_idx):
+                continue
+            visited.add((nr, nc))
+            new_path = path + [(nr, nc)]
+            if (nr, nc) == goal:
+                return new_path
+            queue.append(((nr, nc), new_path))
     return None
+
+
+def create_demo_pair(domain: WarehouseMAPF,
+                     seed: int = 0) -> Tuple[MAPFState, MAPFGoal]:
+    np.random.seed(seed)
+    K = domain.K
+
+    shelf_idxs = np.random.choice(
+        len(domain.shelf_cells), size=K, replace=False)
+    goal_positions = [domain.shelf_cells[idx] for idx in shelf_idxs]
+
+    goal_arr = np.zeros(2 * K, dtype=np.int8)
+    for i, (r, c) in enumerate(goal_positions):
+        domain._set_pos(goal_arr, i, r, c)
+    goal = MAPFGoal(goal_arr)
+    domain.set_active_goal(goal)
+
+    used: Set[Tuple[int, int]] = set()
+    start_positions: List[Tuple[int, int]] = []
+    for i in range(K):
+        gr, gc = goal_positions[i]
+        best_cell = None
+        best_dist = -1
+        for r, c in domain.free_cells:
+            if (r, c) not in used:
+                d = abs(r - gr) + abs(c - gc)
+                if d > best_dist:
+                    best_dist = d
+                    best_cell = (r, c)
+        start_positions.append(best_cell)
+        used.add(best_cell)
+
+    start_arr = np.zeros(2 * K, dtype=np.int8)
+    for i, (r, c) in enumerate(start_positions):
+        domain._set_pos(start_arr, i, r, c)
+
+    return MAPFState(start_arr), goal
 
 
 def solve_with_freezing(domain: WarehouseMAPF, start_state: MAPFState,
                         goal: MAPFGoal, max_steps: int = 200
                         ) -> Tuple[List[MAPFState], List[List[bool]]]:
     K = domain.K
+    domain.set_active_goal(goal)
     positions = [domain._get_pos(start_state, i) for i in range(K)]
     goals = [domain._get_goal_pos(goal, i) for i in range(K)]
     frozen = [pos == g for pos, g in zip(positions, goals)]
@@ -60,27 +102,31 @@ def solve_with_freezing(domain: WarehouseMAPF, start_state: MAPFState,
         if all(frozen):
             break
 
-        occupied: Set[Tuple[int, int]] = set()
+        frozen_positions: Set[Tuple[int, int]] = set()
         for i in range(K):
             if frozen[i]:
-                occupied.add(positions[i])
+                frozen_positions.add(positions[i])
 
         desired = list(positions)
         for i in range(K):
             if frozen[i]:
                 continue
-            extra_blocked = set()
+            extra_blocked = set(frozen_positions)
+            extra_blocked.discard(goals[i])
             for j in range(K):
-                if j != i and frozen[j]:
+                if j != i and not frozen[j]:
                     extra_blocked.add(positions[j])
+            extra_blocked.discard(positions[i])
             ind_path = bfs_single_robot(
-                domain.obstacles, domain.H, domain.W,
-                positions[i], goals[i], extra_blocked)
+                domain, i, positions[i], goals[i], extra_blocked)
+            if ind_path is None:
+                ind_path = bfs_single_robot(
+                    domain, i, positions[i], goals[i], frozen_positions)
             if ind_path and len(ind_path) > 1:
                 desired[i] = ind_path[1]
 
         actual = list(positions)
-        claimed: Set[Tuple[int, int]] = set(occupied)
+        claimed: Set[Tuple[int, int]] = set(frozen_positions)
 
         for i in range(K):
             if frozen[i]:
@@ -204,13 +250,6 @@ def make_snapshot(domain: WarehouseMAPF, state: MAPFState, goal: MAPFGoal,
     print(f"  Saved {filename}", flush=True)
 
 
-def scramble_from_goal(domain, n_steps, seed=0):
-    np.random.seed(seed)
-    states, goals = domain.sample_goalstate_goal_pairs(1)
-    scrambled = domain.random_walk_rev(states, [n_steps])
-    return scrambled[0], goals[0]
-
-
 def main():
     os.chdir(os.path.dirname(__file__) or ".")
 
@@ -218,18 +257,19 @@ def main():
     d = WarehouseMAPF(28, 28, 30)
     print(f"  {d}", flush=True)
 
-    best_path, best_goal, best_frozen = None, None, None
+    best_path, best_goal, best_frozen, best_state = None, None, None, None
     best_steps = 0
     for seed in range(50):
-        state, goal = scramble_from_goal(d, n_steps=40, seed=seed)
-        path, frozen_hist = solve_with_freezing(d, state, goal, max_steps=150)
+        state, goal = create_demo_pair(d, seed=seed)
+        path, frozen_hist = solve_with_freezing(d, state, goal, max_steps=200)
         n_steps = len(path) - 1
         solved = all(frozen_hist[-1])
         if solved and n_steps > best_steps:
             best_path, best_goal, best_frozen = path, goal, frozen_hist
+            best_state = state
             best_steps = n_steps
             print(f"  Seed {seed}: solved in {n_steps} steps", flush=True)
-            if n_steps >= 25:
+            if n_steps >= 30:
                 break
 
     if best_path:
