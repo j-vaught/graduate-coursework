@@ -1,10 +1,10 @@
 """
-Train and solve script for the Word Ladder domain.
+Train and solve script for the Retrosynthesis domain.
 
 Usage:
-    python train_wordladder.py train [--step_max 20] [--max_itrs 50000] [--dir training/wordladder]
-    python train_wordladder.py solve --file wordladder_test_easy.pkl [--dir training/wordladder]
-    python train_wordladder.py generate [--num 100] [--step_min 5] [--step_max 30] [--file wordladder_test.pkl]
+    python train_retro.py train [--step_max 20] [--max_itrs 50000] [--dir training/retro]
+    python train_retro.py solve --file retro_test_easy.pkl [--dir training/retro]
+    python train_retro.py generate [--num 100] [--step_min 5] [--step_max 30] [--file retro_test.pkl]
 """
 
 import sys
@@ -97,14 +97,14 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Word Ladder training/solving")
+    parser = argparse.ArgumentParser(description="Retrosynthesis training/solving")
     sub = parser.add_subparsers(dest="cmd")
 
     p_train = sub.add_parser("train")
-    p_train.add_argument("--domain", default="wordladder.4")
+    p_train.add_argument("--domain", default="retro.6")
     p_train.add_argument("--heur", default="resnet_fc.500H_4B")
     p_train.add_argument("--pathfind", default="graph_v")
-    p_train.add_argument("--dir", default="training/wordladder")
+    p_train.add_argument("--dir", default="training/retro")
     p_train.add_argument("--step_max", type=int, default=20)
     p_train.add_argument("--max_itrs", type=int, default=50000)
     p_train.add_argument("--batch_size", type=int, default=1000)
@@ -119,7 +119,7 @@ def main() -> None:
     p_train.add_argument("--her", action="store_true", default=False)
     p_train.add_argument("--bal", action="store_true", default=False)
     p_train.add_argument("--rb", type=int, default=0)
-    p_train.add_argument("--t_file", default="wordladder_test_easy.pkl")
+    p_train.add_argument("--t_file", default="retro_test_easy.pkl")
     p_train.add_argument("--t_search_itrs", type=int, default=200)
     p_train.add_argument("--t_pathfinds", default="graph_v")
     p_train.add_argument("--t_up_freq", type=int, default=10)
@@ -127,19 +127,19 @@ def main() -> None:
     p_train.add_argument("--debug", action="store_true", default=False)
 
     p_solve = sub.add_parser("solve")
-    p_solve.add_argument("--domain", default="wordladder.4")
+    p_solve.add_argument("--domain", default="retro.6")
     p_solve.add_argument("--heur", default="resnet_fc.500H_4B")
     p_solve.add_argument("--pathfind", default="graph_v")
-    p_solve.add_argument("--dir", default="training/wordladder")
+    p_solve.add_argument("--dir", default="training/retro")
     p_solve.add_argument("--file", required=True)
     p_solve.add_argument("--search_itrs", type=int, default=1000)
 
     p_gen = sub.add_parser("generate")
-    p_gen.add_argument("--domain", default="wordladder.4")
+    p_gen.add_argument("--domain", default="retro.6")
     p_gen.add_argument("--num", type=int, default=100)
     p_gen.add_argument("--step_min", type=int, default=5)
     p_gen.add_argument("--step_max", type=int, default=30)
-    p_gen.add_argument("--file", default="wordladder_test.pkl")
+    p_gen.add_argument("--file", default="retro_test.pkl")
 
     args = parser.parse_args()
     if args.cmd == "train":
