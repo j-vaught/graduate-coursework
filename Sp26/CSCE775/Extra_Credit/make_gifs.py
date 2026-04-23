@@ -97,21 +97,33 @@ def make_gif(domain, state, goal, path, filename, title_prefix=""):
 
 def main():
     np.random.seed(42)
-    domain = Retrosynthesis(chain_len=6)
+    domain = Retrosynthesis(chain_len=5)
 
     print("=== Retrosynthesis ===")
-    for attempt in range(30):
+    for attempt in range(50):
         np.random.seed(42 + attempt)
         gs, gg = domain.sample_goalstate_goal_pairs(1)
-        scrambled = domain.random_walk_rev(gs, [8])[0]
+        scrambled = domain.random_walk_rev(gs, [6])[0]
         path = bfs_solve_path(domain, scrambled, gg[0], max_nodes=80_000)
-        if path and 4 <= len(path) <= 10:
+        if path and 4 <= len(path) <= 12:
             print(f"  Found path: {len(path)-1} steps (attempt {attempt})")
             make_gif(domain, scrambled, gg[0], path,
                      "retro_solve.gif", "Retrosynthesis")
             break
     else:
-        print("  Could not find a good example")
+        print("  Could not find a good example, trying shorter scramble...")
+        for attempt in range(50):
+            np.random.seed(200 + attempt)
+            gs, gg = domain.sample_goalstate_goal_pairs(1)
+            scrambled = domain.random_walk_rev(gs, [4])[0]
+            path = bfs_solve_path(domain, scrambled, gg[0], max_nodes=80_000)
+            if path and 3 <= len(path) <= 10:
+                print(f"  Found path: {len(path)-1} steps (attempt {attempt})")
+                make_gif(domain, scrambled, gg[0], path,
+                         "retro_solve.gif", "Retrosynthesis")
+                break
+        else:
+            print("  Could not find a solvable example for GIF")
 
     print("\nDone!")
 

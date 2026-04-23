@@ -101,7 +101,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd")
 
     p_train = sub.add_parser("train")
-    p_train.add_argument("--domain", default="retro.6")
+    p_train.add_argument("--domain", default="retro.5")
     p_train.add_argument("--heur", default="resnet_fc.500H_4B")
     p_train.add_argument("--pathfind", default="graph_v")
     p_train.add_argument("--dir", default="training/retro")
@@ -127,7 +127,7 @@ def main() -> None:
     p_train.add_argument("--debug", action="store_true", default=False)
 
     p_solve = sub.add_parser("solve")
-    p_solve.add_argument("--domain", default="retro.6")
+    p_solve.add_argument("--domain", default="retro.5")
     p_solve.add_argument("--heur", default="resnet_fc.500H_4B")
     p_solve.add_argument("--pathfind", default="graph_v")
     p_solve.add_argument("--dir", default="training/retro")
@@ -135,7 +135,7 @@ def main() -> None:
     p_solve.add_argument("--search_itrs", type=int, default=1000)
 
     p_gen = sub.add_parser("generate")
-    p_gen.add_argument("--domain", default="retro.6")
+    p_gen.add_argument("--domain", default="retro.5")
     p_gen.add_argument("--num", type=int, default=100)
     p_gen.add_argument("--step_min", type=int, default=5)
     p_gen.add_argument("--step_max", type=int, default=30)

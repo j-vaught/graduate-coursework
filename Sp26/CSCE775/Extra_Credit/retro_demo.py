@@ -76,7 +76,6 @@ def verify_solvability(domain: Retrosynthesis, filename: str,
         data = pickle.load(f)
     states = data["states"][:num_check]
     goals = data["goals"][:num_check]
-    cl = domain.chain_len
 
     solved_count = 0
     total_steps = 0
@@ -86,8 +85,8 @@ def verify_solvability(domain: Retrosynthesis, filename: str,
         t0 = time.time()
         depth = bfs_solve(domain, s, g, max_nodes=max_nodes)
         elapsed = time.time() - t0
-        expr = _mol_to_string(s.mol, cl)
-        goal_str = _mol_to_string(g.mol, cl)
+        expr = _mol_to_string(s.mol)
+        goal_str = _mol_to_string(g.mol)
         if depth is not None:
             solved_count += 1
             total_steps += depth
@@ -102,12 +101,28 @@ def verify_solvability(domain: Retrosynthesis, filename: str,
         print(f"Avg steps: {total_steps / solved_count:.1f}")
 
 
+def show_action_example(domain: Retrosynthesis) -> None:
+    """Show how site-selective reactions work."""
+    np.random.seed(7)
+    states, goals = domain.sample_goalstate_goal_pairs(1)
+    start = domain.random_walk_rev(states, [6])[0]
+    print(f"\nExample state: {start}")
+    print(f"Target:        {_mol_to_string(goals[0].mol)}")
+    actions = domain.get_state_actions([start])[0]
+    print(f"Available actions ({len(actions)}):")
+    for act in actions:
+        ns, _ = domain.next_state([start], [act])
+        print(f"  {act!r:30s} -> {ns[0]}")
+
+
 if __name__ == "__main__":
-    domain = Retrosynthesis(chain_len=6)
+    domain = Retrosynthesis(chain_len=5)
     print(f"Domain: {domain}")
 
     print("\nGenerating visualization...")
     make_snapshot(domain)
+
+    show_action_example(domain)
 
     print("\nGenerating test problems (easy)...")
     generate_test_problems(domain, "retro_test_easy.pkl",
