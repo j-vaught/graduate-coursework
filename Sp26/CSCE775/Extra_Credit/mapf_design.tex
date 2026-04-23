@@ -1,0 +1,140 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\definecolor{Garnet}{HTML}{73000A}
+\definecolor{Atlantic}{HTML}{466A9F}
+\definecolor{Congaree}{HTML}{1F414D}
+\definecolor{Horseshoe}{HTML}{65780B}
+\definecolor{Rose}{HTML}{CC2E40}
+\definecolor{Honeycomb}{HTML}{A49137}
+\definecolor{Black90}{HTML}{363636}
+\definecolor{Black30}{HTML}{C7C7C7}
+\definecolor{Black10}{HTML}{ECECEC}
+
+\title{DeepXube Domain Design:\\Warehouse Robot Coordination (MAPF)}
+\author{J.C. Vaught}
+\date{April 2026}
+
+\begin{document}
+\maketitle
+
+\section{State Representation}
+
+The state encodes the positions of all $K$ robots on an $H \times W$ grid warehouse floor, plus a static obstacle map. We fix $K = 4$ robots on an $8 \times 8$ grid for the initial implementation, scaling later to $K = 6$ on $12 \times 12$.
+
+The state is a single \texttt{int8} array of shape $(H, W)$ where each cell takes one of the following values.
+
+\begin{itemize}[nosep]
+    \item $0$: empty floor
+    \item $-1$: static obstacle (shelf, wall, pillar)
+    \item $1 \ldots K$: robot ID occupying that cell
+\end{itemize}
+
+This gives a compact 2D representation that is easy to convolve over. For the $8 \times 8$, $K = 4$ case the array is 64 bytes. The framework's \texttt{State} object wraps this as a NumPy array of dtype \texttt{np.int8}.
+
+An equivalent flat representation is also useful internally: a 1D array of shape $(K,)$ storing the flattened index $(\text{row} \times W + \text{col})$ for each robot, paired with a frozen obstacle mask of shape $(H, W)$ stored once per environment instance (not per state). This dual view keeps state copying cheap (copy only the $K$-length position vector) while the grid view feeds the neural network.
+
+Static obstacles are fixed at environment construction time via a binary mask. A reasonable density is 15--20\% of cells, arranged in axis-aligned shelf rows with aisle gaps, mimicking a real warehouse layout.
+
+\section{Goal Representation}
+
+The goal is a target position assignment: robot $i$ must reach cell $(r_i, g_i)$. The goal array mirrors the state array in shape $(H, W)$ with the same encoding convention. Robot IDs $1 \ldots K$ mark target cells; all other cells are $0$ (obstacles are omitted from the goal array since they are environment-level constants, not per-instance data). The heuristic network receives the concatenation of state and goal arrays along a channel dimension, yielding input shape $(2, H, W)$.
+
+\section{Actions}
+
+Each action moves exactly one robot one step. An action is the pair $(\text{robot\_id}, \text{direction})$ where $\text{robot\_id} \in \{0, \ldots, K-1\}$ and $\text{direction} \in \{\text{UP}, \text{DOWN}, \text{LEFT}, \text{RIGHT}, \text{WAIT}\}$, giving $5K$ total actions. For $K = 4$ this is 20 actions; for $K = 6$ it is 30.
+
+Actions are state-dependent in validity. An action is invalid if the target cell is out of bounds, occupied by an obstacle, or occupied by another robot. During A* search, \texttt{get\_state\_actions} prunes invalid branches.
+
+The single-robot-per-step formulation keeps the action space linear in $K$ rather than exponential ($5^K$ if all robots moved simultaneously). The tradeoff is that solutions are longer in step count, but the branching factor stays manageable.
+
+\section{Transition Dynamics}
+
+Applying action $(\text{robot\_id} = i, \text{direction} = d)$ proceeds as follows.
+
+\begin{enumerate}[nosep]
+    \item Compute the target cell $(r', c')$ by adding the direction offset to robot $i$'s current position.
+    \item If $(r', c')$ is in bounds, not an obstacle, and not occupied by another robot, update robot $i$'s position to $(r', c')$.
+    \item Otherwise the state is unchanged (the action is a no-op).
+\end{enumerate}
+
+\subsection{Non-Decomposability}
+
+If each robot were routed independently, their paths would ignore mutual blocking. Robot A may need to move through a cell currently occupied by Robot B, which itself cannot move because Robot C blocks its only escape. These coupled constraints create the combinatorial hardness of MAPF. The heuristic must learn to estimate cost-to-go for the joint configuration, not the sum of individual Manhattan distances, because detour costs from mutual avoidance dominate in congested layouts.
+
+\section{Solved Check}
+
+For every robot ID $i \in \{1, \ldots, K\}$, the cell containing $i$ in the state grid must match the cell containing $i$ in the goal grid. With the grid encoding, a direct array comparison suffices as long as the obstacle mask is excluded (or identically present in both).
+
+\section{Visualization}
+
+The visualization renders a top-down grid as a high-resolution image sequence, composable into an animated GIF.
+
+\subsection{Grid and Background}
+
+Each cell is $64 \times 64$ pixels. Empty floor cells are filled with \textcolor{Black10}{Black\_10} (\texttt{\#ECECEC}). Obstacle cells are filled with black with a subtle 1px \textcolor{Black90}{Black\_90} inset border to give a hard-edged shelf appearance. Grid lines are 1px \textcolor{Black30}{Black\_30}. No rounded corners anywhere.
+
+\subsection{Robots}
+
+Each robot is drawn as a filled circle (radius 24px, centered in its cell) in a distinct brand color.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Robot & Color & Hex \\
+\midrule
+1 & \textcolor{Garnet}{Garnet} & \texttt{\#73000A} \\
+2 & \textcolor{Atlantic}{Atlantic} & \texttt{\#466A9F} \\
+3 & \textcolor{Congaree}{Congaree} & \texttt{\#1F414D} \\
+4 & \textcolor{Horseshoe}{Horseshoe} & \texttt{\#65780B} \\
+5 & \textcolor{Rose}{Rose} & \texttt{\#CC2E40} \\
+6 & \textcolor{Honeycomb}{Honeycomb} & \texttt{\#A49137} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A small white triangle inside each circle indicates the direction of the robot's last move, giving a sense of heading. The robot ID number is rendered in white, bold, centered in the circle.
+
+\subsection{Destinations}
+
+Each robot's goal cell is drawn as a hollow square ring (3px stroke) in the matching color, with a faint color wash (15\% opacity fill) so the target is visible even when empty. When a robot reaches its destination, the ring pulses briefly (scale up 10\% over 3 frames, then back) to signal arrival.
+
+\subsection{Trails}
+
+The last 4 positions of each robot are shown as fading footprints: small filled circles at 60\%, 40\%, 20\%, and 10\% opacity of the robot's color. This produces a comet-tail effect that makes the coordination dance legible in a GIF.
+
+\subsection{Animation}
+
+Each action step is one frame, rendered at 4 fps (250ms per frame). Smooth interpolation between cells over 4 sub-frames (16 fps effective) makes motion fluid rather than teleporting. The GIF loops with a 1-second pause at the solved frame.
+
+\section{Training Considerations}
+
+\subsection{Goal-State Pair Sampling}
+
+Sample a random valid configuration by placing $K$ robots on distinct non-obstacle cells uniformly at random. The goal is a second independent random placement of $K$ robots on distinct non-obstacle cells. This produces a training pair (state, goal). For curriculum learning, filter pairs by Manhattan distance sum to start with easy instances.
+
+\subsection{Reverse Random Walk}
+
+From a solved configuration (robots at goal positions), apply $N$ random valid actions. Since all actions are deterministic and reversible (moving robot $i$ left is reversed by moving it right, wait is its own reverse), forward random walks from the goal produce states at known depth $N$. Start with $N \in [1, 30]$ and anneal up to $[1, 100]$ as training progresses.
+
+\subsection{State Space Size}
+
+For an $8 \times 8$ grid with 10 obstacles (54 free cells) and $K = 4$ robots, the number of distinct states is $P(54, 4) = 54 \times 53 \times 52 \times 51 \approx 7.6$ million. For $K = 6$ on $12 \times 12$ with 25 obstacles (119 free cells), $P(119, 6) \approx 2.8 \times 10^{12}$. This is far too large for tabular methods, justifying the learned heuristic.
+
+\section{Challenges and Tradeoffs}
+
+\textit{Action space scaling.} With $5K$ actions per step, the A* branching factor grows linearly in robot count. Pruning invalid actions helps (typically only 3--8 actions are valid per state), but search depth also grows. For $K > 6$, consider a simultaneous-move formulation with a learned action-pruning policy.
+
+\textit{Deadlocks.} Certain configurations produce circular wait patterns (A blocks B blocks C blocks A). The heuristic must learn to assign high cost-to-go to near-deadlock states. Training data from reverse walks naturally avoids deadlocks (since walks start from solved states), which could bias the heuristic. Mitigate by mixing in forward-scrambled states.
+
+\textit{Reverse walk quality.} Short reverse walks produce states near the goal that are easy to solve. Long reverse walks on congested grids tend to produce states where robots are clustered together, which may not represent the true distribution of hard instances. Use a mix of walk lengths and occasionally restart robots to random positions to improve coverage.
+
+\textit{Obstacle layout generalization.} If the network is trained on a single obstacle layout, it will not generalize to new warehouses. Train across a distribution of procedurally generated warehouse maps (parameterized by shelf density, aisle width, number of cross-aisles) and include the obstacle mask as part of the input (extend input to $(3, H, W)$ with a binary obstacle channel).
+
+\end{document}
