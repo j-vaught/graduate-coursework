@@ -47,25 +47,38 @@ The goal is a target position assignment: robot $i$ must reach cell $(r_i, g_i)$
 
 \section{Actions}
 
-Each action moves exactly one robot one step. An action is the pair $(\text{robot\_id}, \text{direction})$ where $\text{robot\_id} \in \{0, \ldots, K-1\}$ and $\text{direction} \in \{\text{UP}, \text{DOWN}, \text{LEFT}, \text{RIGHT}, \text{WAIT}\}$, giving $5K$ total actions. For $K = 4$ this is 20 actions; for $K = 6$ it is 30.
+All $K$ robots move simultaneously at each timestep. A joint action is a tuple of $K$ individual directions, one per robot, where each direction is drawn from $\{\text{UP}, \text{DOWN}, \text{LEFT}, \text{RIGHT}, \text{WAIT}\}$. The full action space is $5^K$ joint actions. For $K = 4$ this is 625; for $K = 6$ it is 15{,}625.
 
-Actions are state-dependent in validity. An action is invalid if the target cell is out of bounds, occupied by an obstacle, or occupied by another robot. During A* search, \texttt{get\_state\_actions} prunes invalid branches.
+The domain uses \texttt{ActsEnum} (state-dependent actions). A joint action is valid only if no conflicts occur.
 
-The single-robot-per-step formulation keeps the action space linear in $K$ rather than exponential ($5^K$ if all robots moved simultaneously). The tradeoff is that solutions are longer in step count, but the branching factor stays manageable.
+\begin{itemize}[nosep]
+    \item \textit{Vertex conflict}: two robots occupy the same cell after the move.
+    \item \textit{Edge conflict}: two robots swap positions (cross paths on the same edge).
+    \item \textit{Boundary/obstacle}: a robot's target cell is out of bounds or an obstacle.
+\end{itemize}
+
+If any robot's individual move is invalid (boundary/obstacle), that robot stays in place. If vertex or edge conflicts arise between robots, the entire joint action is rejected. \texttt{get\_state\_actions} enumerates valid joint actions by generating the Cartesian product of per-robot valid moves and filtering conflicts. For typical grid states with 4 robots, 50--200 joint actions survive out of 625.
+
+\subsection{Objective: Makespan}
+
+The optimization objective is \textit{makespan}: the total number of simultaneous timesteps until all robots reach their destinations. Each transition has a uniform cost of 1.0. A robot that arrives at its goal early simply issues WAIT actions until all others arrive. This is the standard MAPF objective and maps directly to DeepXube's cost-to-go framework, where $h(\text{state}, \text{goal})$ estimates the number of remaining timesteps.
+
+Makespan is preferred over sum-of-costs (total individual travel times) because DeepXube uses a single scalar cost per transition, not per-robot costs. It also naturally incentivizes parallel coordination: the heuristic must learn that moving robots simultaneously is cheaper than sequentially.
 
 \section{Transition Dynamics}
 
-Applying action $(\text{robot\_id} = i, \text{direction} = d)$ proceeds as follows.
+Applying a joint action $(d_1, d_2, \ldots, d_K)$ proceeds as follows.
 
 \begin{enumerate}[nosep]
-    \item Compute the target cell $(r', c')$ by adding the direction offset to robot $i$'s current position.
-    \item If $(r', c')$ is in bounds, not an obstacle, and not occupied by another robot, update robot $i$'s position to $(r', c')$.
-    \item Otherwise the state is unchanged (the action is a no-op).
+    \item For each robot $i$, compute its target cell $(r'_i, c'_i)$ by adding the direction offset $d_i$ to its current position. If $d_i = \text{WAIT}$, the target is the current cell.
+    \item If any robot's target is out of bounds or an obstacle, clamp that robot to its current cell.
+    \item Check for vertex conflicts (any two robots targeting the same cell) and edge conflicts (any two robots swapping cells). If conflicts exist, the action is invalid and the state is unchanged.
+    \item Otherwise, update all robot positions simultaneously.
 \end{enumerate}
 
 \subsection{Non-Decomposability}
 
-If each robot were routed independently, their paths would ignore mutual blocking. Robot A may need to move through a cell currently occupied by Robot B, which itself cannot move because Robot C blocks its only escape. These coupled constraints create the combinatorial hardness of MAPF. The heuristic must learn to estimate cost-to-go for the joint configuration, not the sum of individual Manhattan distances, because detour costs from mutual avoidance dominate in congested layouts.
+If each robot were routed independently, their paths would ignore mutual blocking. Robot A may need to move through a cell currently occupied by Robot B, which itself cannot move because Robot C blocks its only escape. These coupled constraints create the combinatorial hardness of MAPF. The heuristic must learn to estimate cost-to-go for the joint configuration, not the sum of individual Manhattan distances, because detour costs from mutual avoidance dominate in congested layouts. The simultaneous formulation makes this coupling explicit: every timestep is a joint decision where one robot's move constrains what the others can do.
 
 \section{Solved Check}
 
