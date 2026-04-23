@@ -196,12 +196,15 @@ class FourBarLinkage(
 
     def _curve_to_bins(self, curve: NDArray[np.float64]) -> NDArray[np.int8]:
         bins = np.full(self.n_waypoints * 2, SENTINEL, dtype=np.int8)
-        for i in range(self.n_waypoints):
-            if np.isnan(curve[i, 0]):
-                continue
-            bx, by = self._position_to_bin(curve[i, 0], curve[i, 1])
-            bins[2 * i] = np.int8(bx)
-            bins[2 * i + 1] = np.int8(by)
+        valid = ~np.isnan(curve[:, 0])
+        if not np.any(valid):
+            return bins
+        raw = np.floor(
+            (curve[valid] - self.ws_min) / self.bin_width).astype(np.int64)
+        raw = np.clip(raw, 0, self.n_bins - 1).astype(np.int8)
+        idxs = np.where(valid)[0]
+        bins[idxs * 2] = raw[:, 0]
+        bins[idxs * 2 + 1] = raw[:, 1]
         return bins
 
     def _state_to_curve_bins(self, state: LinkState) -> NDArray[np.int8]:
@@ -261,15 +264,17 @@ class FourBarLinkage(
         solved: List[bool] = []
         for state, goal in zip(states, goals):
             curve_bins = self._state_to_curve_bins(state)
-            match = True
-            for i in range(self.n_waypoints):
-                gx, gy = goal.curve[2 * i], goal.curve[2 * i + 1]
-                if gx == SENTINEL:
-                    continue
-                if curve_bins[2 * i] != gx or curve_bins[2 * i + 1] != gy:
-                    match = False
-                    break
-            solved.append(match)
+            g = goal.curve
+            valid_mask = g[::2] != SENTINEL
+            if not np.any(valid_mask):
+                solved.append(True)
+                continue
+            idxs = np.where(valid_mask)[0]
+            gx = g[idxs * 2]
+            gy = g[idxs * 2 + 1]
+            cx = curve_bins[idxs * 2]
+            cy = curve_bins[idxs * 2 + 1]
+            solved.append(bool(np.all((gx == cx) & (gy == cy))))
         return solved
 
     # ================================================ GoalStartRevWalkableActsRev
