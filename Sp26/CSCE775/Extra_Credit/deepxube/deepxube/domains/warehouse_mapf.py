@@ -337,9 +337,9 @@ class WarehouseMAPF(
         return MAPFAction(tuple([WAIT] * self.K))
 
     def random_walk(self, states: List[MAPFState],
-                    num_steps_l: List[int]) -> Tuple[List[MAPFState], List[List[MAPFAction]]]:
+                    num_steps_l: List[int]) -> Tuple[List[MAPFState], List[float]]:
         result_states: List[MAPFState] = []
-        result_actions: List[List[MAPFAction]] = []
+        path_costs: List[float] = []
         for state, n_steps in zip(states, num_steps_l):
             self._goal_cells = {}
             for i in range(self.K):
@@ -347,15 +347,15 @@ class WarehouseMAPF(
                 self._goal_cells[(r, c)] = i
 
             cur = state
-            actions: List[MAPFAction] = []
+            cost = 0.0
             for _ in range(n_steps):
                 act = self._sample_random_action(cur)
-                nxt, _ = self.next_state([cur], [act])
+                nxt, tcs = self.next_state([cur], [act])
                 cur = nxt[0]
-                actions.append(act)
+                cost += tcs[0]
             result_states.append(cur)
-            result_actions.append(actions)
-        return result_states, result_actions
+            path_costs.append(cost)
+        return result_states, path_costs
 
     def random_walk_rev(self, states: List[MAPFState],
                         num_steps_l: List[int]) -> List[MAPFState]:
@@ -365,7 +365,7 @@ class WarehouseMAPF(
 
     def get_input_info_flat_sg(self) -> Tuple[List[int], List[int]]:
         n_cells = self.H * self.W
-        return ([self.K], [n_cells]), ([self.K], [n_cells])
+        return [self.K, self.K], [n_cells, n_cells]
 
     def to_np_flat_sg(self, states: List[MAPFState],
                       goals: List[MAPFGoal]) -> List[NDArray]:
