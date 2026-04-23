@@ -134,7 +134,7 @@ def _mol_to_string(mol: NDArray[np.int8]) -> str:
 
 _RDK_GREEN = (0.396, 0.471, 0.043, 1.0)
 _RDK_RED = (0.800, 0.180, 0.251, 1.0)
-_RDK_BG = (1.0, 0.949, 0.886, 1.0)
+_RDK_BG = (0.922, 0.922, 0.922, 1.0)
 
 
 def _state_to_rdkit_mol(
@@ -469,7 +469,7 @@ class Retrosynthesis(
             ha="center", va="center", fontsize=11,
             fontweight="bold", color=scolor,
         )
-        fig.set_facecolor(SANDSTORM)
+        fig.set_facecolor(BLACK_10)
         fig.subplots_adjust(hspace=0.35, top=0.93, bottom=0.06)
 
     def _visualize_matplotlib(
@@ -479,7 +479,7 @@ class Retrosynthesis(
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.axis("off")
-        ax.set_facecolor(SANDSTORM)
+        ax.set_facecolor(BLACK_10)
 
         self._draw_molecule(ax, state.mol, goal.mol, y_center=0.72, label="Current Molecule")
         self._draw_molecule(ax, goal.mol, goal.mol, y_center=0.28, label="Target Molecule")
