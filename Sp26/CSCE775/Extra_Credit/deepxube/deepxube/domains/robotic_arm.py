@@ -280,17 +280,11 @@ class RoboticArm(
 
     # ======================================================= Visualization
 
-    def visualize_state_goal(self, state: ArmState, goal: ArmGoal,
-                             fig: Figure) -> None:
-        fig.set_facecolor(BLACK_10)
-        ax = fig.add_subplot(111, projection='3d')
+    def _draw_arm(self, ax, positions: NDArray, ee_pos: NDArray,
+                  target_pos: NDArray, solved: bool,
+                  elev: float = 25, azim: float = 45,
+                  show_labels: bool = True) -> None:
         ax.set_facecolor("white")
-
-        positions = self._fk(state.joints)
-        ee_pos = positions[-1]
-        target_pos = self._bins_to_position(goal.bins)
-        solved = bool(np.array_equal(
-            self._position_to_bins(ee_pos), goal.bins))
 
         ax.plot(positions[:, 0], positions[:, 1], positions[:, 2],
                 '-', color=GARNET, linewidth=3.5, solid_capstyle='round',
@@ -303,10 +297,10 @@ class RoboticArm(
                    zorder=7, depthshade=False)
 
         ax.scatter(*ee_pos, color=CONGAREE, s=90, marker='D',
-                   zorder=8, depthshade=False, label='EE')
+                   zorder=8, depthshade=False)
 
         ax.scatter(*target_pos, color=HORSESHOE, s=160, marker='*',
-                   zorder=9, depthshade=False, label='Target')
+                   zorder=9, depthshade=False)
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 15)
@@ -320,11 +314,24 @@ class RoboticArm(
         ax.set_xlim(-lim, lim)
         ax.set_ylim(-lim, lim)
         ax.set_zlim(-lim, lim)
-        ax.set_xlabel('X', fontsize=8, color=BLACK_70)
-        ax.set_ylabel('Y', fontsize=8, color=BLACK_70)
-        ax.set_zlabel('Z', fontsize=8, color=BLACK_70)
+        if show_labels:
+            ax.set_xlabel('X', fontsize=8, color=BLACK_70)
+            ax.set_ylabel('Y', fontsize=8, color=BLACK_70)
+            ax.set_zlabel('Z', fontsize=8, color=BLACK_70)
         ax.tick_params(labelsize=6, colors=BLACK_50)
-        ax.view_init(elev=25, azim=45)
+        ax.view_init(elev=elev, azim=azim)
+
+    def visualize_state_goal(self, state: ArmState, goal: ArmGoal,
+                             fig: Figure) -> None:
+        fig.set_facecolor(BLACK_10)
+        ax = fig.add_subplot(111, projection='3d')
+        positions = self._fk(state.joints)
+        ee_pos = positions[-1]
+        target_pos = self._bins_to_position(goal.bins)
+        solved = bool(np.array_equal(
+            self._position_to_bins(ee_pos), goal.bins))
+
+        self._draw_arm(ax, positions, ee_pos, target_pos, solved)
 
         ee_str = f"EE: ({ee_pos[0]:+.2f}, {ee_pos[1]:+.2f}, {ee_pos[2]:+.2f})"
         tgt_str = f"Target: ({target_pos[0]:+.2f}, {target_pos[1]:+.2f}, {target_pos[2]:+.2f})"
@@ -333,6 +340,35 @@ class RoboticArm(
         fig.text(0.50, 0.02,
                  f"{ee_str}   {tgt_str}   {status}",
                  ha='center', va='bottom', fontsize=9,
+                 color=status_color, fontweight='bold')
+
+    def visualize_multi_view(self, state: ArmState, goal: ArmGoal,
+                             fig: Figure) -> None:
+        fig.set_facecolor(BLACK_10)
+        positions = self._fk(state.joints)
+        ee_pos = positions[-1]
+        target_pos = self._bins_to_position(goal.bins)
+        solved = bool(np.array_equal(
+            self._position_to_bins(ee_pos), goal.bins))
+
+        views = [
+            (25, 45, "Perspective"),
+            (90, -90, "Top (XY)"),
+            (0, 0, "Front (XZ)"),
+        ]
+        for idx, (elev, azim, label) in enumerate(views):
+            ax = fig.add_subplot(1, 3, idx + 1, projection='3d')
+            self._draw_arm(ax, positions, ee_pos, target_pos, solved,
+                           elev=elev, azim=azim, show_labels=True)
+            ax.set_title(label, fontsize=9, color=BLACK_90, pad=2)
+
+        ee_str = f"EE: ({ee_pos[0]:+.2f}, {ee_pos[1]:+.2f}, {ee_pos[2]:+.2f})"
+        tgt_str = f"Target: ({target_pos[0]:+.2f}, {target_pos[1]:+.2f}, {target_pos[2]:+.2f})"
+        status = "SOLVED" if solved else "unsolved"
+        status_color = HORSESHOE if solved else ROSE
+        fig.text(0.50, 0.02,
+                 f"{ee_str}   {tgt_str}   {status}",
+                 ha='center', va='bottom', fontsize=10,
                  color=status_color, fontweight='bold')
 
     # ========================================================== StringToAct
