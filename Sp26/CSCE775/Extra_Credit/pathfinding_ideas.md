@@ -52,12 +52,6 @@ Candidate domains for extending the DeepXube framework beyond its current implem
 - **Actions:** Assign a color to the next uncolored vertex
 - **Why Interesting:** Frames constraint satisfaction as pathfinding. The heuristic must learn which assignments lead to dead ends. NP-complete in general, with applications in scheduling and register allocation.
 
-### Word Ladder
-
-- **State:** A current word (e.g., "COLD")
-- **Actions:** Change one letter to form a valid word
-- **Why Interesting:** NLP-flavored pathfinding in a discrete, finite space. The state graph is implicitly defined by a dictionary. Branching factor varies wildly depending on the word. Simple to implement, fun to demonstrate.
-
 ### Traveling Salesman Problem (Small Instances)
 
 - **State:** Set of visited cities + current city
@@ -79,12 +73,6 @@ Candidate domains for extending the DeepXube framework beyond its current implem
 - **State:** Joint angles of an N-joint robotic arm
 - **Actions:** Adjust a joint angle by a continuous increment
 - **Why Interesting:** Continuous, high-dimensional state space. The heuristic must learn the nonlinear relationship between joint angles and end-effector position. Direct application to robotics. Similar in structure to continuous grid but with coupled, non-Euclidean geometry.
-
-### Circuit Layout / Wire Routing
-
-- **State:** Partial wire placement on a 2D grid
-- **Actions:** Extend a wire segment in a cardinal direction
-- **Why Interesting:** Real engineering application in VLSI design. Multiple wires must be routed without crossing. Combines pathfinding with constraint satisfaction. Industry relevance makes this compelling for publication.
 
 ### Molecular Generation
 
