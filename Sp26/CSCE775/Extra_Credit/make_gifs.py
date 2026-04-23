@@ -55,15 +55,14 @@ def fig_to_image(fig):
 def make_gif(domain, state, goal, path, filename, title_prefix=""):
     frames = []
     for step_idx, s in enumerate(path):
-        fig = plt.figure(figsize=(8, 5.5), facecolor="white")
+        fig = plt.figure(figsize=(10, 7), facecolor="white")
         domain.visualize_state_goal(s, goal, fig)
-        ax = fig.axes[0] if fig.axes else fig.add_subplot(111)
         total = len(path) - 1
         step_label = f"Step {step_idx}/{total}"
         if title_prefix:
             step_label = f"{title_prefix}  |  {step_label}"
-        ax.text(0.5, 1.02, step_label, ha="center", va="bottom",
-                fontsize=10, color="#363636", transform=ax.transAxes)
+        fig.text(0.5, 0.97, step_label, ha="center", va="top",
+                 fontsize=11, color="#363636", fontweight="bold")
         img = fig_to_image(fig)
         plt.close(fig)
         frames.append(img)

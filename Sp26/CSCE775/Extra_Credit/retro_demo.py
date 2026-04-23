@@ -49,11 +49,12 @@ def bfs_solve(domain: Retrosynthesis, state: RetroState, goal: RetroGoal,
 
 def make_snapshot(domain: Retrosynthesis) -> None:
     np.random.seed(42)
-    fig = plt.figure(figsize=(8, 5.5), facecolor="white")
+    fig = plt.figure(figsize=(10, 7), facecolor="white")
     states, goals = domain.sample_goalstate_goal_pairs(1)
     start = domain.random_walk_rev(states, [12])[0]
     domain.visualize_state_goal(start, goals[0], fig)
-    fig.savefig("retro_states.png", dpi=150, bbox_inches="tight", facecolor="white")
+    fig.savefig("retro_states.png", dpi=150, bbox_inches="tight",
+                facecolor=fig.get_facecolor())
     print("Saved retro_states.png")
     plt.close(fig)
 
