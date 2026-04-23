@@ -44,8 +44,20 @@ BLACK_10 = "#ECECEC"
 WARM_GREY = "#676156"
 GRASS = "#CED318"
 
-ROBOT_COLORS = [GARNET, ATLANTIC, CONGAREE, HORSESHOE, ROSE,
-                HONEYCOMB, WARM_GREY, GRASS, BLACK_70, BLACK_50]
+_BRAND_COLORS = [GARNET, ATLANTIC, CONGAREE, HORSESHOE, ROSE,
+                 HONEYCOMB, WARM_GREY, GRASS, BLACK_70, BLACK_50]
+
+
+def _generate_robot_colors(k: int) -> List[str]:
+    if k <= len(_BRAND_COLORS):
+        return _BRAND_COLORS[:k]
+    import colorsys
+    colors = list(_BRAND_COLORS)
+    for i in range(len(_BRAND_COLORS), k):
+        hue = (i * 0.618033988749895) % 1.0
+        r, g, b = colorsys.hsv_to_rgb(hue, 0.75, 0.70)
+        colors.append(f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}")
+    return colors
 
 UP, DOWN, LEFT, RIGHT, WAIT = 0, 1, 2, 3, 4
 DIR_OFFSETS = [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]
@@ -186,7 +198,6 @@ class WarehouseMAPF(
         self.H = height
         self.W = width
         self.K = n_robots
-        assert self.K <= 10
 
         layout_fn = WAREHOUSE_LAYOUTS.get((height, width))
         if layout_fn is not None:
@@ -201,6 +212,7 @@ class WarehouseMAPF(
                     self.free_cells.append((r, c))
         self.n_free = len(self.free_cells)
         self.n_obs = int(self.obstacles.sum())
+        self.robot_colors = _generate_robot_colors(n_robots)
 
     # ----------------------------------------------------------- state helpers
 
@@ -377,10 +389,15 @@ class WarehouseMAPF(
     # ======================================================= Visualization
 
     def visualize_state_goal(self, state: MAPFState, goal: MAPFGoal,
-                             fig: Figure) -> None:
+                             fig: Figure, frozen: Optional[List[bool]] = None) -> None:
+        from matplotlib.colors import to_rgba
         CELL = 64
         img_w = self.W * CELL
         img_h = self.H * CELL
+        robot_r = min(24, CELL // 3)
+        label_size = max(7, min(14, 28 - self.K // 3))
+        goal_inset = max(2, CELL // 16)
+        goal_lw = max(1.5, min(3, 4 - self.K / 20))
 
         fig.set_facecolor(BLACK_10)
         ax = fig.add_axes([0.05, 0.05, 0.9, 0.88])
@@ -404,29 +421,36 @@ class WarehouseMAPF(
         for i in range(self.K):
             gr, gc = self._get_goal_pos(goal, i)
             gx, gy = gc * CELL, gr * CELL
-            color = ROBOT_COLORS[i]
-            from matplotlib.colors import to_rgba
+            color = self.robot_colors[i]
             fill = to_rgba(color, alpha=0.15)
             ax.add_patch(mpatches.Rectangle(
-                (gx + 4, gy + 4), CELL - 8, CELL - 8,
-                facecolor=fill, edgecolor=color, linewidth=3,
+                (gx + goal_inset, gy + goal_inset),
+                CELL - 2 * goal_inset, CELL - 2 * goal_inset,
+                facecolor=fill, edgecolor=color, linewidth=goal_lw,
                 linestyle='-', fill=True))
 
         for i in range(self.K):
             sr, sc = self._get_pos(state, i)
             cx, cy = sc * CELL + CELL / 2, sr * CELL + CELL / 2
-            color = ROBOT_COLORS[i]
+            color = self.robot_colors[i]
+            is_frozen = frozen[i] if frozen else False
+            edge = HORSESHOE if is_frozen else 'white'
+            edge_w = 2.5 if is_frozen else 1.5
             ax.add_patch(mpatches.Circle(
-                (cx, cy), 24,
-                facecolor=color, edgecolor='white', linewidth=1.5,
+                (cx, cy), robot_r,
+                facecolor=color, edgecolor=edge, linewidth=edge_w,
                 zorder=10))
-            ax.text(cx, cy, str(i + 1),
-                    ha='center', va='center',
-                    fontsize=14, fontweight='bold', color='white',
-                    zorder=11)
+            if self.K <= 20:
+                ax.text(cx, cy, str(i + 1),
+                        ha='center', va='center',
+                        fontsize=label_size, fontweight='bold', color='white',
+                        zorder=11)
 
         solved = bool(np.array_equal(state.positions, goal.positions))
-        status = "SOLVED" if solved else "unsolved"
+        n_at_goal = sum(
+            1 for i in range(self.K)
+            if self._get_pos(state, i) == self._get_goal_pos(goal, i))
+        status = "SOLVED" if solved else f"{n_at_goal}/{self.K} arrived"
         status_color = HORSESHOE if solved else ROSE
         fig.text(0.5, 0.01, status,
                  ha='center', va='bottom', fontsize=11,

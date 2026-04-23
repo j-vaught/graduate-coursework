@@ -5,79 +5,114 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deepxube"))
 
 import numpy as np
-import heapq
+from collections import deque
 import io
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Set
 
 from PIL import Image
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.colors import to_rgba
 
 from deepxube.domains.warehouse_mapf import (
     WarehouseMAPF, MAPFState, MAPFGoal, MAPFAction,
-    UP, DOWN, LEFT, RIGHT, WAIT, DIR_NAMES,
+    UP, DOWN, LEFT, RIGHT, WAIT, DIR_OFFSETS, DIR_NAMES,
 )
 
 
-def reverse_walk_path(domain: WarehouseMAPF, n_steps: int,
-                      seed: int = 0) -> Tuple[List[MAPFState], MAPFGoal]:
-    np.random.seed(seed)
-    states_g, goals = domain.sample_goalstate_goal_pairs(1)
-    goal = goals[0]
-    cur = states_g[0]
-    forward_path = [cur]
-    for _ in range(n_steps):
-        act = domain._sample_random_action(cur)
-        nxt, _ = domain.next_state([cur], [act])
-        cur = nxt[0]
-        forward_path.append(cur)
-    forward_path.reverse()
-    return forward_path, goal
-
-
-def manhattan_heuristic(state: MAPFState, goal: MAPFGoal,
-                        K: int) -> int:
-    max_d = 0
-    for i in range(K):
-        sr, sc = int(state.positions[2*i]), int(state.positions[2*i+1])
-        gr, gc = int(goal.positions[2*i]), int(goal.positions[2*i+1])
-        d = abs(sr - gr) + abs(sc - gc)
-        if d > max_d:
-            max_d = d
-    return max_d
-
-
-def astar_solve(domain: WarehouseMAPF, state: MAPFState, goal: MAPFGoal,
-                max_nodes: int = 100_000) -> Optional[List[MAPFState]]:
-    if domain.is_solved([state], [goal])[0]:
-        return [state]
-
-    h0 = manhattan_heuristic(state, goal, domain.K)
-    open_set = [(h0, 0, id(state), state, [state])]
-    visited = {state}
-    nodes = 0
-
-    while open_set and nodes < max_nodes:
-        f, g, _, cur, path = heapq.heappop(open_set)
-        actions = domain.get_state_actions([cur])[0]
-        for act in actions:
-            ns, _ = domain.next_state([cur], [act])
-            nxt = ns[0]
-            if nxt in visited:
-                continue
-            visited.add(nxt)
-            nodes += 1
-            new_path = path + [nxt]
-            if domain.is_solved([nxt], [goal])[0]:
-                print(f"    A* solved: {len(new_path)-1} steps, {nodes} nodes")
-                return new_path
-            h = manhattan_heuristic(nxt, goal, domain.K)
-            heapq.heappush(open_set, (g + 1 + h, g + 1, id(nxt), nxt, new_path))
-
-    print(f"    A* exhausted {nodes} nodes")
+def bfs_single_robot(obstacles, H, W, start, goal, extra_blocked=None):
+    if start == goal:
+        return [start]
+    blocked = set(extra_blocked) if extra_blocked else set()
+    blocked.discard(start)
+    blocked.discard(goal)
+    queue = deque([(start, [start])])
+    visited = {start}
+    while queue:
+        (r, c), path = queue.popleft()
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < H and 0 <= nc < W and not obstacles[nr, nc]:
+                if (nr, nc) not in visited and (nr, nc) not in blocked:
+                    visited.add((nr, nc))
+                    new_path = path + [(nr, nc)]
+                    if (nr, nc) == goal:
+                        return new_path
+                    queue.append(((nr, nc), new_path))
     return None
+
+
+def solve_with_freezing(domain: WarehouseMAPF, start_state: MAPFState,
+                        goal: MAPFGoal, max_steps: int = 200
+                        ) -> Tuple[List[MAPFState], List[List[bool]]]:
+    K = domain.K
+    positions = [domain._get_pos(start_state, i) for i in range(K)]
+    goals = [domain._get_goal_pos(goal, i) for i in range(K)]
+    frozen = [pos == g for pos, g in zip(positions, goals)]
+
+    path_states: List[MAPFState] = [start_state]
+    frozen_history: List[List[bool]] = [list(frozen)]
+
+    for step in range(max_steps):
+        if all(frozen):
+            break
+
+        occupied: Set[Tuple[int, int]] = set()
+        for i in range(K):
+            if frozen[i]:
+                occupied.add(positions[i])
+
+        desired = list(positions)
+        for i in range(K):
+            if frozen[i]:
+                continue
+            extra_blocked = set()
+            for j in range(K):
+                if j != i and frozen[j]:
+                    extra_blocked.add(positions[j])
+            ind_path = bfs_single_robot(
+                domain.obstacles, domain.H, domain.W,
+                positions[i], goals[i], extra_blocked)
+            if ind_path and len(ind_path) > 1:
+                desired[i] = ind_path[1]
+
+        actual = list(positions)
+        claimed: Set[Tuple[int, int]] = set(occupied)
+
+        for i in range(K):
+            if frozen[i]:
+                continue
+            target = desired[i]
+            if target in claimed:
+                claimed.add(positions[i])
+                continue
+            swap = False
+            for j in range(K):
+                if j != i and target == positions[j] and desired[j] == positions[i]:
+                    swap = True
+                    break
+            if swap:
+                claimed.add(positions[i])
+                continue
+            actual[i] = target
+            claimed.add(target)
+
+        positions = actual
+        for i in range(K):
+            if not frozen[i] and positions[i] == goals[i]:
+                frozen[i] = True
+
+        pos_arr = np.zeros(2 * K, dtype=np.int8)
+        for i in range(K):
+            pos_arr[2 * i] = np.int8(positions[i][0])
+            pos_arr[2 * i + 1] = np.int8(positions[i][1])
+        path_states.append(MAPFState(pos_arr))
+        frozen_history.append(list(frozen))
+
+    return path_states, frozen_history
 
 
 def fig_to_image(fig):
@@ -91,16 +126,15 @@ def fig_to_image(fig):
 
 
 def make_gif(domain: WarehouseMAPF, path: List[MAPFState], goal: MAPFGoal,
-             filename: str, title_prefix: str = "", trails: int = 4):
-    from deepxube.domains.warehouse_mapf import ROBOT_COLORS
-    import matplotlib.patches as mpatches
-    from matplotlib.colors import to_rgba
+             filename: str, title_prefix: str = "", trails: int = 4,
+             frozen_history: Optional[List[List[bool]]] = None):
     CELL = 64
     fig_side = max(10, domain.W * 0.55)
     frames = []
     for step_idx, s in enumerate(path):
         fig = plt.figure(figsize=(fig_side, fig_side), facecolor="#ECECEC")
-        domain.visualize_state_goal(s, goal, fig)
+        fr = frozen_history[step_idx] if frozen_history else None
+        domain.visualize_state_goal(s, goal, fig, frozen=fr)
 
         trail_states = path[max(0, step_idx - trails):step_idx]
         if trail_states:
@@ -108,12 +142,16 @@ def make_gif(domain: WarehouseMAPF, path: List[MAPFState], goal: MAPFGoal,
             for t_idx, ts in enumerate(trail_states):
                 alpha = 0.1 + 0.15 * (t_idx + 1) / len(trail_states)
                 for i in range(domain.K):
+                    if frozen_history and step_idx > 0:
+                        t_frame = max(0, step_idx - trails) + t_idx
+                        if frozen_history[t_frame][i]:
+                            continue
                     tr, tc = domain._get_pos(ts, i)
-                    color = ROBOT_COLORS[i]
+                    color = domain.robot_colors[i]
                     cx = tc * CELL + CELL // 2
                     cy = tr * CELL + CELL // 2
                     ax.add_patch(mpatches.Circle(
-                        (cx, cy), 12,
+                        (cx, cy), 10,
                         facecolor=to_rgba(color, alpha=alpha),
                         edgecolor='none', zorder=5))
 
@@ -141,15 +179,15 @@ def make_gif(domain: WarehouseMAPF, path: List[MAPFState], goal: MAPFGoal,
         canvas.paste(f, (ox, oy))
         resized.append(canvas.convert("RGB"))
 
-    durations = [800] * len(resized)
+    durations = [600] * len(resized)
     durations[0] = 1500
-    durations[-1] = 2500
+    durations[-1] = 3000
 
     resized[0].save(
         filename, save_all=True, append_images=resized[1:],
         duration=durations, loop=0,
     )
-    print(f"  Saved {filename} ({len(frames)} frames)")
+    print(f"  Saved {filename} ({len(frames)} frames)", flush=True)
 
 
 def make_snapshot(domain: WarehouseMAPF, state: MAPFState, goal: MAPFGoal,
@@ -163,85 +201,47 @@ def make_snapshot(domain: WarehouseMAPF, state: MAPFState, goal: MAPFGoal,
     fig.savefig(filename, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
     plt.close(fig)
-    print(f"  Saved {filename}")
+    print(f"  Saved {filename}", flush=True)
+
+
+def scramble_from_goal(domain, n_steps, seed=0):
+    np.random.seed(seed)
+    states, goals = domain.sample_goalstate_goal_pairs(1)
+    scrambled = domain.random_walk_rev(states, [n_steps])
+    return scrambled[0], goals[0]
 
 
 def main():
     os.chdir(os.path.dirname(__file__) or ".")
 
-    print("=== 20x20 warehouse, 8 robots (reverse walk demo) ===")
-    d20 = WarehouseMAPF(20, 20, 8)
-    print(f"  {d20}")
+    print("=== 28x28 warehouse, 30 robots ===", flush=True)
+    d = WarehouseMAPF(28, 28, 30)
+    print(f"  {d}", flush=True)
 
-    best_path, best_goal = None, None
+    best_path, best_goal, best_frozen = None, None, None
+    best_steps = 0
     for seed in range(50):
-        path, goal = reverse_walk_path(d20, n_steps=20, seed=seed)
-        h = manhattan_heuristic(path[0], goal, d20.K)
-        if h >= 8 and (best_path is None or h > manhattan_heuristic(best_path[0], best_goal, d20.K)):
-            best_path, best_goal = path, goal
-            print(f"  Seed {seed}: {len(path)-1} steps, max-Manhattan={h}")
-            if h >= 12:
+        state, goal = scramble_from_goal(d, n_steps=40, seed=seed)
+        path, frozen_hist = solve_with_freezing(d, state, goal, max_steps=150)
+        n_steps = len(path) - 1
+        solved = all(frozen_hist[-1])
+        if solved and n_steps > best_steps:
+            best_path, best_goal, best_frozen = path, goal, frozen_hist
+            best_steps = n_steps
+            print(f"  Seed {seed}: solved in {n_steps} steps", flush=True)
+            if n_steps >= 25:
                 break
 
     if best_path:
-        make_snapshot(d20, best_path[0], best_goal,
-                      "mapf_20x20_8bot_states.png",
-                      title="20x20 Warehouse  |  8 Robots")
-        make_gif(d20, best_path, best_goal,
-                 "mapf_20x20_8bot_solve.gif",
-                 title_prefix="20x20  |  8 Robots")
+        make_snapshot(d, best_path[0], best_goal,
+                      "mapf_28x28_30bot_states.png",
+                      title="28x28 Warehouse  |  30 Robots")
+        make_gif(d, best_path, best_goal,
+                 "mapf_28x28_30bot_solve.gif",
+                 title_prefix="28x28  |  30 Robots",
+                 frozen_history=best_frozen)
 
-    print("\n=== 20x20 warehouse, 4 robots (A* optimal) ===")
-    d20_4 = WarehouseMAPF(20, 20, 4)
-    print(f"  {d20_4}")
-
-    best_path4, best_goal4 = None, None
-    for seed in range(100):
-        np.random.seed(seed)
-        states, goals = d20_4.sample_goalstate_goal_pairs(1)
-        scrambled = d20_4.random_walk_rev(states, [8])
-        h = manhattan_heuristic(scrambled[0], goals[0], d20_4.K)
-        if h < 4:
-            continue
-        path = astar_solve(d20_4, scrambled[0], goals[0], max_nodes=200_000)
-        if path and len(path) >= 5:
-            if best_path4 is None or len(path) > len(best_path4):
-                best_path4, best_goal4 = path, goals[0]
-                print(f"  Seed {seed}: {len(path)-1} steps (A* optimal)")
-                if len(path) >= 8:
-                    break
-
-    if best_path4:
-        make_snapshot(d20_4, best_path4[0], best_goal4,
-                      "mapf_20x20_4bot_states.png",
-                      title="20x20 Warehouse  |  4 Robots  |  A* Optimal")
-        make_gif(d20_4, best_path4, best_goal4,
-                 "mapf_20x20_4bot_solve.gif",
-                 title_prefix="20x20  |  4 Robots  |  Optimal")
-
-    print("\n=== 28x28 warehouse, 10 robots (reverse walk demo) ===")
-    d28 = WarehouseMAPF(28, 28, 10)
-    print(f"  {d28}")
-
-    best_path28, best_goal28 = None, None
-    for seed in range(50):
-        path, goal = reverse_walk_path(d28, n_steps=30, seed=seed)
-        h = manhattan_heuristic(path[0], goal, d28.K)
-        if h >= 10 and (best_path28 is None or h > manhattan_heuristic(best_path28[0], best_goal28, d28.K)):
-            best_path28, best_goal28 = path, goal
-            print(f"  Seed {seed}: {len(path)-1} steps, max-Manhattan={h}")
-            if h >= 15:
-                break
-
-    if best_path28:
-        make_snapshot(d28, best_path28[0], best_goal28,
-                      "mapf_28x28_10bot_states.png",
-                      title="28x28 Warehouse  |  10 Robots")
-        make_gif(d28, best_path28, best_goal28,
-                 "mapf_28x28_10bot_solve.gif",
-                 title_prefix="28x28  |  10 Robots")
-
-    print("\nDone!")
+    print("\nDone!", flush=True)
 
 
 if __name__ == "__main__":
