@@ -180,12 +180,10 @@ class Hanoi(ActsEnumFixed[HanoiState, HanoiAction, HanoiGoal], GoalStartRevWalka
                 w = max_w * frac + 0.04
                 y = base_y + pos * (disk_h + disk_gap)
                 color = disk_colors[disk_i]
-                on_goal = (peg_idx == int(goal.disks[disk_i]))
 
                 ax.add_patch(patches.Rectangle(
                     (px - w / 2, y), w, disk_h,
-                    facecolor=color, edgecolor='#CED318' if on_goal else 'black',
-                    linewidth=2.0 if on_goal else 0.8,
+                    facecolor=color, edgecolor='black', linewidth=0.8,
                 ))
                 ax.text(px, y + disk_h / 2, str(disk_i),
                         ha='center', va='center', fontsize=12, color='white',

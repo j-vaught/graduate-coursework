@@ -13,7 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 plt.rcParams["font.family"] = "Georgia"
 plt.rcParams["font.serif"] = ["Georgia"]
@@ -111,6 +111,9 @@ def _fig_to_frame(fig: plt.Figure, dpi: int) -> Image.Image:
     frame = Image.open(buf).convert("RGBA")
     copied = frame.copy()
     buf.close()
+    draw = ImageDraw.Draw(copied)
+    w, h = copied.size
+    draw.rectangle([(0, 0), (w - 1, h - 1)], outline=(0, 0, 0, 255), width=1)
     return copied
 
 
@@ -122,6 +125,7 @@ def _render_frame(
     total_steps: int,
     config: DemoConfig,
     dpi: int,
+    show_title: bool = False,
 ) -> Image.Image:
     fig = plt.figure(figsize=config.figsize, facecolor=WHITE)
     domain.visualize_state_goal(state, goal, fig)
@@ -135,6 +139,25 @@ def _render_frame(
         fontsize=14,
         family="Georgia",
     )
+    if show_title:
+        fig.text(
+            0.5,
+            0.5,
+            "START",
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=28,
+            family="Georgia",
+            fontweight="bold",
+            bbox={
+                "facecolor": "#CED318",
+                "edgecolor": "black",
+                "linewidth": 1.2,
+                "pad": 12,
+                "boxstyle": "square,pad=0.6",
+            },
+        )
     image = _fig_to_frame(fig, dpi)
     plt.close(fig)
     return image
@@ -163,18 +186,22 @@ def generate_demo(
     )
     total_steps = len(path) - 1
     frames = [
-        _render_frame(domain, state, goal, idx, total_steps, config, dpi)
+        _render_frame(domain, state, goal, idx, total_steps, config, dpi,
+                      show_title=(idx == 0))
         for idx, state in enumerate(path)
     ]
 
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{config.key}_gif_demo.gif"
     duration_ms = max(1, int(round(1000.0 / fps)))
+    durations = [duration_ms] * len(frames)
+    durations[0] = duration_ms * 2
+    durations[-1] = duration_ms * 3
     frames[0].save(
         out_path,
         save_all=True,
         append_images=frames[1:],
-        duration=duration_ms,
+        duration=durations,
         loop=0,
         disposal=2,
     )

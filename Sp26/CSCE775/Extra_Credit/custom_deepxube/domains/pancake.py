@@ -106,6 +106,17 @@ class Pancake(ActsEnumFixed[PancakeState, PancakeAction, PancakeGoal],
     def visualize_state_goal(self, state: PancakeState, goal: PancakeGoal, fig: Figure) -> None:
         ax = fig.add_subplot(111)
 
+        # UofSC accent palette (bright/accent colors)
+        palette = [
+            '#73000A',  # Garnet
+            '#CC2E40',  # Rose
+            '#A49137',  # Honeycomb
+            '#65780B',  # Horseshoe
+            '#466A9F',  # Atlantic
+            '#1F414D',  # Congaree
+            '#CED318',  # Grass
+        ]
+
         n = self.num_pancakes
         pancake_h = min(0.08, 0.80 / n)
         gap = 0.01
@@ -113,36 +124,28 @@ class Pancake(ActsEnumFixed[PancakeState, PancakeAction, PancakeGoal],
         max_w = 0.70
         cx = 0.5
 
-        cmap = __import__('matplotlib').colormaps['tab10']
-
         # draw pancakes bottom-up: index 0 = top of stack, index N-1 = bottom
         for i in range(n):
             val = int(state.perm[i])
-            # position: index 0 at top, index N-1 at bottom
             y = base_y + (n - 1 - i) * (pancake_h + gap)
             w = max_w * (val + 1) / n
-            color = cmap(val % 10)
-            in_place = (state.perm[i] == goal.perm[i])
+            color = palette[val % len(palette)]
 
             ax.add_patch(patches.Rectangle(
                 (cx - w / 2, y), w, pancake_h,
-                facecolor=color, edgecolor='limegreen' if in_place else 'k',
-                linewidth=2.0 if in_place else 0.8,
+                facecolor=color, edgecolor='black', linewidth=0.8,
             ))
             ax.text(cx, y + pancake_h / 2, str(val),
-                    ha='center', va='center', fontsize=8, color='white', fontweight='bold')
+                    ha='center', va='center', fontsize=13, color='white',
+                    fontweight='bold', family='Georgia')
 
-        # flip markers on left side
-        for i in range(1, n):
-            y = base_y + (n - 1 - i) * (pancake_h + gap) + pancake_h
-            ax.plot([0.08, 0.12], [y + gap / 2, y + gap / 2], color='gray', linewidth=0.5)
-            ax.text(0.06, y + gap / 2, str(i + 1), ha='center', va='center', fontsize=5, color='gray')
-
-        ax.text(cx, base_y + n * (pancake_h + gap) + 0.02, f'Goal: {[int(x) for x in goal.perm]}',
-                ha='center', va='center', fontsize=7, color='dimgray')
+        stack_top = base_y + n * (pancake_h + gap)
 
         ax.set_xlim(0.0, 1.0)
-        ax.set_ylim(0.0, 1.0)
+        ax.set_ylim(0.0, stack_top + 0.03)
+        ax.set_aspect('auto')
+        ax.margins(0)
+        ax.set_position((0.02, 0.09, 0.96, 0.89))
         ax.axis('off')
         fig.canvas.draw()
 
