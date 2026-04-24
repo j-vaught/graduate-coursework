@@ -13,7 +13,7 @@
     ),
   ),
   abstract: [
-    This report evaluates an extended Kalman filter (EKF) and an unscented Kalman filter (UKF) for the nonlinear vehicle-state estimation problem posed in the EMCH792 final project. The analysis used the provided deployment dataset, estimated sensor variances directly from the calibration sets, and compared rectangular propagation, scalar measurement gating, and fourth-order Runge-Kutta (RK4) propagation. The calibration pass yielded $R_1$ = #y1_variance_text and $R_2$ = #y2_variance_text with a constant sample period of #dt_text s. A short sweep over initial covariance scale and scalar chi-square gate threshold selected a covariance scale of #chosen_p0_scale_text and a #chosen_gate_label gate at #chosen_gate_threshold_text. Across the full comparison, the rectangular UKF outperformed the rectangular EKF in ungated accuracy, while the RK4 UKF achieved the best overall position error at #best_position_rmse_text m. The gating logic removed the largest $y_2$ outliers and improved heading estimation, but excessive late rejection of $y_1$ measurements increased position error in the gated runs.
+    This report addresses the six required tasks in the EMCH792 final project for the nonlinear kinematic bicycle model. The calibration pass yielded $R_1$ = #y1_variance_text and $R_2$ = #y2_variance_text with a constant sample period of #dt_text s. The vanilla rectangular comparison favored the UKF over the EKF, reducing position RMSE from #ekf_rect_no_gate_pos_text m to #ukf_rect_no_gate_pos_text m and heading RMSE from #ekf_rect_no_gate_heading_deg_text deg to #ukf_rect_no_gate_heading_deg_text deg. A fixed scalar #chosen_gate_label normalized-innovation-squared gate with threshold #chosen_gate_threshold_text improved heading RMSE by #ekf_gating_heading_improvement_text deg for the EKF and #ukf_gating_heading_improvement_text deg for the UKF, but position RMSE increased because repeated $y_1$ rejections made the gated runs more prediction dominated. Replacing rectangular UKF propagation with RK4 reduced position RMSE by #rk4_position_improvement_text m, while the RK4 runtime increased by only #rk4_runtime_penalty_text ms relative to the rectangular UKF.
   ],
   index-terms: (
     [Extended Kalman filter],
@@ -58,68 +58,66 @@
 
 = Problem I. Calibration Variance Estimation
 
-The first task was to estimate the two sensor variances from the calibration data and lock the deployment sample period. The calibration pass produced $R_1$ = #y1_variance_text for the range-like measurement and $R_2$ = #y2_variance_text for the cubic heading sensor. The deployment dataset remained uniformly sampled at #dt_text s, which made the rectangular covariance propagation required by the assignment directly applicable. The filters were initialized from the first truth sample so that the comparison emphasized filter behavior, rather than startup mismatch, across the 100 available samples.
+The first task was to estimate the two sensor variances from the calibration data and confirm the deployment sample period. The calibration pass produced $R_1$ = #y1_variance_text for the range-like measurement and $R_2$ = #y2_variance_text for the cubic heading sensor. The deployment dataset remained uniformly sampled at #dt_text s. The filters were initialized from the first truth sample and used an initial covariance equal to #p0_trace_ratio_text of the nominal base matrix so that the baseline comparison started from the same prior in every case.
 
-= Problem II. EKF and UKF Formulation
+= Problem II. Vanilla EKF and UKF with Rectangular Integration
 
-Both filters used the assignment state $x = [x, y, psi, u]^T$ with steering angle and longitudinal acceleration as inputs, fixed geometry $l_f = l_r = 1$, and the prescribed continuous-time process covariance. The EKF used the rectangular Euler prediction and first-order Jacobian linearization for both process and measurement updates. The UKF used the scaled unscented transform with $alpha = 10^-3$, $beta = 2$, and $kappa = 0$, propagated each sigma point through the selected integrator, and reconstructed mean and covariance from the propagated sigma set. In every configuration, the two measurements were processed sequentially as scalar updates so that each sensor could be accepted or rejected independently.
+Both filters used the assignment state $x = [x, y, psi, u]^T$ with steering angle and longitudinal acceleration as inputs, fixed geometry $l_f = l_r = 1$, and the prescribed continuous-time process covariance. The EKF used rectangular Euler prediction with first-order Jacobian linearization for both the process and measurement updates. The UKF used the scaled unscented transform with $alpha = 10^-3$, $beta = 2$, and $kappa = 0$, and propagated every sigma point with the selected discrete-time integrator. In every configuration, the two measurements were processed sequentially as scalar updates so that the gating study in Problem IV could test each sensor independently.
 
 #column_figure(
   "figures/estimator_flow.pdf",
   [Standalone CeTZ diagram of the sequential estimation workflow. The figure was authored separately, compiled to PDF, and then imported into the main IEEE-formatted document as a standard image asset.],
 )
 
-The ungated rectangular comparison favored the UKF. The EKF rectangular run produced a position RMSE of #ekf_rect_no_gate_pos_text m with a heading RMSE of #ekf_rect_no_gate_heading_deg_text deg, while the rectangular UKF reduced these values to #ukf_rect_no_gate_pos_text m and #ukf_rect_no_gate_heading_deg_text deg. This result is consistent with the nonlinear measurement model, especially the $psi^3$ sensor, where the UKF preserved nonlinear curvature more effectively than the first-order EKF approximation.
+The ungated rectangular comparison favored the UKF. The EKF rectangular run produced a position RMSE of #ekf_rect_no_gate_pos_text m with a heading RMSE of #ekf_rect_no_gate_heading_deg_text deg, while the rectangular UKF reduced these values to #ukf_rect_no_gate_pos_text m and #ukf_rect_no_gate_heading_deg_text deg. The same trend appeared in the covariance histories. The rectangular EKF carried an average covariance trace of #ekf_rect_no_gate_avg_trace_text, while the rectangular UKF carried #ukf_rect_no_gate_avg_trace_text. The UKF therefore remained less overconfident on this nonlinear problem, especially under the cubic heading measurement.
 
 #full_width_figure(
   "figures/trajectory.png",
-  [Truth and estimated trajectories for the main filter configurations. The ungated UKF remains closest to the measured path, while the gated runs become increasingly prediction dominated late in the record.],
+  [Trajectory comparison for the rectangular EKF and UKF baselines, the gated rectangular filters, and the ungated RK4 UKF. The vanilla UKF and the ungated RK4 UKF remain closest to the truth trajectory, while the gated runs drift late in the record after repeated measurement rejection.],
 )
 
-= Problem III. Measurement Gating Study
-
-The tuning sweep compared two reasonable scalar chi-square thresholds, namely 95% and 99%, across five initial covariance scales. The selected setting was the #chosen_gate_label gate with a #chosen_p0_scale_text scaling on the base initial covariance because it minimized the composite score across the gated EKF and UKF rectangular runs.
-
-#full_width_table(
-  tuning_table,
-  [Initialization-scale and gate-threshold sweep used to select the final gated comparison settings.],
+#full_width_figure(
+  "figures/covariance.png",
+  [Diagonal covariance histories for the rectangular EKF, rectangular UKF, and ungated RK4 UKF. The UKF variants retain visibly larger uncertainty than the EKF, which is consistent with their stronger nonlinear treatment.],
 )
 
-The gate did exactly what it was intended to do for the heading-like sensor. The faulty $y_2$ measurement was rejected three times in each final gated run, which reduced the heading RMSE from #ekf_rect_no_gate_heading_deg_text deg to #ekf_rect_gate_heading_deg_text deg for the EKF and from #ukf_rect_no_gate_heading_deg_text deg to #ukf_rect_gate_heading_deg_text deg for the UKF. However, the same logic also rejected many late $y_1$ measurements, namely #ekf_rect_gate_rej_y1_text in the EKF and #ukf_rect_gate_rej_y1_text in the UKF. As a consequence, the position RMSE increased to #ekf_rect_gate_pos_text m and #ukf_rect_gate_pos_text m for the gated rectangular filters. The practical interpretation is that the scalar normalized innovation squared test was effective at flagging the strongest outliers, but the process model was not accurate enough to fully replace the range-like measurement once repeated rejections accumulated near the end of the maneuver.
+= Problem III. Runtime of the Vanilla EKF and UKF
+
+The average runtime study for the vanilla rectangular filters used sixty repeated executions after one warm-up pass per configuration. The EKF remained the cheaper estimator at #ekf_rect_no_gate_runtime_ms_text ms per run on average, while the rectangular UKF required #ukf_rect_no_gate_runtime_ms_text ms. That extra cost is expected because the UKF must propagate and recombine the sigma-point set at every step.
+
+#column_table(
+  problem3_runtime_table,
+  [Average runtime over sixty repeated executions for the vanilla rectangular EKF and UKF.],
+)
+
+= Problem IV. Measurement Gating
+
+Measurement gating was implemented as a scalar normalized innovation squared test on each sensor separately, exactly as requested in the handout. The study used a fixed #chosen_gate_label gate with threshold #chosen_gate_threshold_text. The gate did what it was supposed to do for the heading-like sensor. The EKF heading RMSE improved by #ekf_gating_heading_improvement_text deg and the UKF heading RMSE improved by #ukf_gating_heading_improvement_text deg after the strongest $y_2$ outliers were rejected. However, the position RMSE increased by #ekf_gating_position_change_text m for the EKF and by #ukf_gating_position_change_text m for the UKF because the gate also rejected many late $y_1$ measurements. The final rectangular gated runs rejected #ekf_rect_gate_rej_y1_text and #ukf_rect_gate_rej_y1_text range measurements, respectively, which made both filters coast too long on the process model alone.
 
 #full_width_figure(
   "figures/gating_diagnostics.png",
   [Normalized innovation squared histories for both scalar sensors. The isolated $y_2$ spikes are clearly detectable, while the late growth in $y_1$ residuals explains the large number of range-measurement rejections.],
 )
 
-= Problem IV. RK4 Propagation for the UKF
+= Problem V. UKF with Runge-Kutta Integration
 
-Replacing the UKF rectangular propagation with RK4 improved the ungated accuracy. The ungated RK4 UKF achieved the best position RMSE in the study at #best_position_rmse_text m, improving on the ungated rectangular UKF by #rk4_position_improvement_text m. Under the same gating logic, the RK4 UKF also delivered the best heading RMSE among the gated UKF runs at #ukf_rk4_gate_heading_deg_text deg, although the persistent late measurement rejections still limited the position benefit in the gated case.
+Replacing the rectangular UKF propagation with RK4 improved the ungated UKF accuracy. The rectangular UKF produced a position RMSE of #ukf_rect_no_gate_pos_text m, while the ungated RK4 UKF reduced that value to #ukf_rk4_no_gate_pos_text m for an improvement of #rk4_position_improvement_text m. The heading RMSE remained nearly unchanged at #ukf_rect_no_gate_heading_deg_text deg for the rectangular UKF and #ukf_rk4_no_gate_heading_deg_text deg for the RK4 UKF. The main benefit therefore appeared in the planar trajectory and state histories, where the higher-order integrator reduced accumulated discretization error.
 
 #full_width_figure(
   "figures/state_timeseries.png",
-  [State estimates versus time for the principal comparison cases. The gated filters maintain improved heading agreement, but their position and speed estimates drift as measurements are rejected.],
+  [State estimates versus time for the vanilla rectangular EKF, vanilla rectangular UKF, and ungated RK4 UKF. The RK4 UKF mainly improves the position channels while leaving the heading history close to the rectangular UKF result.],
 )
 
-The covariance histories support that interpretation. The UKF carried a larger uncertainty envelope than the EKF, which is expected for a sigma-point method operating on the same nonlinear dynamics and measurement set. The RK4 propagation also produced a slightly smoother covariance evolution than the rectangular UKF during the final part of the trajectory.
+= Problem VI. Runtime of the RK4 UKF Versus the Rectangular UKF
 
-#full_width_figure(
-  "figures/covariance.png",
-  [Diagonal covariance histories for the gated EKF, gated rectangular UKF, and gated RK4 UKF. The UKF variants retain visibly larger uncertainty than the EKF, which is consistent with their stronger nonlinear treatment.],
-)
-
-= Problem V. Runtime Comparison
-
-The runtime study used sixty repeated executions per configuration so that transient timing noise would not dominate the comparison. The EKF remained the cheapest method at #ekf_rect_gate_runtime_ms_text ms per run on average, the rectangular UKF required #ukf_rect_gate_runtime_ms_text ms, and the RK4 UKF required #ukf_rk4_gate_runtime_ms_text ms. The RK4 propagation therefore added about #rk4_runtime_penalty_text ms relative to the rectangular UKF. That cost increase is modest compared with the gain in ungated trajectory accuracy.
+The integrator runtime comparison again used sixty repeated executions after one warm-up pass per configuration. The rectangular UKF required #ukf_rect_runtime_ms_text ms per run on average, while the RK4 UKF required #ukf_rk4_runtime_ms_text ms. The RK4 propagation therefore added #rk4_runtime_penalty_text ms per run relative to the rectangular UKF. That extra cost is small compared with the position-accuracy gain reported in Problem V.
 
 #column_table(
-  runtime_table,
-  [Average runtime over sixty repeated executions for the principal estimator configurations.],
+  problem6_runtime_table,
+  [Average runtime over sixty repeated executions for the rectangular and RK4 UKF implementations.],
 )
 
-= Problem VI. Overall Comparison and Conclusions
-
-The overall comparison is clear. The UKF was the stronger estimator for this dataset because the nonlinear process and measurement relationships were significant enough that the EKF linearization lost accuracy. The covariance comparison also favored the UKF qualitatively because the sigma-point filters carried larger and more credible uncertainty levels instead of the tighter EKF covariance trace. Measurement gating helped where it mattered most by removing the strongest $y_2$ outliers and reducing heading error, but it also exposed the weakness of the process model by forcing the filters to coast through too many late $y_1$ rejections. Finally, the RK4 propagation was the cleanest algorithmic improvement in the study because it produced the best overall ungated trajectory while increasing runtime only slightly.
+Taken together, the six required comparisons point to the same conclusion. The vanilla UKF was the stronger baseline on this nonlinear problem, the scalar gate was useful for removing the worst heading-sensor outliers but harmed position accuracy when range updates were rejected too often, and RK4 was the cleanest algorithmic upgrade because it improved the ungated UKF trajectory with only a modest runtime increase.
 
 #full_width_table(
   metrics_table,
