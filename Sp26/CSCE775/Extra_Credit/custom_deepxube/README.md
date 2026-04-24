@@ -164,22 +164,26 @@ Smoke jobs:
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python launch_gpu_jobs.py \
-  --host comech-2422.polecat-richter.ts.net \
-  --ssh-user <linux-user> \
+  --host comech-2422 \
   --tier smoke \
-  --jobs mapf,linkage,arm,retro
+  --jobs mapf,linkage,arm,retro \
+  --gpu 0,1,2,3
 ```
 
 Full jobs:
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python launch_gpu_jobs.py \
-  --host comech-2080.polecat-richter.ts.net \
-  --ssh-user <linux-user> \
+  --host comech-2080 \
+  --sync-mode rsync \
   --tier full \
   --jobs linkage,arm,retro \
+  --gpu 0,1,2 \
   --procs 2
 ```
 
 Use `--dry-run` to print the remote command without launching jobs. Logs go to
 `logs/`, checkpoints go to `runs/`, and pid files are written under `runs/`.
+Use SSH config aliases for the hosts. If a host has unreliable GitHub access,
+add `--sync-mode rsync` to copy only this custom workspace from the local
+machine before running.
