@@ -117,11 +117,15 @@ class FourBarLinkage(
 ):
 
     def __init__(self, n_steps: int = 64, n_waypoints: int = 64,
-                 n_bins: int = 64, ws_range: float = 8.0):
+                 n_bins: int = 64, ws_range: float = 8.0,
+                 solve_mean_bin_tol: float = 0.75,
+                 solve_close_frac: float = 0.95):
         super().__init__()
         self.n_steps = n_steps
         self.n_waypoints = n_waypoints
         self.n_bins = n_bins
+        self.solve_mean_bin_tol = solve_mean_bin_tol
+        self.solve_close_frac = solve_close_frac
         self.ws_min = -ws_range
         self.ws_max = ws_range
         self.bin_width = (self.ws_max - self.ws_min) / n_bins
@@ -210,6 +214,34 @@ class FourBarLinkage(
     def _state_to_curve_bins(self, state: LinkState) -> NDArray[np.int8]:
         return self._curve_to_bins(self._coupler_curve(state.params))
 
+    def _curve_match_stats(
+        self,
+        curve_bins: NDArray[np.int8],
+        goal: LinkGoal,
+    ) -> Tuple[int, int, int, float, bool]:
+        g = goal.curve
+        valid_mask = g[::2] != SENTINEL
+        if not np.any(valid_mask):
+            return 0, 0, 0, 0.0, True
+
+        idxs = np.where(valid_mask)[0]
+        gx = g[idxs * 2].astype(np.int32)
+        gy = g[idxs * 2 + 1].astype(np.int32)
+        cx = curve_bins[idxs * 2].astype(np.int32)
+        cy = curve_bins[idxs * 2 + 1].astype(np.int32)
+
+        dx = np.abs(gx - cx)
+        dy = np.abs(gy - cy)
+        exact = (dx == 0) & (dy == 0)
+        close = (dx <= 1) & (dy <= 1)
+        mean_bin_err = float(np.mean(dx + dy))
+        close_frac = float(np.mean(close))
+        solved = (
+            mean_bin_err <= self.solve_mean_bin_tol and
+            close_frac >= self.solve_close_frac
+        )
+        return len(idxs), int(np.sum(exact)), int(np.sum(close)), mean_bin_err, solved
+
     # ============================================================ ActsEnumFixed
 
     def get_actions_fixed(self) -> List[LinkAction]:
@@ -280,17 +312,7 @@ class FourBarLinkage(
         solved: List[bool] = []
         for state, goal in zip(states, goals):
             curve_bins = self._state_to_curve_bins(state)
-            g = goal.curve
-            valid_mask = g[::2] != SENTINEL
-            if not np.any(valid_mask):
-                solved.append(True)
-                continue
-            idxs = np.where(valid_mask)[0]
-            gx = g[idxs * 2]
-            gy = g[idxs * 2 + 1]
-            cx = curve_bins[idxs * 2]
-            cy = curve_bins[idxs * 2 + 1]
-            solved.append(bool(np.all((gx == cx) & (gy == cy))))
+            solved.append(self._curve_match_stats(curve_bins, goal)[4])
         return solved
 
     # ================================================ GoalStartRevWalkableActsRev
@@ -320,12 +342,50 @@ class FourBarLinkage(
                     num_steps_l: List[int]
                     ) -> Tuple[List[LinkState], List[float]]:
         walked, _ = super().random_walk(states, num_steps_l)
+        goals = [
+            LinkGoal(self._state_to_curve_bins(state))
+            for state in states
+        ]
+        solved = self.is_solved(walked, goals)
         costs: List[float] = []
-        for orig, final in zip(states, walked):
+        for orig, final, is_final_solved in zip(states, walked, solved):
+            if is_final_solved:
+                costs.append(0.0)
+                continue
             diff = np.abs(final.params.astype(np.int32) - orig.params.astype(np.int32))
             diff[5] = min(int(diff[5]), self.n_steps - int(diff[5]))
             costs.append(float(np.sum(diff)))
         return walked, costs
+
+    def sample_problem_instances(
+        self,
+        num_steps_l: List[int],
+        times: Optional[Any] = None,
+    ) -> Tuple[List[LinkState], List[LinkGoal]]:
+        states_start: List[LinkState] = []
+        goals: List[LinkGoal] = []
+
+        for num_steps in num_steps_l:
+            allow_trivial = num_steps < 5
+            max_attempts = 200
+            last_state: Optional[LinkState] = None
+            last_goal: Optional[LinkGoal] = None
+            for _ in range(max_attempts):
+                states_goal_i, goals_i = self.sample_goalstate_goal_pairs(1)
+                states_start_i, _ = self.random_walk(states_goal_i, [num_steps])
+                last_state = states_start_i[0]
+                last_goal = goals_i[0]
+                if allow_trivial or not self.is_solved(states_start_i, goals_i)[0]:
+                    states_start.append(last_state)
+                    goals.append(last_goal)
+                    break
+            else:
+                if last_state is None or last_goal is None:
+                    raise RuntimeError("Unable to sample linkage problem instance")
+                states_start.append(last_state)
+                goals.append(last_goal)
+
+        return states_start, goals
 
     # ========================================================= HasFlatSGIn
 
@@ -409,17 +469,8 @@ class FourBarLinkage(
         state_curve = self._coupler_curve(state.params)
         state_bins = self._curve_to_bins(state_curve)
 
-        n_match = 0
-        n_total = 0
-        for i in range(self.n_waypoints):
-            if goal.curve[2 * i] == SENTINEL:
-                continue
-            n_total += 1
-            if (state_bins[2 * i] == goal.curve[2 * i] and
-                    state_bins[2 * i + 1] == goal.curve[2 * i + 1]):
-                n_match += 1
-
-        solved = (n_match == n_total) and n_total > 0
+        n_total, n_match, n_close, mean_bin_err, solved = self._curve_match_stats(
+            state_bins, goal)
 
         fig.set_facecolor(BLACK_10)
 
@@ -518,8 +569,11 @@ class FourBarLinkage(
                 continue
             wx = self.ws_min + (float(gx_val) + 0.5) * self.bin_width
             wy = self.ws_min + (float(gy_val) + 0.5) * self.bin_width
-            if (state_bins[2 * i] == gx_val and
-                    state_bins[2 * i + 1] == gy_val):
+            close = (
+                abs(int(state_bins[2 * i]) - int(gx_val)) <= 1 and
+                abs(int(state_bins[2 * i + 1]) - int(gy_val)) <= 1
+            )
+            if close:
                 ax_curve.plot(wx, wy, 'o', color=HORSESHOE,
                               markersize=3, zorder=5)
             else:
@@ -530,7 +584,11 @@ class FourBarLinkage(
                         framealpha=0.8, edgecolor=BLACK_30)
 
         status_color = HORSESHOE if solved else ROSE
-        status_text = f"{n_match}/{n_total} waypoints matched"
+        close_frac = 0.0 if n_total == 0 else n_close / n_total
+        status_text = (
+            f"{n_match}/{n_total} exact, {close_frac:.0%} within 1 bin, "
+            f"mean error {mean_bin_err:.2f}"
+        )
         if solved:
             status_text += "  [SOLVED]"
         fig.text(0.5, 0.03, status_text, ha="center", va="bottom",
@@ -540,7 +598,8 @@ class FourBarLinkage(
 @domain_factory.register_parser("linkage")
 class LinkageParser(Parser):
     def help(self) -> str:
-        return "n_steps[_n_waypoints[_n_bins]]. E.g. 'linkage.64' or 'linkage.64_64_64'"
+        return ("n_steps[_n_waypoints[_n_bins[_meanTol[_closeFrac]]]]. "
+                "E.g. 'linkage.64' or 'linkage.64_64_64'")
 
     def parse(self, args_str: str) -> Dict[str, Any]:
         kwargs: Dict[str, Any] = {}
@@ -552,4 +611,8 @@ class LinkageParser(Parser):
                 kwargs["n_waypoints"] = int(parts[1])
             if len(parts) >= 3:
                 kwargs["n_bins"] = int(parts[2])
+            if len(parts) >= 4:
+                kwargs["solve_mean_bin_tol"] = float(parts[3])
+            if len(parts) >= 5:
+                kwargs["solve_close_frac"] = float(parts[4])
         return kwargs
