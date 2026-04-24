@@ -39,9 +39,6 @@ SMOKE_JOBS = {
     "pancake": TrainJob("pancake", "pancake.10", "resnet_fc.64H_2B_bn",
                         "test_instances/pancake_10.pkl", 20, 64, 40, 40, 4,
                         1, 64, 256, 100, 1),
-    "linkage": TrainJob("linkage", "linkage.16_16_16", "resnet_fc.32H_1B_bn",
-                        "/tmp/linkage_16_smoke.pkl", 4, 32, 40, 40, 4,
-                        1, 32, 128, 100, 1),
     "mapf": TrainJob("mapf", "mapf.8_8_4_32", "resnet_fc.32H_1B_bn",
                      "/tmp/mapf_8x8_4_onestep.pkl", 2, 32, 40, 40, 4,
                      1, 32, 128, 100, 1),
@@ -61,10 +58,7 @@ FULL_JOBS = {
     "pancake": TrainJob("pancake", "pancake.10", "resnet_fc.1024H_4B_bn",
                         "test_instances/pancake_10.pkl", 35, 4096, 100000,
                         200, 16, 256, 512, 65536, 300, 5),
-    "linkage": TrainJob("linkage", "linkage.64_64_64", "resnet_fc.1024H_4B_bn",
-                        "test_instances/linkage_64.pkl", 50, 4096, 250000,
-                        200, 16, 512, 256, 65536, 5000, 5),
-    "mapf4": TrainJob("mapf4", "mapf.28_28_4_64", "resnet_fc.256H_3B_bn",
+    "mapf4": TrainJob("mapf4", "mapf.28_28_4_64", "resnet_fc.128H_2B_bn",
                       "test_instances/mapf_28x28_4.pkl", 40, 4096, 100000,
                       200, 16, 128, 512, 65536, 2000, 5),
     "mapf30": TrainJob("mapf30", "mapf.28_28_30_256", "resnet_fc.1024H_4B_bn",
@@ -138,7 +132,6 @@ import deepxube  # noqa: F401
 from deepxube.utils.command_line_utils import get_domain_from_arg
 
 cases = [
-    ("linkage.16_16_16", "/tmp/linkage_16_smoke.pkl", [1, 1, 2, 2, 3, 3]),
     ("mapf.8_8_4_32", "/tmp/mapf_8x8_4_onestep.pkl", [1, 1, 1, 1]),
     ("arm.6_12_8", "/tmp/arm_6_12_8_smoke.pkl", [1, 1, 2, 2, 3, 3]),
 ]
@@ -160,6 +153,8 @@ PY
 def make_remote_script(args: argparse.Namespace) -> str:
     job_table = SMOKE_JOBS if args.tier == "smoke" else FULL_JOBS
     selected = [name.strip() for name in args.jobs.split(",") if name.strip()]
+    if not selected:
+        selected = ["mapf", "arm", "retro"] if args.tier == "smoke" else ["mapf4", "arm64", "retro"]
     unknown = sorted(set(selected) - set(job_table))
     if unknown:
         raise ValueError(f"Unknown job names for tier {args.tier}: {', '.join(unknown)}")
@@ -223,7 +218,7 @@ def main() -> None:
     )
     parser.add_argument("--repo-dir", default="~/graduate-coursework-deepxube-run")
     parser.add_argument("--tier", choices=["smoke", "full"], default="smoke")
-    parser.add_argument("--jobs", default="linkage,mapf4,retro")
+    parser.add_argument("--jobs", default="")
     parser.add_argument(
         "--sync-mode",
         choices=["git", "rsync"],
