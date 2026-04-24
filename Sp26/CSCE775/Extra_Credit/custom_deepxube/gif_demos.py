@@ -78,6 +78,7 @@ MODEL_CONFIGS: dict[str, ModelConfig] = {
         goal_hint=(2.0, -2.0, -2.0),
         search_step_cap=1000,
     ),
+    "retro": ModelConfig("resnet_fc.1024H_4B_bn", "runs/models/retro/model.pt", 30),
 }
 
 
