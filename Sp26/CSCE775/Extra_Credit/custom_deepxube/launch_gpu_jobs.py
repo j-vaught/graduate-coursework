@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -207,7 +208,14 @@ def main() -> None:
         print(" ".join(q(part) for part in ssh_cmd))
         return
 
-    subprocess.run(ssh_cmd, check=True)
+    try:
+        subprocess.run(ssh_cmd, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(
+            f"remote launch failed on {destination} with exit code {exc.returncode}",
+            file=sys.stderr,
+        )
+        raise SystemExit(exc.returncode) from None
 
 
 if __name__ == "__main__":
