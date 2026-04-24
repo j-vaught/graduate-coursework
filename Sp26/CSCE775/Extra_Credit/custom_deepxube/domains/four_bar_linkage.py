@@ -215,6 +215,22 @@ class FourBarLinkage(
     def get_actions_fixed(self) -> List[LinkAction]:
         return self.all_actions.copy()
 
+    def _action_changes_state(self, params: NDArray[np.int8],
+                              act: LinkAction) -> bool:
+        if act.param == 5:
+            return True
+        val = int(params[act.param]) + act.delta
+        return 0 <= val < self.n_steps
+
+    def get_state_actions(self, states: List[LinkState]) -> List[List[LinkAction]]:
+        actions_l: List[List[LinkAction]] = []
+        for state in states:
+            actions_l.append([
+                act for act in self.all_actions
+                if self._action_changes_state(state.params, act)
+            ])
+        return actions_l
+
     def expand(self, states: List[LinkState]
                ) -> Tuple[List[List[LinkState]], List[List[LinkAction]],
                            List[List[float]]]:
@@ -224,7 +240,7 @@ class FourBarLinkage(
         costs_exp: List[List[float]] = [[] for _ in range(n)]
 
         for idx, state in enumerate(states):
-            for act in self.all_actions:
+            for act in self.get_state_actions([state])[0]:
                 new_params = state.params.copy()
                 val = int(new_params[act.param]) + act.delta
                 if act.param == 5:  # beta wraps
@@ -284,12 +300,20 @@ class FourBarLinkage(
     ) -> Tuple[List[LinkState], List[LinkGoal]]:
         states: List[LinkState] = []
         goals: List[LinkGoal] = []
-        for _ in range(num):
+        attempts = 0
+        max_attempts = max(1000, num * 20)
+        while len(states) < num and attempts < max_attempts:
+            attempts += 1
             params = np.random.randint(
                 0, self.n_steps, size=N_PARAMS).astype(np.int8)
             curve_bins = self._curve_to_bins(self._coupler_curve(params))
+            if not np.any(curve_bins[::2] != SENTINEL):
+                continue
             states.append(LinkState(params))
             goals.append(LinkGoal(curve_bins))
+        if len(states) < num:
+            raise RuntimeError(
+                f"Only sampled {len(states)} valid linkage goals out of {num}")
         return states, goals
 
     def random_walk(self, states: List[LinkState],
