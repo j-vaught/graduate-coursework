@@ -58,7 +58,7 @@
 
 = Problem I. Calibration Variance Estimation
 
-The first task was to estimate the two sensor variances from the calibration data and confirm the deployment sample period. The calibration pass produced $R_1$ = #y1_variance_text for the range-like measurement and $R_2$ = #y2_variance_text for the cubic heading sensor. The deployment dataset remained uniformly sampled at #dt_text s. The filters were initialized from the first truth sample and used an initial covariance equal to #p0_trace_ratio_text of the nominal base matrix so that the baseline comparison started from the same prior in every case.
+The first task was to estimate the two sensor variances from the calibration data and confirm the deployment sample period. The calibration pass produced $R_1$ = #y1_variance_text for the range-like measurement and $R_2$ = #y2_variance_text for the cubic heading sensor. The deployment dataset remained uniformly sampled at #dt_text s. The filters were initialized from a zero-centered prior and used the nominal base covariance so that the baseline comparison did not consume the provided truth channels as estimator inputs.
 
 = Problem II. Vanilla EKF and UKF with Rectangular Integration
 
@@ -96,7 +96,7 @@ Measurement gating was implemented as a scalar normalized innovation squared tes
 
 #full_width_figure(
   "figures/gating_diagnostics.png",
-  [Normalized innovation squared histories for both scalar sensors. The isolated $y_2$ spikes are clearly detectable, while the late growth in $y_1$ residuals explains the large number of range-measurement rejections.],
+  [Normalized innovation squared histories for both scalar sensors. The isolated $y_2$ spikes are clearly detectable, and the EKF and UKF rejection markers show how the late growth in $y_1$ residuals drives repeated range-measurement rejection.],
 )
 
 = Problem V. UKF with Runge-Kutta Integration
