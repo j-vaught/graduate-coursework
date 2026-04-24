@@ -74,6 +74,8 @@ for idx = 1:numel(configs)
     results.(config.id) = runFilter(data, params, config);
 end
 
+appendix = runAblationStudies(data, params);
+
 runtimeProblem3Configs = [configs(1), configs(2)];
 runtimeProblem3Stats = measureRuntimes(data, params, runtimeProblem3Configs, 60);
 
@@ -85,12 +87,13 @@ exportTrajectoryFigure(data, results, palette, reportFigureDir);
 exportStateFigure(data, results, palette, reportFigureDir);
 exportCovarianceFigure(data, results, palette, reportFigureDir);
 exportGatingFigure(data, results, params, palette, reportFigureDir);
+exportAblationFigures(appendix, palette, reportFigureDir);
 
 summaryPath = fullfile(reportGeneratedDir, "summary.txt");
 typstPath = fullfile(reportGeneratedDir, "results.typ");
 
-writeSummaryText(summaryPath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats);
-writeTypstResults(typstPath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats);
+writeSummaryText(summaryPath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, appendix);
+writeTypstResults(typstPath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, appendix);
 
 %% Problem VI. Print concise conclusions for the report
 printConsoleSummary(data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, summaryPath, typstPath);
@@ -131,7 +134,8 @@ function config = buildConfig(id, label, filterType, integrator, gating, gateThr
         "filterType", char(filterType), ...
         "integrator", char(integrator), ...
         "gating", logical(gating), ...
-        "gateThreshold", gateThreshold);
+        "gateThreshold", gateThreshold, ...
+        "sensorMask", [true; true]);
 end
 
 function result = runFilter(data, params, config)
@@ -164,8 +168,17 @@ function result = runFilter(data, params, config)
             [x, P] = ukfPredict(x, P, control, params, config.integrator);
         end
 
-        [x, P, update1] = scalarMeasurementUpdate(x, P, data.measurements(1, k), 1, params, config);
-        [x, P, update2] = scalarMeasurementUpdate(x, P, data.measurements(2, k), 2, params, config);
+        if config.sensorMask(1)
+            [x, P, update1] = scalarMeasurementUpdate(x, P, data.measurements(1, k), 1, params, config);
+        else
+            update1 = skippedMeasurementUpdate(x, data.measurements(1, k), 1);
+        end
+
+        if config.sensorMask(2)
+            [x, P, update2] = scalarMeasurementUpdate(x, P, data.measurements(2, k), 2, params, config);
+        else
+            update2 = skippedMeasurementUpdate(x, data.measurements(2, k), 2);
+        end
 
         accepted(:, k) = [update1.accepted; update2.accepted];
         nisHistory(:, k) = [update1.nis; update2.nis];
@@ -231,6 +244,15 @@ function [xNext, PNext, update] = scalarMeasurementUpdate(x, P, measurement, sen
     else
         [xNext, PNext, update] = ukfScalarUpdate(x, P, measurement, sensorId, params, config);
     end
+end
+
+function update = skippedMeasurementUpdate(x, measurement, sensorId)
+    prediction = scalarMeasurementValue(x, sensorId);
+    update = struct( ...
+        "accepted", true, ...
+        "nis", nan, ...
+        "innovation", measurement - prediction, ...
+        "prediction", prediction);
 end
 
 function [xNext, PNext, update] = ekfScalarUpdate(x, P, measurement, sensorId, params, config)
@@ -467,6 +489,356 @@ function runtimeStats = measureRuntimes(data, params, configs, repetitions)
     end
 end
 
+function appendix = runAblationStudies(data, params)
+    appendix = struct();
+    appendix.gating = runGateThresholdAblation(data, params);
+    appendix.measurement = runMeasurementAblation(data, params);
+    appendix.prior = runPriorScaleAblation(data, params);
+    appendix.ukfSpread = runUkfSpreadAblation(data, params);
+end
+
+function study = runGateThresholdAblation(data, params)
+    gateLabels = ["No gate", "95%", "97.5%", "99%", "99.5%", "99.9%"];
+    gateConfidences = [nan, 0.95, 0.975, 0.99, 0.995, 0.999];
+    filters = ["EKF", "UKF"];
+    rows = emptyAblationRows();
+
+    for filterIdx = 1:numel(filters)
+        filterName = lower(filters(filterIdx));
+        for gateIdx = 1:numel(gateLabels)
+            if isnan(gateConfidences(gateIdx))
+                gating = false;
+                threshold = inf;
+            else
+                gating = true;
+                threshold = scalarChiSquareThreshold(gateConfidences(gateIdx));
+            end
+
+            config = buildConfig( ...
+                "gate_sweep", ...
+                sprintf("%s %s", filters(filterIdx), gateLabels(gateIdx)), ...
+                filterName, ...
+                "euler", ...
+                gating, ...
+                threshold);
+            result = runFilter(data, params, config);
+            rows(end + 1) = ablationRow(filters(filterIdx), gateLabels(gateIdx), threshold, result); %#ok<AGROW>
+        end
+    end
+
+    study = struct();
+    study.labels = gateLabels;
+    study.filters = filters;
+    study.rows = rows;
+    study.bestPosition = bestAblationRow(rows, "positionRMSE");
+    study.bestHeading = bestAblationRow(rows, "headingRMSEDeg");
+end
+
+function study = runMeasurementAblation(data, params)
+    modeLabels = ["Both sensors", "y1 only", "y2 only", "Prediction only"];
+    sensorMasks = {[true; true], [true; false], [false; true], [false; false]};
+    filters = ["EKF", "UKF"];
+    rows = emptyAblationRows();
+
+    for filterIdx = 1:numel(filters)
+        filterName = lower(filters(filterIdx));
+        for modeIdx = 1:numel(modeLabels)
+            config = buildConfig( ...
+                "measurement_sweep", ...
+                sprintf("%s %s", filters(filterIdx), modeLabels(modeIdx)), ...
+                filterName, ...
+                "euler", ...
+                false, ...
+                inf);
+            config.sensorMask = sensorMasks{modeIdx};
+            result = runFilter(data, params, config);
+            rows(end + 1) = ablationRow(filters(filterIdx), modeLabels(modeIdx), modeIdx, result); %#ok<AGROW>
+        end
+    end
+
+    study = struct();
+    study.labels = modeLabels;
+    study.filters = filters;
+    study.rows = rows;
+    study.bestPosition = bestAblationRow(rows, "positionRMSE");
+    study.bestHeading = bestAblationRow(rows, "headingRMSEDeg");
+end
+
+function study = runPriorScaleAblation(data, params)
+    scales = [0.25, 0.5, 1, 2, 5, 10];
+    filters = ["EKF", "UKF"];
+    rows = emptyAblationRows();
+
+    for filterIdx = 1:numel(filters)
+        filterName = lower(filters(filterIdx));
+        for scaleIdx = 1:numel(scales)
+            paramsVariant = params;
+            paramsVariant.P0 = params.baseP0 * scales(scaleIdx);
+            config = buildConfig( ...
+                "prior_sweep", ...
+                sprintf("%s P0 scale %.2g", filters(filterIdx), scales(scaleIdx)), ...
+                filterName, ...
+                "euler", ...
+                false, ...
+                inf);
+            result = runFilter(data, paramsVariant, config);
+            rows(end + 1) = ablationRow(filters(filterIdx), sprintf("%.2g", scales(scaleIdx)), scales(scaleIdx), result); %#ok<AGROW>
+        end
+    end
+
+    study = struct();
+    study.scales = scales;
+    study.filters = filters;
+    study.rows = rows;
+    study.bestPosition = bestAblationRow(rows, "positionRMSE");
+    study.bestHeading = bestAblationRow(rows, "headingRMSEDeg");
+end
+
+function study = runUkfSpreadAblation(data, params)
+    alphas = [1e-3, 0.03, 0.1, 0.3, 0.7, 1.0];
+    rows = emptyAblationRows();
+
+    for alphaIdx = 1:numel(alphas)
+        paramsVariant = params;
+        paramsVariant.ukf.alpha = alphas(alphaIdx);
+        config = buildConfig( ...
+            "ukf_spread_sweep", ...
+            sprintf("UKF alpha %.3g", alphas(alphaIdx)), ...
+            "ukf", ...
+            "euler", ...
+            false, ...
+            inf);
+        result = runFilter(data, paramsVariant, config);
+        rows(end + 1) = ablationRow("UKF", sprintf("%.3g", alphas(alphaIdx)), alphas(alphaIdx), result); %#ok<AGROW>
+    end
+
+    study = struct();
+    study.alphas = alphas;
+    study.rows = rows;
+    study.bestPosition = bestAblationRow(rows, "positionRMSE");
+    study.bestHeading = bestAblationRow(rows, "headingRMSEDeg");
+end
+
+function threshold = scalarChiSquareThreshold(confidence)
+    threshold = 2 * erfinv(confidence)^2;
+end
+
+function rows = emptyAblationRows()
+    template = struct( ...
+        "filter", "", ...
+        "setting", "", ...
+        "settingValue", 0.0, ...
+        "positionRMSE", 0.0, ...
+        "headingRMSEDeg", 0.0, ...
+        "speedRMSE", 0.0, ...
+        "avgTraceP", 0.0, ...
+        "rejY1", 0, ...
+        "rejY2", 0);
+    rows = repmat(template, 0, 1);
+end
+
+function row = ablationRow(filterName, settingLabel, settingValue, result)
+    row = struct( ...
+        "filter", char(filterName), ...
+        "setting", char(settingLabel), ...
+        "settingValue", settingValue, ...
+        "positionRMSE", result.metrics.positionRMSE, ...
+        "headingRMSEDeg", result.metrics.headingRMSEDeg, ...
+        "speedRMSE", result.metrics.rmse(4), ...
+        "avgTraceP", result.metrics.avgTraceP, ...
+        "rejY1", result.rejections(1), ...
+        "rejY2", result.rejections(2));
+end
+
+function row = bestAblationRow(rows, metricName)
+    values = zeros(numel(rows), 1);
+    for idx = 1:numel(rows)
+        values(idx) = rows(idx).(metricName);
+    end
+    [~, bestIdx] = min(values);
+    row = rows(bestIdx);
+end
+
+function exportAblationFigures(appendix, palette, outputDir)
+    exportGateThresholdAblationFigure(appendix.gating, palette, outputDir);
+    exportMeasurementAblationFigure(appendix.measurement, palette, outputDir);
+    exportPriorScaleAblationFigure(appendix.prior, palette, outputDir);
+    exportUkfSpreadAblationFigure(appendix.ukfSpread, palette, outputDir);
+end
+
+function exportGateThresholdAblationFigure(study, palette, outputDir)
+    labels = study.labels;
+    filters = study.filters;
+    xValues = 1:numel(labels);
+    colors = {palette.rose, palette.atlantic};
+
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1050, 720]);
+    tiled = tiledlayout(fig, 2, 1, "TileSpacing", "compact", "Padding", "compact");
+    metrics = {"positionRMSE", "headingRMSEDeg"};
+    yLabels = {"Position RMSE (m)", "Heading RMSE (deg)"};
+
+    for metricIdx = 1:numel(metrics)
+        ax = nexttile(tiled);
+        hold(ax, "on");
+        for filterIdx = 1:numel(filters)
+            values = ablationSeries(study.rows, filters(filterIdx), labels, metrics{metricIdx});
+            plot(ax, xValues, values, "-o", "Color", colors{filterIdx}, "LineWidth", 1.8, ...
+                "MarkerSize", 5.5, "DisplayName", filters(filterIdx));
+        end
+        xlim(ax, [0.75, numel(labels) + 0.25]);
+        set(ax, "XTick", xValues, "XTickLabel", cellstr(labels));
+        ylabel(ax, yLabels{metricIdx});
+        styleAxes(ax, palette);
+        if metricIdx == 1
+            title(ax, "Scalar Gate Threshold Sweep");
+            lgd = legend(ax, "Location", "northoutside", "Orientation", "horizontal");
+            lgd.Layout.Tile = "north";
+        else
+            xlabel(ax, "Gate confidence");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "ablation_gate_thresholds.png"), "Resolution", 300);
+    close(fig);
+end
+
+function exportMeasurementAblationFigure(study, palette, outputDir)
+    labels = study.labels;
+    filters = study.filters;
+    colors = [palette.rose; palette.atlantic];
+
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1050, 720]);
+    tiled = tiledlayout(fig, 2, 1, "TileSpacing", "compact", "Padding", "compact");
+    metrics = {"positionRMSE", "headingRMSEDeg"};
+    yLabels = {"Position RMSE (m)", "Heading RMSE (deg)"};
+
+    for metricIdx = 1:numel(metrics)
+        ax = nexttile(tiled);
+        values = zeros(numel(labels), numel(filters));
+        for filterIdx = 1:numel(filters)
+            values(:, filterIdx) = ablationSeries(study.rows, filters(filterIdx), labels, metrics{metricIdx});
+        end
+        bars = bar(ax, values, "grouped");
+        for barIdx = 1:numel(bars)
+            bars(barIdx).FaceColor = colors(barIdx, :);
+            bars(barIdx).EdgeColor = palette.black;
+            bars(barIdx).LineWidth = 0.75;
+        end
+        set(ax, "XTickLabel", cellstr(labels));
+        ylabel(ax, yLabels{metricIdx});
+        styleAxes(ax, palette);
+        if metricIdx == 1
+            title(ax, "Sensor Contribution Ablation");
+            lgd = legend(ax, cellstr(filters), "Location", "northoutside", "Orientation", "horizontal");
+            lgd.Layout.Tile = "north";
+        else
+            xlabel(ax, "Measurements used");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "ablation_measurements.png"), "Resolution", 300);
+    close(fig);
+end
+
+function exportPriorScaleAblationFigure(study, palette, outputDir)
+    scales = study.scales;
+    filters = study.filters;
+    colors = {palette.rose, palette.atlantic};
+
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1050, 720]);
+    tiled = tiledlayout(fig, 2, 1, "TileSpacing", "compact", "Padding", "compact");
+    metrics = {"positionRMSE", "headingRMSEDeg"};
+    yLabels = {"Position RMSE (m)", "Heading RMSE (deg)"};
+
+    for metricIdx = 1:numel(metrics)
+        ax = nexttile(tiled);
+        hold(ax, "on");
+        for filterIdx = 1:numel(filters)
+            values = ablationNumericSeries(study.rows, filters(filterIdx), scales, metrics{metricIdx});
+            semilogx(ax, scales, values, "-o", "Color", colors{filterIdx}, "LineWidth", 1.8, ...
+                "MarkerSize", 5.5, "DisplayName", filters(filterIdx));
+        end
+        set(ax, "XTick", scales, "XTickLabel", compose("%.2g", scales));
+        ylabel(ax, yLabels{metricIdx});
+        styleAxes(ax, palette);
+        if metricIdx == 1
+            title(ax, "Initial Covariance Scale Sweep");
+            lgd = legend(ax, "Location", "northoutside", "Orientation", "horizontal");
+            lgd.Layout.Tile = "north";
+        else
+            xlabel(ax, "Multiplier on nominal P_0");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "ablation_prior_scale.png"), "Resolution", 300);
+    close(fig);
+end
+
+function exportUkfSpreadAblationFigure(study, palette, outputDir)
+    alphas = study.alphas;
+
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1050, 720]);
+    tiled = tiledlayout(fig, 2, 1, "TileSpacing", "compact", "Padding", "compact");
+    metrics = {"positionRMSE", "headingRMSEDeg"};
+    yLabels = {"Position RMSE (m)", "Heading RMSE (deg)"};
+    colors = {palette.atlantic, palette.horseshoe};
+
+    for metricIdx = 1:numel(metrics)
+        ax = nexttile(tiled);
+        values = ablationNumericSeries(study.rows, "UKF", alphas, metrics{metricIdx});
+        semilogx(ax, alphas, values, "-o", "Color", colors{metricIdx}, "LineWidth", 1.8, "MarkerSize", 5.5);
+        set(ax, "XTick", alphas, "XTickLabel", compose("%.3g", alphas));
+        ylabel(ax, yLabels{metricIdx});
+        styleAxes(ax, palette);
+        if metricIdx == 1
+            title(ax, "UKF Sigma-Point Spread Sweep");
+        else
+            xlabel(ax, "UKF alpha");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "ablation_ukf_spread.png"), "Resolution", 300);
+    close(fig);
+end
+
+function values = ablationSeries(rows, filterName, settings, metricName)
+    values = zeros(numel(settings), 1);
+    for settingIdx = 1:numel(settings)
+        values(settingIdx) = ablationMetricBySetting(rows, filterName, settings(settingIdx), metricName);
+    end
+end
+
+function values = ablationNumericSeries(rows, filterName, settings, metricName)
+    values = zeros(numel(settings), 1);
+    for settingIdx = 1:numel(settings)
+        values(settingIdx) = ablationMetricByValue(rows, filterName, settings(settingIdx), metricName);
+    end
+end
+
+function value = ablationMetricBySetting(rows, filterName, settingLabel, metricName)
+    value = nan;
+    for idx = 1:numel(rows)
+        sameFilter = strcmp(rows(idx).filter, char(filterName));
+        sameSetting = strcmp(rows(idx).setting, char(settingLabel));
+        if sameFilter && sameSetting
+            value = rows(idx).(metricName);
+            return
+        end
+    end
+end
+
+function value = ablationMetricByValue(rows, filterName, settingValue, metricName)
+    value = nan;
+    for idx = 1:numel(rows)
+        sameFilter = strcmp(rows(idx).filter, char(filterName));
+        sameSetting = abs(rows(idx).settingValue - settingValue) < 1e-12;
+        if sameFilter && sameSetting
+            value = rows(idx).(metricName);
+            return
+        end
+    end
+end
+
 function exportTrajectoryFigure(data, results, palette, outputDir)
     fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 900, 650]);
     ax = axes(fig);
@@ -628,7 +1000,7 @@ function palette = brandPalette()
     palette.honeycomb = [164, 145, 55] / 255;
 end
 
-function writeSummaryText(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats)
+function writeSummaryText(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, appendix)
     fid = fopen(filePath, "w");
     if fid < 0
         error("Unable to open summary output file.");
@@ -688,10 +1060,22 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
             1000 * runtimeProblem6Stats(idx).meanSeconds, 1000 * runtimeProblem6Stats(idx).stdSeconds);
     end
 
+    fprintf(fid, "\nAppendix ablation highlights\n");
+    fprintf(fid, "  Gate sweep best position: %s, %s, %.4f m\n", ...
+        appendix.gating.bestPosition.filter, appendix.gating.bestPosition.setting, appendix.gating.bestPosition.positionRMSE);
+    fprintf(fid, "  Gate sweep best heading: %s, %s, %.4f deg\n", ...
+        appendix.gating.bestHeading.filter, appendix.gating.bestHeading.setting, appendix.gating.bestHeading.headingRMSEDeg);
+    fprintf(fid, "  Sensor sweep best position: %s, %s, %.4f m\n", ...
+        appendix.measurement.bestPosition.filter, appendix.measurement.bestPosition.setting, appendix.measurement.bestPosition.positionRMSE);
+    fprintf(fid, "  Prior sweep best position: %s, scale %s, %.4f m\n", ...
+        appendix.prior.bestPosition.filter, appendix.prior.bestPosition.setting, appendix.prior.bestPosition.positionRMSE);
+    fprintf(fid, "  UKF alpha sweep best position: alpha %s, %.4f m\n", ...
+        appendix.ukfSpread.bestPosition.setting, appendix.ukfSpread.bestPosition.positionRMSE);
+
     %#ok<NASGU>
 end
 
-function writeTypstResults(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats)
+function writeTypstResults(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, appendix)
     fid = fopen(filePath, "w");
     if fid < 0
         error("Unable to open Typst output file.");
@@ -746,6 +1130,26 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     fprintf(fid, '#let ukf_rect_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeProblem6Stats(1).meanSeconds));
     fprintf(fid, '#let ukf_rk4_runtime_ms_text = "%s"\n\n', sprintf("%.3f", 1000 * runtimeProblem6Stats(2).meanSeconds));
 
+    fprintf(fid, '#let gate_best_position_filter_text = "%s"\n', typstString(appendix.gating.bestPosition.filter));
+    fprintf(fid, '#let gate_best_position_setting_text = "%s"\n', typstString(appendix.gating.bestPosition.setting));
+    fprintf(fid, '#let gate_best_position_rmse_text = "%s"\n', sprintf("%.4f", appendix.gating.bestPosition.positionRMSE));
+    fprintf(fid, '#let gate_best_heading_filter_text = "%s"\n', typstString(appendix.gating.bestHeading.filter));
+    fprintf(fid, '#let gate_best_heading_setting_text = "%s"\n', typstString(appendix.gating.bestHeading.setting));
+    fprintf(fid, '#let gate_best_heading_rmse_text = "%s"\n', sprintf("%.4f", appendix.gating.bestHeading.headingRMSEDeg));
+    fprintf(fid, '#let measurement_best_position_filter_text = "%s"\n', typstString(appendix.measurement.bestPosition.filter));
+    fprintf(fid, '#let measurement_best_position_setting_text = "%s"\n', typstString(appendix.measurement.bestPosition.setting));
+    fprintf(fid, '#let measurement_best_position_rmse_text = "%s"\n', sprintf("%.4f", appendix.measurement.bestPosition.positionRMSE));
+    fprintf(fid, '#let measurement_best_heading_filter_text = "%s"\n', typstString(appendix.measurement.bestHeading.filter));
+    fprintf(fid, '#let measurement_best_heading_setting_text = "%s"\n', typstString(appendix.measurement.bestHeading.setting));
+    fprintf(fid, '#let measurement_best_heading_rmse_text = "%s"\n', sprintf("%.4f", appendix.measurement.bestHeading.headingRMSEDeg));
+    fprintf(fid, '#let prior_best_position_filter_text = "%s"\n', typstString(appendix.prior.bestPosition.filter));
+    fprintf(fid, '#let prior_best_position_scale_text = "%s"\n', typstString(appendix.prior.bestPosition.setting));
+    fprintf(fid, '#let prior_best_position_rmse_text = "%s"\n', sprintf("%.4f", appendix.prior.bestPosition.positionRMSE));
+    fprintf(fid, '#let ukf_alpha_best_position_text = "%s"\n', typstString(appendix.ukfSpread.bestPosition.setting));
+    fprintf(fid, '#let ukf_alpha_best_position_rmse_text = "%s"\n', sprintf("%.4f", appendix.ukfSpread.bestPosition.positionRMSE));
+    fprintf(fid, '#let ukf_alpha_best_heading_text = "%s"\n', typstString(appendix.ukfSpread.bestHeading.setting));
+    fprintf(fid, '#let ukf_alpha_best_heading_rmse_text = "%s"\n\n', sprintf("%.4f", appendix.ukfSpread.bestHeading.headingRMSEDeg));
+
     fprintf(fid, '#let metrics_table = table(\n');
     fprintf(fid, '  columns: 9,\n');
     fprintf(fid, '  align: (left, right, right, right, right, right, right, right, right),\n');
@@ -788,7 +1192,73 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     end
     fprintf(fid, ')\n\n');
 
+    fprintf(fid, '#let gate_ablation_table = table(\n');
+    fprintf(fid, '  columns: 8,\n');
+    fprintf(fid, '  align: (left, left, right, right, right, right, right, right),\n');
+    fprintf(fid, '  inset: 4pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([Filter], [Gate], [Threshold], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]),\n');
+    for idx = 1:numel(appendix.gating.rows)
+        row = appendix.gating.rows(idx);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%d/%d],\n", ...
+            typstString(row.filter), typstString(row.setting), thresholdText(row.settingValue), ...
+            sprintf("%.4f", row.positionRMSE), sprintf("%.4f", row.headingRMSEDeg), ...
+            sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP), row.rejY1, row.rejY2);
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, '#let measurement_ablation_table = table(\n');
+    fprintf(fid, '  columns: 7,\n');
+    fprintf(fid, '  align: (left, left, right, right, right, right, right),\n');
+    fprintf(fid, '  inset: 4pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([Filter], [Measurements], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]),\n');
+    for idx = 1:numel(appendix.measurement.rows)
+        row = appendix.measurement.rows(idx);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%d/%d],\n", ...
+            typstString(row.filter), typstString(row.setting), sprintf("%.4f", row.positionRMSE), ...
+            sprintf("%.4f", row.headingRMSEDeg), sprintf("%.4f", row.speedRMSE), ...
+            sprintf("%.4f", row.avgTraceP), row.rejY1, row.rejY2);
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, '#let prior_ablation_table = table(\n');
+    fprintf(fid, '  columns: 6,\n');
+    fprintf(fid, '  align: (left, right, right, right, right, right),\n');
+    fprintf(fid, '  inset: 4pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([Filter], [$P_0$ scale], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]),\n');
+    for idx = 1:numel(appendix.prior.rows)
+        row = appendix.prior.rows(idx);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s],\n", ...
+            typstString(row.filter), typstString(row.setting), sprintf("%.4f", row.positionRMSE), ...
+            sprintf("%.4f", row.headingRMSEDeg), sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP));
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, '#let ukf_spread_ablation_table = table(\n');
+    fprintf(fid, '  columns: 5,\n');
+    fprintf(fid, '  align: (right, right, right, right, right),\n');
+    fprintf(fid, '  inset: 5pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([$alpha$], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]),\n');
+    for idx = 1:numel(appendix.ukfSpread.rows)
+        row = appendix.ukfSpread.rows(idx);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s],\n", ...
+            typstString(row.setting), sprintf("%.4f", row.positionRMSE), sprintf("%.4f", row.headingRMSEDeg), ...
+            sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP));
+    end
+    fprintf(fid, ')\n\n');
+
     fprintf(fid, "#let dataset_note = [The script used %d samples at #dt_text s and initialized the filters from a zero-centered prior with the nominal base covariance so the comparisons did not consume deployment truth as estimator input.]\n", numel(data.time));
+end
+
+function textValue = thresholdText(value)
+    if isinf(value)
+        textValue = "inf";
+    else
+        textValue = sprintf("%.4f", value);
+    end
 end
 
 function escaped = typstString(value)
