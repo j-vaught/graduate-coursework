@@ -165,6 +165,7 @@ def make_remote_script(args: argparse.Namespace) -> str:
         f'cd "${{REPO_DIR}}/{CUSTOM_REL}"',
         "python3 -m venv .venv",
         ".venv/bin/python -m pip install --upgrade pip wheel",
+        f".venv/bin/python -m pip install {q(args.torch_spec)}",
         ".venv/bin/python -m pip install deepxube tensorboard",
         ".venv/bin/python - <<'PY'\nimport torch\n"
         "print('torch', torch.__version__)\n"
@@ -199,6 +200,11 @@ def main() -> None:
     parser.add_argument("--jobs", default="linkage,mapf,arm,retro")
     parser.add_argument("--gpu", default="0")
     parser.add_argument("--procs", type=int, default=2)
+    parser.add_argument(
+        "--torch-spec",
+        default="torch==2.5.1",
+        help="PyTorch requirement installed before DeepXube.",
+    )
     parser.add_argument("--run-tag")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
