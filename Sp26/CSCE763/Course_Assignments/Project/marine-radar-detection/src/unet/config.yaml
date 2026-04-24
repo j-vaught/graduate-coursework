@@ -1,0 +1,30 @@
+# U-Net Segmentation Configuration
+
+model:
+  name: "U-Net"
+  encoder: "resnet34"
+  pretrained_encoder: true
+  in_channels: 1               # grayscale radar
+  num_classes: 1                # binary segmentation
+  decoder_channels: [256, 128, 64, 32, 16]
+
+training:
+  epochs: 80
+  batch_size: 4
+  optimizer: "AdamW"
+  lr: 0.001
+  weight_decay: 0.01
+  lr_scheduler: "CosineAnnealingLR"
+  T_max: 80
+  device: "0"
+  workers: 8
+  seeds: [42, 123, 456]
+
+loss:
+  type: "DiceBCE"              # combined Dice + BCE loss
+  dice_weight: 0.5
+  bce_weight: 0.5
+
+postprocessing:
+  threshold: 0.5               # binary mask threshold
+  min_area: 15                 # minimum component area for bbox extraction
