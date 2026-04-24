@@ -213,7 +213,8 @@ end
 function [xPred, PPred] = ekfPredict(x, P, control, params)
     F = bicycleJacobian(x, control, params);
     xPred = propagateEuler(x, control, params);
-    PPred = P + params.dt * (F * P + P * F.' + params.Qc);
+    Phi = eye(size(P)) + params.dt * F;
+    PPred = Phi * P * Phi.' + params.Qc * params.dt;
     xPred(3) = wrapAngle(xPred(3));
     PPred = stabilizeCovariance(PPred);
 end
@@ -1021,11 +1022,11 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
     fprintf(fid, "  scalar gate = %s (threshold %.4f)\n\n", params.gateLabel, params.gateThreshold);
 
     fprintf(fid, "Filter comparison\n");
-    fprintf(fid, "  %-20s %-8s %-8s %-10s %-8s %-10s %-10s %-8s %-8s\n", ...
+    writeTrimmedLine(fid, "  %-20s %-8s %-8s %-10s %-8s %-10s %-10s %-8s %-8s", ...
         "Configuration", "x", "y", "psi deg", "u", "pos", "avg tr(P)", "rej y1", "rej y2");
     for idx = 1:numel(configs)
         result = results.(configs(idx).id);
-        fprintf(fid, "  %-20s %-8.4f %-8.4f %-10.4f %-8.4f %-10.4f %-10.4f %-8d %-8d\n", ...
+        writeTrimmedLine(fid, "  %-20s %-8.4f %-8.4f %-10.4f %-8.4f %-10.4f %-10.4f %-8d %-8d", ...
             result.label, result.metrics.rmse(1), result.metrics.rmse(2), result.metrics.headingRMSEDeg, ...
             result.metrics.rmse(4), result.metrics.positionRMSE, result.metrics.avgTraceP, ...
             result.rejections(1), result.rejections(2));
@@ -1033,9 +1034,9 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
     fprintf(fid, "\n");
 
     fprintf(fid, "Problem III. Vanilla EKF and UKF runtime (%d repetitions each)\n", numel(runtimeProblem3Stats(1).samples));
-    fprintf(fid, "  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
+    writeTrimmedLine(fid, "  %-20s %-12s %-12s", "Configuration", "Mean ms", "Std ms");
     for idx = 1:numel(runtimeProblem3Stats)
-        fprintf(fid, "  %-20s %-12.3f %-12.3f\n", runtimeProblem3Stats(idx).label, ...
+        writeTrimmedLine(fid, "  %-20s %-12.3f %-12.3f", runtimeProblem3Stats(idx).label, ...
             1000 * runtimeProblem3Stats(idx).meanSeconds, 1000 * runtimeProblem3Stats(idx).stdSeconds);
     end
 
@@ -1054,9 +1055,9 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
     fprintf(fid, "  RK4 UKF heading RMSE = %.4f deg\n", results.ukf_rk4_no_gate.metrics.headingRMSEDeg);
 
     fprintf(fid, "\nProblem VI. UKF runtime by integrator (%d repetitions each)\n", numel(runtimeProblem6Stats(1).samples));
-    fprintf(fid, "  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
+    writeTrimmedLine(fid, "  %-20s %-12s %-12s", "Configuration", "Mean ms", "Std ms");
     for idx = 1:numel(runtimeProblem6Stats)
-        fprintf(fid, "  %-20s %-12.3f %-12.3f\n", runtimeProblem6Stats(idx).label, ...
+        writeTrimmedLine(fid, "  %-20s %-12.3f %-12.3f", runtimeProblem6Stats(idx).label, ...
             1000 * runtimeProblem6Stats(idx).meanSeconds, 1000 * runtimeProblem6Stats(idx).stdSeconds);
     end
 
@@ -1073,6 +1074,10 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
         appendix.ukfSpread.bestPosition.setting, appendix.ukfSpread.bestPosition.positionRMSE);
 
     %#ok<NASGU>
+end
+
+function writeTrimmedLine(fid, formatSpec, varargin)
+    fprintf(fid, "%s\n", strip(sprintf(formatSpec, varargin{:}), "right"));
 end
 
 function writeTypstResults(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, appendix)
@@ -1094,7 +1099,7 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
 
     ekfGatingPositionChange = results.ekf_rect_gate.metrics.positionRMSE - results.ekf_rect_no_gate.metrics.positionRMSE;
     ukfGatingPositionChange = results.ukf_rect_gate.metrics.positionRMSE - results.ukf_rect_no_gate.metrics.positionRMSE;
-    ekfGatingHeadingImprovement = results.ekf_rect_no_gate.metrics.headingRMSEDeg - results.ekf_rect_gate.metrics.headingRMSEDeg;
+    ekfGatingHeadingChange = results.ekf_rect_gate.metrics.headingRMSEDeg - results.ekf_rect_no_gate.metrics.headingRMSEDeg;
     ukfGatingHeadingImprovement = results.ukf_rect_no_gate.metrics.headingRMSEDeg - results.ukf_rect_gate.metrics.headingRMSEDeg;
     rk4Improvement = results.ukf_rect_no_gate.metrics.positionRMSE - results.ukf_rk4_no_gate.metrics.positionRMSE;
     rk4RuntimePenalty = runtimeProblem6Stats(2).meanSeconds - runtimeProblem6Stats(1).meanSeconds;
@@ -1110,7 +1115,7 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     fprintf(fid, '#let best_position_rmse_text = "%s"\n', sprintf("%.4f", bestPosition));
     fprintf(fid, '#let ekf_gating_position_change_text = "%s"\n', sprintf("%.4f", ekfGatingPositionChange));
     fprintf(fid, '#let ukf_gating_position_change_text = "%s"\n', sprintf("%.4f", ukfGatingPositionChange));
-    fprintf(fid, '#let ekf_gating_heading_improvement_text = "%s"\n', sprintf("%.4f", ekfGatingHeadingImprovement));
+    fprintf(fid, '#let ekf_gating_heading_change_text = "%s"\n', sprintf("%.4f", ekfGatingHeadingChange));
     fprintf(fid, '#let ukf_gating_heading_improvement_text = "%s"\n', sprintf("%.4f", ukfGatingHeadingImprovement));
     fprintf(fid, '#let rk4_position_improvement_text = "%s"\n', sprintf("%.4f", rk4Improvement));
     fprintf(fid, '#let rk4_runtime_penalty_text = "%s"\n\n', sprintf("%.3f", 1000 * rk4RuntimePenalty));
