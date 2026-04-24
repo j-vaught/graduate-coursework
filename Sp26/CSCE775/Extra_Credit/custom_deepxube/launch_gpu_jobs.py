@@ -194,7 +194,7 @@ def main() -> None:
         "--ssh-user",
         help="Remote login user. Omit when --host is an SSH config alias with User set.",
     )
-    parser.add_argument("--repo-dir", default="~/graduate-coursework")
+    parser.add_argument("--repo-dir", default="~/graduate-coursework-deepxube-run")
     parser.add_argument("--tier", choices=["smoke", "full"], default="smoke")
     parser.add_argument("--jobs", default="linkage,mapf,arm,retro")
     parser.add_argument("--gpu", default="0")
