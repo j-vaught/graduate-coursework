@@ -1158,12 +1158,8 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     fprintf(fid, '#let ukf_alpha_best_heading_text = "%s"\n', typstString(appendix.ukfSpread.bestHeading.setting));
     fprintf(fid, '#let ukf_alpha_best_heading_rmse_text = "%s"\n\n', sprintf("%.4f", appendix.ukfSpread.bestHeading.headingRMSEDeg));
 
-    fprintf(fid, '#let metrics_table = table(\n');
-    fprintf(fid, '  columns: 9,\n');
-    fprintf(fid, '  align: (left, right, right, right, right, right, right, right, right),\n');
-    fprintf(fid, '  inset: 5pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([Configuration], [x], [y], [psi deg], [u], [pos.], [avg tr(P)], [rej y1], [rej y2]),\n');
+    writeTypstTableStart(fid, "metrics_table", "9", "(left, right, right, right, right, right, right, right, right)", "5pt");
+    writeTypstTableHeader(fid, "[Configuration], [x], [y], [psi deg], [u], [pos.], [avg tr(P)], [rej y1], [rej y2]");
     for idx = 1:numel(configs)
         result = results.(configs(idx).id);
         fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%d], [%d],\n", ...
@@ -1172,40 +1168,28 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
             sprintf("%.4f", result.metrics.positionRMSE), sprintf("%.4f", result.metrics.avgTraceP), ...
             result.rejections(1), result.rejections(2));
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(configs));
 
-    fprintf(fid, '#let problem3_runtime_table = table(\n');
-    fprintf(fid, '  columns: 3,\n');
-    fprintf(fid, '  align: (left, right, right),\n');
-    fprintf(fid, '  inset: 6pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([Configuration], [Mean ms], [Std ms]),\n');
+    writeTypstTableStart(fid, "problem3_runtime_table", "3", "(left, right, right)", "6pt");
+    writeTypstTableHeader(fid, "[Configuration], [Mean ms], [Std ms]");
     for idx = 1:numel(runtimeProblem3Stats)
         fprintf(fid, "  [%s], [%s], [%s],\n", ...
             typstString(runtimeProblem3Stats(idx).label), sprintf("%.3f", 1000 * runtimeProblem3Stats(idx).meanSeconds), ...
             sprintf("%.3f", 1000 * runtimeProblem3Stats(idx).stdSeconds));
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(runtimeProblem3Stats));
 
-    fprintf(fid, '#let problem6_runtime_table = table(\n');
-    fprintf(fid, '  columns: 3,\n');
-    fprintf(fid, '  align: (left, right, right),\n');
-    fprintf(fid, '  inset: 6pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([Configuration], [Mean ms], [Std ms]),\n');
+    writeTypstTableStart(fid, "problem6_runtime_table", "3", "(left, right, right)", "6pt");
+    writeTypstTableHeader(fid, "[Configuration], [Mean ms], [Std ms]");
     for idx = 1:numel(runtimeProblem6Stats)
         fprintf(fid, "  [%s], [%s], [%s],\n", ...
             typstString(runtimeProblem6Stats(idx).label), sprintf("%.3f", 1000 * runtimeProblem6Stats(idx).meanSeconds), ...
             sprintf("%.3f", 1000 * runtimeProblem6Stats(idx).stdSeconds));
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(runtimeProblem6Stats));
 
-    fprintf(fid, '#let gate_ablation_table = table(\n');
-    fprintf(fid, '  columns: 8,\n');
-    fprintf(fid, '  align: (left, left, right, right, right, right, right, right),\n');
-    fprintf(fid, '  inset: 4pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([Filter], [Gate], [Threshold], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]),\n');
+    writeTypstTableStart(fid, "gate_ablation_table", "8", "(left, left, right, right, right, right, right, right)", "4pt");
+    writeTypstTableHeader(fid, "[Filter], [Gate], [Threshold], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]");
     for idx = 1:numel(appendix.gating.rows)
         row = appendix.gating.rows(idx);
         fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%d/%d],\n", ...
@@ -1213,14 +1197,10 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
             sprintf("%.4f", row.positionRMSE), sprintf("%.4f", row.headingRMSEDeg), ...
             sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP), row.rejY1, row.rejY2);
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(appendix.gating.rows));
 
-    fprintf(fid, '#let measurement_ablation_table = table(\n');
-    fprintf(fid, '  columns: 7,\n');
-    fprintf(fid, '  align: (left, left, right, right, right, right, right),\n');
-    fprintf(fid, '  inset: 4pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([Filter], [Measurements], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]),\n');
+    writeTypstTableStart(fid, "measurement_ablation_table", "7", "(left, left, right, right, right, right, right)", "4pt");
+    writeTypstTableHeader(fid, "[Filter], [Measurements], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]");
     for idx = 1:numel(appendix.measurement.rows)
         row = appendix.measurement.rows(idx);
         fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%d/%d],\n", ...
@@ -1228,35 +1208,27 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
             sprintf("%.4f", row.headingRMSEDeg), sprintf("%.4f", row.speedRMSE), ...
             sprintf("%.4f", row.avgTraceP), row.rejY1, row.rejY2);
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(appendix.measurement.rows));
 
-    fprintf(fid, '#let prior_ablation_table = table(\n');
-    fprintf(fid, '  columns: 6,\n');
-    fprintf(fid, '  align: (left, right, right, right, right, right),\n');
-    fprintf(fid, '  inset: 4pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([Filter], [$P_0$ scale], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]),\n');
+    writeTypstTableStart(fid, "prior_ablation_table", "6", "(left, right, right, right, right, right)", "4pt");
+    writeTypstTableHeader(fid, "[Filter], [$P_0$ scale], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]");
     for idx = 1:numel(appendix.prior.rows)
         row = appendix.prior.rows(idx);
         fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s],\n", ...
             typstString(row.filter), typstString(row.setting), sprintf("%.4f", row.positionRMSE), ...
             sprintf("%.4f", row.headingRMSEDeg), sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP));
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(appendix.prior.rows));
 
-    fprintf(fid, '#let ukf_spread_ablation_table = table(\n');
-    fprintf(fid, '  columns: 5,\n');
-    fprintf(fid, '  align: (right, right, right, right, right),\n');
-    fprintf(fid, '  inset: 5pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([$alpha$], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]),\n');
+    writeTypstTableStart(fid, "ukf_spread_ablation_table", "5", "(right, right, right, right, right)", "5pt");
+    writeTypstTableHeader(fid, "[$alpha$], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]");
     for idx = 1:numel(appendix.ukfSpread.rows)
         row = appendix.ukfSpread.rows(idx);
         fprintf(fid, "  [%s], [%s], [%s], [%s], [%s],\n", ...
             typstString(row.setting), sprintf("%.4f", row.positionRMSE), sprintf("%.4f", row.headingRMSEDeg), ...
             sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP));
     end
-    fprintf(fid, ')\n\n');
+    writeTypstTableEnd(fid, 1 + numel(appendix.ukfSpread.rows));
 
     fprintf(fid, "#let dataset_note = [The script used %d samples at #dt_text s and initialized the filters from a zero-centered prior with the nominal base covariance so the comparisons did not consume deployment truth as estimator input.]\n", numel(data.time));
 end
@@ -1267,6 +1239,25 @@ function textValue = thresholdText(value)
     else
         textValue = sprintf("%.4f", value);
     end
+end
+
+function writeTypstTableStart(fid, name, columnsText, alignText, insetText)
+    fprintf(fid, '#let %s = table(\n', name);
+    fprintf(fid, '  columns: %s,\n', columnsText);
+    fprintf(fid, '  align: %s,\n', alignText);
+    fprintf(fid, '  inset: %s,\n', insetText);
+    fprintf(fid, '  stroke: none,\n');
+    fprintf(fid, '  table.hline(y: 0, stroke: 0.8pt + rgb("#000000")),\n');
+end
+
+function writeTypstTableHeader(fid, headerText)
+    fprintf(fid, '  table.header(%s),\n', headerText);
+    fprintf(fid, '  table.hline(y: 1, stroke: 0.5pt + rgb("#000000")),\n');
+end
+
+function writeTypstTableEnd(fid, rowCount)
+    fprintf(fid, '  table.hline(y: %d, stroke: 0.8pt + rgb("#000000")),\n', rowCount);
+    fprintf(fid, ')\n\n');
 end
 
 function escaped = typstString(value)
