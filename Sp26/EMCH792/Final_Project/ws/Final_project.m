@@ -42,9 +42,10 @@ params.lr = 1.0;
 params.Qc = diag([0.01, 0.01, 0.1, 0.05]);
 params.R1 = var(y1Calib, 0);
 params.R2 = var(y2Calib, 0);
-params.x0 = truth(:, 1);
+params.x0 = zeros(4, 1);
 params.baseP0 = diag([4.0, 4.0, (20 * pi / 180)^2, 0.25]);
 params.ukf = struct("alpha", 1e-3, "beta", 2.0, "kappa", 0.0);
+params.priorDescription = "zero-centered neutral prior that does not use deployment truth";
 
 data = struct();
 data.time = time;
@@ -53,7 +54,7 @@ data.measurements = measurements;
 data.controls = controls;
 
 %% Problem II through VI. Use a tighter prior and a fixed scalar gate
-params.P0 = 0.5 * params.baseP0;
+params.P0 = params.baseP0;
 params.gateThreshold = 6.634896601021214;
 params.gateLabel = "99%";
 params.gateConfidence = 0.99;
@@ -567,8 +568,12 @@ function exportGatingFigure(data, results, params, palette, outputDir)
         plot(ax, data.time, results.ukf_rect_gate.nis(sensorIdx, :), "Color", palette.garnet, "LineWidth", 1.8, "DisplayName", results.ukf_rect_gate.label);
         yline(ax, params.gateThreshold, "--", "Color", palette.black, "LineWidth", 1.3, "DisplayName", sprintf("Gate = %.2f", params.gateThreshold));
 
-        rejected = ~results.ukf_rect_gate.accepted(sensorIdx, :);
-        scatter(ax, data.time(rejected), results.ukf_rect_gate.nis(sensorIdx, rejected), 36, "x", ...
+        ekfRejected = ~results.ekf_rect_gate.accepted(sensorIdx, :);
+        scatter(ax, data.time(ekfRejected), results.ekf_rect_gate.nis(sensorIdx, ekfRejected), 28, "s", ...
+            "MarkerEdgeColor", palette.rose, "MarkerFaceColor", palette.white, "LineWidth", 1.0, "DisplayName", "EKF rejected");
+
+        ukfRejected = ~results.ukf_rect_gate.accepted(sensorIdx, :);
+        scatter(ax, data.time(ukfRejected), results.ukf_rect_gate.nis(sensorIdx, ukfRejected), 36, "x", ...
             "MarkerEdgeColor", palette.horseshoe, "LineWidth", 1.2, "DisplayName", "UKF rejected");
 
         ylabel(ax, sensorNames{sensorIdx});
@@ -639,7 +644,8 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
     fprintf(fid, "  dt = %.3f s\n\n", params.dt);
 
     fprintf(fid, "Problem II and IV settings\n");
-    fprintf(fid, "  base P0 diagonal = [%.4f, %.4f, %.4f, %.4f]\n", diag(params.P0));
+    fprintf(fid, "  nominal P0 diagonal = [%.4f, %.4f, %.4f, %.4f]\n", diag(params.P0));
+    fprintf(fid, "  initial prior = %s\n", params.priorDescription);
     fprintf(fid, "  scalar gate = %s (threshold %.4f)\n\n", params.gateLabel, params.gateThreshold);
 
     fprintf(fid, "Filter comparison\n");
@@ -782,7 +788,7 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     end
     fprintf(fid, ')\n\n');
 
-    fprintf(fid, "#let dataset_note = [The script used %d samples at #dt_text s and initialized the filters from the first truth state to isolate estimator behavior from startup mismatch.]\n", numel(data.time));
+    fprintf(fid, "#let dataset_note = [The script used %d samples at #dt_text s and initialized the filters from a zero-centered prior with the nominal base covariance so the comparisons did not consume deployment truth as estimator input.]\n", numel(data.time));
 end
 
 function escaped = typstString(value)
