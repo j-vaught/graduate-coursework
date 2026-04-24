@@ -52,17 +52,11 @@ data.truth = truth;
 data.measurements = measurements;
 data.controls = controls;
 
-%% Problem II and III. Tune initialization scale and gate threshold
-gateCandidates = [ ...
-    struct("label", "95%", "confidence", 0.95, "threshold", 3.841458820694124), ...
-    struct("label", "99%", "confidence", 0.99, "threshold", 6.634896601021214)];
-p0Scales = [0.5, 1.0, 2.0, 4.0, 8.0];
-
-[tuningRows, bestSetting] = tuneInitializationAndGate(data, params, p0Scales, gateCandidates);
-params.P0 = params.baseP0 * bestSetting.p0Scale;
-params.gateThreshold = bestSetting.gate.threshold;
-params.gateLabel = bestSetting.gate.label;
-params.gateConfidence = bestSetting.gate.confidence;
+%% Problem II through VI. Use a tighter prior and a fixed scalar gate
+params.P0 = 0.5 * params.baseP0;
+params.gateThreshold = 6.634896601021214;
+params.gateLabel = "99%";
+params.gateConfidence = 0.99;
 
 %% Problem II through V. Run the requested filter configurations
 configs = [ ...
@@ -79,8 +73,11 @@ for idx = 1:numel(configs)
     results.(config.id) = runFilter(data, params, config);
 end
 
-runtimeConfigs = [configs(3), configs(4), configs(6)];
-runtimeStats = measureRuntimes(data, params, runtimeConfigs, 60);
+runtimeProblem3Configs = [configs(1), configs(2)];
+runtimeProblem3Stats = measureRuntimes(data, params, runtimeProblem3Configs, 60);
+
+runtimeProblem6Configs = [configs(2), configs(5)];
+runtimeProblem6Stats = measureRuntimes(data, params, runtimeProblem6Configs, 60);
 
 %% Problem IV and V. Export report-ready plots and tables
 exportTrajectoryFigure(data, results, palette, reportFigureDir);
@@ -91,11 +88,11 @@ exportGatingFigure(data, results, params, palette, reportFigureDir);
 summaryPath = fullfile(reportGeneratedDir, "summary.txt");
 typstPath = fullfile(reportGeneratedDir, "results.typ");
 
-writeSummaryText(summaryPath, data, params, tuningRows, configs, results, runtimeStats);
-writeTypstResults(typstPath, data, params, tuningRows, configs, results, runtimeStats);
+writeSummaryText(summaryPath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats);
+writeTypstResults(typstPath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats);
 
 %% Problem VI. Print concise conclusions for the report
-printConsoleSummary(data, params, tuningRows, configs, results, runtimeStats, summaryPath, typstPath);
+printConsoleSummary(data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, summaryPath, typstPath);
 
 %% Any functions you develop need to go under here
 function [dataDir, projectRoot] = locateProjectPaths()
@@ -134,63 +131,6 @@ function config = buildConfig(id, label, filterType, integrator, gating, gateThr
         "integrator", char(integrator), ...
         "gating", logical(gating), ...
         "gateThreshold", gateThreshold);
-end
-
-function [rows, bestSetting] = tuneInitializationAndGate(data, params, p0Scales, gateCandidates)
-    scalePosition = max(std(hypot(data.truth(1, :), data.truth(2, :))), 1.0);
-    scaleHeading = max(std(data.truth(3, :)), deg2rad(5));
-    scaleSpeed = max(std(data.truth(4, :)), 0.25);
-
-    rowIndex = 0;
-    bestScore = inf;
-    rows = repmat(struct( ...
-        "p0Scale", 0.0, ...
-        "gateLabel", "", ...
-        "gateThreshold", 0.0, ...
-        "ekfPositionRMSE", 0.0, ...
-        "ukfPositionRMSE", 0.0, ...
-        "ekfHeadingRMSEDeg", 0.0, ...
-        "ukfHeadingRMSEDeg", 0.0, ...
-        "score", 0.0), numel(p0Scales) * numel(gateCandidates), 1);
-
-    for scaleIdx = 1:numel(p0Scales)
-        candidateParams = params;
-        candidateParams.P0 = params.baseP0 * p0Scales(scaleIdx);
-
-        for gateIdx = 1:numel(gateCandidates)
-            rowIndex = rowIndex + 1;
-            gate = gateCandidates(gateIdx);
-
-            ekfConfig = buildConfig("ekf_rect_gate_tune", "EKF rect., gate", "ekf", "euler", true, gate.threshold);
-            ukfConfig = buildConfig("ukf_rect_gate_tune", "UKF rect., gate", "ukf", "euler", true, gate.threshold);
-
-            ekfResult = runFilter(data, candidateParams, ekfConfig);
-            ukfResult = runFilter(data, candidateParams, ukfConfig);
-
-            score = mean([ ...
-                ekfResult.metrics.positionRMSE / scalePosition, ...
-                ukfResult.metrics.positionRMSE / scalePosition, ...
-                ekfResult.metrics.headingRMSE / scaleHeading, ...
-                ukfResult.metrics.headingRMSE / scaleHeading, ...
-                ekfResult.metrics.rmse(4) / scaleSpeed, ...
-                ukfResult.metrics.rmse(4) / scaleSpeed]);
-
-            rows(rowIndex) = struct( ...
-                "p0Scale", p0Scales(scaleIdx), ...
-                "gateLabel", gate.label, ...
-                "gateThreshold", gate.threshold, ...
-                "ekfPositionRMSE", ekfResult.metrics.positionRMSE, ...
-                "ukfPositionRMSE", ukfResult.metrics.positionRMSE, ...
-                "ekfHeadingRMSEDeg", ekfResult.metrics.headingRMSEDeg, ...
-                "ukfHeadingRMSEDeg", ukfResult.metrics.headingRMSEDeg, ...
-                "score", score);
-
-            if score < bestScore
-                bestScore = score;
-                bestSetting = struct("p0Scale", p0Scales(scaleIdx), "gate", gate);
-            end
-        end
-    end
 end
 
 function result = runFilter(data, params, config)
@@ -511,6 +451,7 @@ function runtimeStats = measureRuntimes(data, params, configs, repetitions)
     runtimeStats = repmat(struct("label", "", "samples", [], "meanSeconds", 0.0, "stdSeconds", 0.0), numel(configs), 1);
 
     for idx = 1:numel(configs)
+        runFilter(data, params, configs(idx)); %#ok<NASGU>
         samples = zeros(repetitions, 1);
         for rep = 1:repetitions
             startTime = tic;
@@ -535,7 +476,7 @@ function exportTrajectoryFigure(data, results, palette, outputDir)
     plot(ax, results.ukf_rect_no_gate.x(1, :), results.ukf_rect_no_gate.x(2, :), "--", "Color", palette.atlantic, "LineWidth", 1.5, "DisplayName", results.ukf_rect_no_gate.label);
     plot(ax, results.ekf_rect_gate.x(1, :), results.ekf_rect_gate.x(2, :), "-", "Color", palette.rose, "LineWidth", 1.8, "DisplayName", results.ekf_rect_gate.label);
     plot(ax, results.ukf_rect_gate.x(1, :), results.ukf_rect_gate.x(2, :), "-", "Color", palette.garnet, "LineWidth", 2.0, "DisplayName", results.ukf_rect_gate.label);
-    plot(ax, results.ukf_rk4_gate.x(1, :), results.ukf_rk4_gate.x(2, :), "-", "Color", palette.horseshoe, "LineWidth", 2.0, "DisplayName", results.ukf_rk4_gate.label);
+    plot(ax, results.ukf_rk4_no_gate.x(1, :), results.ukf_rk4_no_gate.x(2, :), "-", "Color", palette.horseshoe, "LineWidth", 2.0, "DisplayName", results.ukf_rk4_no_gate.label);
 
     xlabel(ax, "x (m)");
     ylabel(ax, "y (m)");
@@ -553,11 +494,10 @@ function exportStateFigure(data, results, palette, outputDir)
     stateNames = {"x (m)", "y (m)", "\psi (deg)", "u (m/s)"};
 
     comparison = { ...
-        struct("series", data.truth(1, :), "color", palette.black, "style", "-", "width", 2.0, "label", "Truth"), ...
-        struct("series", results.ekf_rect_gate.x(1, :), "color", palette.rose, "style", "-", "width", 1.6, "label", results.ekf_rect_gate.label), ...
-        struct("series", results.ukf_rect_gate.x(1, :), "color", palette.garnet, "style", "-", "width", 1.8, "label", results.ukf_rect_gate.label), ...
-        struct("series", results.ukf_rk4_gate.x(1, :), "color", palette.horseshoe, "style", "-", "width", 1.8, "label", results.ukf_rk4_gate.label), ...
-        struct("series", results.ukf_rect_no_gate.x(1, :), "color", palette.atlantic, "style", "--", "width", 1.4, "label", results.ukf_rect_no_gate.label)};
+        struct("matrix", data.truth, "color", palette.black, "style", "-", "width", 2.0, "label", "Truth"), ...
+        struct("matrix", results.ekf_rect_no_gate.x, "color", palette.gray70, "style", "--", "width", 1.5, "label", results.ekf_rect_no_gate.label), ...
+        struct("matrix", results.ukf_rect_no_gate.x, "color", palette.atlantic, "style", "--", "width", 1.6, "label", results.ukf_rect_no_gate.label), ...
+        struct("matrix", results.ukf_rk4_no_gate.x, "color", palette.horseshoe, "style", "-", "width", 1.8, "label", results.ukf_rk4_no_gate.label)};
 
     for stateIdx = 1:4
         ax = nexttile(tiled);
@@ -565,16 +505,9 @@ function exportStateFigure(data, results, palette, outputDir)
 
         for seriesIdx = 1:numel(comparison)
             series = comparison{seriesIdx};
-            values = series.series;
-            if stateIdx ~= 1
-                switch stateIdx
-                    case 2
-                        values = replaceState(values, series, results, data, 2);
-                    case 3
-                        values = rad2deg(replaceState(values, series, results, data, 3));
-                    case 4
-                        values = replaceState(values, series, results, data, 4);
-                end
+            values = series.matrix(stateIdx, :);
+            if stateIdx == 3
+                values = rad2deg(values);
             end
             plot(ax, data.time, values, "LineStyle", series.style, "Color", series.color, "LineWidth", series.width, "DisplayName", series.label);
         end
@@ -595,22 +528,6 @@ function exportStateFigure(data, results, palette, outputDir)
     close(fig);
 end
 
-function values = replaceState(baseSeries, series, results, data, stateIdx)
-    if strcmp(series.label, "Truth")
-        values = data.truth(stateIdx, :);
-    elseif strcmp(series.label, results.ekf_rect_gate.label)
-        values = results.ekf_rect_gate.x(stateIdx, :);
-    elseif strcmp(series.label, results.ukf_rect_gate.label)
-        values = results.ukf_rect_gate.x(stateIdx, :);
-    elseif strcmp(series.label, results.ukf_rk4_gate.label)
-        values = results.ukf_rk4_gate.x(stateIdx, :);
-    elseif strcmp(series.label, results.ukf_rect_no_gate.label)
-        values = results.ukf_rect_no_gate.x(stateIdx, :);
-    else
-        values = baseSeries;
-    end
-end
-
 function exportCovarianceFigure(data, results, palette, outputDir)
     fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1100, 900]);
     tiled = tiledlayout(fig, 4, 1, "TileSpacing", "compact", "Padding", "compact");
@@ -619,9 +536,9 @@ function exportCovarianceFigure(data, results, palette, outputDir)
     for idx = 1:4
         ax = nexttile(tiled);
         hold(ax, "on");
-        plot(ax, data.time, results.ekf_rect_gate.Pdiag(idx, :), "Color", palette.rose, "LineWidth", 1.6, "DisplayName", results.ekf_rect_gate.label);
-        plot(ax, data.time, results.ukf_rect_gate.Pdiag(idx, :), "Color", palette.garnet, "LineWidth", 1.8, "DisplayName", results.ukf_rect_gate.label);
-        plot(ax, data.time, results.ukf_rk4_gate.Pdiag(idx, :), "Color", palette.horseshoe, "LineWidth", 1.8, "DisplayName", results.ukf_rk4_gate.label);
+        plot(ax, data.time, results.ekf_rect_no_gate.Pdiag(idx, :), "Color", palette.gray70, "LineWidth", 1.6, "DisplayName", results.ekf_rect_no_gate.label);
+        plot(ax, data.time, results.ukf_rect_no_gate.Pdiag(idx, :), "Color", palette.atlantic, "LineWidth", 1.8, "DisplayName", results.ukf_rect_no_gate.label);
+        plot(ax, data.time, results.ukf_rk4_no_gate.Pdiag(idx, :), "Color", palette.horseshoe, "LineWidth", 1.8, "DisplayName", results.ukf_rk4_no_gate.label);
         ylabel(ax, labels{idx});
         styleAxes(ax, palette);
         if idx == 1
@@ -706,7 +623,7 @@ function palette = brandPalette()
     palette.honeycomb = [164, 145, 55] / 255;
 end
 
-function writeSummaryText(filePath, data, params, tuningRows, configs, results, runtimeStats)
+function writeSummaryText(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats)
     fid = fopen(filePath, "w");
     if fid < 0
         error("Unable to open summary output file.");
@@ -721,16 +638,9 @@ function writeSummaryText(filePath, data, params, tuningRows, configs, results, 
     fprintf(fid, "  y2 variance = %.6f\n", params.R2);
     fprintf(fid, "  dt = %.3f s\n\n", params.dt);
 
-    fprintf(fid, "Tuning sweep\n");
-    fprintf(fid, "  %-8s %-6s %-10s %-14s %-14s %-12s %-12s %-10s\n", ...
-        "P0", "Gate", "Threshold", "EKF pos RMSE", "UKF pos RMSE", "EKF psi deg", "UKF psi deg", "Score");
-    for idx = 1:numel(tuningRows)
-        row = tuningRows(idx);
-        fprintf(fid, "  %-8.2f %-6s %-10.4f %-14.4f %-14.4f %-12.4f %-12.4f %-10.4f\n", ...
-            row.p0Scale, row.gateLabel, row.gateThreshold, row.ekfPositionRMSE, row.ukfPositionRMSE, ...
-            row.ekfHeadingRMSEDeg, row.ukfHeadingRMSEDeg, row.score);
-    end
-    fprintf(fid, "\n");
+    fprintf(fid, "Problem II and IV settings\n");
+    fprintf(fid, "  base P0 diagonal = [%.4f, %.4f, %.4f, %.4f]\n", diag(params.P0));
+    fprintf(fid, "  scalar gate = %s (threshold %.4f)\n\n", params.gateLabel, params.gateThreshold);
 
     fprintf(fid, "Filter comparison\n");
     fprintf(fid, "  %-20s %-8s %-8s %-10s %-8s %-10s %-10s %-8s %-8s\n", ...
@@ -744,17 +654,38 @@ function writeSummaryText(filePath, data, params, tuningRows, configs, results, 
     end
     fprintf(fid, "\n");
 
-    fprintf(fid, "Runtime comparison (%d repetitions each)\n", numel(runtimeStats(1).samples));
+    fprintf(fid, "Problem III. Vanilla EKF and UKF runtime (%d repetitions each)\n", numel(runtimeProblem3Stats(1).samples));
     fprintf(fid, "  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
-    for idx = 1:numel(runtimeStats)
-        fprintf(fid, "  %-20s %-12.3f %-12.3f\n", runtimeStats(idx).label, ...
-            1000 * runtimeStats(idx).meanSeconds, 1000 * runtimeStats(idx).stdSeconds);
+    for idx = 1:numel(runtimeProblem3Stats)
+        fprintf(fid, "  %-20s %-12.3f %-12.3f\n", runtimeProblem3Stats(idx).label, ...
+            1000 * runtimeProblem3Stats(idx).meanSeconds, 1000 * runtimeProblem3Stats(idx).stdSeconds);
+    end
+
+    fprintf(fid, "\nProblem IV. Gating comparison\n");
+    fprintf(fid, "  EKF position RMSE: %.4f -> %.4f m\n", results.ekf_rect_no_gate.metrics.positionRMSE, results.ekf_rect_gate.metrics.positionRMSE);
+    fprintf(fid, "  EKF heading RMSE: %.4f -> %.4f deg\n", results.ekf_rect_no_gate.metrics.headingRMSEDeg, results.ekf_rect_gate.metrics.headingRMSEDeg);
+    fprintf(fid, "  EKF rejections: y1 = %d, y2 = %d\n", results.ekf_rect_gate.rejections(1), results.ekf_rect_gate.rejections(2));
+    fprintf(fid, "  UKF position RMSE: %.4f -> %.4f m\n", results.ukf_rect_no_gate.metrics.positionRMSE, results.ukf_rect_gate.metrics.positionRMSE);
+    fprintf(fid, "  UKF heading RMSE: %.4f -> %.4f deg\n", results.ukf_rect_no_gate.metrics.headingRMSEDeg, results.ukf_rect_gate.metrics.headingRMSEDeg);
+    fprintf(fid, "  UKF rejections: y1 = %d, y2 = %d\n", results.ukf_rect_gate.rejections(1), results.ukf_rect_gate.rejections(2));
+
+    fprintf(fid, "\nProblem V. UKF integrator comparison\n");
+    fprintf(fid, "  Rectangular UKF position RMSE = %.4f m\n", results.ukf_rect_no_gate.metrics.positionRMSE);
+    fprintf(fid, "  RK4 UKF position RMSE = %.4f m\n", results.ukf_rk4_no_gate.metrics.positionRMSE);
+    fprintf(fid, "  Rectangular UKF heading RMSE = %.4f deg\n", results.ukf_rect_no_gate.metrics.headingRMSEDeg);
+    fprintf(fid, "  RK4 UKF heading RMSE = %.4f deg\n", results.ukf_rk4_no_gate.metrics.headingRMSEDeg);
+
+    fprintf(fid, "\nProblem VI. UKF runtime by integrator (%d repetitions each)\n", numel(runtimeProblem6Stats(1).samples));
+    fprintf(fid, "  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
+    for idx = 1:numel(runtimeProblem6Stats)
+        fprintf(fid, "  %-20s %-12.3f %-12.3f\n", runtimeProblem6Stats(idx).label, ...
+            1000 * runtimeProblem6Stats(idx).meanSeconds, 1000 * runtimeProblem6Stats(idx).stdSeconds);
     end
 
     %#ok<NASGU>
 end
 
-function writeTypstResults(filePath, data, params, tuningRows, configs, results, runtimeStats)
+function writeTypstResults(filePath, data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats)
     fid = fopen(filePath, "w");
     if fid < 0
         error("Unable to open Typst output file.");
@@ -771,22 +702,26 @@ function writeTypstResults(filePath, data, params, tuningRows, configs, results,
         end
     end
 
-    gatingEkfImprovement = results.ekf_rect_no_gate.metrics.positionRMSE - results.ekf_rect_gate.metrics.positionRMSE;
-    gatingUkfImprovement = results.ukf_rect_no_gate.metrics.positionRMSE - results.ukf_rect_gate.metrics.positionRMSE;
-    rk4Improvement = results.ukf_rect_gate.metrics.positionRMSE - results.ukf_rk4_gate.metrics.positionRMSE;
-    rk4RuntimePenalty = runtimeStats(3).meanSeconds - runtimeStats(2).meanSeconds;
+    ekfGatingPositionChange = results.ekf_rect_gate.metrics.positionRMSE - results.ekf_rect_no_gate.metrics.positionRMSE;
+    ukfGatingPositionChange = results.ukf_rect_gate.metrics.positionRMSE - results.ukf_rect_no_gate.metrics.positionRMSE;
+    ekfGatingHeadingImprovement = results.ekf_rect_no_gate.metrics.headingRMSEDeg - results.ekf_rect_gate.metrics.headingRMSEDeg;
+    ukfGatingHeadingImprovement = results.ukf_rect_no_gate.metrics.headingRMSEDeg - results.ukf_rect_gate.metrics.headingRMSEDeg;
+    rk4Improvement = results.ukf_rect_no_gate.metrics.positionRMSE - results.ukf_rk4_no_gate.metrics.positionRMSE;
+    rk4RuntimePenalty = runtimeProblem6Stats(2).meanSeconds - runtimeProblem6Stats(1).meanSeconds;
 
     fprintf(fid, '#let generated_on = "%s"\n', typstString(char(datetime("now", "Format", "yyyy-MM-dd HH:mm:ss"))));
     fprintf(fid, '#let dt_text = "%s"\n', sprintf("%.3f", params.dt));
     fprintf(fid, '#let y1_variance_text = "%s"\n', sprintf("%.6f", params.R1));
     fprintf(fid, '#let y2_variance_text = "%s"\n', sprintf("%.6f", params.R2));
-    fprintf(fid, '#let chosen_p0_scale_text = "%s"\n', sprintf("%.2f", trace(params.P0) / trace(params.baseP0)));
+    fprintf(fid, '#let p0_trace_ratio_text = "%s"\n', sprintf("%.2f", trace(params.P0) / trace(params.baseP0)));
     fprintf(fid, '#let chosen_gate_label = "%s"\n', typstString(params.gateLabel));
     fprintf(fid, '#let chosen_gate_threshold_text = "%s"\n', sprintf("%.4f", params.gateThreshold));
     fprintf(fid, '#let best_configuration_text = "%s"\n', typstString(bestConfig.label));
     fprintf(fid, '#let best_position_rmse_text = "%s"\n', sprintf("%.4f", bestPosition));
-    fprintf(fid, '#let ekf_gating_improvement_text = "%s"\n', sprintf("%.4f", gatingEkfImprovement));
-    fprintf(fid, '#let ukf_gating_improvement_text = "%s"\n', sprintf("%.4f", gatingUkfImprovement));
+    fprintf(fid, '#let ekf_gating_position_change_text = "%s"\n', sprintf("%.4f", ekfGatingPositionChange));
+    fprintf(fid, '#let ukf_gating_position_change_text = "%s"\n', sprintf("%.4f", ukfGatingPositionChange));
+    fprintf(fid, '#let ekf_gating_heading_improvement_text = "%s"\n', sprintf("%.4f", ekfGatingHeadingImprovement));
+    fprintf(fid, '#let ukf_gating_heading_improvement_text = "%s"\n', sprintf("%.4f", ukfGatingHeadingImprovement));
     fprintf(fid, '#let rk4_position_improvement_text = "%s"\n', sprintf("%.4f", rk4Improvement));
     fprintf(fid, '#let rk4_runtime_penalty_text = "%s"\n\n', sprintf("%.3f", 1000 * rk4RuntimePenalty));
 
@@ -800,24 +735,10 @@ function writeTypstResults(filePath, data, params, tuningRows, configs, results,
         fprintf(fid, '#let %s_rej_y1_text = "%d"\n', configId, result.rejections(1));
         fprintf(fid, '#let %s_rej_y2_text = "%d"\n', configId, result.rejections(2));
     end
-    fprintf(fid, '#let ekf_rect_gate_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeStats(1).meanSeconds));
-    fprintf(fid, '#let ukf_rect_gate_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeStats(2).meanSeconds));
-    fprintf(fid, '#let ukf_rk4_gate_runtime_ms_text = "%s"\n\n', sprintf("%.3f", 1000 * runtimeStats(3).meanSeconds));
-
-    fprintf(fid, '#let tuning_table = table(\n');
-    fprintf(fid, '  columns: 8,\n');
-    fprintf(fid, '  align: (left, left, right, right, right, right, right, right),\n');
-    fprintf(fid, '  inset: 6pt,\n');
-    fprintf(fid, '  stroke: rgb("#363636"),\n');
-    fprintf(fid, '  table.header([P0 scale], [Gate], [Threshold], [EKF pos.], [UKF pos.], [EKF psi deg], [UKF psi deg], [Score]),\n');
-    for idx = 1:numel(tuningRows)
-        row = tuningRows(idx);
-        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s],\n", ...
-            sprintf("%.2f", row.p0Scale), row.gateLabel, sprintf("%.4f", row.gateThreshold), ...
-            sprintf("%.4f", row.ekfPositionRMSE), sprintf("%.4f", row.ukfPositionRMSE), ...
-            sprintf("%.4f", row.ekfHeadingRMSEDeg), sprintf("%.4f", row.ukfHeadingRMSEDeg), sprintf("%.4f", row.score));
-    end
-    fprintf(fid, ')\n\n');
+    fprintf(fid, '#let ekf_rect_no_gate_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeProblem3Stats(1).meanSeconds));
+    fprintf(fid, '#let ukf_rect_no_gate_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeProblem3Stats(2).meanSeconds));
+    fprintf(fid, '#let ukf_rect_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeProblem6Stats(1).meanSeconds));
+    fprintf(fid, '#let ukf_rk4_runtime_ms_text = "%s"\n\n', sprintf("%.3f", 1000 * runtimeProblem6Stats(2).meanSeconds));
 
     fprintf(fid, '#let metrics_table = table(\n');
     fprintf(fid, '  columns: 9,\n');
@@ -835,16 +756,29 @@ function writeTypstResults(filePath, data, params, tuningRows, configs, results,
     end
     fprintf(fid, ')\n\n');
 
-    fprintf(fid, '#let runtime_table = table(\n');
+    fprintf(fid, '#let problem3_runtime_table = table(\n');
     fprintf(fid, '  columns: 3,\n');
     fprintf(fid, '  align: (left, right, right),\n');
     fprintf(fid, '  inset: 6pt,\n');
     fprintf(fid, '  stroke: rgb("#363636"),\n');
     fprintf(fid, '  table.header([Configuration], [Mean ms], [Std ms]),\n');
-    for idx = 1:numel(runtimeStats)
+    for idx = 1:numel(runtimeProblem3Stats)
         fprintf(fid, "  [%s], [%s], [%s],\n", ...
-            typstString(runtimeStats(idx).label), sprintf("%.3f", 1000 * runtimeStats(idx).meanSeconds), ...
-            sprintf("%.3f", 1000 * runtimeStats(idx).stdSeconds));
+            typstString(runtimeProblem3Stats(idx).label), sprintf("%.3f", 1000 * runtimeProblem3Stats(idx).meanSeconds), ...
+            sprintf("%.3f", 1000 * runtimeProblem3Stats(idx).stdSeconds));
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, '#let problem6_runtime_table = table(\n');
+    fprintf(fid, '  columns: 3,\n');
+    fprintf(fid, '  align: (left, right, right),\n');
+    fprintf(fid, '  inset: 6pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([Configuration], [Mean ms], [Std ms]),\n');
+    for idx = 1:numel(runtimeProblem6Stats)
+        fprintf(fid, "  [%s], [%s], [%s],\n", ...
+            typstString(runtimeProblem6Stats(idx).label), sprintf("%.3f", 1000 * runtimeProblem6Stats(idx).meanSeconds), ...
+            sprintf("%.3f", 1000 * runtimeProblem6Stats(idx).stdSeconds));
     end
     fprintf(fid, ')\n\n');
 
@@ -856,21 +790,11 @@ function escaped = typstString(value)
     escaped = strrep(escaped, '"', '\"');
 end
 
-function printConsoleSummary(data, params, tuningRows, configs, results, runtimeStats, summaryPath, typstPath)
+function printConsoleSummary(data, params, configs, results, runtimeProblem3Stats, runtimeProblem6Stats, summaryPath, typstPath)
     fprintf("\nProblem I\n");
     fprintf("  y1 calibration variance: %.6f\n", params.R1);
     fprintf("  y2 calibration variance: %.6f\n", params.R2);
     fprintf("  sample time: %.3f s (%d samples)\n", params.dt, numel(data.time));
-
-    fprintf("\nTuning Sweep\n");
-    fprintf("  %-8s %-6s %-10s %-14s %-14s %-12s %-12s %-10s\n", ...
-        "P0", "Gate", "Threshold", "EKF pos RMSE", "UKF pos RMSE", "EKF psi deg", "UKF psi deg", "Score");
-    for idx = 1:numel(tuningRows)
-        row = tuningRows(idx);
-        fprintf("  %-8.2f %-6s %-10.4f %-14.4f %-14.4f %-12.4f %-12.4f %-10.4f\n", ...
-            row.p0Scale, row.gateLabel, row.gateThreshold, row.ekfPositionRMSE, row.ukfPositionRMSE, ...
-            row.ekfHeadingRMSEDeg, row.ukfHeadingRMSEDeg, row.score);
-    end
 
     fprintf("\nSelected Settings\n");
     fprintf("  P0 scale: %.2f\n", trace(params.P0) / trace(params.baseP0));
@@ -888,11 +812,18 @@ function printConsoleSummary(data, params, tuningRows, configs, results, runtime
             result.rejections(1), result.rejections(2));
     end
 
-    fprintf("\nRuntime Comparison\n");
+    fprintf("\nProblem III Runtime Comparison\n");
     fprintf("  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
-    for idx = 1:numel(runtimeStats)
-        fprintf("  %-20s %-12.3f %-12.3f\n", runtimeStats(idx).label, ...
-            1000 * runtimeStats(idx).meanSeconds, 1000 * runtimeStats(idx).stdSeconds);
+    for idx = 1:numel(runtimeProblem3Stats)
+        fprintf("  %-20s %-12.3f %-12.3f\n", runtimeProblem3Stats(idx).label, ...
+            1000 * runtimeProblem3Stats(idx).meanSeconds, 1000 * runtimeProblem3Stats(idx).stdSeconds);
+    end
+
+    fprintf("\nProblem VI Runtime Comparison\n");
+    fprintf("  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
+    for idx = 1:numel(runtimeProblem6Stats)
+        fprintf("  %-20s %-12.3f %-12.3f\n", runtimeProblem6Stats(idx).label, ...
+            1000 * runtimeProblem6Stats(idx).meanSeconds, 1000 * runtimeProblem6Stats(idx).stdSeconds);
     end
 
     fprintf("\nArtifacts\n");
