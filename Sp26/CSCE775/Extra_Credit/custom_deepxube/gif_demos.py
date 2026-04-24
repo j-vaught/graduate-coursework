@@ -15,6 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
+plt.rcParams["font.family"] = "Georgia"
+plt.rcParams["font.serif"] = ["Georgia"]
+plt.rcParams["mathtext.fontset"] = "custom"
+plt.rcParams["mathtext.rm"] = "Georgia"
+plt.rcParams["mathtext.it"] = "Georgia:italic"
+plt.rcParams["mathtext.bf"] = "Georgia:bold"
+
 import deepxube  # noqa: F401
 from deepxube.base.domain import StateGoalVizable
 from deepxube.utils.command_line_utils import get_domain_from_arg
@@ -118,18 +125,15 @@ def _render_frame(
 ) -> Image.Image:
     fig = plt.figure(figsize=config.figsize, facecolor=WHITE)
     domain.visualize_state_goal(state, goal, fig)
-    solved = domain.is_solved([state], [goal])[0]
-    label = f"{config.key} demo | step {step_idx}/{total_steps} | solved={solved}"
     fig.text(
         0.5,
-        0.985,
-        label,
+        0.02,
+        str(step_idx),
         ha="center",
-        va="top",
+        va="bottom",
         color=BLACK_90,
-        fontsize=11,
-        fontweight="bold",
-        bbox={"facecolor": BLACK_10, "edgecolor": BLACK_90, "pad": 4},
+        fontsize=14,
+        family="Georgia",
     )
     image = _fig_to_frame(fig, dpi)
     plt.close(fig)

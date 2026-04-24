@@ -135,15 +135,26 @@ class Hanoi(ActsEnumFixed[HanoiState, HanoiAction, HanoiGoal], GoalStartRevWalka
     def visualize_state_goal(self, state: HanoiState, goal: HanoiGoal, fig: Figure) -> None:
         ax = fig.add_subplot(111)
 
+        # UofSC accent palette (bright/accent colors)
+        palette = [
+            '#73000A',  # Garnet
+            '#CC2E40',  # Rose
+            '#A49137',  # Honeycomb
+            '#65780B',  # Horseshoe
+            '#466A9F',  # Atlantic
+            '#1F414D',  # Congaree
+            '#CED318',  # Grass
+        ]
+        disk_colors = [palette[i % len(palette)] for i in range(self.num_disks)]
+
         peg_xs = [(p + 1) / (self.num_pegs + 1) for p in range(self.num_pegs)]
         base_y = 0.10
-        disk_h = min(0.10, 0.65 / self.num_disks)
-        disk_gap = 0.01
+        disk_h = min(0.08, 0.6 / self.num_disks)
+        disk_gap = 0.008
         max_w = 0.28
         peg_w = 0.012
-
-        cmap = __import__('matplotlib').colormaps['tab10']
-        disk_colors = [cmap(i % 10) for i in range(self.num_disks)]
+        stack_top = base_y + self.num_disks * (disk_h + disk_gap)
+        rod_headroom = disk_h * 0.8
 
         disks_per_peg: List[List[int]] = [[] for _ in range(self.num_pegs)]
         for disk_i in range(self.num_disks):
@@ -151,13 +162,15 @@ class Hanoi(ActsEnumFixed[HanoiState, HanoiAction, HanoiGoal], GoalStartRevWalka
 
         # base
         ax.add_patch(patches.Rectangle((0.03, base_y - 0.04), 0.94, 0.025,
-                                       facecolor='gray', edgecolor='none'))
+                                       facecolor='black', edgecolor='none'))
 
-        # peg rods
-        rod_h = base_y + self.num_disks * (disk_h + disk_gap) + 0.04
+        # peg rods — height scales with num_disks
+        rod_bottom = base_y - 0.015
+        rod_top = stack_top + rod_headroom
+        rod_h = rod_top - rod_bottom
         for px in peg_xs:
-            ax.add_patch(patches.Rectangle((px - peg_w / 2, base_y - 0.015), peg_w, rod_h,
-                                           facecolor='dimgray', edgecolor='none'))
+            ax.add_patch(patches.Rectangle((px - peg_w / 2, rod_bottom), peg_w, rod_h,
+                                           facecolor='black', edgecolor='none'))
 
         # disks
         for peg_idx, stack in enumerate(disks_per_peg):
@@ -171,20 +184,25 @@ class Hanoi(ActsEnumFixed[HanoiState, HanoiAction, HanoiGoal], GoalStartRevWalka
 
                 ax.add_patch(patches.Rectangle(
                     (px - w / 2, y), w, disk_h,
-                    facecolor=color, edgecolor='limegreen' if on_goal else 'k',
+                    facecolor=color, edgecolor='#CED318' if on_goal else 'black',
                     linewidth=2.0 if on_goal else 0.8,
                 ))
                 ax.text(px, y + disk_h / 2, str(disk_i),
-                        ha='center', va='center', fontsize=7, color='white', fontweight='bold')
+                        ha='center', va='center', fontsize=12, color='white',
+                        fontweight='bold', family='Georgia')
 
         # peg labels
         goal_peg = int(goal.disks[0]) if np.all(goal.disks == goal.disks[0]) else -1
         for p, px in enumerate(peg_xs):
             suffix = ' *' if p == goal_peg else ''
-            ax.text(px, 0.03, f'Peg {p}{suffix}', ha='center', va='center', fontsize=8)
+            ax.text(px, 0.03, f'Peg {p}{suffix}', ha='center', va='center',
+                    fontsize=13, family='Georgia')
 
         ax.set_xlim(0.0, 1.0)
-        ax.set_ylim(0.0, 1.0)
+        ax.set_ylim(0.0, rod_top + 0.04)
+        ax.set_aspect('auto')
+        ax.margins(0)
+        ax.set_position((0.02, 0.09, 0.96, 0.89))
         ax.axis('off')
         fig.canvas.draw()
 
