@@ -336,26 +336,100 @@ class WarehouseMAPF(
                 return MAPFAction(dirs)
         return MAPFAction(tuple([WAIT] * self.K))
 
+    _DR = np.array([-1, 1, 0, 0, 0], dtype=np.int16)
+    _DC = np.array([0, 0, -1, 1, 0], dtype=np.int16)
+
     def random_walk(self, states: List[MAPFState],
                     num_steps_l: List[int]) -> Tuple[List[MAPFState], List[float]]:
-        result_states: List[MAPFState] = []
-        path_costs: List[float] = []
-        for state, n_steps in zip(states, num_steps_l):
-            self._goal_cells = {}
-            for i in range(self.K):
-                r, c = self._get_pos(state, i)
-                self._goal_cells[(r, c)] = i
+        N = len(states)
+        K = self.K
+        H, W = self.H, self.W
+        max_steps = max(num_steps_l)
+        steps_arr = np.array(num_steps_l, dtype=np.int32)
 
-            cur = state
-            cost = 0.0
-            for _ in range(n_steps):
-                act = self._sample_random_action(cur)
-                nxt, tcs = self.next_state([cur], [act])
-                cur = nxt[0]
-                cost += tcs[0]
-            result_states.append(cur)
-            path_costs.append(cost)
-        return result_states, path_costs
+        all_pos = np.stack(
+            [s.positions for s in states], axis=0).astype(np.int16)
+
+        goal_rows = all_pos[:, 0::2].copy()
+        goal_cols = all_pos[:, 1::2].copy()
+
+        free_mask = ~self.obstacles
+
+        for step in range(max_steps):
+            active = steps_arr > step
+            aidx = np.where(active)[0]
+            B = len(aidx)
+            if B == 0:
+                break
+
+            bp = all_pos[aidx]
+            rows = bp[:, 0::2]
+            cols = bp[:, 1::2]
+            g_r = goal_rows[aidx]
+            g_c = goal_cols[aidx]
+
+            valid = np.ones((B, K, 5), dtype=np.bool_)
+            for d in range(4):
+                tr = rows + self._DR[d]
+                tc = cols + self._DC[d]
+                ib = (tr >= 0) & (tr < H) & (tc >= 0) & (tc < W)
+                tr_c = np.clip(tr, 0, H - 1)
+                tc_c = np.clip(tc, 0, W - 1)
+                passable = ib & free_mask[tr_c, tc_c]
+                is_obs = ib & ~free_mask[tr_c, tc_c]
+                if np.any(is_obs):
+                    passable |= is_obs & (tr_c == g_r) & (tc_c == g_c)
+                valid[:, :, d] = passable
+
+            resolved = np.zeros(B, dtype=np.bool_)
+            new_r = rows.copy()
+            new_c = cols.copy()
+            _triu = np.triu(np.ones((K, K), dtype=np.bool_), k=1)
+
+            for _retry in range(8):
+                todo_idx = np.where(~resolved)[0]
+                if len(todo_idx) == 0:
+                    break
+
+                Bt = len(todo_idx)
+                v = valid[todo_idx]
+                r_t = rows[todo_idx]
+                c_t = cols[todo_idx]
+
+                rand = np.random.random((Bt, K, 5))
+                rand[~v] = -1.0
+                dirs = np.argmax(rand, axis=2).astype(np.int16)
+
+                tr = r_t + self._DR[dirs]
+                tc = c_t + self._DC[dirs]
+
+                tf = tr * W + tc
+                cf = r_t * W + c_t
+
+                sorted_tf = np.sort(tf, axis=1)
+                has_vertex = np.any(
+                    sorted_tf[:, 1:] == sorted_tf[:, :-1], axis=1)
+
+                swap_fwd = tf[:, :, None] == cf[:, None, :]
+                swap_rev = tf[:, None, :] == cf[:, :, None]
+                moved = (dirs != WAIT)
+                moved_pair = moved[:, :, None] & moved[:, None, :]
+                has_swap = np.any(
+                    swap_fwd & swap_rev & moved_pair & _triu[None], axis=(1, 2))
+
+                ok = ~has_vertex & ~has_swap
+                ok_orig = todo_idx[ok]
+                new_r[ok_orig] = tr[ok]
+                new_c[ok_orig] = tc[ok]
+                resolved[ok_orig] = True
+
+            new_bp = bp.copy()
+            new_bp[:, 0::2] = new_r.astype(np.int16)
+            new_bp[:, 1::2] = new_c.astype(np.int16)
+            all_pos[aidx] = new_bp
+
+        result = [MAPFState(all_pos[i].astype(np.int8)) for i in range(N)]
+        return result, [float(s) for s in num_steps_l]
 
     def random_walk_rev(self, states: List[MAPFState],
                         num_steps_l: List[int]) -> List[MAPFState]:

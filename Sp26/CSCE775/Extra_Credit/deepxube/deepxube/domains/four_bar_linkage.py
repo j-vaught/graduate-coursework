@@ -292,19 +292,30 @@ class FourBarLinkage(
             goals.append(LinkGoal(curve_bins))
         return states, goals
 
+    def random_walk(self, states: List[LinkState],
+                    num_steps_l: List[int]
+                    ) -> Tuple[List[LinkState], List[float]]:
+        walked, _ = super().random_walk(states, num_steps_l)
+        costs: List[float] = []
+        for orig, final in zip(states, walked):
+            diff = np.abs(final.params.astype(np.int32) - orig.params.astype(np.int32))
+            diff[5] = min(int(diff[5]), self.n_steps - int(diff[5]))
+            costs.append(float(np.sum(diff)))
+        return walked, costs
+
     # ========================================================= HasFlatSGIn
 
     def get_input_info_flat_sg(self) -> Tuple[List[int], List[int]]:
         return (
             [N_PARAMS, self.n_waypoints * 2],
-            [self.n_steps, self.n_bins],
+            [self.n_steps, self.n_bins + 1],
         )
 
     def to_np_flat_sg(self, states: List[LinkState],
                       goals: List[LinkGoal]) -> List[NDArray]:
         s = np.stack([st.params for st in states], axis=0).astype(np.int64)
         g = np.stack([gl.curve for gl in goals], axis=0).astype(np.int64)
-        g = np.clip(g, 0, self.n_bins - 1)
+        g = np.where(g < 0, self.n_bins, g)
         return [s, g]
 
     # ======================================================= StringToAct
