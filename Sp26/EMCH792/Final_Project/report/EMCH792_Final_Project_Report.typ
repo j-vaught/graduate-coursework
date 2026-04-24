@@ -42,12 +42,10 @@
   caption: [#caption],
 )
 
-#let column_figure(path, caption) = block(width: 100%, above: 0.8em, below: 1.0em)[
-  #align(center)[#image(path, width: 92%)]
-  #v(0.25em)
-  #set text(size: 8pt)
-  #caption
-]
+#let column_figure(path, caption) = figure(
+  image(path, width: 92%),
+  caption: [#caption],
+)
 
 #let column_table(body, caption) = figure(
   kind: table,
