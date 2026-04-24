@@ -56,6 +56,8 @@ class ModelConfig:
     scramble_steps: int
     pathfind: str = "graph_v.1B"
     search_step_cap: int = 500
+    goal_hint: tuple[float, float, float] | None = None
+    start_joints: tuple[int, ...] | None = None
 
 
 DEMO_CONFIGS: dict[str, DemoConfig] = {
@@ -63,7 +65,7 @@ DEMO_CONFIGS: dict[str, DemoConfig] = {
     "pancake": DemoConfig("pancake", "pancake.10", 12, (6.0, 5.0)),
     "linkage": DemoConfig("linkage", "linkage.64_64_64", 14, (7.0, 6.0)),
     "mapf": DemoConfig("mapf", "mapf.28_28_30_64", 12, (8.0, 8.0)),
-    "arm": DemoConfig("arm", "arm.6_12_8", 12, (6.5, 6.0)),
+    "arm": DemoConfig("arm", "arm.6_12_64", 12, (13.0, 5.0)),
     "retro": DemoConfig("retro", "retro.7", 12, (7.0, 5.5)),
 }
 
@@ -71,7 +73,11 @@ DEMO_CONFIGS: dict[str, DemoConfig] = {
 MODEL_CONFIGS: dict[str, ModelConfig] = {
     "hanoi": ModelConfig("resnet_fc.512H_3B_bn", "runs/models/hanoi/model.pt", 50),
     "pancake": ModelConfig("resnet_fc.1024H_4B_bn", "runs/models/pancake/model.pt", 20),
-    "arm": ModelConfig("resnet_fc.1024H_4B_bn", "runs/models/arm/model.pt", 20),
+    "arm": ModelConfig(
+        "resnet_fc.1024H_4B_bn", "runs/models/arm_64bins/model.pt", 30,
+        goal_hint=(2.0, -2.0, -2.0),
+        search_step_cap=1000,
+    ),
 }
 
 
@@ -134,6 +140,27 @@ def _walk_from_goal(
     return list(reversed(states))
 
 
+def _sample_problem(domain: Any, model_cfg: ModelConfig) -> tuple[Any, Any]:
+    if model_cfg.goal_hint is not None and hasattr(domain, "_ee_position"):
+        target = np.asarray(model_cfg.goal_hint, dtype=np.float64)
+        target_bins = domain._position_to_bins(target)
+        best_start, best_goal, best_dist = None, None, np.inf
+        for _ in range(6000):
+            states, goals = domain.sample_problem_instances([model_cfg.scramble_steps])
+            goal_pos = domain._bins_to_position(goals[0].bins)
+            dist = float(np.linalg.norm(goal_pos - target))
+            if np.array_equal(goals[0].bins, target_bins):
+                return states[0], goals[0]
+            if dist < best_dist:
+                best_dist = dist
+                best_start, best_goal = states[0], goals[0]
+        print(f"[arm] target bin {tuple(target_bins.tolist())} not sampled; using closest bin "
+              f"{tuple(best_goal.bins.tolist())} at {domain._bins_to_position(best_goal.bins)}")
+        return best_start, best_goal
+    states, goals = domain.sample_problem_instances([model_cfg.scramble_steps])
+    return states[0], goals[0]
+
+
 def _solve_with_model(
     domain: Any,
     domain_name: str,
@@ -151,8 +178,7 @@ def _solve_with_model(
     pathfind_name = get_pathfind_name_kwargs(model_cfg.pathfind)[0]
     pathfind_functions = get_pathfind_functions(pathfind_name, heur_fn, None)
 
-    states, goals = domain.sample_problem_instances([model_cfg.scramble_steps])
-    start_state, goal = states[0], goals[0]
+    start_state, goal = _sample_problem(domain, model_cfg)
 
     pathfind = get_pathfind_from_arg(domain, pathfind_functions, model_cfg.pathfind)[0]
     instance = pathfind.make_instances([start_state], [goal], None, True)[0]
