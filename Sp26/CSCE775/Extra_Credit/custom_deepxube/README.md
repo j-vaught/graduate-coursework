@@ -134,3 +134,52 @@ Local CPU train/solve smoke checks passed with batch normalization enabled.
 - `mapf.28_28_30_32` completed a 5-iteration training pass against the
   28x28/30-robot test file in about 0.8 seconds of update time. That run is a
   scaling and checkpoint smoke check, not a quality benchmark.
+
+## Benchmark
+
+Run the data-generation benchmark from this directory:
+
+```bash
+../deepxube/.venv_deepxube/bin/python benchmark_domains.py
+```
+
+Current local CPU timings after the arm and MAPF optimizations:
+
+```text
+domain                  states   steps    walk_s     acts    acts_s
+hanoi.6.3                 1000    20.1     0.053      3.0     0.000
+pancake.10                1000    20.4     0.025      9.0     0.000
+linkage.64_64_64          1000    20.7     0.036     11.9     0.000
+mapf.28_28_30_64           200    10.4     0.016     64.0     0.359
+arm.6_12_8                 500    10.5     0.287     11.7     0.038
+retro.7                   1000    15.6     0.160      7.4     0.001
+```
+
+## GPU Launch
+
+The launcher prepares a remote host, verifies CUDA, runs the smoke suite and
+benchmark, and starts selected training jobs with `nohup`.
+
+Smoke jobs:
+
+```bash
+../deepxube/.venv_deepxube/bin/python launch_gpu_jobs.py \
+  --host comech-2422.polecat-richter.ts.net \
+  --ssh-user <linux-user> \
+  --tier smoke \
+  --jobs mapf,linkage,arm,retro
+```
+
+Full jobs:
+
+```bash
+../deepxube/.venv_deepxube/bin/python launch_gpu_jobs.py \
+  --host comech-2080.polecat-richter.ts.net \
+  --ssh-user <linux-user> \
+  --tier full \
+  --jobs linkage,arm,retro \
+  --procs 2
+```
+
+Use `--dry-run` to print the remote command without launching jobs. Logs go to
+`logs/`, checkpoints go to `runs/`, and pid files are written under `runs/`.
