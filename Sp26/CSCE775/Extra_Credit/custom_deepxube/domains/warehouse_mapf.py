@@ -253,20 +253,27 @@ class WarehouseMAPF(
                          goal_cells: Optional[Dict[Tuple[int, int], int]] = None
                          ) -> Optional[List[Tuple[int, int]]]:
         targets = []
+        current_flat: List[int] = []
+        target_flat: List[int] = []
         for i in range(self.K):
             r, c = self._get_pos(state, i)
             tr, tc = self._target_cell(r, c, dirs[i])
             if not self._is_passable(tr, tc, i, goal_cells):
                 tr, tc = r, c
             targets.append((tr, tc))
+            current_flat.append(r * self.W + c)
+            target_flat.append(tr * self.W + tc)
 
-        for i in range(self.K):
-            for j in range(i + 1, self.K):
-                if targets[i] == targets[j]:
-                    return None
-                ri, ci = self._get_pos(state, i)
-                rj, cj = self._get_pos(state, j)
-                if targets[i] == (rj, cj) and targets[j] == (ri, ci):
+        if len(set(target_flat)) != self.K:
+            return None
+
+        current_to_robot = {
+            cell: idx for idx, cell in enumerate(current_flat)
+        }
+        for i, target_cell in enumerate(target_flat):
+            other = current_to_robot.get(target_cell)
+            if other is not None and other != i:
+                if target_flat[other] == current_flat[i]:
                     return None
         return targets
 
