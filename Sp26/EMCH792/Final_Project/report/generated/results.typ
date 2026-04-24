@@ -1,4 +1,4 @@
-#let generated_on = "2026-04-24 19:49:40"
+#let generated_on = "2026-04-24 19:51:59"
 #let dt_text = "0.100"
 #let y1_variance_text = "0.087247"
 #let y2_variance_text = "0.006536"
@@ -12,7 +12,7 @@
 #let ekf_gating_heading_change_text = "0.8668"
 #let ukf_gating_heading_improvement_text = "0.9017"
 #let rk4_position_improvement_text = "0.2026"
-#let rk4_runtime_penalty_text = "1.066"
+#let rk4_runtime_penalty_text = "1.183"
 
 #let ekf_rect_no_gate_pos_text = "1.1366"
 #let ekf_rect_no_gate_heading_deg_text = "6.5907"
@@ -50,10 +50,10 @@
 #let ukf_rk4_gate_avg_trace_text = "15.1788"
 #let ukf_rk4_gate_rej_y1_text = "20"
 #let ukf_rk4_gate_rej_y2_text = "4"
-#let ekf_rect_no_gate_runtime_ms_text = "1.824"
-#let ukf_rect_no_gate_runtime_ms_text = "3.839"
-#let ukf_rect_runtime_ms_text = "3.789"
-#let ukf_rk4_runtime_ms_text = "4.856"
+#let ekf_rect_no_gate_runtime_ms_text = "1.795"
+#let ukf_rect_no_gate_runtime_ms_text = "3.840"
+#let ukf_rect_runtime_ms_text = "3.783"
+#let ukf_rk4_runtime_ms_text = "4.967"
 
 #let gate_best_position_filter_text = "EKF"
 #let gate_best_position_setting_text = "No gate"
@@ -95,8 +95,8 @@
   inset: 6pt,
   stroke: rgb("#363636"),
   table.header([Configuration], [Mean ms], [Std ms]),
-  [EKF rect., no gate], [1.824], [0.324],
-  [UKF rect., no gate], [3.839], [0.129],
+  [EKF rect., no gate], [1.795], [0.262],
+  [UKF rect., no gate], [3.840], [0.088],
 )
 
 #let problem6_runtime_table = table(
@@ -105,8 +105,8 @@
   inset: 6pt,
   stroke: rgb("#363636"),
   table.header([Configuration], [Mean ms], [Std ms]),
-  [UKF rect., no gate], [3.789], [0.047],
-  [UKF RK4, no gate], [4.856], [0.031],
+  [UKF rect., no gate], [3.783], [0.024],
+  [UKF RK4, no gate], [4.967], [0.390],
 )
 
 #let gate_ablation_table = table(

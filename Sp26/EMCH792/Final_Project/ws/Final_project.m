@@ -841,7 +841,7 @@ function value = ablationMetricByValue(rows, filterName, settingValue, metricNam
 end
 
 function exportTrajectoryFigure(data, results, palette, outputDir)
-    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 760, 650]);
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 900, 450]);
     ax = axes(fig);
     hold(ax, "on");
 
