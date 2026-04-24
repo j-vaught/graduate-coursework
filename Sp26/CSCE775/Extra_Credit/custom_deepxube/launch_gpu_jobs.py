@@ -194,8 +194,13 @@ def make_remote_script(args: argparse.Namespace) -> str:
     if args.tier == "smoke":
         commands.append(smoke_instance_script())
 
-    for name in selected:
-        commands.append(make_train_command(job_table[name], run_tag, args.gpu, args.procs))
+    gpus = [gpu.strip() for gpu in args.gpu.split(",") if gpu.strip()]
+    if not gpus:
+        raise ValueError("At least one GPU id must be provided")
+
+    for job_idx, name in enumerate(selected):
+        gpu = gpus[job_idx % len(gpus)]
+        commands.append(make_train_command(job_table[name], run_tag, gpu, args.procs))
         commands.append(f"echo launched {q(name)}")
 
     commands.append("jobs -l || true")
