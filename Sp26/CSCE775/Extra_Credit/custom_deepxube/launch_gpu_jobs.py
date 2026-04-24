@@ -54,25 +54,25 @@ SMOKE_JOBS = {
 FULL_JOBS = {
     "hanoi": TrainJob("hanoi", "hanoi.6.3", "resnet_fc.512H_3B_bn",
                       "test_instances/hanoi_6_3.pkl", 35, 4096, 100000,
-                      200, 16, 256, 512, 65536, 300, 5),
+                      200, 16, 256, 1024, 131072, 300, 10),
     "pancake": TrainJob("pancake", "pancake.10", "resnet_fc.1024H_4B_bn",
                         "test_instances/pancake_10.pkl", 35, 4096, 100000,
-                        200, 16, 256, 512, 65536, 300, 5),
+                        200, 16, 256, 1024, 131072, 300, 10),
     "mapf4": TrainJob("mapf4", "mapf.28_28_4_64", "resnet_fc.128H_2B_bn",
                       "test_instances/mapf_28x28_4.pkl", 40, 4096, 100000,
-                      200, 16, 128, 512, 65536, 2000, 5),
+                      200, 16, 128, 1024, 131072, 5000, 50),
     "mapf30": TrainJob("mapf30", "mapf.28_28_30_256", "resnet_fc.1024H_4B_bn",
                        "test_instances/mapf_28x28_30.pkl", 40, 1024, 150000,
-                       200, 8, 128, 128, 32768, 500, 10),
+                       200, 8, 128, 256, 65536, 500, 100),
     "arm": TrainJob("arm", "arm.6_12_8", "resnet_fc.1024H_4B_bn",
                     "test_instances/arm_6_12_8.pkl", 25, 4096, 150000,
-                    200, 16, 256, 512, 65536, 300, 5),
+                    200, 16, 256, 1024, 131072, 300, 10),
     "arm64": TrainJob("arm64", "arm.6_12_64", "resnet_fc.1024H_4B_bn",
                       "test_instances/arm_6_12_64.pkl", 25, 4096, 250000,
-                      200, 16, 256, 512, 65536, 1000, 25),
+                      200, 16, 256, 1024, 131072, 1000, 50),
     "retro": TrainJob("retro", "retro.7", "resnet_fc.1024H_4B_bn",
                       "test_instances/retro_7.pkl", 30, 4096, 200000,
-                      200, 16, 256, 512, 65536, 5000, 5),
+                      200, 16, 256, 1024, 131072, 5000, 25),
 }
 
 
@@ -92,7 +92,7 @@ def remote_custom_dir(repo_dir: str) -> str:
     return repo_dir.rstrip("/") + "/" + CUSTOM_REL
 
 
-def make_train_command(job: TrainJob, run_tag: str, gpu: str, procs: int) -> str:
+def make_train_command(job: TrainJob, run_tag: str, gpu: str, procs: int | str) -> str:
     run_dir = f"runs/{run_tag}/{job.name}"
     log_file = f"logs/{run_tag}_{job.name}.log"
     pid_file = f"runs/{run_tag}_{job.name}.pid"
@@ -179,6 +179,13 @@ def make_remote_script(args: argparse.Namespace) -> str:
         'if [ -d "${REPO_DIR}/.git" ]; then '
         'git -C "${REPO_DIR}" rev-parse --short HEAD; fi',
         f'cd "${{REPO_DIR}}/{CUSTOM_REL}"',
+        "export OMP_NUM_THREADS=1",
+        "export OMP_THREAD_LIMIT=1",
+        "export MKL_NUM_THREADS=1",
+        "export OPENBLAS_NUM_THREADS=1",
+        "export NUMEXPR_NUM_THREADS=1",
+        "export VECLIB_MAXIMUM_THREADS=1",
+        "export BLIS_NUM_THREADS=1",
         "python3 -m venv .venv",
         ".venv/bin/python -m pip install --upgrade pip wheel",
         f".venv/bin/python -m pip install {q(args.torch_spec)}",
@@ -200,10 +207,24 @@ def make_remote_script(args: argparse.Namespace) -> str:
     if not gpus:
         raise ValueError("At least one GPU id must be provided")
 
+    commands.extend([
+        f"JOB_COUNT={len(selected)}",
+        "CPU_COUNT=$(nproc || echo 1)",
+        f"MIN_AUTO_PROCS={args.min_auto_procs}",
+        f"MAX_AUTO_PROCS={args.max_auto_procs}",
+        (
+            f"if [ {args.procs} -gt 0 ]; then JOB_PROCS={args.procs}; "
+            "else JOB_PROCS=$(( CPU_COUNT / (2 * JOB_COUNT) )); fi"
+        ),
+        'if [ "$JOB_PROCS" -lt "$MIN_AUTO_PROCS" ]; then JOB_PROCS="$MIN_AUTO_PROCS"; fi',
+        'if [ "$JOB_PROCS" -gt "$MAX_AUTO_PROCS" ]; then JOB_PROCS="$MAX_AUTO_PROCS"; fi',
+        'echo cpu_count="$CPU_COUNT" job_count="$JOB_COUNT" job_procs="$JOB_PROCS"',
+    ])
+
     for job_idx, name in enumerate(selected):
         gpu = gpus[job_idx % len(gpus)]
-        commands.append(make_train_command(job_table[name], run_tag, gpu, args.procs))
-        commands.append(f"echo launched {q(name)}")
+        commands.append(make_train_command(job_table[name], run_tag, gpu, "${JOB_PROCS}"))
+        commands.append(f"echo launched {q(name)} gpu={q(gpu)} procs=$JOB_PROCS")
 
     commands.append("jobs -l || true")
     return "\n".join(commands)
@@ -226,7 +247,24 @@ def main() -> None:
         help="Use git on the remote host or rsync this local custom workspace first.",
     )
     parser.add_argument("--gpu", default="0")
-    parser.add_argument("--procs", type=int, default=2)
+    parser.add_argument(
+        "--procs",
+        type=int,
+        default=0,
+        help="Worker processes per job. Use 0 to auto-size from remote CPU count.",
+    )
+    parser.add_argument(
+        "--min-auto-procs",
+        type=int,
+        default=4,
+        help="Minimum worker processes per job when --procs=0.",
+    )
+    parser.add_argument(
+        "--max-auto-procs",
+        type=int,
+        default=24,
+        help="Maximum worker processes per job when --procs=0.",
+    )
     parser.add_argument(
         "--torch-spec",
         default="torch==2.5.1",
