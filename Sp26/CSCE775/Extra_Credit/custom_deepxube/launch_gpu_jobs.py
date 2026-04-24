@@ -75,7 +75,7 @@ FULL_JOBS = {
                     200, 16, 256, 512, 65536, 300, 5),
     "arm64": TrainJob("arm64", "arm.6_12_64", "resnet_fc.1024H_4B_bn",
                       "test_instances/arm_6_12_64.pkl", 25, 4096, 250000,
-                      200, 16, 256, 512, 65536, 1000, 5),
+                      200, 16, 256, 512, 65536, 1000, 25),
     "retro": TrainJob("retro", "retro.7", "resnet_fc.1024H_4B_bn",
                       "test_instances/retro_7.pkl", 30, 4096, 200000,
                       200, 16, 256, 512, 65536, 5000, 5),
