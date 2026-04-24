@@ -155,17 +155,60 @@ class RoboticArm(
         self.bin_width = (self.ws_max - self.ws_min) / n_pos_bins
 
         self._tx = _translation_x(link_length)
+        angles = np.arange(n_angle_steps, dtype=np.float64) * (
+            2.0 * np.pi / n_angle_steps
+        )
+        self._cos = np.cos(angles)
+        self._sin = np.sin(angles)
+        self._cache_limit = 200_000
+        self._fk_cache: Dict[bytes, NDArray[np.float64]] = {}
+        self._valid_cache: Dict[bytes, bool] = {}
+        self._ee_bins_cache: Dict[bytes, NDArray[np.int8]] = {}
 
     # ------------------------------------------------------------------ FK
 
+    @staticmethod
+    def _state_key(joints: NDArray[np.int8]) -> bytes:
+        return joints.tobytes()
+
+    def _trim_cache_if_needed(self, cache: Dict[Any, Any]) -> None:
+        if len(cache) >= self._cache_limit:
+            cache.clear()
+
     def _fk(self, joints: NDArray[np.int8]) -> NDArray[np.float64]:
-        angles = joints.astype(np.float64) * (2.0 * np.pi / self.n_angle_steps)
+        key = self._state_key(joints)
+        cached = self._fk_cache.get(key)
+        if cached is not None:
+            return cached
+
         positions = np.zeros((self.n_joints + 1, 3))
-        T = np.eye(4)
+        pos = np.zeros(3)
+        x_axis = np.array([1.0, 0.0, 0.0])
+        y_axis = np.array([0.0, 1.0, 0.0])
+        z_axis = np.array([0.0, 0.0, 1.0])
+
         for i in range(self.n_joints):
-            R = _rotation_z(angles[i]) if i % 2 == 0 else _rotation_y(angles[i])
-            T = T @ R @ self._tx
-            positions[i + 1] = T[:3, 3]
+            idx = int(joints[i])
+            c = self._cos[idx]
+            s = self._sin[idx]
+
+            x_old = x_axis
+            y_old = y_axis
+            z_old = z_axis
+            if i % 2 == 0:
+                x_axis = c * x_old + s * y_old
+                y_axis = -s * x_old + c * y_old
+                z_axis = z_old
+            else:
+                x_axis = c * x_old - s * z_old
+                y_axis = y_old
+                z_axis = s * x_old + c * z_old
+
+            pos = pos + self.link_length * x_axis
+            positions[i + 1] = pos
+
+        self._trim_cache_if_needed(self._fk_cache)
+        self._fk_cache[key] = positions
         return positions
 
     def _ee_position(self, joints: NDArray[np.int8]) -> NDArray[np.float64]:
@@ -188,10 +231,12 @@ class RoboticArm(
         d = p2 - p1
         a = float(np.dot(d, d))
         if a < 1e-12:
-            return float(np.linalg.norm(p1 - center)) < radius
+            diff = p1 - center
+            return float(np.dot(diff, diff)) < radius * radius
         t = np.clip(-float(np.dot(p1 - center, d)) / a, 0.0, 1.0)
         closest = p1 + t * d
-        return float(np.linalg.norm(closest - center)) < radius
+        diff = closest - center
+        return float(np.dot(diff, diff)) < radius * radius
 
     def _is_collision(self, positions: NDArray[np.float64]) -> bool:
         for center, radius in self.obstacles:
@@ -202,7 +247,26 @@ class RoboticArm(
         return False
 
     def _is_valid_state(self, joints: NDArray[np.int8]) -> bool:
-        return not self._is_collision(self._fk(joints))
+        key = self._state_key(joints)
+        cached = self._valid_cache.get(key)
+        if cached is not None:
+            return cached
+
+        valid = not self._is_collision(self._fk(joints))
+        self._trim_cache_if_needed(self._valid_cache)
+        self._valid_cache[key] = valid
+        return valid
+
+    def _ee_bins(self, joints: NDArray[np.int8]) -> NDArray[np.int8]:
+        key = self._state_key(joints)
+        cached = self._ee_bins_cache.get(key)
+        if cached is not None:
+            return cached
+
+        bins = self._position_to_bins(self._ee_position(joints))
+        self._trim_cache_if_needed(self._ee_bins_cache)
+        self._ee_bins_cache[key] = bins
+        return bins
 
     # -------------------------------------------------------- action helpers
 
@@ -239,8 +303,7 @@ class RoboticArm(
     def is_solved(self, states: List[ArmState],
                   goals: List[ArmGoal]) -> List[bool]:
         return [
-            bool(np.array_equal(
-                self._position_to_bins(self._ee_position(s.joints)), g.bins))
+            bool(np.array_equal(self._ee_bins(s.joints), g.bins))
             for s, g in zip(states, goals)
         ]
 
@@ -266,6 +329,37 @@ class RoboticArm(
     def random_walk_rev(self, states: List[ArmState],
                         num_steps_l: List[int]) -> List[ArmState]:
         return self.random_walk(states, num_steps_l)[0]
+
+    def random_walk(self, states: List[ArmState],
+                    num_steps_l: List[int]) -> Tuple[List[ArmState], List[float]]:
+        if not states:
+            return [], []
+
+        joints_np = np.stack([s.joints for s in states], axis=0).copy()
+        steps = np.array(num_steps_l, dtype=np.int32)
+        path_costs = np.zeros(len(states), dtype=np.float64)
+        n_actions = len(self.all_actions)
+
+        for step in range(int(np.max(steps))):
+            active_idxs = np.where(steps > step)[0]
+            if len(active_idxs) == 0:
+                break
+
+            for idx in active_idxs:
+                current = joints_np[idx]
+                moved = False
+                for action_idx in np.random.permutation(n_actions):
+                    candidate = self._apply_action(
+                        current, self.all_actions[int(action_idx)])
+                    if self._is_valid_state(candidate):
+                        joints_np[idx] = candidate
+                        moved = True
+                        break
+                if moved:
+                    path_costs[idx] += 1.0
+
+        walked = [ArmState(joints_np[i].copy()) for i in range(len(states))]
+        return walked, path_costs.tolist()
 
     # ========================================================= HasFlatSGIn
 
