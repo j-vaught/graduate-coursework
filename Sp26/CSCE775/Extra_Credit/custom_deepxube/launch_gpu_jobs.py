@@ -88,6 +88,10 @@ def shell_repo_dir(value: str) -> str:
     return q(value)
 
 
+def remote_custom_dir(repo_dir: str) -> str:
+    return repo_dir.rstrip("/") + "/" + CUSTOM_REL
+
+
 def make_train_command(job: TrainJob, run_tag: str, gpu: str, procs: int) -> str:
     run_dir = f"runs/{run_tag}/{job.name}"
     log_file = f"logs/{run_tag}_{job.name}.log"
@@ -159,11 +163,19 @@ def make_remote_script(args: argparse.Namespace) -> str:
     commands = [
         "set -euo pipefail",
         f"REPO_DIR={repo_dir}",
+    ]
+    if args.sync_mode == "git":
+        commands.append(
+            'if [ -d "${REPO_DIR}/.git" ]; then '
+            'git -C "${REPO_DIR}" pull --ff-only; '
+            f"else git clone --filter=blob:none --depth=1 --sparse {q(REPO_URL)} "
+            '"${REPO_DIR}" && '
+            f"git -C " + '"${REPO_DIR}" sparse-checkout set ' + q(CUSTOM_REL) + "; fi"
+        )
+
+    commands.extend([
         'if [ -d "${REPO_DIR}/.git" ]; then '
-        'git -C "${REPO_DIR}" pull --ff-only; '
-        f"else git clone --filter=blob:none --depth=1 --sparse {q(REPO_URL)} "
-        '"${REPO_DIR}" && '
-        f"git -C " + '"${REPO_DIR}" sparse-checkout set ' + q(CUSTOM_REL) + "; fi",
+        'git -C "${REPO_DIR}" rev-parse --short HEAD; fi',
         f'cd "${{REPO_DIR}}/{CUSTOM_REL}"',
         "python3 -m venv .venv",
         ".venv/bin/python -m pip install --upgrade pip wheel",
@@ -177,7 +189,7 @@ def make_remote_script(args: argparse.Namespace) -> str:
         "mkdir -p logs runs",
         ".venv/bin/python smoke_test.py",
         f".venv/bin/python benchmark_domains.py --json-out {q('logs/' + run_tag + '_benchmark.json')}",
-    ]
+    ])
 
     if args.tier == "smoke":
         commands.append(smoke_instance_script())
@@ -200,6 +212,12 @@ def main() -> None:
     parser.add_argument("--repo-dir", default="~/graduate-coursework-deepxube-run")
     parser.add_argument("--tier", choices=["smoke", "full"], default="smoke")
     parser.add_argument("--jobs", default="linkage,mapf,arm,retro")
+    parser.add_argument(
+        "--sync-mode",
+        choices=["git", "rsync"],
+        default="git",
+        help="Use git on the remote host or rsync this local custom workspace first.",
+    )
     parser.add_argument("--gpu", default="0")
     parser.add_argument("--procs", type=int, default=2)
     parser.add_argument(
@@ -218,6 +236,25 @@ def main() -> None:
     if args.dry_run:
         print(" ".join(q(part) for part in ssh_cmd))
         return
+
+    if args.sync_mode == "rsync":
+        custom_dir = remote_custom_dir(args.repo_dir)
+        mkdir_script = "mkdir -p " + q(custom_dir)
+        subprocess.run(
+            ["ssh", destination, "bash -lc " + q(mkdir_script)],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "rsync", "-az", "--delete",
+                "--exclude", ".venv/",
+                "--exclude", "__pycache__/",
+                "--exclude", "logs/",
+                "--exclude", "runs/",
+                "./", f"{destination}:{custom_dir}/",
+            ],
+            check=True,
+        )
 
     try:
         subprocess.run(ssh_cmd, check=True)
