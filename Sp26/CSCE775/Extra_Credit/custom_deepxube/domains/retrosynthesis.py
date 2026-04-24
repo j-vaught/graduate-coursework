@@ -22,6 +22,7 @@ Reactions (12 site-selective + 3*N position-specific):
   Position-specific: radical bromination, protect, deprotect.
 """
 
+from functools import lru_cache
 from typing import List, Tuple, Optional, Dict, Any, FrozenSet
 import numpy as np
 from numpy.typing import NDArray
@@ -307,7 +308,9 @@ class Retrosynthesis(
         ]
         self._fallback_action = RetroAction(5)
 
-    def _actions_for_mol(self, mol: NDArray[np.int8]) -> List[RetroAction]:
+    @lru_cache(maxsize=100_000)
+    def _actions_for_mol_key(self, mol_key: bytes) -> Tuple[RetroAction, ...]:
+        mol = np.frombuffer(mol_key, dtype=np.int8)
         n = self.chain_len
         actions: List[RetroAction] = []
 
@@ -332,7 +335,10 @@ class Retrosynthesis(
                 if mol[pos] == OPG or mol[pos] == NPG:
                     actions.append(self._deprotect_actions[pos])
 
-        return actions if actions else [self._fallback_action]
+        return tuple(actions) if actions else (self._fallback_action,)
+
+    def _actions_for_mol(self, mol: NDArray[np.int8]) -> List[RetroAction]:
+        return list(self._actions_for_mol_key(mol.tobytes()))
 
     def get_state_actions(
         self, states: List[RetroState]
@@ -410,8 +416,8 @@ class Retrosynthesis(
     def _add_reverse_pred(
         self,
         mol: NDArray[np.int8],
-        preds: List[NDArray[np.int8]],
-        seen: set,
+        preds: List[bytes],
+        seen: set[bytes],
         pos: int,
         pred_group: int,
         action: RetroAction,
@@ -421,16 +427,18 @@ class Retrosynthesis(
         pred_key = pred.tobytes()
         if pred_key in seen:
             return
-        if action not in self._actions_for_mol(pred):
+        if action not in self._actions_for_mol_key(pred_key):
             return
         if not np.array_equal(self._apply_action_to_mol(pred, action), mol):
             return
-        preds.append(pred)
+        preds.append(pred_key)
         seen.add(pred_key)
 
-    def _reverse_predecessors(self, mol: NDArray[np.int8]) -> List[NDArray[np.int8]]:
-        preds: List[NDArray[np.int8]] = []
-        seen = set()
+    @lru_cache(maxsize=100_000)
+    def _reverse_predecessor_keys(self, mol_key: bytes) -> Tuple[bytes, ...]:
+        mol = np.frombuffer(mol_key, dtype=np.int8)
+        preds: List[bytes] = []
+        seen: set[bytes] = set()
 
         for pos in range(self.chain_len):
             curr_group = int(mol[pos])
@@ -466,7 +474,13 @@ class Retrosynthesis(
                     mol, preds, seen, pos, NPG, self._deprotect_actions[pos],
                 )
 
-        return preds
+        return tuple(preds)
+
+    def _reverse_predecessors(self, mol: NDArray[np.int8]) -> List[NDArray[np.int8]]:
+        return [
+            np.frombuffer(pred_key, dtype=np.int8).copy()
+            for pred_key in self._reverse_predecessor_keys(mol.tobytes())
+        ]
 
     def random_walk(
         self, states: List[RetroState], num_steps_l: List[int]
@@ -484,10 +498,10 @@ class Retrosynthesis(
                 break
 
             for idx in active_idxs:
-                preds = self._reverse_predecessors(mols[idx])
-                if preds:
-                    pred_idx = int(np.random.randint(len(preds)))
-                    mols[idx] = preds[pred_idx]
+                pred_keys = self._reverse_predecessor_keys(mols[idx].tobytes())
+                if pred_keys:
+                    pred_idx = int(np.random.randint(len(pred_keys)))
+                    mols[idx] = np.frombuffer(pred_keys[pred_idx], dtype=np.int8)
                     path_costs[idx] += 1.0
 
         walked = [RetroState(mols[i].copy()) for i in range(len(states))]
