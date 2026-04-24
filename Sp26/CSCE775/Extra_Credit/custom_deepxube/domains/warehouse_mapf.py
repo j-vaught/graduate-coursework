@@ -103,10 +103,12 @@ WAREHOUSE_LAYOUTS = {
 
 
 class MAPFState(State):
-    __slots__ = ['positions', '_hash']
+    __slots__ = ['positions', 'goal_positions', '_hash']
 
-    def __init__(self, positions: NDArray[np.int8]):
+    def __init__(self, positions: NDArray[np.int8],
+                 goal_positions: Optional[NDArray[np.int8]] = None):
         self.positions: NDArray[np.int8] = positions
+        self.goal_positions: Optional[NDArray[np.int8]] = goal_positions
         self._hash: Optional[int] = None
 
     def __hash__(self) -> int:
@@ -165,11 +167,15 @@ class WarehouseMAPF(
     StringToAct[MAPFState, MAPFAction, MAPFGoal],
 ):
 
-    def __init__(self, height: int = 20, width: int = 20, n_robots: int = 8):
+    def __init__(self, height: int = 20, width: int = 20, n_robots: int = 8,
+                 max_joint_actions: int = 256,
+                 exact_joint_action_limit: int = 5000):
         super().__init__()
         self.H = height
         self.W = width
         self.K = n_robots
+        self.max_joint_actions = max(1, max_joint_actions)
+        self.exact_joint_action_limit = max(1, exact_joint_action_limit)
 
         layout_fn = WAREHOUSE_LAYOUTS.get((height, width))
         if layout_fn is not None:
@@ -203,11 +209,26 @@ class WarehouseMAPF(
         arr[2 * i] = np.int8(r)
         arr[2 * i + 1] = np.int8(c)
 
+    def _goal_cells_from_positions(
+        self, positions: NDArray[np.int8]
+    ) -> Dict[Tuple[int, int], int]:
+        return {
+            (int(positions[2 * i]), int(positions[2 * i + 1])): i
+            for i in range(self.K)
+        }
+
+    def _goal_cells_from_goal(self, goal: MAPFGoal) -> Dict[Tuple[int, int], int]:
+        return self._goal_cells_from_positions(goal.positions)
+
+    def _goal_cells_from_state(
+        self, state: MAPFState
+    ) -> Dict[Tuple[int, int], int]:
+        if state.goal_positions is None:
+            return self._goal_cells
+        return self._goal_cells_from_positions(state.goal_positions)
+
     def set_active_goal(self, goal: MAPFGoal) -> None:
-        self._goal_cells = {}
-        for i in range(self.K):
-            gr, gc = self._get_goal_pos(goal, i)
-            self._goal_cells[(gr, gc)] = i
+        self._goal_cells = self._goal_cells_from_goal(goal)
 
     # --------------------------------------------------------- move validation
 
@@ -218,20 +239,24 @@ class WarehouseMAPF(
     def _in_bounds(self, r: int, c: int) -> bool:
         return 0 <= r < self.H and 0 <= c < self.W
 
-    def _is_passable(self, r: int, c: int, robot_idx: int) -> bool:
+    def _is_passable(self, r: int, c: int, robot_idx: int,
+                     goal_cells: Optional[Dict[Tuple[int, int], int]] = None) -> bool:
         if not self._in_bounds(r, c):
             return False
         if not self.obstacles[r, c]:
             return True
-        return self._goal_cells.get((r, c)) == robot_idx
+        cells = self._goal_cells if goal_cells is None else goal_cells
+        return cells.get((r, c)) == robot_idx
 
     def _compute_targets(self, state: MAPFState,
-                         dirs: tuple) -> Optional[List[Tuple[int, int]]]:
+                         dirs: tuple,
+                         goal_cells: Optional[Dict[Tuple[int, int], int]] = None
+                         ) -> Optional[List[Tuple[int, int]]]:
         targets = []
         for i in range(self.K):
             r, c = self._get_pos(state, i)
             tr, tc = self._target_cell(r, c, dirs[i])
-            if not self._is_passable(tr, tc, i):
+            if not self._is_passable(tr, tc, i, goal_cells):
                 tr, tc = r, c
             targets.append((tr, tc))
 
@@ -245,32 +270,72 @@ class WarehouseMAPF(
                     return None
         return targets
 
+    def _per_robot_dirs(
+        self, state: MAPFState, goal_cells: Dict[Tuple[int, int], int]
+    ) -> List[List[int]]:
+        per_robot_dirs: List[List[int]] = []
+        for i in range(self.K):
+            r, c = self._get_pos(state, i)
+            valid = []
+            for d in range(5):
+                tr, tc = self._target_cell(r, c, d)
+                if self._is_passable(tr, tc, i, goal_cells) or d == WAIT:
+                    valid.append(d)
+            if WAIT not in valid:
+                valid.append(WAIT)
+            per_robot_dirs.append(valid)
+        return per_robot_dirs
+
+    def _sample_joint_action(
+        self, state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        per_robot_dirs: List[List[int]],
+        max_retries: int = 200,
+    ) -> MAPFAction:
+        for _ in range(max_retries):
+            dirs = tuple(
+                dirs_i[np.random.randint(len(dirs_i))]
+                for dirs_i in per_robot_dirs
+            )
+            if self._compute_targets(state, dirs, goal_cells) is not None:
+                return MAPFAction(dirs)
+        return MAPFAction(tuple([WAIT] * self.K))
+
+    def _get_actions_for_state(self, state: MAPFState) -> List[MAPFAction]:
+        goal_cells = self._goal_cells_from_state(state)
+        per_robot_dirs = self._per_robot_dirs(state, goal_cells)
+        num_joint = 1
+        for dirs in per_robot_dirs:
+            num_joint *= len(dirs)
+            if num_joint > self.exact_joint_action_limit:
+                break
+
+        if num_joint <= self.exact_joint_action_limit:
+            actions: List[MAPFAction] = []
+            for combo in itertools.product(*per_robot_dirs):
+                if self._compute_targets(state, combo, goal_cells) is not None:
+                    actions.append(MAPFAction(combo))
+            return actions or [MAPFAction(tuple([WAIT] * self.K))]
+
+        seen: Set[tuple] = set()
+        actions = [MAPFAction(tuple([WAIT] * self.K))]
+        seen.add(actions[0].dirs)
+        attempts = 0
+        max_attempts = self.max_joint_actions * 50
+        while len(actions) < self.max_joint_actions and attempts < max_attempts:
+            attempts += 1
+            action = self._sample_joint_action(
+                state, goal_cells, per_robot_dirs, max_retries=1)
+            if action.dirs in seen:
+                continue
+            actions.append(action)
+            seen.add(action.dirs)
+        return actions
+
     # ============================================================== ActsEnum
 
     def get_state_actions(self, states: List[MAPFState]) -> List[List[MAPFAction]]:
-        result: List[List[MAPFAction]] = []
-        for state in states:
-            per_robot_dirs: List[List[int]] = []
-            for i in range(self.K):
-                r, c = self._get_pos(state, i)
-                valid = []
-                for d in range(5):
-                    tr, tc = self._target_cell(r, c, d)
-                    if self._is_passable(tr, tc, i) or d == WAIT:
-                        valid.append(d)
-                if WAIT not in valid:
-                    valid.append(WAIT)
-                per_robot_dirs.append(valid)
-
-            valid_actions: List[MAPFAction] = []
-            for combo in itertools.product(*per_robot_dirs):
-                if self._compute_targets(state, combo) is not None:
-                    valid_actions.append(MAPFAction(combo))
-
-            if not valid_actions:
-                valid_actions.append(MAPFAction(tuple([WAIT] * self.K)))
-            result.append(valid_actions)
-        return result
+        return [self._get_actions_for_state(state) for state in states]
 
     # ============================================================== Domain
 
@@ -278,22 +343,26 @@ class WarehouseMAPF(
                    actions: List[MAPFAction]) -> Tuple[List[MAPFState], List[float]]:
         new_states: List[MAPFState] = []
         for state, action in zip(states, actions):
-            targets = self._compute_targets(state, action.dirs)
+            goal_cells = self._goal_cells_from_state(state)
+            targets = self._compute_targets(state, action.dirs, goal_cells)
             if targets is None:
                 new_states.append(state)
                 continue
             new_pos = state.positions.copy()
             for i, (tr, tc) in enumerate(targets):
                 self._set_pos(new_pos, i, tr, tc)
-            new_states.append(MAPFState(new_pos))
+            goal_pos = None if state.goal_positions is None else state.goal_positions.copy()
+            new_states.append(MAPFState(new_pos, goal_pos))
         return new_states, [1.0] * len(states)
 
     def is_solved(self, states: List[MAPFState],
                   goals: List[MAPFGoal]) -> List[bool]:
-        return [
-            bool(np.array_equal(s.positions, g.positions))
-            for s, g in zip(states, goals)
-        ]
+        result: List[bool] = []
+        for state, goal in zip(states, goals):
+            if state.goal_positions is None:
+                state.goal_positions = goal.positions.copy()
+            result.append(bool(np.array_equal(state.positions, goal.positions)))
+        return result
 
     # ================================================ GoalStartRevWalkable
 
@@ -302,6 +371,10 @@ class WarehouseMAPF(
     ) -> Tuple[List[MAPFState], List[MAPFGoal]]:
         states: List[MAPFState] = []
         goals: List[MAPFGoal] = []
+        if self.K > len(self.shelf_cells):
+            raise ValueError(
+                f"Cannot sample {self.K} MAPF goals from "
+                f"{len(self.shelf_cells)} shelf cells")
         for _ in range(num):
             shelf_idxs = np.random.choice(
                 len(self.shelf_cells), size=self.K, replace=False)
@@ -309,32 +382,17 @@ class WarehouseMAPF(
             for i, idx in enumerate(shelf_idxs):
                 r, c = self.shelf_cells[idx]
                 self._set_pos(pos, i, r, c)
-            states.append(MAPFState(pos))
-            goals.append(MAPFGoal(pos.copy()))
+            goal_pos = pos.copy()
+            states.append(MAPFState(pos, goal_pos.copy()))
+            goals.append(MAPFGoal(goal_pos))
         return states, goals
 
     def _sample_random_action(self, state: MAPFState,
                               max_retries: int = 200) -> MAPFAction:
-        per_robot: List[List[int]] = []
-        for i in range(self.K):
-            r, c = self._get_pos(state, i)
-            valid = []
-            for d in range(5):
-                tr, tc = self._target_cell(r, c, d)
-                if self._is_passable(tr, tc, i) or d == WAIT:
-                    valid.append(d)
-            if not valid:
-                valid = [WAIT]
-            per_robot.append(valid)
-
-        for _ in range(max_retries):
-            dirs = tuple(
-                per_robot[i][np.random.randint(len(per_robot[i]))]
-                for i in range(self.K)
-            )
-            if self._compute_targets(state, dirs) is not None:
-                return MAPFAction(dirs)
-        return MAPFAction(tuple([WAIT] * self.K))
+        goal_cells = self._goal_cells_from_state(state)
+        return self._sample_joint_action(
+            state, goal_cells, self._per_robot_dirs(state, goal_cells),
+            max_retries=max_retries)
 
     _DR = np.array([-1, 1, 0, 0, 0], dtype=np.int16)
     _DC = np.array([0, 0, -1, 1, 0], dtype=np.int16)
@@ -342,6 +400,8 @@ class WarehouseMAPF(
     def random_walk(self, states: List[MAPFState],
                     num_steps_l: List[int]) -> Tuple[List[MAPFState], List[float]]:
         N = len(states)
+        if N == 0:
+            return [], []
         K = self.K
         H, W = self.H, self.W
         max_steps = max(num_steps_l)
@@ -349,6 +409,10 @@ class WarehouseMAPF(
 
         all_pos = np.stack(
             [s.positions for s in states], axis=0).astype(np.int16)
+        goal_positions = [
+            s.positions.copy() if s.goal_positions is None else s.goal_positions.copy()
+            for s in states
+        ]
 
         goal_rows = all_pos[:, 0::2].copy()
         goal_cols = all_pos[:, 1::2].copy()
@@ -428,7 +492,10 @@ class WarehouseMAPF(
             new_bp[:, 1::2] = new_c.astype(np.int16)
             all_pos[aidx] = new_bp
 
-        result = [MAPFState(all_pos[i].astype(np.int8)) for i in range(N)]
+        result = [
+            MAPFState(all_pos[i].astype(np.int8), goal_positions[i])
+            for i in range(N)
+        ]
         return result, [float(s) for s in num_steps_l]
 
     def random_walk_rev(self, states: List[MAPFState],
@@ -553,7 +620,8 @@ class WarehouseMAPF(
 
     def __repr__(self) -> str:
         return (f"WarehouseMAPF(H={self.H}, W={self.W}, K={self.K}, "
-                f"free={self.n_free}, shelves={self.n_obs})")
+                f"free={self.n_free}, shelves={self.n_obs}, "
+                f"max_joint_actions={self.max_joint_actions})")
 
 
 @domain_factory.register_parser("mapf")
@@ -562,15 +630,19 @@ class MAPFParser(Parser):
         parts = args_str.split("_")
         if len(parts) == 1:
             return {"n_robots": int(parts[0])}
-        if len(parts) == 3:
-            return {
+        if len(parts) in (3, 4):
+            kwargs: Dict[str, Any] = {
                 "height": int(parts[0]),
                 "width": int(parts[1]),
                 "n_robots": int(parts[2]),
             }
+            if len(parts) == 4:
+                kwargs["max_joint_actions"] = int(parts[3])
+            return kwargs
         raise ValueError(
-            f"Expected 'n_robots' or 'height_width_n_robots', got '{args_str}'"
+            f"Expected 'n_robots' or 'height_width_n_robots[_max_joint_actions]', got '{args_str}'"
         )
 
     def help(self) -> str:
-        return "n_robots or height_width_n_robots. E.g. 'mapf.4' or 'mapf.8_8_4'"
+        return ("n_robots or height_width_n_robots[_max_joint_actions]. "
+                "E.g. 'mapf.4', 'mapf.8_8_4', or 'mapf.28_28_30_128'")
