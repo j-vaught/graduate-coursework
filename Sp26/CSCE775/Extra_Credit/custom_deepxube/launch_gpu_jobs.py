@@ -161,7 +161,9 @@ def make_remote_script(args: argparse.Namespace) -> str:
         f"REPO_DIR={repo_dir}",
         'if [ -d "${REPO_DIR}/.git" ]; then '
         'git -C "${REPO_DIR}" pull --ff-only; '
-        f"else git clone {q(REPO_URL)} " + '"${REPO_DIR}"; fi',
+        f"else git clone --filter=blob:none --depth=1 --sparse {q(REPO_URL)} "
+        '"${REPO_DIR}" && '
+        f"git -C " + '"${REPO_DIR}" sparse-checkout set ' + q(CUSTOM_REL) + "; fi",
         f'cd "${{REPO_DIR}}/{CUSTOM_REL}"',
         "python3 -m venv .venv",
         ".venv/bin/python -m pip install --upgrade pip wheel",
