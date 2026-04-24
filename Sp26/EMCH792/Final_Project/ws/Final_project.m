@@ -857,7 +857,10 @@ function exportTrajectoryFigure(data, results, palette, outputDir)
     title(ax, "Trajectory Comparison");
     axis(ax, "equal");
     styleAxes(ax, palette);
-    legend(ax, "Location", "eastoutside");
+    lgd = legend(ax, "Location", "northeast");
+    lgd.Box = "on";
+    lgd.Color = palette.white;
+    lgd.EdgeColor = palette.black;
     exportgraphics(fig, fullfile(outputDir, "trajectory.png"), "Resolution", 300);
     close(fig);
 end
