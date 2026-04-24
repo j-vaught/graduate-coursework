@@ -407,6 +407,67 @@ class Retrosynthesis(
     ) -> List[RetroState]:
         return self.random_walk(states, num_steps_l)[0]
 
+    def _add_reverse_pred(
+        self,
+        mol: NDArray[np.int8],
+        preds: List[NDArray[np.int8]],
+        seen: set,
+        pos: int,
+        pred_group: int,
+        action: RetroAction,
+    ) -> None:
+        pred = mol.copy()
+        pred[pos] = np.int8(pred_group)
+        pred_key = pred.tobytes()
+        if pred_key in seen:
+            return
+        if action not in self._actions_for_mol(pred):
+            return
+        if not np.array_equal(self._apply_action_to_mol(pred, action), mol):
+            return
+        preds.append(pred)
+        seen.add(pred_key)
+
+    def _reverse_predecessors(self, mol: NDArray[np.int8]) -> List[NDArray[np.int8]]:
+        preds: List[NDArray[np.int8]] = []
+        seen = set()
+
+        for pos in range(self.chain_len):
+            curr_group = int(mol[pos])
+
+            for rxn_id, (_, _, effects, _) in enumerate(SELECTIVE_RXNS):
+                action = self._selective_actions[rxn_id]
+                for pred_group, next_group in effects.items():
+                    if curr_group == next_group:
+                        self._add_reverse_pred(
+                            mol, preds, seen, pos, pred_group, action,
+                        )
+
+            if curr_group == BR:
+                self._add_reverse_pred(
+                    mol, preds, seen, pos, H, self._radical_actions[pos],
+                )
+
+            if curr_group == OPG:
+                self._add_reverse_pred(
+                    mol, preds, seen, pos, OH, self._protect_actions[pos],
+                )
+            elif curr_group == NPG:
+                self._add_reverse_pred(
+                    mol, preds, seen, pos, NH2, self._protect_actions[pos],
+                )
+
+            if curr_group == OH:
+                self._add_reverse_pred(
+                    mol, preds, seen, pos, OPG, self._deprotect_actions[pos],
+                )
+            elif curr_group == NH2:
+                self._add_reverse_pred(
+                    mol, preds, seen, pos, NPG, self._deprotect_actions[pos],
+                )
+
+        return preds
+
     def random_walk(
         self, states: List[RetroState], num_steps_l: List[int]
     ) -> Tuple[List[RetroState], List[float]]:
@@ -423,10 +484,11 @@ class Retrosynthesis(
                 break
 
             for idx in active_idxs:
-                actions = self._actions_for_mol(mols[idx])
-                action = actions[int(np.random.randint(len(actions)))]
-                mols[idx] = self._apply_action_to_mol(mols[idx], action)
-                path_costs[idx] += 1.0
+                preds = self._reverse_predecessors(mols[idx])
+                if preds:
+                    pred_idx = int(np.random.randint(len(preds)))
+                    mols[idx] = preds[pred_idx]
+                    path_costs[idx] += 1.0
 
         walked = [RetroState(mols[i].copy()) for i in range(len(states))]
         return walked, path_costs.tolist()
