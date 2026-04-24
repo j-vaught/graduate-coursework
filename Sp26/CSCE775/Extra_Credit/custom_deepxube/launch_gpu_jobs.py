@@ -239,7 +239,10 @@ def main() -> None:
 
     if args.sync_mode == "rsync":
         custom_dir = remote_custom_dir(args.repo_dir)
-        mkdir_script = "mkdir -p " + q(custom_dir)
+        mkdir_script = "\n".join([
+            f"REPO_DIR={shell_repo_dir(args.repo_dir)}",
+            f'mkdir -p "${{REPO_DIR}}/{CUSTOM_REL}"',
+        ])
         subprocess.run(
             ["ssh", destination, "bash -lc " + q(mkdir_script)],
             check=True,
