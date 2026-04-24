@@ -52,6 +52,31 @@ For MAPF:
   --redo
 ```
 
+## Demo GIFs
+
+The demo GIF scripts all use the domain `visualize_state_goal` methods, so
+visual style changes should be made in `domains/*.py`.
+
+Generate all demos:
+
+```bash
+../deepxube/.venv_deepxube/bin/python gif_demos.py all
+```
+
+Generate one domain demo:
+
+```bash
+../deepxube/.venv_deepxube/bin/python hanoi_gif_demo.py
+../deepxube/.venv_deepxube/bin/python pancake_gif_demo.py
+../deepxube/.venv_deepxube/bin/python linkage_gif_demo.py
+../deepxube/.venv_deepxube/bin/python mapf_gif_demo.py
+../deepxube/.venv_deepxube/bin/python arm_gif_demo.py
+../deepxube/.venv_deepxube/bin/python retro_gif_demo.py
+```
+
+The default output directory is `demo_gifs/`. Use `--steps`, `--fps`, `--dpi`,
+or `--out-dir` to override the default rendering settings.
+
 ## Train
 
 Linkage smoke/full command pattern:
