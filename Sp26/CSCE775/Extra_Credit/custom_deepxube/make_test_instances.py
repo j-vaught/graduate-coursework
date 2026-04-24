@@ -16,7 +16,6 @@ OUT_DIR = Path("test_instances")
 CASES = [
     ("hanoi.6.3", "hanoi_6_3.pkl", 30, 5, 35),
     ("pancake.10", "pancake_10.pkl", 30, 5, 35),
-    ("linkage.64_64_64", "linkage_64.pkl", 40, 5, 50),
     ("mapf.28_28_30_64", "mapf_28x28_30.pkl", 30, 10, 80),
     ("mapf.28_28_4_64", "mapf_28x28_4.pkl", 40, 5, 40),
     ("arm.6_12_8", "arm_6_12_8.pkl", 40, 3, 25),

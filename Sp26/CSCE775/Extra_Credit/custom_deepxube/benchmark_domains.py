@@ -17,7 +17,6 @@ from deepxube.utils.command_line_utils import get_domain_from_arg
 DEFAULT_CASES = [
     ("hanoi.6.3", 1000, 40),
     ("pancake.10", 1000, 40),
-    ("linkage.64_64_64", 1000, 40),
     ("mapf.28_28_30_64", 200, 20),
     ("arm.6_12_8", 500, 20),
     ("retro.7", 1000, 30),

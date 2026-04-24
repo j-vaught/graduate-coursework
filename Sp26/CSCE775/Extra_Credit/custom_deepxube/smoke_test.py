@@ -15,7 +15,6 @@ from deepxube.utils.command_line_utils import get_domain_from_arg
 DOMAINS = [
     "hanoi.4.3",
     "pancake.8",
-    "linkage.64_64_64",
     "mapf.28_28_30_64",
     "arm.6_12_8",
     "retro.5",

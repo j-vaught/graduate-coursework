@@ -63,7 +63,6 @@ class ModelConfig:
 DEMO_CONFIGS: dict[str, DemoConfig] = {
     "hanoi": DemoConfig("hanoi", "hanoi.6.3", 14, (6.0, 5.0)),
     "pancake": DemoConfig("pancake", "pancake.10", 12, (6.0, 5.0)),
-    "linkage": DemoConfig("linkage", "linkage.64_64_64", 14, (7.0, 6.0)),
     "mapf": DemoConfig("mapf", "mapf.28_28_30_64", 12, (8.0, 8.0)),
     "arm": DemoConfig("arm", "arm.6_12_64", 12, (13.0, 5.0)),
     "retro": DemoConfig("retro", "retro.10", 12, (7.5, 6.0)),
