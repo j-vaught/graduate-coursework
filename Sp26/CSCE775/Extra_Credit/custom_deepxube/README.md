@@ -10,23 +10,22 @@ checkout.
 From this directory:
 
 ```bash
-../deepxube/.venv_deepxube/bin/python -m deepxube domain_info --names hanoi,pancake,linkage,mapf,arm,retro
+../deepxube/.venv_deepxube/bin/python -m deepxube domain_info --names hanoi,pancake,mapf,arm,retro
 ```
 
-DeepXube imports local modules from `./domains/`, so the six custom domains are
+DeepXube imports local modules from `./domains/`, so the five custom domains are
 registered without modifying the installed package.
 
 ## Domains
 
 - `hanoi.4.3` or `hanoi.<num_disks>.<num_pegs>`
 - `pancake.8` or `pancake.<num_pancakes>`
-- `linkage.64_64_64`
-- `mapf.28_28_30_64`, where the last value caps sampled joint actions.
-- `arm.6_12_8`
-- `retro.5`
+- `mapf.28_28_4_64` or `mapf.28_28_30_64`, where the last value caps sampled joint actions.
+- `arm.6_12_64`
+- `retro.7`
 
-For the strongest extra-credit submission, prefer `linkage`, `mapf`, `arm`, or
-`retro` because they are not standard puzzle baselines.
+For the strongest extra-credit submission, prefer `mapf`, `arm`, or `retro`
+because they are not standard puzzle baselines.
 
 ## Generate Test Problems
 
@@ -34,21 +33,21 @@ Example:
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python -m deepxube problem_inst \
-  --domain linkage.64_64_64 \
-  --step_max 50 \
+  --domain arm.6_12_64 \
+  --step_max 25 \
   --num 100 \
-  --file test_instances/linkage_test.pkl \
+  --file test_instances/arm_6_12_64.pkl \
   --redo
 ```
 
-For MAPF:
+For MAPF with 4 robots:
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python -m deepxube problem_inst \
-  --domain mapf.28_28_30_64 \
-  --step_max 80 \
+  --domain mapf.28_28_4_64 \
+  --step_max 40 \
   --num 100 \
-  --file test_instances/mapf_28x28_30_test.pkl \
+  --file test_instances/mapf_28x28_4.pkl \
   --redo
 ```
 
@@ -68,7 +67,6 @@ Generate one domain demo:
 ```bash
 ../deepxube/.venv_deepxube/bin/python hanoi_gif_demo.py
 ../deepxube/.venv_deepxube/bin/python pancake_gif_demo.py
-../deepxube/.venv_deepxube/bin/python linkage_gif_demo.py
 ../deepxube/.venv_deepxube/bin/python mapf_gif_demo.py
 ../deepxube/.venv_deepxube/bin/python arm_gif_demo.py
 ../deepxube/.venv_deepxube/bin/python retro_gif_demo.py
@@ -79,45 +77,51 @@ or `--out-dir` to override the default rendering settings.
 
 ## Train
 
-Linkage smoke/full command pattern:
+Arm 64-bin full command pattern:
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python -m deepxube train \
-  --domain linkage.64_64_64 \
-  --heur resnet_fc.2000H_4B_bn \
+  --domain arm.6_12_64 \
+  --heur resnet_fc.1024H_4B_bn \
   --heur_type V \
   --pathfind sup_v_rw_rev \
-  --dir training/linkage \
-  --step_max 50 \
-  --batch_size 1000 \
-  --max_itrs 100000 \
+  --dir training/arm_64bins \
+  --step_max 25 \
+  --batch_size 4096 \
+  --max_itrs 150000 \
   --procs 2 \
-  --up_itrs 100 \
-  --search_itrs 500 \
-  --t_file test_instances/linkage_test.pkl \
-  --t_search_itrs 500 \
+  --up_itrs 200 \
+  --up_gen_itrs 16 \
+  --search_itrs 256 \
+  --up_batch_size 512 \
+  --up_nnet_batch_size 65536 \
+  --t_file test_instances/arm_6_12_64.pkl \
+  --t_search_itrs 300 \
   --t_up_freq 5 \
   --t_pathfinds graph_v
 ```
 
-MAPF 28x28 with 30 robots:
+MAPF 28x28 with 4 robots:
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python -m deepxube train \
-  --domain mapf.28_28_30_64 \
-  --heur resnet_fc.1000H_4B_bn \
+  --domain mapf.28_28_4_64 \
+  --heur resnet_fc.128H_2B_bn \
   --heur_type V \
   --pathfind sup_v_rw_rev \
-  --dir training/mapf_28x28_30 \
-  --step_max 80 \
-  --batch_size 1000 \
+  --dir training/mapf_28x28_4 \
+  --step_max 40 \
+  --batch_size 4096 \
   --max_itrs 100000 \
   --procs 2 \
-  --up_itrs 100 \
-  --search_itrs 500 \
-  --t_file test_instances/mapf_28x28_30_test.pkl \
-  --t_search_itrs 50 \
-  --t_up_freq 10 \
+  --up_itrs 200 \
+  --up_gen_itrs 16 \
+  --search_itrs 128 \
+  --up_batch_size 512 \
+  --up_nnet_batch_size 65536 \
+  --t_file test_instances/mapf_28x28_4.pkl \
+  --t_search_itrs 2000 \
+  --t_up_freq 5 \
   --t_pathfinds graph_v
 ```
 
@@ -130,13 +134,13 @@ MAPF domain action cap explicit in the domain string.
 
 ```bash
 ../deepxube/.venv_deepxube/bin/python -m deepxube solve \
-  --domain linkage.64_64_64 \
-  --heur resnet_fc.2000H_4B_bn \
+  --domain retro.7 \
+  --heur resnet_fc.1024H_4B_bn \
   --heur_type V \
-  --heur_file training/linkage/heur.pt \
+  --heur_file runs/models/retro/model.pt \
   --pathfind graph_v \
-  --file test_instances/linkage_test.pkl \
-  --results results/linkage \
+  --file test_instances/retro_7.pkl \
+  --results results/retro \
   --nnet_batch_size 4096 \
   --time_limit 60 \
   --redo
@@ -145,7 +149,7 @@ MAPF domain action cap explicit in the domain string.
 ## Current Smoke Results
 
 The current workspace was verified on April 24, 2026 with the installed PyPI
-package. All six domains registered, sampled problem instances, produced
+package. All five domains registered, sampled problem instances, produced
 actions, and stepped.
 
 Local CPU train/solve smoke checks passed with batch normalization enabled.
@@ -154,8 +158,6 @@ Local CPU train/solve smoke checks passed with batch normalization enabled.
   30/30 test instances with `graph_v`.
 - `mapf.8_8_4_32` with `resnet_fc.32H_1B_bn` trained for 40 iterations and
   solved 4/4 one-step MAPF instances with `graph_v`.
-- `linkage.16_16_16` with `resnet_fc.32H_1B_bn` trained for 40 iterations and
-  solved 6/6 linkage instances with `graph_v`.
 - `mapf.28_28_30_32` completed a 5-iteration training pass against the
   28x28/30-robot test file in about 0.8 seconds of update time. That run is a
   scaling and checkpoint smoke check, not a quality benchmark.
@@ -174,7 +176,6 @@ Current local CPU timings after the arm and MAPF optimizations:
 domain                  states   steps    walk_s     acts    acts_s
 hanoi.6.3                 1000    20.1     0.053      3.0     0.000
 pancake.10                1000    20.4     0.025      9.0     0.000
-linkage.64_64_64          1000    20.7     0.036     11.9     0.000
 mapf.28_28_30_64           200    10.4     0.016     64.0     0.359
 arm.6_12_8                 500    10.5     0.287     11.7     0.038
 retro.7                   1000    15.6     0.160      7.4     0.001
@@ -191,7 +192,7 @@ Smoke jobs:
 ../deepxube/.venv_deepxube/bin/python launch_gpu_jobs.py \
   --host comech-2422 \
   --tier smoke \
-  --jobs mapf,linkage,arm,retro \
+  --jobs mapf,arm,retro \
   --gpu 0,1,2,3
 ```
 
@@ -202,7 +203,7 @@ Full jobs:
   --host comech-2080 \
   --sync-mode rsync \
   --tier full \
-  --jobs linkage,arm,retro \
+  --jobs mapf4,arm64,retro \
   --gpu 0,1,2 \
   --procs 2
 ```
