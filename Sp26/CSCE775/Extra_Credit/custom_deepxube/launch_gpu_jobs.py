@@ -190,7 +190,10 @@ def make_remote_script(args: argparse.Namespace) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
-    parser.add_argument("--ssh-user", required=True)
+    parser.add_argument(
+        "--ssh-user",
+        help="Remote login user. Omit when --host is an SSH config alias with User set.",
+    )
     parser.add_argument("--repo-dir", default="~/graduate-coursework")
     parser.add_argument("--tier", choices=["smoke", "full"], default="smoke")
     parser.add_argument("--jobs", default="linkage,mapf,arm,retro")
@@ -201,7 +204,7 @@ def main() -> None:
     args = parser.parse_args()
 
     remote_script = make_remote_script(args)
-    destination = f"{args.ssh_user}@{args.host}"
+    destination = args.host if args.ssh_user is None else f"{args.ssh_user}@{args.host}"
     ssh_cmd = ["ssh", destination, "bash -lc " + q(remote_script)]
 
     if args.dry_run:
