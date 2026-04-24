@@ -209,7 +209,9 @@ def make_remote_script(args: argparse.Namespace) -> str:
 
     commands.extend([
         f"JOB_COUNT={len(selected)}",
-        "CPU_COUNT=$(nproc || echo 1)",
+        "CPU_COUNT=$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)",
+        'if [ -z "${CPU_COUNT:-}" ] || [ "$CPU_COUNT" -lt 1 ]; then CPU_COUNT=$(lscpu | awk -F: \'/^CPU\\(s\\):/ {gsub(/ /, "", $2); print $2; exit}\'); fi',
+        'if [ -z "${CPU_COUNT:-}" ] || [ "$CPU_COUNT" -lt 1 ]; then CPU_COUNT=1; fi',
         f"MIN_AUTO_PROCS={args.min_auto_procs}",
         f"MAX_AUTO_PROCS={args.max_auto_procs}",
         (
