@@ -130,6 +130,7 @@
 )
 
 #let narrow_table(body, caption) = figure(
+  placement: none,
   kind: table,
   block(width: 100%)[
     #set text(size: 8pt)
@@ -239,7 +240,7 @@ Replacing the rectangular UKF propagation with RK4 improved the ungated UKF accu
 
 The integrator runtime comparison again used sixty repeated executions after one warm-up pass per configuration. The rectangular UKF required #ukf_rect_runtime_ms_text ms per run on average, while the RK4 UKF required #ukf_rk4_runtime_ms_text ms. The RK4 propagation therefore added #rk4_runtime_penalty_text ms per run relative to the rectangular UKF. That extra cost is modest, but the RK4 benefit should be interpreted as a UKF-specific improvement rather than the best overall position result.
 
-#column_table(
+#narrow_table(
   problem6_runtime_table,
   [Average runtime over sixty repeated executions for the rectangular and RK4 UKF implementations.],
 )
