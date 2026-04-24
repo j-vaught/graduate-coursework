@@ -57,22 +57,22 @@ SMOKE_JOBS = {
 FULL_JOBS = {
     "hanoi": TrainJob("hanoi", "hanoi.6.3", "resnet_fc.512H_3B_bn",
                       "test_instances/hanoi_6_3.pkl", 35, 4096, 100000,
-                      200, 16, 200, 512, 65536, 300, 5),
+                      200, 16, 256, 512, 65536, 300, 5),
     "pancake": TrainJob("pancake", "pancake.10", "resnet_fc.1024H_4B_bn",
                         "test_instances/pancake_10.pkl", 35, 4096, 100000,
-                        200, 16, 300, 512, 65536, 300, 5),
+                        200, 16, 256, 512, 65536, 300, 5),
     "linkage": TrainJob("linkage", "linkage.64_64_64", "resnet_fc.1024H_4B_bn",
                         "test_instances/linkage_64.pkl", 50, 4096, 150000,
-                        200, 16, 500, 256, 65536, 500, 5),
+                        200, 16, 512, 256, 65536, 500, 5),
     "mapf": TrainJob("mapf", "mapf.28_28_30_64", "resnet_fc.1024H_4B_bn",
                      "test_instances/mapf_28x28_30.pkl", 80, 2048, 150000,
-                     200, 8, 50, 128, 32768, 50, 10),
+                     200, 8, 64, 128, 32768, 50, 10),
     "arm": TrainJob("arm", "arm.6_12_8", "resnet_fc.1024H_4B_bn",
                     "test_instances/arm_6_12_8.pkl", 25, 4096, 150000,
-                    200, 16, 300, 512, 65536, 300, 5),
+                    200, 16, 256, 512, 65536, 300, 5),
     "retro": TrainJob("retro", "retro.7", "resnet_fc.1024H_4B_bn",
                       "test_instances/retro_7.pkl", 30, 4096, 150000,
-                      200, 16, 300, 512, 65536, 300, 5),
+                      200, 16, 256, 512, 65536, 300, 5),
 }
 
 
