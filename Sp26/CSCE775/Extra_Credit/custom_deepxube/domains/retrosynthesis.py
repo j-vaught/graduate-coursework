@@ -108,6 +108,8 @@ RXN_RADICAL_BR = NUM_SELECTIVE
 RXN_PROTECT = NUM_SELECTIVE + 1
 RXN_DEPROTECT = NUM_SELECTIVE + 2
 RXN_NAMES = [r[0] for r in SELECTIVE_RXNS] + ["radical_br", "protect", "deprotect"]
+OH_NH2_SET = _S({OH, NH2})
+BR_SET = _S({BR})
 
 
 def _select_site(mol: NDArray[np.int8], eligible: FrozenSet[int], n: int) -> int:
@@ -293,43 +295,49 @@ class Retrosynthesis(
     def __init__(self, chain_len: int = 5):
         super().__init__()
         self.chain_len: int = chain_len
+        self._selective_actions = [RetroAction(i) for i in range(NUM_SELECTIVE)]
+        self._radical_actions = [
+            RetroAction(RXN_RADICAL_BR, pos) for pos in range(chain_len)
+        ]
+        self._protect_actions = [
+            RetroAction(RXN_PROTECT, pos) for pos in range(chain_len)
+        ]
+        self._deprotect_actions = [
+            RetroAction(RXN_DEPROTECT, pos) for pos in range(chain_len)
+        ]
+        self._fallback_action = RetroAction(5)
+
+    def _actions_for_mol(self, mol: NDArray[np.int8]) -> List[RetroAction]:
+        n = self.chain_len
+        actions: List[RetroAction] = []
+
+        for rxn_id in range(NUM_SELECTIVE):
+            _, eligible, _, forbidden = SELECTIVE_RXNS[rxn_id]
+            if forbidden and _has_any(mol, forbidden, n):
+                continue
+            if _select_site(mol, eligible, n) >= 0:
+                actions.append(self._selective_actions[rxn_id])
+
+        if not _has_any(mol, OH_NH2_SET, n):
+            for pos in range(n):
+                if mol[pos] == H:
+                    actions.append(self._radical_actions[pos])
+
+        for pos in range(n):
+            if mol[pos] == OH or mol[pos] == NH2:
+                actions.append(self._protect_actions[pos])
+
+        if not _has_any(mol, BR_SET, n):
+            for pos in range(n):
+                if mol[pos] == OPG or mol[pos] == NPG:
+                    actions.append(self._deprotect_actions[pos])
+
+        return actions if actions else [self._fallback_action]
 
     def get_state_actions(
         self, states: List[RetroState]
     ) -> List[List[RetroAction]]:
-        n = self.chain_len
-        result: List[List[RetroAction]] = []
-        for state in states:
-            mol = state.mol
-            actions: List[RetroAction] = []
-
-            for rxn_id in range(NUM_SELECTIVE):
-                _, eligible, _, forbidden = SELECTIVE_RXNS[rxn_id]
-                if forbidden and _has_any(mol, forbidden, n):
-                    continue
-                if _select_site(mol, eligible, n) >= 0:
-                    actions.append(RetroAction(rxn_id))
-
-            d7_ok = not _has_any(mol, _S({OH, NH2}), n)
-            if d7_ok:
-                for pos in range(n):
-                    if mol[pos] == H:
-                        actions.append(RetroAction(RXN_RADICAL_BR, pos))
-
-            for pos in range(n):
-                if mol[pos] == OH or mol[pos] == NH2:
-                    actions.append(RetroAction(RXN_PROTECT, pos))
-
-            c2_ok = not _has_any(mol, _S({BR}), n)
-            if c2_ok:
-                for pos in range(n):
-                    if mol[pos] == OPG or mol[pos] == NPG:
-                        actions.append(RetroAction(RXN_DEPROTECT, pos))
-
-            if not actions:
-                actions = [RetroAction(5)]
-            result.append(actions)
-        return result
+        return [self._actions_for_mol(state.mol) for state in states]
 
     def sample_state_action(
         self, states: List[RetroState]
@@ -337,43 +345,46 @@ class Retrosynthesis(
         actions_l = self.get_state_actions(states)
         return [stdlib_random.choice(acts) for acts in actions_l]
 
+    def _apply_action_to_mol(
+        self, mol_in: NDArray[np.int8], act: RetroAction
+    ) -> NDArray[np.int8]:
+        n = self.chain_len
+        mol = mol_in.copy()
+
+        if act.rxn_id < NUM_SELECTIVE:
+            _, eligible, effects, forbidden = SELECTIVE_RXNS[act.rxn_id]
+            if not (forbidden and _has_any(mol, forbidden, n)):
+                target = _select_site(mol, eligible, n)
+                if target >= 0:
+                    mol[target] = effects[int(mol[target])]
+        elif act.rxn_id == RXN_RADICAL_BR:
+            p = act.position
+            if 0 <= p < n and mol[p] == H and not _has_any(mol, OH_NH2_SET, n):
+                mol[p] = BR
+        elif act.rxn_id == RXN_PROTECT:
+            p = act.position
+            if 0 <= p < n:
+                if mol[p] == OH:
+                    mol[p] = OPG
+                elif mol[p] == NH2:
+                    mol[p] = NPG
+        elif act.rxn_id == RXN_DEPROTECT:
+            p = act.position
+            if 0 <= p < n and not _has_any(mol, BR_SET, n):
+                if mol[p] == OPG:
+                    mol[p] = OH
+                elif mol[p] == NPG:
+                    mol[p] = NH2
+
+        return mol
+
     def next_state(
         self, states: List[RetroState], actions: List[RetroAction]
     ) -> Tuple[List[RetroState], List[float]]:
-        n = self.chain_len
         new_states: List[RetroState] = []
-        tcs: List[float] = []
         for state, act in zip(states, actions):
-            mol = state.mol.copy()
-
-            if act.rxn_id < NUM_SELECTIVE:
-                _, eligible, effects, forbidden = SELECTIVE_RXNS[act.rxn_id]
-                if not (forbidden and _has_any(mol, forbidden, n)):
-                    target = _select_site(mol, eligible, n)
-                    if target >= 0:
-                        mol[target] = effects[int(mol[target])]
-            elif act.rxn_id == RXN_RADICAL_BR:
-                p = act.position
-                if 0 <= p < n and mol[p] == H and not _has_any(mol, _S({OH, NH2}), n):
-                    mol[p] = BR
-            elif act.rxn_id == RXN_PROTECT:
-                p = act.position
-                if 0 <= p < n:
-                    if mol[p] == OH:
-                        mol[p] = OPG
-                    elif mol[p] == NH2:
-                        mol[p] = NPG
-            elif act.rxn_id == RXN_DEPROTECT:
-                p = act.position
-                if 0 <= p < n and not _has_any(mol, _S({BR}), n):
-                    if mol[p] == OPG:
-                        mol[p] = OH
-                    elif mol[p] == NPG:
-                        mol[p] = NH2
-
-            new_states.append(RetroState(mol))
-            tcs.append(1.0)
-        return new_states, tcs
+            new_states.append(RetroState(self._apply_action_to_mol(state.mol, act)))
+        return new_states, [1.0] * len(states)
 
     def is_solved(
         self, states: List[RetroState], goals: List[RetroGoal]
@@ -395,6 +406,30 @@ class Retrosynthesis(
         self, states: List[RetroState], num_steps_l: List[int]
     ) -> List[RetroState]:
         return self.random_walk(states, num_steps_l)[0]
+
+    def random_walk(
+        self, states: List[RetroState], num_steps_l: List[int]
+    ) -> Tuple[List[RetroState], List[float]]:
+        if not states:
+            return [], []
+
+        mols = np.stack([state.mol for state in states], axis=0).copy()
+        steps = np.array(num_steps_l, dtype=np.int32)
+        path_costs = np.zeros(len(states), dtype=np.float64)
+
+        for step in range(int(np.max(steps))):
+            active_idxs = np.where(steps > step)[0]
+            if len(active_idxs) == 0:
+                break
+
+            for idx in active_idxs:
+                actions = self._actions_for_mol(mols[idx])
+                action = actions[int(np.random.randint(len(actions)))]
+                mols[idx] = self._apply_action_to_mol(mols[idx], action)
+                path_costs[idx] += 1.0
+
+        walked = [RetroState(mols[i].copy()) for i in range(len(states))]
+        return walked, path_costs.tolist()
 
     def get_input_info_flat_sg(self) -> Tuple[List[int], List[int]]:
         return (
