@@ -2,19 +2,901 @@
 clear; close all; clc;
 
 %% 0. Start by entering your last name
-lastName = "your last name here";
-display("EMCH-792 Final Project, " + lastName)
+lastName = "Vaught";
+disp("EMCH-792 Final Project, " + lastName)
 
-%% Problem I
+[dataDir, projectRoot] = locateProjectPaths();
+reportFigureDir = fullfile(projectRoot, "report", "figures");
+reportGeneratedDir = fullfile(projectRoot, "report", "generated");
 
-%% Problem II
+if ~exist(reportFigureDir, "dir")
+    mkdir(reportFigureDir);
+end
+if ~exist(reportGeneratedDir, "dir")
+    mkdir(reportGeneratedDir);
+end
 
-%% Problem III
+palette = brandPalette();
 
-%% Problem IV
+%% Problem I. Load datasets and estimate calibration variances
+fpStruct = load(fullfile(dataDir, "FP_data.mat"));
+FP_data = fpStruct.FP_data;
 
-%% Problem V
+y1Calib = load(fullfile(dataDir, "y1_calib_data.mat")).y1_calib_data(:);
+y2Calib = load(fullfile(dataDir, "y2_calib_data.mat")).y2_calib_data(:);
 
-%% Problem VI
+time = FP_data.time(:);
+dt = mean(diff(time));
+if max(abs(diff(time) - dt)) > 1e-10
+    error("The deployment dataset does not use a constant sample time.");
+end
+
+truth = [FP_data.x(:).'; FP_data.y(:).'; FP_data.psi(:).'; FP_data.u(:).'];
+measurements = [FP_data.y1(:).'; FP_data.y2(:).'];
+controls = [FP_data.df(:).'; FP_data.a(:).'];
+
+params = struct();
+params.dt = dt;
+params.lf = 1.0;
+params.lr = 1.0;
+params.Qc = diag([0.01, 0.01, 0.1, 0.05]);
+params.R1 = var(y1Calib, 0);
+params.R2 = var(y2Calib, 0);
+params.x0 = truth(:, 1);
+params.baseP0 = diag([4.0, 4.0, (20 * pi / 180)^2, 0.25]);
+params.ukf = struct("alpha", 1e-3, "beta", 2.0, "kappa", 0.0);
+
+data = struct();
+data.time = time;
+data.truth = truth;
+data.measurements = measurements;
+data.controls = controls;
+
+%% Problem II and III. Tune initialization scale and gate threshold
+gateCandidates = [ ...
+    struct("label", "95%", "confidence", 0.95, "threshold", 3.841458820694124), ...
+    struct("label", "99%", "confidence", 0.99, "threshold", 6.634896601021214)];
+p0Scales = [0.5, 1.0, 2.0, 4.0, 8.0];
+
+[tuningRows, bestSetting] = tuneInitializationAndGate(data, params, p0Scales, gateCandidates);
+params.P0 = params.baseP0 * bestSetting.p0Scale;
+params.gateThreshold = bestSetting.gate.threshold;
+params.gateLabel = bestSetting.gate.label;
+params.gateConfidence = bestSetting.gate.confidence;
+
+%% Problem II through V. Run the requested filter configurations
+configs = [ ...
+    buildConfig("ekf_rect_no_gate", "EKF rect., no gate", "ekf", "euler", false, inf), ...
+    buildConfig("ukf_rect_no_gate", "UKF rect., no gate", "ukf", "euler", false, inf), ...
+    buildConfig("ekf_rect_gate", "EKF rect., gate", "ekf", "euler", true, params.gateThreshold), ...
+    buildConfig("ukf_rect_gate", "UKF rect., gate", "ukf", "euler", true, params.gateThreshold), ...
+    buildConfig("ukf_rk4_no_gate", "UKF RK4, no gate", "ukf", "rk4", false, inf), ...
+    buildConfig("ukf_rk4_gate", "UKF RK4, gate", "ukf", "rk4", true, params.gateThreshold)];
+
+results = struct();
+for idx = 1:numel(configs)
+    config = configs(idx);
+    results.(config.id) = runFilter(data, params, config);
+end
+
+runtimeConfigs = [configs(3), configs(4), configs(6)];
+runtimeStats = measureRuntimes(data, params, runtimeConfigs, 60);
+
+%% Problem IV and V. Export report-ready plots and tables
+exportTrajectoryFigure(data, results, palette, reportFigureDir);
+exportStateFigure(data, results, palette, reportFigureDir);
+exportCovarianceFigure(data, results, palette, reportFigureDir);
+exportGatingFigure(data, results, params, palette, reportFigureDir);
+
+summaryPath = fullfile(reportGeneratedDir, "summary.txt");
+typstPath = fullfile(reportGeneratedDir, "results.typ");
+
+writeSummaryText(summaryPath, data, params, tuningRows, configs, results, runtimeStats);
+writeTypstResults(typstPath, data, params, tuningRows, configs, results, runtimeStats);
+
+%% Problem VI. Print concise conclusions for the report
+printConsoleSummary(data, params, tuningRows, configs, results, runtimeStats, summaryPath, typstPath);
 
 %% Any functions you develop need to go under here
+function [dataDir, projectRoot] = locateProjectPaths()
+    candidates = {pwd, fullfile(pwd, "ws")};
+    scriptPath = which("Final_project.m");
+    if ~isempty(scriptPath)
+        candidates{end + 1} = fileparts(scriptPath); %#ok<AGROW>
+    end
+
+    dataDir = "";
+    for idx = 1:numel(candidates)
+        candidate = string(candidates{idx});
+        if isfolder(candidate) && isfile(fullfile(candidate, "FP_data.mat"))
+            dataDir = candidate;
+            break
+        end
+    end
+
+    if strlength(dataDir) == 0
+        error("Unable to locate FP_data.mat. Run the script from the project root or the ws directory.");
+    end
+
+    [~, folderName] = fileparts(dataDir);
+    if strcmp(string(folderName), "ws")
+        projectRoot = fileparts(dataDir);
+    else
+        projectRoot = dataDir;
+    end
+end
+
+function config = buildConfig(id, label, filterType, integrator, gating, gateThreshold)
+    config = struct( ...
+        "id", char(id), ...
+        "label", char(label), ...
+        "filterType", char(filterType), ...
+        "integrator", char(integrator), ...
+        "gating", logical(gating), ...
+        "gateThreshold", gateThreshold);
+end
+
+function [rows, bestSetting] = tuneInitializationAndGate(data, params, p0Scales, gateCandidates)
+    scalePosition = max(std(hypot(data.truth(1, :), data.truth(2, :))), 1.0);
+    scaleHeading = max(std(data.truth(3, :)), deg2rad(5));
+    scaleSpeed = max(std(data.truth(4, :)), 0.25);
+
+    rowIndex = 0;
+    bestScore = inf;
+    rows = repmat(struct( ...
+        "p0Scale", 0.0, ...
+        "gateLabel", "", ...
+        "gateThreshold", 0.0, ...
+        "ekfPositionRMSE", 0.0, ...
+        "ukfPositionRMSE", 0.0, ...
+        "ekfHeadingRMSEDeg", 0.0, ...
+        "ukfHeadingRMSEDeg", 0.0, ...
+        "score", 0.0), numel(p0Scales) * numel(gateCandidates), 1);
+
+    for scaleIdx = 1:numel(p0Scales)
+        candidateParams = params;
+        candidateParams.P0 = params.baseP0 * p0Scales(scaleIdx);
+
+        for gateIdx = 1:numel(gateCandidates)
+            rowIndex = rowIndex + 1;
+            gate = gateCandidates(gateIdx);
+
+            ekfConfig = buildConfig("ekf_rect_gate_tune", "EKF rect., gate", "ekf", "euler", true, gate.threshold);
+            ukfConfig = buildConfig("ukf_rect_gate_tune", "UKF rect., gate", "ukf", "euler", true, gate.threshold);
+
+            ekfResult = runFilter(data, candidateParams, ekfConfig);
+            ukfResult = runFilter(data, candidateParams, ukfConfig);
+
+            score = mean([ ...
+                ekfResult.metrics.positionRMSE / scalePosition, ...
+                ukfResult.metrics.positionRMSE / scalePosition, ...
+                ekfResult.metrics.headingRMSE / scaleHeading, ...
+                ukfResult.metrics.headingRMSE / scaleHeading, ...
+                ekfResult.metrics.rmse(4) / scaleSpeed, ...
+                ukfResult.metrics.rmse(4) / scaleSpeed]);
+
+            rows(rowIndex) = struct( ...
+                "p0Scale", p0Scales(scaleIdx), ...
+                "gateLabel", gate.label, ...
+                "gateThreshold", gate.threshold, ...
+                "ekfPositionRMSE", ekfResult.metrics.positionRMSE, ...
+                "ukfPositionRMSE", ukfResult.metrics.positionRMSE, ...
+                "ekfHeadingRMSEDeg", ekfResult.metrics.headingRMSEDeg, ...
+                "ukfHeadingRMSEDeg", ukfResult.metrics.headingRMSEDeg, ...
+                "score", score);
+
+            if score < bestScore
+                bestScore = score;
+                bestSetting = struct("p0Scale", p0Scales(scaleIdx), "gate", gate);
+            end
+        end
+    end
+end
+
+function result = runFilter(data, params, config)
+    stateCount = size(data.truth, 1);
+    sampleCount = numel(data.time);
+
+    x = params.x0;
+    P = params.P0;
+    x(3) = wrapAngle(x(3));
+    P = stabilizeCovariance(P);
+
+    xHistory = zeros(stateCount, sampleCount);
+    pDiagHistory = zeros(stateCount, sampleCount);
+    traceHistory = zeros(1, sampleCount);
+    accepted = true(2, sampleCount);
+    nisHistory = nan(2, sampleCount);
+    innovationHistory = nan(2, sampleCount);
+    predictionHistory = nan(2, sampleCount);
+
+    xHistory(:, 1) = x;
+    pDiagHistory(:, 1) = diag(P);
+    traceHistory(1) = trace(P);
+
+    for k = 2:sampleCount
+        control = data.controls(:, k - 1);
+
+        if strcmp(config.filterType, "ekf")
+            [x, P] = ekfPredict(x, P, control, params);
+        else
+            [x, P] = ukfPredict(x, P, control, params, config.integrator);
+        end
+
+        [x, P, update1] = scalarMeasurementUpdate(x, P, data.measurements(1, k), 1, params, config);
+        [x, P, update2] = scalarMeasurementUpdate(x, P, data.measurements(2, k), 2, params, config);
+
+        accepted(:, k) = [update1.accepted; update2.accepted];
+        nisHistory(:, k) = [update1.nis; update2.nis];
+        innovationHistory(:, k) = [update1.innovation; update2.innovation];
+        predictionHistory(:, k) = [update1.prediction; update2.prediction];
+
+        xHistory(:, k) = x;
+        pDiagHistory(:, k) = diag(P);
+        traceHistory(k) = trace(P);
+    end
+
+    metrics = computeMetrics(xHistory, data.truth, traceHistory, pDiagHistory(:, end));
+
+    result = struct();
+    result.id = config.id;
+    result.label = config.label;
+    result.filterType = config.filterType;
+    result.integrator = config.integrator;
+    result.gating = config.gating;
+    result.x = xHistory;
+    result.Pdiag = pDiagHistory;
+    result.traceP = traceHistory;
+    result.accepted = accepted;
+    result.nis = nisHistory;
+    result.innovation = innovationHistory;
+    result.predictedMeasurement = predictionHistory;
+    result.metrics = metrics;
+    result.rejections = [sum(~accepted(1, :)), sum(~accepted(2, :))];
+    result.finalP = P;
+end
+
+function [xPred, PPred] = ekfPredict(x, P, control, params)
+    F = bicycleJacobian(x, control, params);
+    xPred = propagateEuler(x, control, params);
+    PPred = P + params.dt * (F * P + P * F.' + params.Qc);
+    xPred(3) = wrapAngle(xPred(3));
+    PPred = stabilizeCovariance(PPred);
+end
+
+function [xPred, PPred] = ukfPredict(x, P, control, params, integrator)
+    [sigmaPoints, Wm, Wc] = unscentedSigmaPoints(x, P, params.ukf);
+    propagated = zeros(size(sigmaPoints));
+
+    for idx = 1:size(sigmaPoints, 2)
+        propagated(:, idx) = propagateState(sigmaPoints(:, idx), control, params, integrator);
+    end
+
+    xPred = weightedStateMean(propagated, Wm);
+    PPred = zeros(size(P));
+
+    for idx = 1:size(propagated, 2)
+        deviation = propagated(:, idx) - xPred;
+        deviation(3) = wrapAngle(deviation(3));
+        PPred = PPred + Wc(idx) * (deviation * deviation.');
+    end
+
+    PPred = stabilizeCovariance(PPred + params.Qc * params.dt);
+end
+
+function [xNext, PNext, update] = scalarMeasurementUpdate(x, P, measurement, sensorId, params, config)
+    if strcmp(config.filterType, "ekf")
+        [xNext, PNext, update] = ekfScalarUpdate(x, P, measurement, sensorId, params, config);
+    else
+        [xNext, PNext, update] = ukfScalarUpdate(x, P, measurement, sensorId, params, config);
+    end
+end
+
+function [xNext, PNext, update] = ekfScalarUpdate(x, P, measurement, sensorId, params, config)
+    [prediction, H] = scalarMeasurementModel(x, sensorId);
+    variance = sensorVariance(sensorId, params);
+    innovation = measurement - prediction;
+    S = H * P * H.' + variance;
+    S = max(S, 1e-12);
+    nis = innovation^2 / S;
+
+    update = struct("accepted", true, "nis", nis, "innovation", innovation, "prediction", prediction);
+
+    if config.gating && nis > config.gateThreshold
+        xNext = x;
+        PNext = P;
+        update.accepted = false;
+        return
+    end
+
+    K = (P * H.') / S;
+    xNext = x + K * innovation;
+    xNext(3) = wrapAngle(xNext(3));
+
+    identity = eye(size(P));
+    PNext = (identity - K * H) * P * (identity - K * H).' + K * variance * K.';
+    PNext = stabilizeCovariance(PNext);
+end
+
+function [xNext, PNext, update] = ukfScalarUpdate(x, P, measurement, sensorId, params, config)
+    [sigmaPoints, Wm, Wc] = unscentedSigmaPoints(x, P, params.ukf);
+    sigmaMeasurements = zeros(1, size(sigmaPoints, 2));
+
+    for idx = 1:size(sigmaPoints, 2)
+        sigmaMeasurements(idx) = scalarMeasurementValue(sigmaPoints(:, idx), sensorId);
+    end
+
+    prediction = sum(Wm .* sigmaMeasurements);
+    variance = sensorVariance(sensorId, params);
+    S = variance;
+    Pxz = zeros(numel(x), 1);
+
+    for idx = 1:size(sigmaPoints, 2)
+        stateDeviation = sigmaPoints(:, idx) - x;
+        stateDeviation(3) = wrapAngle(stateDeviation(3));
+        measurementDeviation = sigmaMeasurements(idx) - prediction;
+        S = S + Wc(idx) * measurementDeviation^2;
+        Pxz = Pxz + Wc(idx) * stateDeviation * measurementDeviation;
+    end
+
+    S = max(S, 1e-12);
+    innovation = measurement - prediction;
+    nis = innovation^2 / S;
+
+    update = struct("accepted", true, "nis", nis, "innovation", innovation, "prediction", prediction);
+
+    if config.gating && nis > config.gateThreshold
+        xNext = x;
+        PNext = P;
+        update.accepted = false;
+        return
+    end
+
+    K = Pxz / S;
+    xNext = x + K * innovation;
+    xNext(3) = wrapAngle(xNext(3));
+    PNext = stabilizeCovariance(P - K * S * K.');
+end
+
+function [sigmaPoints, Wm, Wc] = unscentedSigmaPoints(x, P, ukfParams)
+    n = numel(x);
+    lambda = ukfParams.alpha^2 * (n + ukfParams.kappa) - n;
+    scaling = n + lambda;
+    scaledCovariance = stabilizeCovariance(scaling * P);
+
+    [lower, flag] = chol(scaledCovariance, "lower");
+    if flag ~= 0
+        scaledCovariance = stabilizeCovariance(scaledCovariance + 1e-9 * eye(n));
+        lower = chol(scaledCovariance, "lower");
+    end
+
+    sigmaPoints = zeros(n, 2 * n + 1);
+    sigmaPoints(:, 1) = x;
+    for idx = 1:n
+        sigmaPoints(:, idx + 1) = x + lower(:, idx);
+        sigmaPoints(:, n + idx + 1) = x - lower(:, idx);
+    end
+    sigmaPoints(3, :) = wrapAngle(sigmaPoints(3, :));
+
+    Wm = [lambda / scaling, repmat(1 / (2 * scaling), 1, 2 * n)];
+    Wc = Wm;
+    Wc(1) = Wc(1) + (1 - ukfParams.alpha^2 + ukfParams.beta);
+end
+
+function meanState = weightedStateMean(points, weights)
+    meanState = zeros(size(points, 1), 1);
+    meanState([1, 2, 4]) = points([1, 2, 4], :) * weights.';
+    meanState(3) = atan2(sum(weights .* sin(points(3, :))), sum(weights .* cos(points(3, :))));
+    meanState(3) = wrapAngle(meanState(3));
+end
+
+function f = bicycleDynamics(x, control, params)
+    steering = control(1);
+    acceleration = control(2);
+    beta = atan((params.lr / (params.lf + params.lr)) * tan(steering));
+    speed = x(4);
+    heading = x(3) + beta;
+
+    f = zeros(4, 1);
+    f(1) = speed * cos(heading);
+    f(2) = speed * sin(heading);
+    f(3) = (speed / params.lr) * sin(beta);
+    f(4) = acceleration;
+end
+
+function F = bicycleJacobian(x, control, params)
+    steering = control(1);
+    beta = atan((params.lr / (params.lf + params.lr)) * tan(steering));
+    speed = x(4);
+    heading = x(3) + beta;
+
+    F = zeros(4, 4);
+    F(1, 3) = -speed * sin(heading);
+    F(1, 4) = cos(heading);
+    F(2, 3) = speed * cos(heading);
+    F(2, 4) = sin(heading);
+    F(3, 4) = sin(beta) / params.lr;
+end
+
+function xNext = propagateState(x, control, params, integrator)
+    switch integrator
+        case 'euler'
+            xNext = propagateEuler(x, control, params);
+        case 'rk4'
+            xNext = propagateRK4(x, control, params);
+        otherwise
+            error("Unknown integrator: %s", integrator);
+    end
+end
+
+function xNext = propagateEuler(x, control, params)
+    xNext = x + params.dt * bicycleDynamics(x, control, params);
+    xNext(3) = wrapAngle(xNext(3));
+end
+
+function xNext = propagateRK4(x, control, params)
+    k1 = bicycleDynamics(x, control, params);
+    k2 = bicycleDynamics(wrapState(x + 0.5 * params.dt * k1), control, params);
+    k3 = bicycleDynamics(wrapState(x + 0.5 * params.dt * k2), control, params);
+    k4 = bicycleDynamics(wrapState(x + params.dt * k3), control, params);
+
+    xNext = x + (params.dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+    xNext(3) = wrapAngle(xNext(3));
+end
+
+function wrapped = wrapState(x)
+    wrapped = x;
+    wrapped(3) = wrapAngle(wrapped(3));
+end
+
+function angle = wrapAngle(angle)
+    angle = atan2(sin(angle), cos(angle));
+end
+
+function [prediction, H] = scalarMeasurementModel(x, sensorId)
+    switch sensorId
+        case 1
+            prediction = hypot(x(1), x(2));
+            if prediction > 1e-12
+                H = [x(1) / prediction, x(2) / prediction, 0, 0];
+            else
+                H = [0, 0, 0, 0];
+            end
+        case 2
+            prediction = x(3)^3;
+            H = [0, 0, 3 * x(3)^2, 0];
+        otherwise
+            error("Unknown sensor index.");
+    end
+end
+
+function prediction = scalarMeasurementValue(x, sensorId)
+    prediction = scalarMeasurementModel(x, sensorId);
+end
+
+function variance = sensorVariance(sensorId, params)
+    if sensorId == 1
+        variance = params.R1;
+    else
+        variance = params.R2;
+    end
+end
+
+function metrics = computeMetrics(estimate, truth, traceHistory, finalPDiag)
+    errorHistory = estimate - truth;
+    errorHistory(3, :) = wrapAngle(errorHistory(3, :));
+
+    rmse = sqrt(mean(errorHistory.^2, 2));
+
+    metrics = struct();
+    metrics.rmse = rmse;
+    metrics.positionRMSE = sqrt(mean(errorHistory(1, :).^2 + errorHistory(2, :).^2));
+    metrics.headingRMSE = rmse(3);
+    metrics.headingRMSEDeg = rad2deg(rmse(3));
+    metrics.avgTraceP = mean(traceHistory);
+    metrics.finalTraceP = traceHistory(end);
+    metrics.finalPDiag = finalPDiag(:);
+end
+
+function P = stabilizeCovariance(P)
+    P = 0.5 * (P + P.');
+    [vectors, values] = eig(P);
+    diagonal = real(diag(values));
+    diagonal(diagonal < 1e-9) = 1e-9;
+    P = vectors * diag(diagonal) * vectors.';
+    P = 0.5 * (P + P.');
+end
+
+function runtimeStats = measureRuntimes(data, params, configs, repetitions)
+    runtimeStats = repmat(struct("label", "", "samples", [], "meanSeconds", 0.0, "stdSeconds", 0.0), numel(configs), 1);
+
+    for idx = 1:numel(configs)
+        samples = zeros(repetitions, 1);
+        for rep = 1:repetitions
+            startTime = tic;
+            runFilter(data, params, configs(idx)); %#ok<NASGU>
+            samples(rep) = toc(startTime);
+        end
+
+        runtimeStats(idx).label = configs(idx).label;
+        runtimeStats(idx).samples = samples;
+        runtimeStats(idx).meanSeconds = mean(samples);
+        runtimeStats(idx).stdSeconds = std(samples);
+    end
+end
+
+function exportTrajectoryFigure(data, results, palette, outputDir)
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 900, 650]);
+    ax = axes(fig);
+    hold(ax, "on");
+
+    plot(ax, data.truth(1, :), data.truth(2, :), "Color", palette.black, "LineWidth", 2.2, "DisplayName", "Truth");
+    plot(ax, results.ekf_rect_no_gate.x(1, :), results.ekf_rect_no_gate.x(2, :), "--", "Color", palette.gray70, "LineWidth", 1.5, "DisplayName", results.ekf_rect_no_gate.label);
+    plot(ax, results.ukf_rect_no_gate.x(1, :), results.ukf_rect_no_gate.x(2, :), "--", "Color", palette.atlantic, "LineWidth", 1.5, "DisplayName", results.ukf_rect_no_gate.label);
+    plot(ax, results.ekf_rect_gate.x(1, :), results.ekf_rect_gate.x(2, :), "-", "Color", palette.rose, "LineWidth", 1.8, "DisplayName", results.ekf_rect_gate.label);
+    plot(ax, results.ukf_rect_gate.x(1, :), results.ukf_rect_gate.x(2, :), "-", "Color", palette.garnet, "LineWidth", 2.0, "DisplayName", results.ukf_rect_gate.label);
+    plot(ax, results.ukf_rk4_gate.x(1, :), results.ukf_rk4_gate.x(2, :), "-", "Color", palette.horseshoe, "LineWidth", 2.0, "DisplayName", results.ukf_rk4_gate.label);
+
+    xlabel(ax, "x (m)");
+    ylabel(ax, "y (m)");
+    title(ax, "Trajectory Comparison");
+    axis(ax, "equal");
+    styleAxes(ax, palette);
+    legend(ax, "Location", "eastoutside");
+    exportgraphics(fig, fullfile(outputDir, "trajectory.png"), "Resolution", 300);
+    close(fig);
+end
+
+function exportStateFigure(data, results, palette, outputDir)
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1100, 900]);
+    tiled = tiledlayout(fig, 4, 1, "TileSpacing", "compact", "Padding", "compact");
+    stateNames = {"x (m)", "y (m)", "\psi (deg)", "u (m/s)"};
+
+    comparison = { ...
+        struct("series", data.truth(1, :), "color", palette.black, "style", "-", "width", 2.0, "label", "Truth"), ...
+        struct("series", results.ekf_rect_gate.x(1, :), "color", palette.rose, "style", "-", "width", 1.6, "label", results.ekf_rect_gate.label), ...
+        struct("series", results.ukf_rect_gate.x(1, :), "color", palette.garnet, "style", "-", "width", 1.8, "label", results.ukf_rect_gate.label), ...
+        struct("series", results.ukf_rk4_gate.x(1, :), "color", palette.horseshoe, "style", "-", "width", 1.8, "label", results.ukf_rk4_gate.label), ...
+        struct("series", results.ukf_rect_no_gate.x(1, :), "color", palette.atlantic, "style", "--", "width", 1.4, "label", results.ukf_rect_no_gate.label)};
+
+    for stateIdx = 1:4
+        ax = nexttile(tiled);
+        hold(ax, "on");
+
+        for seriesIdx = 1:numel(comparison)
+            series = comparison{seriesIdx};
+            values = series.series;
+            if stateIdx ~= 1
+                switch stateIdx
+                    case 2
+                        values = replaceState(values, series, results, data, 2);
+                    case 3
+                        values = rad2deg(replaceState(values, series, results, data, 3));
+                    case 4
+                        values = replaceState(values, series, results, data, 4);
+                end
+            end
+            plot(ax, data.time, values, "LineStyle", series.style, "Color", series.color, "LineWidth", series.width, "DisplayName", series.label);
+        end
+
+        ylabel(ax, stateNames{stateIdx});
+        styleAxes(ax, palette);
+        if stateIdx == 1
+            title(ax, "State Estimates Versus Time");
+            lgd = legend(ax, "Location", "northoutside", "Orientation", "horizontal");
+            lgd.Layout.Tile = "north";
+        end
+        if stateIdx == 4
+            xlabel(ax, "Time (s)");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "state_timeseries.png"), "Resolution", 300);
+    close(fig);
+end
+
+function values = replaceState(baseSeries, series, results, data, stateIdx)
+    if strcmp(series.label, "Truth")
+        values = data.truth(stateIdx, :);
+    elseif strcmp(series.label, results.ekf_rect_gate.label)
+        values = results.ekf_rect_gate.x(stateIdx, :);
+    elseif strcmp(series.label, results.ukf_rect_gate.label)
+        values = results.ukf_rect_gate.x(stateIdx, :);
+    elseif strcmp(series.label, results.ukf_rk4_gate.label)
+        values = results.ukf_rk4_gate.x(stateIdx, :);
+    elseif strcmp(series.label, results.ukf_rect_no_gate.label)
+        values = results.ukf_rect_no_gate.x(stateIdx, :);
+    else
+        values = baseSeries;
+    end
+end
+
+function exportCovarianceFigure(data, results, palette, outputDir)
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1100, 900]);
+    tiled = tiledlayout(fig, 4, 1, "TileSpacing", "compact", "Padding", "compact");
+    labels = {"P_{11}", "P_{22}", "P_{33}", "P_{44}"};
+
+    for idx = 1:4
+        ax = nexttile(tiled);
+        hold(ax, "on");
+        plot(ax, data.time, results.ekf_rect_gate.Pdiag(idx, :), "Color", palette.rose, "LineWidth", 1.6, "DisplayName", results.ekf_rect_gate.label);
+        plot(ax, data.time, results.ukf_rect_gate.Pdiag(idx, :), "Color", palette.garnet, "LineWidth", 1.8, "DisplayName", results.ukf_rect_gate.label);
+        plot(ax, data.time, results.ukf_rk4_gate.Pdiag(idx, :), "Color", palette.horseshoe, "LineWidth", 1.8, "DisplayName", results.ukf_rk4_gate.label);
+        ylabel(ax, labels{idx});
+        styleAxes(ax, palette);
+        if idx == 1
+            title(ax, "Diagonal Covariance History");
+            lgd = legend(ax, "Location", "northoutside", "Orientation", "horizontal");
+            lgd.Layout.Tile = "north";
+        end
+        if idx == 4
+            xlabel(ax, "Time (s)");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "covariance.png"), "Resolution", 300);
+    close(fig);
+end
+
+function exportGatingFigure(data, results, params, palette, outputDir)
+    fig = figure("Visible", "off", "Color", palette.white, "Position", [100, 100, 1100, 700]);
+    tiled = tiledlayout(fig, 2, 1, "TileSpacing", "compact", "Padding", "compact");
+
+    sensorNames = {"Sensor y_1 NIS", "Sensor y_2 NIS"};
+    for sensorIdx = 1:2
+        ax = nexttile(tiled);
+        hold(ax, "on");
+        plot(ax, data.time, results.ekf_rect_gate.nis(sensorIdx, :), "Color", palette.rose, "LineWidth", 1.5, "DisplayName", results.ekf_rect_gate.label);
+        plot(ax, data.time, results.ukf_rect_gate.nis(sensorIdx, :), "Color", palette.garnet, "LineWidth", 1.8, "DisplayName", results.ukf_rect_gate.label);
+        yline(ax, params.gateThreshold, "--", "Color", palette.black, "LineWidth", 1.3, "DisplayName", sprintf("Gate = %.2f", params.gateThreshold));
+
+        rejected = ~results.ukf_rect_gate.accepted(sensorIdx, :);
+        scatter(ax, data.time(rejected), results.ukf_rect_gate.nis(sensorIdx, rejected), 36, "x", ...
+            "MarkerEdgeColor", palette.horseshoe, "LineWidth", 1.2, "DisplayName", "UKF rejected");
+
+        ylabel(ax, sensorNames{sensorIdx});
+        styleAxes(ax, palette);
+        if sensorIdx == 1
+            title(ax, "Normalized Innovation Squared Diagnostics");
+            lgd = legend(ax, "Location", "northoutside", "Orientation", "horizontal");
+            lgd.Layout.Tile = "north";
+        end
+        if sensorIdx == 2
+            xlabel(ax, "Time (s)");
+        end
+    end
+
+    exportgraphics(fig, fullfile(outputDir, "gating_diagnostics.png"), "Resolution", 300);
+    close(fig);
+end
+
+function styleAxes(ax, palette)
+    set(ax, ...
+        "FontName", "Helvetica", ...
+        "FontSize", 11, ...
+        "LineWidth", 1.0, ...
+        "Box", "on", ...
+        "XColor", palette.black, ...
+        "YColor", palette.black, ...
+        "GridColor", palette.gray50, ...
+        "GridAlpha", 0.22, ...
+        "MinorGridColor", palette.gray30, ...
+        "MinorGridAlpha", 0.16, ...
+        "Layer", "top");
+    grid(ax, "on");
+end
+
+function palette = brandPalette()
+    palette = struct();
+    palette.garnet = [115, 0, 10] / 255;
+    palette.black = [0, 0, 0] / 255;
+    palette.white = [255, 255, 255] / 255;
+    palette.gray90 = [54, 54, 54] / 255;
+    palette.gray70 = [92, 92, 92] / 255;
+    palette.gray50 = [162, 162, 162] / 255;
+    palette.gray30 = [199, 199, 199] / 255;
+    palette.gray10 = [235, 235, 235] / 255;
+    palette.warmGrey = [103, 97, 86] / 255;
+    palette.sandstorm = [255, 242, 227] / 255;
+    palette.rose = [204, 46, 64] / 255;
+    palette.atlantic = [70, 106, 159] / 255;
+    palette.congaree = [31, 65, 77] / 255;
+    palette.horseshoe = [101, 120, 11] / 255;
+    palette.grass = [206, 211, 24] / 255;
+    palette.honeycomb = [164, 145, 55] / 255;
+end
+
+function writeSummaryText(filePath, data, params, tuningRows, configs, results, runtimeStats)
+    fid = fopen(filePath, "w");
+    if fid < 0
+        error("Unable to open summary output file.");
+    end
+    cleaner = onCleanup(@() fclose(fid));
+
+    fprintf(fid, "EMCH-792 Final Project Summary\n");
+    fprintf(fid, "Generated: %s\n\n", char(datetime("now", "Format", "yyyy-MM-dd HH:mm:ss")));
+
+    fprintf(fid, "Problem I. Calibration variances\n");
+    fprintf(fid, "  y1 variance = %.6f\n", params.R1);
+    fprintf(fid, "  y2 variance = %.6f\n", params.R2);
+    fprintf(fid, "  dt = %.3f s\n\n", params.dt);
+
+    fprintf(fid, "Tuning sweep\n");
+    fprintf(fid, "  %-8s %-6s %-10s %-14s %-14s %-12s %-12s %-10s\n", ...
+        "P0", "Gate", "Threshold", "EKF pos RMSE", "UKF pos RMSE", "EKF psi deg", "UKF psi deg", "Score");
+    for idx = 1:numel(tuningRows)
+        row = tuningRows(idx);
+        fprintf(fid, "  %-8.2f %-6s %-10.4f %-14.4f %-14.4f %-12.4f %-12.4f %-10.4f\n", ...
+            row.p0Scale, row.gateLabel, row.gateThreshold, row.ekfPositionRMSE, row.ukfPositionRMSE, ...
+            row.ekfHeadingRMSEDeg, row.ukfHeadingRMSEDeg, row.score);
+    end
+    fprintf(fid, "\n");
+
+    fprintf(fid, "Filter comparison\n");
+    fprintf(fid, "  %-20s %-8s %-8s %-10s %-8s %-10s %-10s %-8s %-8s\n", ...
+        "Configuration", "x", "y", "psi deg", "u", "pos", "avg tr(P)", "rej y1", "rej y2");
+    for idx = 1:numel(configs)
+        result = results.(configs(idx).id);
+        fprintf(fid, "  %-20s %-8.4f %-8.4f %-10.4f %-8.4f %-10.4f %-10.4f %-8d %-8d\n", ...
+            result.label, result.metrics.rmse(1), result.metrics.rmse(2), result.metrics.headingRMSEDeg, ...
+            result.metrics.rmse(4), result.metrics.positionRMSE, result.metrics.avgTraceP, ...
+            result.rejections(1), result.rejections(2));
+    end
+    fprintf(fid, "\n");
+
+    fprintf(fid, "Runtime comparison (%d repetitions each)\n", numel(runtimeStats(1).samples));
+    fprintf(fid, "  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
+    for idx = 1:numel(runtimeStats)
+        fprintf(fid, "  %-20s %-12.3f %-12.3f\n", runtimeStats(idx).label, ...
+            1000 * runtimeStats(idx).meanSeconds, 1000 * runtimeStats(idx).stdSeconds);
+    end
+
+    %#ok<NASGU>
+end
+
+function writeTypstResults(filePath, data, params, tuningRows, configs, results, runtimeStats)
+    fid = fopen(filePath, "w");
+    if fid < 0
+        error("Unable to open Typst output file.");
+    end
+    cleaner = onCleanup(@() fclose(fid));
+
+    bestConfig = configs(1);
+    bestPosition = inf;
+    for idx = 1:numel(configs)
+        candidate = results.(configs(idx).id);
+        if candidate.metrics.positionRMSE < bestPosition
+            bestPosition = candidate.metrics.positionRMSE;
+            bestConfig = configs(idx);
+        end
+    end
+
+    gatingEkfImprovement = results.ekf_rect_no_gate.metrics.positionRMSE - results.ekf_rect_gate.metrics.positionRMSE;
+    gatingUkfImprovement = results.ukf_rect_no_gate.metrics.positionRMSE - results.ukf_rect_gate.metrics.positionRMSE;
+    rk4Improvement = results.ukf_rect_gate.metrics.positionRMSE - results.ukf_rk4_gate.metrics.positionRMSE;
+    rk4RuntimePenalty = runtimeStats(3).meanSeconds - runtimeStats(2).meanSeconds;
+
+    fprintf(fid, '#let generated_on = "%s"\n', typstString(char(datetime("now", "Format", "yyyy-MM-dd HH:mm:ss"))));
+    fprintf(fid, '#let dt_text = "%s"\n', sprintf("%.3f", params.dt));
+    fprintf(fid, '#let y1_variance_text = "%s"\n', sprintf("%.6f", params.R1));
+    fprintf(fid, '#let y2_variance_text = "%s"\n', sprintf("%.6f", params.R2));
+    fprintf(fid, '#let chosen_p0_scale_text = "%s"\n', sprintf("%.2f", trace(params.P0) / trace(params.baseP0)));
+    fprintf(fid, '#let chosen_gate_label = "%s"\n', typstString(params.gateLabel));
+    fprintf(fid, '#let chosen_gate_threshold_text = "%s"\n', sprintf("%.4f", params.gateThreshold));
+    fprintf(fid, '#let best_configuration_text = "%s"\n', typstString(bestConfig.label));
+    fprintf(fid, '#let best_position_rmse_text = "%s"\n', sprintf("%.4f", bestPosition));
+    fprintf(fid, '#let ekf_gating_improvement_text = "%s"\n', sprintf("%.4f", gatingEkfImprovement));
+    fprintf(fid, '#let ukf_gating_improvement_text = "%s"\n', sprintf("%.4f", gatingUkfImprovement));
+    fprintf(fid, '#let rk4_position_improvement_text = "%s"\n', sprintf("%.4f", rk4Improvement));
+    fprintf(fid, '#let rk4_runtime_penalty_text = "%s"\n\n', sprintf("%.3f", 1000 * rk4RuntimePenalty));
+
+    for idx = 1:numel(configs)
+        configId = configs(idx).id;
+        result = results.(configId);
+        fprintf(fid, '#let %s_pos_text = "%s"\n', configId, sprintf("%.4f", result.metrics.positionRMSE));
+        fprintf(fid, '#let %s_heading_deg_text = "%s"\n', configId, sprintf("%.4f", result.metrics.headingRMSEDeg));
+        fprintf(fid, '#let %s_speed_text = "%s"\n', configId, sprintf("%.4f", result.metrics.rmse(4)));
+        fprintf(fid, '#let %s_avg_trace_text = "%s"\n', configId, sprintf("%.4f", result.metrics.avgTraceP));
+        fprintf(fid, '#let %s_rej_y1_text = "%d"\n', configId, result.rejections(1));
+        fprintf(fid, '#let %s_rej_y2_text = "%d"\n', configId, result.rejections(2));
+    end
+    fprintf(fid, '#let ekf_rect_gate_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeStats(1).meanSeconds));
+    fprintf(fid, '#let ukf_rect_gate_runtime_ms_text = "%s"\n', sprintf("%.3f", 1000 * runtimeStats(2).meanSeconds));
+    fprintf(fid, '#let ukf_rk4_gate_runtime_ms_text = "%s"\n\n', sprintf("%.3f", 1000 * runtimeStats(3).meanSeconds));
+
+    fprintf(fid, '#let tuning_table = table(\n');
+    fprintf(fid, '  columns: 8,\n');
+    fprintf(fid, '  align: (left, left, right, right, right, right, right, right),\n');
+    fprintf(fid, '  inset: 6pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([P0 scale], [Gate], [Threshold], [EKF pos.], [UKF pos.], [EKF psi deg], [UKF psi deg], [Score]),\n');
+    for idx = 1:numel(tuningRows)
+        row = tuningRows(idx);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s],\n", ...
+            sprintf("%.2f", row.p0Scale), row.gateLabel, sprintf("%.4f", row.gateThreshold), ...
+            sprintf("%.4f", row.ekfPositionRMSE), sprintf("%.4f", row.ukfPositionRMSE), ...
+            sprintf("%.4f", row.ekfHeadingRMSEDeg), sprintf("%.4f", row.ukfHeadingRMSEDeg), sprintf("%.4f", row.score));
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, '#let metrics_table = table(\n');
+    fprintf(fid, '  columns: 9,\n');
+    fprintf(fid, '  align: (left, right, right, right, right, right, right, right, right),\n');
+    fprintf(fid, '  inset: 5pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([Configuration], [x], [y], [psi deg], [u], [pos.], [avg tr(P)], [rej y1], [rej y2]),\n');
+    for idx = 1:numel(configs)
+        result = results.(configs(idx).id);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%d], [%d],\n", ...
+            typstString(result.label), sprintf("%.4f", result.metrics.rmse(1)), sprintf("%.4f", result.metrics.rmse(2)), ...
+            sprintf("%.4f", result.metrics.headingRMSEDeg), sprintf("%.4f", result.metrics.rmse(4)), ...
+            sprintf("%.4f", result.metrics.positionRMSE), sprintf("%.4f", result.metrics.avgTraceP), ...
+            result.rejections(1), result.rejections(2));
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, '#let runtime_table = table(\n');
+    fprintf(fid, '  columns: 3,\n');
+    fprintf(fid, '  align: (left, right, right),\n');
+    fprintf(fid, '  inset: 6pt,\n');
+    fprintf(fid, '  stroke: rgb("#363636"),\n');
+    fprintf(fid, '  table.header([Configuration], [Mean ms], [Std ms]),\n');
+    for idx = 1:numel(runtimeStats)
+        fprintf(fid, "  [%s], [%s], [%s],\n", ...
+            typstString(runtimeStats(idx).label), sprintf("%.3f", 1000 * runtimeStats(idx).meanSeconds), ...
+            sprintf("%.3f", 1000 * runtimeStats(idx).stdSeconds));
+    end
+    fprintf(fid, ')\n\n');
+
+    fprintf(fid, "#let dataset_note = [The script used %d samples at #dt_text s and initialized the filters from the first truth state to isolate estimator behavior from startup mismatch.]\n", numel(data.time));
+end
+
+function escaped = typstString(value)
+    escaped = strrep(value, '\', '\\');
+    escaped = strrep(escaped, '"', '\"');
+end
+
+function printConsoleSummary(data, params, tuningRows, configs, results, runtimeStats, summaryPath, typstPath)
+    fprintf("\nProblem I\n");
+    fprintf("  y1 calibration variance: %.6f\n", params.R1);
+    fprintf("  y2 calibration variance: %.6f\n", params.R2);
+    fprintf("  sample time: %.3f s (%d samples)\n", params.dt, numel(data.time));
+
+    fprintf("\nTuning Sweep\n");
+    fprintf("  %-8s %-6s %-10s %-14s %-14s %-12s %-12s %-10s\n", ...
+        "P0", "Gate", "Threshold", "EKF pos RMSE", "UKF pos RMSE", "EKF psi deg", "UKF psi deg", "Score");
+    for idx = 1:numel(tuningRows)
+        row = tuningRows(idx);
+        fprintf("  %-8.2f %-6s %-10.4f %-14.4f %-14.4f %-12.4f %-12.4f %-10.4f\n", ...
+            row.p0Scale, row.gateLabel, row.gateThreshold, row.ekfPositionRMSE, row.ukfPositionRMSE, ...
+            row.ekfHeadingRMSEDeg, row.ukfHeadingRMSEDeg, row.score);
+    end
+
+    fprintf("\nSelected Settings\n");
+    fprintf("  P0 scale: %.2f\n", trace(params.P0) / trace(params.baseP0));
+    fprintf("  scalar gate: %s (threshold %.4f)\n", params.gateLabel, params.gateThreshold);
+    fprintf("  UKF scaling: alpha = %.4g, beta = %.1f, kappa = %.1f\n", params.ukf.alpha, params.ukf.beta, params.ukf.kappa);
+
+    fprintf("\nFilter Comparison\n");
+    fprintf("  %-20s %-8s %-8s %-10s %-8s %-10s %-10s %-8s %-8s\n", ...
+        "Configuration", "x", "y", "psi deg", "u", "pos", "avg tr(P)", "rej y1", "rej y2");
+    for idx = 1:numel(configs)
+        result = results.(configs(idx).id);
+        fprintf("  %-20s %-8.4f %-8.4f %-10.4f %-8.4f %-10.4f %-10.4f %-8d %-8d\n", ...
+            result.label, result.metrics.rmse(1), result.metrics.rmse(2), result.metrics.headingRMSEDeg, ...
+            result.metrics.rmse(4), result.metrics.positionRMSE, result.metrics.avgTraceP, ...
+            result.rejections(1), result.rejections(2));
+    end
+
+    fprintf("\nRuntime Comparison\n");
+    fprintf("  %-20s %-12s %-12s\n", "Configuration", "Mean ms", "Std ms");
+    for idx = 1:numel(runtimeStats)
+        fprintf("  %-20s %-12.3f %-12.3f\n", runtimeStats(idx).label, ...
+            1000 * runtimeStats(idx).meanSeconds, 1000 * runtimeStats(idx).stdSeconds);
+    end
+
+    fprintf("\nArtifacts\n");
+    fprintf("  Summary text: %s\n", summaryPath);
+    fprintf("  Typst fragment: %s\n", typstPath);
+    fprintf("  Figures: %s\n", fullfile(fileparts(summaryPath), "..", "figures"));
+end
