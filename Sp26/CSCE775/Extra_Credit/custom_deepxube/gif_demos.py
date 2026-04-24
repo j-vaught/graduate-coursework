@@ -66,7 +66,7 @@ DEMO_CONFIGS: dict[str, DemoConfig] = {
     "linkage": DemoConfig("linkage", "linkage.64_64_64", 14, (7.0, 6.0)),
     "mapf": DemoConfig("mapf", "mapf.28_28_30_64", 12, (8.0, 8.0)),
     "arm": DemoConfig("arm", "arm.6_12_64", 12, (13.0, 5.0)),
-    "retro": DemoConfig("retro", "retro.7", 12, (7.0, 5.5)),
+    "retro": DemoConfig("retro", "retro.10", 12, (7.5, 6.0)),
 }
 
 
@@ -143,21 +143,31 @@ def _walk_from_goal(
 
 def _sample_problem(domain: Any, model_cfg: ModelConfig) -> tuple[Any, Any]:
     if model_cfg.goal_hint is not None and hasattr(domain, "_ee_position"):
+        from domains.robotic_arm import ArmGoal, ArmState
         target = np.asarray(model_cfg.goal_hint, dtype=np.float64)
-        target_bins = domain._position_to_bins(target)
-        best_start, best_goal, best_dist = None, None, np.inf
-        for _ in range(6000):
-            states, goals = domain.sample_problem_instances([model_cfg.scramble_steps])
-            goal_pos = domain._bins_to_position(goals[0].bins)
-            dist = float(np.linalg.norm(goal_pos - target))
-            if np.array_equal(goals[0].bins, target_bins):
-                return states[0], goals[0]
+        n_joints = getattr(domain, "n_joints", 6)
+        n_steps = getattr(domain, "n_angle_steps", 12)
+        best_joints = None
+        best_dist = np.inf
+        for _ in range(200000):
+            joints = np.random.randint(0, n_steps, size=n_joints).astype(np.int8)
+            if not domain._is_valid_state(joints):
+                continue
+            ee = domain._ee_position(joints)
+            dist = float(np.linalg.norm(ee - target))
             if dist < best_dist:
                 best_dist = dist
-                best_start, best_goal = states[0], goals[0]
-        print(f"[arm] target bin {tuple(target_bins.tolist())} not sampled; using closest bin "
-              f"{tuple(best_goal.bins.tolist())} at {domain._bins_to_position(best_goal.bins)}")
-        return best_start, best_goal
+                best_joints = joints
+                if best_dist < 1e-3:
+                    break
+        if best_joints is not None:
+            goal_ee = domain._ee_position(best_joints)
+            goal = ArmGoal(domain._position_to_bins(goal_ee))
+            seed_state = ArmState(best_joints)
+            start_states = domain.random_walk_rev([seed_state], [model_cfg.scramble_steps])
+            print(f"[arm] goal bin {tuple(goal.bins.tolist())} at {domain._bins_to_position(goal.bins)} "
+                  f"(dist {best_dist:.3f} from {tuple(target.tolist())})")
+            return start_states[0], goal
     states, goals = domain.sample_problem_instances([model_cfg.scramble_steps])
     return states[0], goals[0]
 
@@ -286,7 +296,12 @@ def generate_demo(
     used_model = False
     if use_model:
         model_cfg = MODEL_CONFIGS.get(config.key)
-        model_file = (model_dir / config.key / "model.pt") if model_cfg else None
+        if model_cfg is not None and model_cfg.model_file:
+            model_file = Path(model_cfg.model_file)
+        elif model_cfg is not None:
+            model_file = model_dir / config.key / "model.pt"
+        else:
+            model_file = None
         if model_cfg is None:
             print(f"[{config.key}] no model config registered; falling back to random walk")
         elif not model_file.is_file():

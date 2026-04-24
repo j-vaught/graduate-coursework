@@ -137,7 +137,7 @@ def _mol_to_string(mol: NDArray[np.int8]) -> str:
 
 _RDK_GREEN = (0.396, 0.471, 0.043, 1.0)
 _RDK_RED = (0.800, 0.180, 0.251, 1.0)
-_RDK_BG = (0.922, 0.922, 0.922, 1.0)
+_RDK_BG = (1.0, 1.0, 1.0, 1.0)
 
 
 def _state_to_rdkit_mol(
@@ -531,57 +531,55 @@ class Retrosynthesis(
     def _visualize_rdkit(
         self, state: RetroState, goal: RetroGoal, fig: Figure
     ) -> None:
-        cur_mol, cur_ha, cur_hc = _state_to_rdkit_mol(
-            state.mol, self.chain_len, goal.mol,
+        cur_mol, _, _ = _state_to_rdkit_mol(
+            state.mol, self.chain_len, None,
         )
-        cur_img = _render_mol_image(cur_mol, cur_ha, cur_hc)
+        cur_img = _render_mol_image(cur_mol, [], {})
 
-        tgt_mol, tgt_ha, tgt_hc = _state_to_rdkit_mol(
-            goal.mol, self.chain_len, goal.mol,
+        tgt_mol, _, _ = _state_to_rdkit_mol(
+            goal.mol, self.chain_len, None,
         )
-        tgt_img = _render_mol_image(tgt_mol, tgt_ha, tgt_hc)
+        tgt_img = _render_mol_image(tgt_mol, [], {})
 
-        ax1 = fig.add_subplot(211)
+        gs = fig.add_gridspec(
+            3, 1, height_ratios=[10, 1.6, 10],
+            left=0.02, right=0.98, top=0.95, bottom=0.05, hspace=0.15,
+        )
+
+        ax1 = fig.add_subplot(gs[0])
         ax1.imshow(cur_img)
         ax1.axis("off")
         ax1.set_title(
             "Current Molecule", fontsize=13, fontweight="bold",
-            color=BLACK_90, pad=4,
-        )
-        ax1.text(
-            0.5, -0.04, _mol_to_string(state.mol),
-            ha="center", va="top", fontsize=10, color=BLACK_50,
-            style="italic", transform=ax1.transAxes,
+            color="black", family="Georgia", pad=4,
         )
 
-        ax2 = fig.add_subplot(212)
+        ax_diff = fig.add_subplot(gs[1])
+        ax_diff.set_xlim(0, self.chain_len)
+        ax_diff.set_ylim(0, 1)
+        ax_diff.axis("off")
+        for i in range(self.chain_len):
+            matches = bool(state.mol[i] == goal.mol[i])
+            fill = HORSESHOE if matches else GARNET
+            ax_diff.add_patch(patches.Rectangle(
+                (i + 0.08, 0.18), 0.84, 0.64,
+                facecolor=fill, edgecolor="black", linewidth=0.8,
+            ))
+            ax_diff.text(
+                i + 0.5, 0.5, str(i + 1),
+                ha="center", va="center", fontsize=10, fontweight="bold",
+                color="white", family="Georgia",
+            )
+
+        ax2 = fig.add_subplot(gs[2])
         ax2.imshow(tgt_img)
         ax2.axis("off")
         ax2.set_title(
             "Target Molecule", fontsize=13, fontweight="bold",
-            color=BLACK_90, pad=4,
-        )
-        ax2.text(
-            0.5, -0.04, _mol_to_string(goal.mol),
-            ha="center", va="top", fontsize=10, color=BLACK_50,
-            style="italic", transform=ax2.transAxes,
+            color="black", family="Georgia", pad=4,
         )
 
-        solved = np.array_equal(state.mol, goal.mol)
-        diff = int(np.sum(state.mol != goal.mol))
-        if solved:
-            status = "SOLVED"
-            scolor = HORSESHOE
-        else:
-            status = f"{diff} position{'s' if diff != 1 else ''} differ"
-            scolor = GARNET
-        fig.text(
-            0.5, 0.01, status,
-            ha="center", va="center", fontsize=11,
-            fontweight="bold", color=scolor,
-        )
-        fig.set_facecolor(BLACK_10)
-        fig.subplots_adjust(hspace=0.35, top=0.93, bottom=0.06)
+        fig.set_facecolor("white")
 
     def _visualize_matplotlib(
         self, state: RetroState, goal: RetroGoal, fig: Figure
