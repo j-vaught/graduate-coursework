@@ -162,6 +162,7 @@ def make_remote_script(args: argparse.Namespace) -> str:
     repo_dir = shell_repo_dir(args.repo_dir)
     commands = [
         "set -euo pipefail",
+        "ulimit -n 65536 || true",
         f"REPO_DIR={repo_dir}",
     ]
     if args.sync_mode == "git":
