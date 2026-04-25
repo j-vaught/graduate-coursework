@@ -392,6 +392,22 @@ class WarehouseMAPF(
         self._dist_cache[key] = maps
         return maps
 
+    def _distance_sum_to_goal(
+        self,
+        state: MAPFState,
+        goal_positions: NDArray[np.int8],
+    ) -> float:
+        goal_cells = self._goal_cells_from_positions(goal_positions)
+        state_for_goal = MAPFState(state.positions, goal_positions.copy())
+        dist_maps = self._distance_maps_for_state(state_for_goal, goal_cells)
+        inf = int(np.iinfo(np.int16).max)
+        total = 0
+        for i in range(self.K):
+            r, c = self._get_pos(state, i)
+            dist = int(dist_maps[i][r, c])
+            total += self.H + self.W if dist >= inf else dist
+        return float(total)
+
     def _ordered_dirs_to_goal(
         self,
         state: MAPFState,
@@ -801,6 +817,11 @@ class WarehouseMAPF(
             MAPFState(all_pos[i].astype(np.int8), goal_positions[i])
             for i in range(N)
         ]
+        if self.input_features == "dist":
+            return result, [
+                self._distance_sum_to_goal(state, goal_pos)
+                for state, goal_pos in zip(result, goal_positions, strict=True)
+            ]
         return result, [float(s) for s in num_steps_l]
 
     def random_walk_rev(self, states: List[MAPFState],
