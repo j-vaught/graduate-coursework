@@ -219,7 +219,7 @@ The average runtime study for the vanilla rectangular filters used sixty repeate
 
 The assignment states the model covariance as $Q = "diag"(0.01, 0.01, 0.1, 0.05)$. Since the model is discretized with rectangular integration, the main results add $Q Delta t$ as the discrete process contribution. The script also reruns the vanilla rectangular EKF and UKF with direct $Q$ to document the alternate interpretation. The comparison below shows that direct $Q$ makes the default-alpha UKF much less stable on this dataset, so the sample-period-scaled case is used in the required plots, tables, and gating/RK4 comparisons.
 
-#narrow_table(
+#full_width_table(
   q_interpretation_table,
   [Vanilla rectangular EKF and UKF sensitivity to the direct $Q$ and $Q Delta t$ process-noise interpretations.],
 )
