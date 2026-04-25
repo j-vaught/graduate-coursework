@@ -27,7 +27,7 @@ from deepxube.base.domain import (
     ActsEnum, GoalStartRevWalkable,
     StateGoalVizable, StringToAct,
 )
-from deepxube.base.nnet_input import HasFlatSGIn
+from deepxube.base.nnet_input import HasFlatSGIn, HasTwoDSGIn
 from deepxube.factories.domain_factory import domain_factory
 
 GARNET = "#73000A"
@@ -163,6 +163,7 @@ class WarehouseMAPF(
     ActsEnum[MAPFState, MAPFAction, MAPFGoal],
     GoalStartRevWalkable[MAPFState, MAPFAction, MAPFGoal],
     HasFlatSGIn[MAPFState, MAPFAction, MAPFGoal],
+    HasTwoDSGIn[MAPFState, MAPFAction, MAPFGoal],
     StateGoalVizable[MAPFState, MAPFAction, MAPFGoal],
     StringToAct[MAPFState, MAPFAction, MAPFGoal],
 ):
@@ -676,6 +677,33 @@ class WarehouseMAPF(
                 gr, gc = self._get_goal_pos(goal, i)
                 g_flat[b, i] = gr * self.W + gc
         return [s_flat, g_flat]
+
+    # ========================================================= HasTwoDSGIn
+
+    def get_input_info_2d_sg(
+        self,
+    ) -> Tuple[List[int], Tuple[int, int], List[int], Optional[int]]:
+        return [1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1], None
+
+    def to_np_2d_sg(
+        self,
+        states: List[MAPFState],
+        goals: List[MAPFGoal],
+    ) -> List[NDArray]:
+        batch = len(states)
+        obstacles = np.repeat(
+            self.obstacles.astype(np.int64)[None, None, :, :], batch, axis=0)
+        state_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.int64)
+        goal_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.int64)
+
+        for b, (state, goal) in enumerate(zip(states, goals)):
+            for i in range(self.K):
+                sr, sc = self._get_pos(state, i)
+                gr, gc = self._get_goal_pos(goal, i)
+                state_grid[b, 0, sr, sc] = i + 1
+                goal_grid[b, 0, gr, gc] = i + 1
+
+        return [obstacles, state_grid, goal_grid]
 
     # ======================================================= Visualization
 
