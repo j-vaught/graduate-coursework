@@ -39,7 +39,9 @@ params = struct();
 params.dt = dt;
 params.lf = 1.0;
 params.lr = 1.0;
-params.Qc = diag([0.01, 0.01, 0.1, 0.05]);
+params.Q = diag([0.01, 0.01, 0.1, 0.05]);
+params.processNoiseScale = 1.0;
+params.processNoiseDescription = "direct discrete Q from the assignment";
 params.R1 = var(y1Calib, 0);
 params.R2 = var(y2Calib, 0);
 params.x0 = zeros(4, 1);
@@ -53,7 +55,7 @@ data.truth = truth;
 data.measurements = measurements;
 data.controls = controls;
 
-%% Problem II through VI. Use a tighter prior and a fixed scalar gate
+%% Problem II through VI. Use the nominal prior, direct Q, and a fixed scalar gate
 params.P0 = params.baseP0;
 params.gateThreshold = 6.634896601021214;
 params.gateLabel = "99%";
@@ -214,7 +216,7 @@ function [xPred, PPred] = ekfPredict(x, P, control, params)
     F = bicycleJacobian(x, control, params);
     xPred = propagateEuler(x, control, params);
     Phi = eye(size(P)) + params.dt * F;
-    PPred = Phi * P * Phi.' + params.Qc * params.dt;
+    PPred = Phi * P * Phi.' + processNoiseContribution(params);
     xPred(3) = wrapAngle(xPred(3));
     PPred = stabilizeCovariance(PPred);
 end
@@ -236,7 +238,7 @@ function [xPred, PPred] = ukfPredict(x, P, control, params, integrator)
         PPred = PPred + Wc(idx) * (deviation * deviation.');
     end
 
-    PPred = stabilizeCovariance(PPred + params.Qc * params.dt);
+    PPred = stabilizeCovariance(PPred + processNoiseContribution(params));
 end
 
 function [xNext, PNext, update] = scalarMeasurementUpdate(x, P, measurement, sensorId, params, config)
@@ -382,6 +384,10 @@ function F = bicycleJacobian(x, control, params)
     F(3, 4) = sin(beta) / params.lr;
 end
 
+function Q = processNoiseContribution(params)
+    Q = params.processNoiseScale * params.Q;
+end
+
 function xNext = propagateState(x, control, params, integrator)
     switch integrator
         case 'euler'
@@ -492,10 +498,44 @@ end
 
 function appendix = runAblationStudies(data, params)
     appendix = struct();
+    appendix.qInterpretation = runQInterpretationComparison(data, params);
     appendix.gating = runGateThresholdAblation(data, params);
     appendix.measurement = runMeasurementAblation(data, params);
     appendix.prior = runPriorScaleAblation(data, params);
     appendix.ukfSpread = runUkfSpreadAblation(data, params);
+end
+
+function study = runQInterpretationComparison(data, params)
+    labels = ["Direct Q", "Q times dt"];
+    scales = [1.0, params.dt];
+    descriptions = ["direct discrete Q from the assignment", "sample-period-scaled Q sensitivity check"];
+    filters = ["EKF", "UKF"];
+    rows = emptyAblationRows();
+
+    for scaleIdx = 1:numel(scales)
+        paramsVariant = params;
+        paramsVariant.processNoiseScale = scales(scaleIdx);
+        paramsVariant.processNoiseDescription = descriptions(scaleIdx);
+
+        for filterIdx = 1:numel(filters)
+            config = buildConfig( ...
+                "q_interpretation", ...
+                sprintf("%s %s", filters(filterIdx), labels(scaleIdx)), ...
+                lower(filters(filterIdx)), ...
+                "euler", ...
+                false, ...
+                inf);
+            result = runFilter(data, paramsVariant, config);
+            rows(end + 1) = ablationRow(filters(filterIdx), labels(scaleIdx), scales(scaleIdx), result); %#ok<AGROW>
+        end
+    end
+
+    study = struct();
+    study.labels = labels;
+    study.scales = scales;
+    study.rows = rows;
+    study.bestPosition = bestAblationRow(rows, "positionRMSE");
+    study.bestHeading = bestAblationRow(rows, "headingRMSEDeg");
 end
 
 function study = runGateThresholdAblation(data, params)
@@ -1022,6 +1062,7 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
     fprintf(fid, "Problem II and IV settings\n");
     fprintf(fid, "  nominal P0 diagonal = [%.4f, %.4f, %.4f, %.4f]\n", diag(params.P0));
     fprintf(fid, "  initial prior = %s\n", params.priorDescription);
+    fprintf(fid, "  process noise = %s (scale %.3f)\n", params.processNoiseDescription, params.processNoiseScale);
     fprintf(fid, "  scalar gate = %s (threshold %.4f)\n\n", params.gateLabel, params.gateThreshold);
 
     fprintf(fid, "Filter comparison\n");
@@ -1065,6 +1106,8 @@ function writeSummaryText(filePath, data, params, configs, results, runtimeProbl
     end
 
     fprintf(fid, "\nAppendix ablation highlights\n");
+    fprintf(fid, "  Q interpretation best position: %s, %s, %.4f m\n", ...
+        appendix.qInterpretation.bestPosition.filter, appendix.qInterpretation.bestPosition.setting, appendix.qInterpretation.bestPosition.positionRMSE);
     fprintf(fid, "  Gate sweep best position: %s, %s, %.4f m\n", ...
         appendix.gating.bestPosition.filter, appendix.gating.bestPosition.setting, appendix.gating.bestPosition.positionRMSE);
     fprintf(fid, "  Gate sweep best heading: %s, %s, %.4f deg\n", ...
@@ -1112,6 +1155,8 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     fprintf(fid, '#let y1_variance_text = "%s"\n', sprintf("%.6f", params.R1));
     fprintf(fid, '#let y2_variance_text = "%s"\n', sprintf("%.6f", params.R2));
     fprintf(fid, '#let p0_trace_ratio_text = "%s"\n', sprintf("%.2f", trace(params.P0) / trace(params.baseP0)));
+    fprintf(fid, '#let process_noise_description_text = "%s"\n', typstString(params.processNoiseDescription));
+    fprintf(fid, '#let process_noise_scale_text = "%s"\n', sprintf("%.3f", params.processNoiseScale));
     fprintf(fid, '#let chosen_gate_label = "%s"\n', typstString(params.gateLabel));
     fprintf(fid, '#let chosen_gate_threshold_text = "%s"\n', sprintf("%.4f", params.gateThreshold));
     fprintf(fid, '#let best_configuration_text = "%s"\n', typstString(bestConfig.label));
@@ -1158,6 +1203,13 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
     fprintf(fid, '#let ukf_alpha_best_heading_text = "%s"\n', typstString(appendix.ukfSpread.bestHeading.setting));
     fprintf(fid, '#let ukf_alpha_best_heading_rmse_text = "%s"\n\n', sprintf("%.4f", appendix.ukfSpread.bestHeading.headingRMSEDeg));
 
+    fprintf(fid, '#let q_best_position_filter_text = "%s"\n', typstString(appendix.qInterpretation.bestPosition.filter));
+    fprintf(fid, '#let q_best_position_setting_text = "%s"\n', typstString(appendix.qInterpretation.bestPosition.setting));
+    fprintf(fid, '#let q_best_position_rmse_text = "%s"\n', sprintf("%.4f", appendix.qInterpretation.bestPosition.positionRMSE));
+    fprintf(fid, '#let q_best_heading_filter_text = "%s"\n', typstString(appendix.qInterpretation.bestHeading.filter));
+    fprintf(fid, '#let q_best_heading_setting_text = "%s"\n', typstString(appendix.qInterpretation.bestHeading.setting));
+    fprintf(fid, '#let q_best_heading_rmse_text = "%s"\n\n', sprintf("%.4f", appendix.qInterpretation.bestHeading.headingRMSEDeg));
+
     writeTypstTableStart(fid, "metrics_table", "9", "(left, right, right, right, right, right, right, right, right)", "5pt");
     writeTypstTableHeader(fid, "[Configuration], [x], [y], [psi deg], [u], [pos.], [avg tr(P)], [rej y1], [rej y2]");
     for idx = 1:numel(configs)
@@ -1187,6 +1239,17 @@ function writeTypstResults(filePath, data, params, configs, results, runtimeProb
             sprintf("%.3f", 1000 * runtimeProblem6Stats(idx).stdSeconds));
     end
     writeTypstTableEnd(fid, 1 + numel(runtimeProblem6Stats));
+
+    writeTypstTableStart(fid, "q_interpretation_table", "7", "(left, left, right, right, right, right, right)", "4pt");
+    writeTypstTableHeader(fid, "[Filter], [Q treatment], [scale], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]");
+    for idx = 1:numel(appendix.qInterpretation.rows)
+        row = appendix.qInterpretation.rows(idx);
+        fprintf(fid, "  [%s], [%s], [%s], [%s], [%s], [%s], [%s],\n", ...
+            typstString(row.filter), typstString(row.setting), sprintf("%.3f", row.settingValue), ...
+            sprintf("%.4f", row.positionRMSE), sprintf("%.4f", row.headingRMSEDeg), ...
+            sprintf("%.4f", row.speedRMSE), sprintf("%.4f", row.avgTraceP));
+    end
+    writeTypstTableEnd(fid, 1 + numel(appendix.qInterpretation.rows));
 
     writeTypstTableStart(fid, "gate_ablation_table", "8", "(left, left, right, right, right, right, right, right)", "4pt");
     writeTypstTableHeader(fid, "[Filter], [Gate], [Threshold], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)], [rej y1/y2]");
@@ -1273,6 +1336,7 @@ function printConsoleSummary(data, params, configs, results, runtimeProblem3Stat
 
     fprintf("\nSelected Settings\n");
     fprintf("  P0 scale: %.2f\n", trace(params.P0) / trace(params.baseP0));
+    fprintf("  process noise: %s (scale %.3f)\n", params.processNoiseDescription, params.processNoiseScale);
     fprintf("  scalar gate: %s (threshold %.4f)\n", params.gateLabel, params.gateThreshold);
     fprintf("  UKF scaling: alpha = %.4g, beta = %.1f, kappa = %.1f\n", params.ukf.alpha, params.ukf.beta, params.ukf.kappa);
 
