@@ -65,7 +65,7 @@ DEMO_CONFIGS: dict[str, DemoConfig] = {
     "pancake": DemoConfig("pancake", "pancake.10", 12, (6.0, 5.0)),
     "mapf": DemoConfig("mapf", "mapf.28_28_4_64", 12, (8.0, 8.0)),
     "arm": DemoConfig("arm", "arm.6_12_64", 12, (13.0, 5.0)),
-    "retro": DemoConfig("retro", "retro.10", 12, (7.5, 6.0)),
+    "retro": DemoConfig("retro", "retro.7", 12, (7.5, 6.0)),
 }
 
 
