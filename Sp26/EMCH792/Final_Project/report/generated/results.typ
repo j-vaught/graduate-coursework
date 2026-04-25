@@ -1,8 +1,10 @@
-#let generated_on = "2026-04-24 19:57:09"
+#let generated_on = "2026-04-24 20:41:41"
 #let dt_text = "0.100"
 #let y1_variance_text = "0.087247"
 #let y2_variance_text = "0.006536"
 #let p0_trace_ratio_text = "1.00"
+#let process_noise_description_text = "sample-period-scaled Q used as the discrete process contribution"
+#let process_noise_scale_text = "0.100"
 #let chosen_gate_label = "99%"
 #let chosen_gate_threshold_text = "6.6349"
 #let best_configuration_text = "EKF rect., no gate"
@@ -12,7 +14,7 @@
 #let ekf_gating_heading_change_text = "0.8668"
 #let ukf_gating_heading_improvement_text = "0.9017"
 #let rk4_position_improvement_text = "0.2026"
-#let rk4_runtime_penalty_text = "1.002"
+#let rk4_runtime_penalty_text = "1.093"
 
 #let ekf_rect_no_gate_pos_text = "1.1366"
 #let ekf_rect_no_gate_heading_deg_text = "6.5907"
@@ -50,10 +52,10 @@
 #let ukf_rk4_gate_avg_trace_text = "15.1788"
 #let ukf_rk4_gate_rej_y1_text = "20"
 #let ukf_rk4_gate_rej_y2_text = "4"
-#let ekf_rect_no_gate_runtime_ms_text = "1.999"
-#let ukf_rect_no_gate_runtime_ms_text = "3.759"
-#let ukf_rect_runtime_ms_text = "3.721"
-#let ukf_rk4_runtime_ms_text = "4.723"
+#let ekf_rect_no_gate_runtime_ms_text = "1.822"
+#let ukf_rect_no_gate_runtime_ms_text = "3.912"
+#let ukf_rect_runtime_ms_text = "3.821"
+#let ukf_rk4_runtime_ms_text = "4.913"
 
 #let gate_best_position_filter_text = "EKF"
 #let gate_best_position_setting_text = "No gate"
@@ -74,6 +76,13 @@
 #let ukf_alpha_best_position_rmse_text = "1.5576"
 #let ukf_alpha_best_heading_text = "0.001"
 #let ukf_alpha_best_heading_rmse_text = "4.6895"
+
+#let q_best_position_filter_text = "EKF"
+#let q_best_position_setting_text = "Q times dt"
+#let q_best_position_rmse_text = "1.1366"
+#let q_best_heading_filter_text = "UKF"
+#let q_best_heading_setting_text = "Q times dt"
+#let q_best_heading_rmse_text = "4.6895"
 
 #let metrics_table = table(
   columns: 9,
@@ -100,8 +109,8 @@
   table.hline(y: 0, stroke: 0.8pt + rgb("#000000")),
   table.header([Configuration], [Mean ms], [Std ms]),
   table.hline(y: 1, stroke: 0.5pt + rgb("#000000")),
-  [EKF rect., no gate], [1.999], [1.131],
-  [UKF rect., no gate], [3.759], [0.092],
+  [EKF rect., no gate], [1.822], [0.558],
+  [UKF rect., no gate], [3.912], [0.053],
   table.hline(y: 3, stroke: 0.8pt + rgb("#000000")),
 )
 
@@ -113,9 +122,24 @@
   table.hline(y: 0, stroke: 0.8pt + rgb("#000000")),
   table.header([Configuration], [Mean ms], [Std ms]),
   table.hline(y: 1, stroke: 0.5pt + rgb("#000000")),
-  [UKF rect., no gate], [3.721], [0.039],
-  [UKF RK4, no gate], [4.723], [0.025],
+  [UKF rect., no gate], [3.821], [0.022],
+  [UKF RK4, no gate], [4.913], [0.059],
   table.hline(y: 3, stroke: 0.8pt + rgb("#000000")),
+)
+
+#let q_interpretation_table = table(
+  columns: 7,
+  align: (left, left, right, right, right, right, right),
+  inset: 4pt,
+  stroke: none,
+  table.hline(y: 0, stroke: 0.8pt + rgb("#000000")),
+  table.header([Filter], [Q treatment], [scale], [Pos. RMSE], [Heading deg], [u RMSE], [avg tr(P)]),
+  table.hline(y: 1, stroke: 0.5pt + rgb("#000000")),
+  [EKF], [Direct Q], [1.000], [3.5701], [6.9345], [1.0263], [1.9578],
+  [UKF], [Direct Q], [1.000], [204378.6691], [96.7247], [7.4202], [2435824635567.9771],
+  [EKF], [Q times dt], [0.100], [1.1366], [6.5907], [2.4161], [1.2892],
+  [UKF], [Q times dt], [0.100], [2.8483], [4.6895], [3.6135], [9.8452],
+  table.hline(y: 5, stroke: 0.8pt + rgb("#000000")),
 )
 
 #let gate_ablation_table = table(
