@@ -40,8 +40,8 @@ params.dt = dt;
 params.lf = 1.0;
 params.lr = 1.0;
 params.Q = diag([0.01, 0.01, 0.1, 0.05]);
-params.processNoiseScale = 1.0;
-params.processNoiseDescription = "direct discrete Q from the assignment";
+params.processNoiseScale = dt;
+params.processNoiseDescription = "sample-period-scaled Q used as the discrete process contribution";
 params.R1 = var(y1Calib, 0);
 params.R2 = var(y2Calib, 0);
 params.x0 = zeros(4, 1);
@@ -55,7 +55,7 @@ data.truth = truth;
 data.measurements = measurements;
 data.controls = controls;
 
-%% Problem II through VI. Use the nominal prior, direct Q, and a fixed scalar gate
+%% Problem II through VI. Use the nominal prior, scaled Q, and a fixed scalar gate
 params.P0 = params.baseP0;
 params.gateThreshold = 6.634896601021214;
 params.gateLabel = "99%";
