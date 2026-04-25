@@ -15,6 +15,7 @@ the number of sequential robot moves. Both use uniform cost 1.0 per
 transition.
 """
 
+from collections import deque
 from typing import List, Tuple, Optional, Dict, Any, Set
 import itertools
 import numpy as np
@@ -204,6 +205,7 @@ class WarehouseMAPF(
         self.robot_colors = _generate_robot_colors(n_robots)
 
         self._goal_cells: Dict[Tuple[int, int], int] = {}
+        self._dist_cache: Dict[bytes, List[NDArray[np.int16]]] = {}
 
     # ----------------------------------------------------------- state helpers
 
@@ -332,25 +334,85 @@ class WarehouseMAPF(
                 return r, c
         raise KeyError(f"missing goal position for robot {robot_idx}")
 
+    def _goal_cache_key(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+    ) -> bytes:
+        if state.goal_positions is not None:
+            return state.goal_positions.tobytes()
+
+        goal_positions = np.zeros(2 * self.K, dtype=np.int8)
+        for (r, c), robot_idx in goal_cells.items():
+            self._set_pos(goal_positions, robot_idx, r, c)
+        return goal_positions.tobytes()
+
+    def _distance_maps_for_state(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+    ) -> List[NDArray[np.int16]]:
+        key = self._goal_cache_key(state, goal_cells)
+        cached = self._dist_cache.get(key)
+        if cached is not None:
+            return cached
+
+        if len(self._dist_cache) > 2048:
+            self._dist_cache.clear()
+
+        inf = np.iinfo(np.int16).max
+        maps: List[NDArray[np.int16]] = []
+        for i in range(self.K):
+            gr, gc = self._goal_pos_for_robot(state, goal_cells, i)
+            dist = np.full((self.H, self.W), inf, dtype=np.int16)
+            dist[gr, gc] = np.int16(0)
+            queue: deque[Tuple[int, int]] = deque([(gr, gc)])
+
+            while queue:
+                r, c = queue.popleft()
+                next_dist = int(dist[r, c]) + 1
+                for dr, dc in DIR_OFFSETS[:4]:
+                    nr, nc = r + dr, c + dc
+                    if not self._in_bounds(nr, nc):
+                        continue
+                    if dist[nr, nc] != inf:
+                        continue
+                    if self.obstacles[nr, nc] and (nr, nc) != (gr, gc):
+                        continue
+                    dist[nr, nc] = np.int16(next_dist)
+                    queue.append((nr, nc))
+
+            maps.append(dist)
+
+        self._dist_cache[key] = maps
+        return maps
+
     def _ordered_dirs_to_goal(
         self,
         state: MAPFState,
         goal_cells: Dict[Tuple[int, int], int],
         per_robot_dirs: List[List[int]],
     ) -> List[List[int]]:
+        dist_maps = self._distance_maps_for_state(state, goal_cells)
+        inf = int(np.iinfo(np.int16).max)
         ordered_dirs: List[List[int]] = []
         for i, valid_dirs in enumerate(per_robot_dirs):
             r, c = self._get_pos(state, i)
             gr, gc = self._goal_pos_for_robot(state, goal_cells, i)
+            curr_dist = int(dist_maps[i][r, c])
             scored = []
             for d in valid_dirs:
                 tr, tc = self._target_cell(r, c, d)
-                dist = abs(tr - gr) + abs(tc - gc)
-                wait_pen = 0.25 if d == WAIT and dist > 0 else 0.0
-                stay_pen = 0.05 if d == WAIT else 0.0
-                scored.append((dist, wait_pen, stay_pen, d))
+                if self._in_bounds(tr, tc):
+                    dist = int(dist_maps[i][tr, tc])
+                else:
+                    dist = inf
+                if dist >= inf:
+                    dist = inf + abs(tr - gr) + abs(tc - gc)
+                wait_pen = 1 if d == WAIT and curr_dist > 0 else 0
+                scored.append((dist, wait_pen, d))
             scored.sort(key=lambda item: item[:3])
-            ordered_dirs.append([item[3] for item in scored])
+            ordered_dirs.append([item[2] for item in scored])
         return ordered_dirs
 
     def _try_greedy_joint_action(
@@ -419,11 +481,11 @@ class WarehouseMAPF(
         per_robot_dirs: List[List[int]],
     ) -> List[MAPFAction]:
         ordered_dirs = self._ordered_dirs_to_goal(state, goal_cells, per_robot_dirs)
+        dist_maps = self._distance_maps_for_state(state, goal_cells)
         dists = []
         for i in range(self.K):
             r, c = self._get_pos(state, i)
-            gr, gc = self._goal_pos_for_robot(state, goal_cells, i)
-            dists.append(abs(r - gr) + abs(c - gc))
+            dists.append(int(dist_maps[i][r, c]))
 
         unsolved = [i for i, dist in enumerate(dists) if dist > 0]
         solved = [i for i, dist in enumerate(dists) if dist == 0]
@@ -508,6 +570,14 @@ class WarehouseMAPF(
 
         actions = self._guided_joint_actions(state, goal_cells, per_robot_dirs)
         seen: Set[tuple] = {action.dirs for action in actions}
+        for action in self._get_single_robot_actions(state, goal_cells, per_robot_dirs):
+            if len(actions) >= self.max_joint_actions:
+                return actions
+            if action.dirs in seen:
+                continue
+            actions.append(action)
+            seen.add(action.dirs)
+
         attempts = 0
         max_attempts = max(self.max_joint_actions * 50, 1000)
         while len(actions) < self.max_joint_actions and attempts < max_attempts:
