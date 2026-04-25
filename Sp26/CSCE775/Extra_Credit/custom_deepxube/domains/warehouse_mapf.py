@@ -308,6 +308,157 @@ class WarehouseMAPF(
                 return MAPFAction(dirs)
         return MAPFAction(tuple([WAIT] * self.K))
 
+    def _goal_pos_for_robot(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        robot_idx: int,
+    ) -> Tuple[int, int]:
+        if state.goal_positions is not None:
+            return (
+                int(state.goal_positions[2 * robot_idx]),
+                int(state.goal_positions[2 * robot_idx + 1]),
+            )
+        for (r, c), idx in goal_cells.items():
+            if idx == robot_idx:
+                return r, c
+        raise KeyError(f"missing goal position for robot {robot_idx}")
+
+    def _ordered_dirs_to_goal(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        per_robot_dirs: List[List[int]],
+    ) -> List[List[int]]:
+        ordered_dirs: List[List[int]] = []
+        for i, valid_dirs in enumerate(per_robot_dirs):
+            r, c = self._get_pos(state, i)
+            gr, gc = self._goal_pos_for_robot(state, goal_cells, i)
+            scored = []
+            for d in valid_dirs:
+                tr, tc = self._target_cell(r, c, d)
+                dist = abs(tr - gr) + abs(tc - gc)
+                wait_pen = 0.25 if d == WAIT and dist > 0 else 0.0
+                stay_pen = 0.05 if d == WAIT else 0.0
+                scored.append((dist, wait_pen, stay_pen, d))
+            scored.sort(key=lambda item: item[:3])
+            ordered_dirs.append([item[3] for item in scored])
+        return ordered_dirs
+
+    def _try_greedy_joint_action(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        ordered_dirs: List[List[int]],
+        robot_order: List[int],
+        alt_shift: int = 0,
+    ) -> Optional[MAPFAction]:
+        assigned_dirs = [WAIT] * self.K
+        current_flat = [0] * self.K
+        for i in range(self.K):
+            r, c = self._get_pos(state, i)
+            current_flat[i] = r * self.W + c
+
+        target_by_robot: Dict[int, int] = {}
+        target_cells: Set[int] = set()
+
+        for order_pos, i in enumerate(robot_order):
+            dirs = ordered_dirs[i]
+            if len(dirs) > 1:
+                shift_span = min(3, len(dirs))
+                shift = (alt_shift + order_pos) % shift_span
+                dirs_try = dirs[shift:shift_span] + dirs[:shift] + dirs[shift_span:]
+            else:
+                dirs_try = dirs
+
+            chosen_dir: Optional[int] = None
+            chosen_target: Optional[int] = None
+            for d in dirs_try:
+                r, c = self._get_pos(state, i)
+                tr, tc = self._target_cell(r, c, d)
+                target_flat = tr * self.W + tc
+                if target_flat in target_cells:
+                    continue
+
+                swap_conflict = False
+                for j, other_target in target_by_robot.items():
+                    if other_target == current_flat[i] and target_flat == current_flat[j]:
+                        swap_conflict = True
+                        break
+                if swap_conflict:
+                    continue
+
+                chosen_dir = d
+                chosen_target = target_flat
+                break
+
+            if chosen_dir is None or chosen_target is None:
+                return None
+
+            assigned_dirs[i] = chosen_dir
+            target_by_robot[i] = chosen_target
+            target_cells.add(chosen_target)
+
+        dirs_tuple = tuple(assigned_dirs)
+        if self._compute_targets(state, dirs_tuple, goal_cells) is None:
+            return None
+        return MAPFAction(dirs_tuple)
+
+    def _guided_joint_actions(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        per_robot_dirs: List[List[int]],
+    ) -> List[MAPFAction]:
+        ordered_dirs = self._ordered_dirs_to_goal(state, goal_cells, per_robot_dirs)
+        dists = []
+        for i in range(self.K):
+            r, c = self._get_pos(state, i)
+            gr, gc = self._goal_pos_for_robot(state, goal_cells, i)
+            dists.append(abs(r - gr) + abs(c - gc))
+
+        unsolved = [i for i, dist in enumerate(dists) if dist > 0]
+        solved = [i for i, dist in enumerate(dists) if dist == 0]
+
+        orders: List[List[int]] = []
+        seen_orders: Set[tuple[int, ...]] = set()
+
+        def add_order(order: List[int]) -> None:
+            order_t = tuple(order)
+            if order_t in seen_orders:
+                return
+            seen_orders.add(order_t)
+            orders.append(order)
+
+        add_order(unsolved + solved)
+        add_order(sorted(range(self.K), key=lambda idx: (-dists[idx], idx)))
+        add_order(sorted(range(self.K), key=lambda idx: (dists[idx], idx)))
+        add_order(list(range(self.K)))
+        add_order(list(reversed(range(self.K))))
+
+        if unsolved:
+            for _ in range(min(8, len(unsolved))):
+                perm = unsolved.copy()
+                np.random.shuffle(perm)
+                add_order(perm + solved)
+
+        actions: List[MAPFAction] = [MAPFAction(tuple([WAIT] * self.K))]
+        seen_dirs: Set[tuple] = {actions[0].dirs}
+        guided_cap = min(self.max_joint_actions, 32)
+
+        for order in orders:
+            for alt_shift in range(3):
+                action = self._try_greedy_joint_action(
+                    state, goal_cells, ordered_dirs, order, alt_shift=alt_shift)
+                if action is None or action.dirs in seen_dirs:
+                    continue
+                actions.append(action)
+                seen_dirs.add(action.dirs)
+                if len(actions) >= guided_cap:
+                    return actions
+
+        return actions
+
     def _get_actions_for_state(self, state: MAPFState) -> List[MAPFAction]:
         goal_cells = self._goal_cells_from_state(state)
         per_robot_dirs = self._per_robot_dirs(state, goal_cells)
@@ -324,11 +475,10 @@ class WarehouseMAPF(
                     actions.append(MAPFAction(combo))
             return actions or [MAPFAction(tuple([WAIT] * self.K))]
 
-        seen: Set[tuple] = set()
-        actions = [MAPFAction(tuple([WAIT] * self.K))]
-        seen.add(actions[0].dirs)
+        actions = self._guided_joint_actions(state, goal_cells, per_robot_dirs)
+        seen: Set[tuple] = {action.dirs for action in actions}
         attempts = 0
-        max_attempts = self.max_joint_actions * 50
+        max_attempts = max(self.max_joint_actions * 50, 1000)
         while len(actions) < self.max_joint_actions and attempts < max_attempts:
             attempts += 1
             action = self._sample_joint_action(
@@ -545,8 +695,8 @@ class WarehouseMAPF(
             gr, gc = self._get_goal_pos(goal, i)
             goal_set[(gr, gc)] = i
 
-        fig.set_facecolor(BLACK_10)
-        ax = fig.add_axes([0.05, 0.05, 0.9, 0.88])
+        fig.set_facecolor("white")
+        ax = fig.add_axes([0.03, 0.05, 0.94, 0.92])
         ax.set_xlim(0, img_w)
         ax.set_ylim(img_h, 0)
         ax.set_aspect('equal')
@@ -558,7 +708,7 @@ class WarehouseMAPF(
                 if (r, c) in goal_set:
                     rid = goal_set[(r, c)]
                     color = self.robot_colors[rid]
-                    fill = to_rgba(color, alpha=0.25)
+                    fill = to_rgba(color, alpha=0.30)
                     ax.add_patch(mpatches.Rectangle(
                         (x, y), CELL, CELL,
                         facecolor=fill, edgecolor=color,
@@ -566,38 +716,23 @@ class WarehouseMAPF(
                 elif self.obstacles[r, c]:
                     ax.add_patch(mpatches.Rectangle(
                         (x, y), CELL, CELL,
-                        facecolor='black', edgecolor=BLACK_90, linewidth=1))
+                        facecolor='black', edgecolor='black', linewidth=1))
                 else:
                     ax.add_patch(mpatches.Rectangle(
                         (x, y), CELL, CELL,
-                        facecolor=BLACK_10, edgecolor=BLACK_30, linewidth=0.5))
+                        facecolor='white', edgecolor=BLACK_30, linewidth=0.5))
 
         for i in range(self.K):
             sr, sc = self._get_pos(state, i)
             cx, cy = sc * CELL + CELL / 2, sr * CELL + CELL / 2
             color = self.robot_colors[i]
             is_frozen = frozen[i] if frozen else False
-            edge = HORSESHOE if is_frozen else 'white'
-            edge_w = 2.5 if is_frozen else 1.5
+            edge = "black"
+            edge_w = 1.5 if not is_frozen else 2.5
             ax.add_patch(mpatches.Circle(
                 (cx, cy), robot_r,
                 facecolor=color, edgecolor=edge, linewidth=edge_w,
                 zorder=10))
-            if self.K <= 20:
-                ax.text(cx, cy, str(i + 1),
-                        ha='center', va='center',
-                        fontsize=label_size, fontweight='bold', color='white',
-                        zorder=11)
-
-        solved = bool(np.array_equal(state.positions, goal.positions))
-        n_at_goal = sum(
-            1 for i in range(self.K)
-            if self._get_pos(state, i) == self._get_goal_pos(goal, i))
-        status = "SOLVED" if solved else f"{n_at_goal}/{self.K} arrived"
-        status_color = HORSESHOE if solved else ROSE
-        fig.text(0.5, 0.01, status,
-                 ha='center', va='bottom', fontsize=11,
-                 color=status_color, fontweight='bold')
 
     # ========================================================== StringToAct
 
