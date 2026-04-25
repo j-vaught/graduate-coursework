@@ -5,9 +5,9 @@ to assigned shelf positions while avoiding other shelves and each other.
 Goal cells are ON shelf obstacles; only the assigned robot may enter its
 own goal shelf cell. All other shelf cells are impassable.
 
-All robots move at each timestep; valid directions are UP, DOWN, LEFT,
-RIGHT, WAIT. Joint actions are rejected on vertex conflicts (two robots
-target the same cell) or edge conflicts (two robots swap positions).
+The default action model is a simultaneous joint move. A sequential
+single-robot move mode is also available for larger instances where the
+joint action space is too large for generic graph search.
 
 The optimization objective is makespan: total timesteps until all
 robots reach their goals (uniform cost 1.0 per transition).
@@ -170,13 +170,18 @@ class WarehouseMAPF(
 
     def __init__(self, height: int = 20, width: int = 20, n_robots: int = 8,
                  max_joint_actions: int = 256,
-                 exact_joint_action_limit: int = 5000):
+                 exact_joint_action_limit: int = 5000,
+                 action_mode: str = "joint"):
         super().__init__()
         self.H = height
         self.W = width
         self.K = n_robots
         self.max_joint_actions = max(1, max_joint_actions)
         self.exact_joint_action_limit = max(1, exact_joint_action_limit)
+        self.action_mode = action_mode.lower()
+        if self.action_mode not in {"joint", "single"}:
+            raise ValueError(
+                f"Unknown MAPF action_mode {action_mode!r}; expected 'joint' or 'single'")
 
         layout_fn = WAREHOUSE_LAYOUTS.get((height, width))
         if layout_fn is not None:
@@ -460,9 +465,32 @@ class WarehouseMAPF(
 
         return actions
 
+    def _get_single_robot_actions(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        per_robot_dirs: List[List[int]],
+    ) -> List[MAPFAction]:
+        actions: List[MAPFAction] = []
+        for robot_idx, dirs_i in enumerate(per_robot_dirs):
+            for direction in dirs_i:
+                if direction == WAIT:
+                    continue
+                dirs = [WAIT] * self.K
+                dirs[robot_idx] = direction
+                dirs_tuple = tuple(dirs)
+                if self._compute_targets(state, dirs_tuple, goal_cells) is not None:
+                    actions.append(MAPFAction(dirs_tuple))
+        if actions:
+            return actions
+        return [MAPFAction(tuple([WAIT] * self.K))]
+
     def _get_actions_for_state(self, state: MAPFState) -> List[MAPFAction]:
         goal_cells = self._goal_cells_from_state(state)
         per_robot_dirs = self._per_robot_dirs(state, goal_cells)
+        if self.action_mode == "single":
+            return self._get_single_robot_actions(state, goal_cells, per_robot_dirs)
+
         num_joint = 1
         for dirs in per_robot_dirs:
             num_joint *= len(dirs)
@@ -548,9 +576,12 @@ class WarehouseMAPF(
     def _sample_random_action(self, state: MAPFState,
                               max_retries: int = 200) -> MAPFAction:
         goal_cells = self._goal_cells_from_state(state)
+        per_robot_dirs = self._per_robot_dirs(state, goal_cells)
+        if self.action_mode == "single":
+            actions = self._get_single_robot_actions(state, goal_cells, per_robot_dirs)
+            return actions[np.random.randint(len(actions))]
         return self._sample_joint_action(
-            state, goal_cells, self._per_robot_dirs(state, goal_cells),
-            max_retries=max_retries)
+            state, goal_cells, per_robot_dirs, max_retries=max_retries)
 
     _DR = np.array([-1, 1, 0, 0, 0], dtype=np.int16)
     _DC = np.array([0, 0, -1, 1, 0], dtype=np.int16)
@@ -602,6 +633,45 @@ class WarehouseMAPF(
                 if np.any(is_obs):
                     passable |= is_obs & (tr_c == g_r) & (tc_c == g_c)
                 valid[:, :, d] = passable
+
+            if self.action_mode == "single":
+                occupied = np.zeros((B, H, W), dtype=np.bool_)
+                batch_idx = np.arange(B)[:, None]
+                occupied[batch_idx, rows, cols] = True
+                resolved = np.zeros(B, dtype=np.bool_)
+                new_r = rows.copy()
+                new_c = cols.copy()
+
+                for _retry in range(16):
+                    todo_idx = np.where(~resolved)[0]
+                    if len(todo_idx) == 0:
+                        break
+
+                    robot_idx = np.random.randint(K, size=len(todo_idx))
+                    dirs = np.random.randint(4, size=len(todo_idx))
+                    base_r = rows[todo_idx, robot_idx]
+                    base_c = cols[todo_idx, robot_idx]
+                    tr = base_r + self._DR[dirs]
+                    tc = base_c + self._DC[dirs]
+                    valid_move = valid[todo_idx, robot_idx, dirs]
+                    in_bounds = (tr >= 0) & (tr < H) & (tc >= 0) & (tc < W)
+                    tr_c = np.clip(tr, 0, H - 1)
+                    tc_c = np.clip(tc, 0, W - 1)
+                    unoccupied = ~occupied[todo_idx, tr_c, tc_c]
+                    ok = valid_move & in_bounds & unoccupied
+                    if not np.any(ok):
+                        continue
+                    ok_todo = todo_idx[ok]
+                    ok_robot = robot_idx[ok]
+                    new_r[ok_todo, ok_robot] = tr[ok]
+                    new_c[ok_todo, ok_robot] = tc[ok]
+                    resolved[ok_todo] = True
+
+                new_bp = bp.copy()
+                new_bp[:, 0::2] = new_r.astype(np.int16)
+                new_bp[:, 1::2] = new_c.astype(np.int16)
+                all_pos[aidx] = new_bp
+                continue
 
             resolved = np.zeros(B, dtype=np.bool_)
             new_r = rows.copy()
@@ -766,14 +836,24 @@ class WarehouseMAPF(
 
     def string_to_action(self, act_str: str) -> Optional[MAPFAction]:
         try:
+            name_map = {"U": UP, "UP": UP, "D": DOWN, "DOWN": DOWN,
+                        "L": LEFT, "LEFT": LEFT, "R": RIGHT, "RIGHT": RIGHT,
+                        "W": WAIT, "WAIT": WAIT}
+            if self.action_mode == "single":
+                parts_single = act_str.strip().upper().replace(",", " ").split()
+                if len(parts_single) == 2 and parts_single[1] in name_map:
+                    robot_idx = int(parts_single[0].lstrip("R"))
+                    if robot_idx < 0 or robot_idx >= self.K:
+                        return None
+                    dirs_single = [WAIT] * self.K
+                    dirs_single[robot_idx] = name_map[parts_single[1]]
+                    return MAPFAction(tuple(dirs_single))
+
             parts = act_str.strip().upper().split()
             if len(parts) != self.K:
                 parts = act_str.strip().upper().split(",")
             if len(parts) != self.K:
                 return None
-            name_map = {"U": UP, "UP": UP, "D": DOWN, "DOWN": DOWN,
-                        "L": LEFT, "LEFT": LEFT, "R": RIGHT, "RIGHT": RIGHT,
-                        "W": WAIT, "WAIT": WAIT}
             dirs = []
             for p in parts:
                 p = p.strip()
@@ -785,13 +865,17 @@ class WarehouseMAPF(
             return None
 
     def string_to_action_help(self) -> str:
+        if self.action_mode == "single":
+            return ("single-robot action: '<robot_idx> <U/D/L/R/W>' "
+                    "or full joint directions separated by spaces/commas")
         return (f"'{self.K}' directions separated by spaces or commas. "
                 f"Each: U/D/L/R/W (up/down/left/right/wait)")
 
     def __repr__(self) -> str:
         return (f"WarehouseMAPF(H={self.H}, W={self.W}, K={self.K}, "
                 f"free={self.n_free}, shelves={self.n_obs}, "
-                f"max_joint_actions={self.max_joint_actions})")
+                f"max_joint_actions={self.max_joint_actions}, "
+                f"action_mode={self.action_mode})")
 
 
 @domain_factory.register_parser("mapf")
@@ -800,19 +884,26 @@ class MAPFParser(Parser):
         parts = args_str.split("_")
         if len(parts) == 1:
             return {"n_robots": int(parts[0])}
+        action_mode = "joint"
+        if len(parts) >= 2 and parts[-1].lower() in {"joint", "single"}:
+            action_mode = parts[-1].lower()
+            parts = parts[:-1]
         if len(parts) in (3, 4):
             kwargs: Dict[str, Any] = {
                 "height": int(parts[0]),
                 "width": int(parts[1]),
                 "n_robots": int(parts[2]),
+                "action_mode": action_mode,
             }
             if len(parts) == 4:
                 kwargs["max_joint_actions"] = int(parts[3])
             return kwargs
         raise ValueError(
-            f"Expected 'n_robots' or 'height_width_n_robots[_max_joint_actions]', got '{args_str}'"
+            "Expected 'n_robots' or "
+            f"'height_width_n_robots[_max_joint_actions][_joint|_single]', got '{args_str}'"
         )
 
     def help(self) -> str:
-        return ("n_robots or height_width_n_robots[_max_joint_actions]. "
-                "E.g. 'mapf.4', 'mapf.8_8_4', or 'mapf.28_28_30_128'")
+        return ("n_robots or height_width_n_robots[_max_joint_actions][_joint|_single]. "
+                "E.g. 'mapf.4', 'mapf.8_8_4', 'mapf.28_28_30_128', "
+                "or 'mapf.28_28_16_128_single'")
