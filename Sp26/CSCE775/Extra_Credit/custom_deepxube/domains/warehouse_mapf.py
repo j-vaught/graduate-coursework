@@ -9,8 +9,10 @@ The default action model is a simultaneous joint move. A sequential
 single-robot move mode is also available for larger instances where the
 joint action space is too large for generic graph search.
 
-The optimization objective is makespan: total timesteps until all
-robots reach their goals (uniform cost 1.0 per transition).
+The joint action mode optimizes makespan: total synchronized timesteps
+until all robots reach their goals. The single-robot action mode optimizes
+the number of sequential robot moves. Both use uniform cost 1.0 per
+transition.
 """
 
 from typing import List, Tuple, Optional, Dict, Any, Set
