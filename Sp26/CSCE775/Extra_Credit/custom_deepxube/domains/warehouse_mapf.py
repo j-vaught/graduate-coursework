@@ -831,7 +831,7 @@ class WarehouseMAPF(
         self,
     ) -> Tuple[List[int], Tuple[int, int], List[int], Optional[int]]:
         if self.input_features == "dist":
-            return [1, 1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1, 1], None
+            return [1, 1, 1, 1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1, 1, 1, 1], None
         return [1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1], None
 
     def to_np_2d_sg(
@@ -845,6 +845,8 @@ class WarehouseMAPF(
         state_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.int64)
         goal_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.int64)
         dist_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
+        dist_sum_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
+        dist_max_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
         use_dist = self.input_features == "dist"
         dist_scale = max(1.0, float(self.H + self.W))
         dist_inf = int(np.iinfo(np.int16).max)
@@ -863,10 +865,15 @@ class WarehouseMAPF(
                     dist = int(dist_maps[i][sr, sc])
                     if dist >= dist_inf:
                         dist = self.H + self.W
-                    dist_grid[b, 0, sr, sc] = min(float(dist), dist_scale) / dist_scale
+                    dist_norm = min(float(dist), dist_scale) / dist_scale
+                    dist_grid[b, 0, sr, sc] = dist_norm
 
         if use_dist:
-            return [obstacles, state_grid, goal_grid, dist_grid]
+            dist_sum_grid[:, 0, :, :] = (
+                np.sum(dist_grid, axis=(1, 2, 3)) / max(1.0, float(self.K))
+            )[:, None, None]
+            dist_max_grid[:, 0, :, :] = np.max(dist_grid, axis=(1, 2, 3))[:, None, None]
+            return [obstacles, state_grid, goal_grid, dist_grid, dist_sum_grid, dist_max_grid]
         return [obstacles, state_grid, goal_grid]
 
     # ======================================================= Visualization
