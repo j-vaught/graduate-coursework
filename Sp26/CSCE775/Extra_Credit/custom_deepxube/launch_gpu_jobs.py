@@ -71,7 +71,7 @@ FULL_JOBS = {
                               "resnet_fc.512H_3B_bn",
                               "test_instances/mapf_28x28_16_single.pkl",
                               50, 2048, 150000, 200, 16, 256, 512, 65536,
-                              2000, 25),
+                              2000, 100),
     "mapf30": TrainJob("mapf30", "mapf.28_28_30_256", "resnet_fc.1024H_4B_bn",
                        "test_instances/mapf_28x28_30.pkl", 40, 1024, 150000,
                        200, 8, 128, 256, 65536, 500, 100),
