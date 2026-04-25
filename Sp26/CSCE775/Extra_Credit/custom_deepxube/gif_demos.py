@@ -63,7 +63,7 @@ class ModelConfig:
 DEMO_CONFIGS: dict[str, DemoConfig] = {
     "hanoi": DemoConfig("hanoi", "hanoi.6.3", 14, (6.0, 5.0)),
     "pancake": DemoConfig("pancake", "pancake.10", 12, (6.0, 5.0)),
-    "mapf": DemoConfig("mapf", "mapf.28_28_30_64", 12, (8.0, 8.0)),
+    "mapf": DemoConfig("mapf", "mapf.28_28_4_64", 12, (8.0, 8.0)),
     "arm": DemoConfig("arm", "arm.6_12_64", 12, (13.0, 5.0)),
     "retro": DemoConfig("retro", "retro.10", 12, (7.5, 6.0)),
 }
@@ -72,6 +72,10 @@ DEMO_CONFIGS: dict[str, DemoConfig] = {
 MODEL_CONFIGS: dict[str, ModelConfig] = {
     "hanoi": ModelConfig("resnet_fc.512H_3B_bn", "runs/models/hanoi/model.pt", 50),
     "pancake": ModelConfig("resnet_fc.1024H_4B_bn", "runs/models/pancake/model.pt", 20),
+    "mapf": ModelConfig(
+        "resnet_fc.128H_2B_bn", "runs/models/mapf4/model.pt", 20,
+        search_step_cap=5000,
+    ),
     "arm": ModelConfig(
         "resnet_fc.1024H_4B_bn", "runs/models/arm_64bins/model.pt", 30,
         goal_hint=(2.0, -2.0, -2.0),
