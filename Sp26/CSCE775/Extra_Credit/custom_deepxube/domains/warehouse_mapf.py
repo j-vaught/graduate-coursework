@@ -16,6 +16,7 @@ transition.
 """
 
 from collections import deque
+import hashlib
 from typing import List, Tuple, Optional, Dict, Any, Set
 import itertools
 import numpy as np
@@ -242,6 +243,14 @@ class WarehouseMAPF(
             return self._goal_cells
         return self._goal_cells_from_positions(state.goal_positions)
 
+    def _goal_positions_from_cells(
+        self, goal_cells: Dict[Tuple[int, int], int]
+    ) -> NDArray[np.int8]:
+        goal_positions = np.zeros(2 * self.K, dtype=np.int8)
+        for (r, c), robot_idx in goal_cells.items():
+            self._set_pos(goal_positions, robot_idx, r, c)
+        return goal_positions
+
     def set_active_goal(self, goal: MAPFGoal) -> None:
         self._goal_cells = self._goal_cells_from_goal(goal)
 
@@ -347,10 +356,19 @@ class WarehouseMAPF(
         if state.goal_positions is not None:
             return state.goal_positions.tobytes()
 
-        goal_positions = np.zeros(2 * self.K, dtype=np.int8)
-        for (r, c), robot_idx in goal_cells.items():
-            self._set_pos(goal_positions, robot_idx, r, c)
-        return goal_positions.tobytes()
+        return self._goal_positions_from_cells(goal_cells).tobytes()
+
+    def _seed_for_state_goal(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+    ) -> int:
+        goal_key = self._goal_cache_key(state, goal_cells)
+        digest = hashlib.blake2b(
+            state.positions.tobytes() + goal_key,
+            digest_size=8,
+        ).digest()
+        return int.from_bytes(digest, "little")
 
     def _distance_maps_for_state(
         self,
@@ -456,7 +474,7 @@ class WarehouseMAPF(
         for order_pos, i in enumerate(robot_order):
             dirs = ordered_dirs[i]
             if len(dirs) > 1:
-                shift_span = min(3, len(dirs))
+                shift_span = min(5, len(dirs))
                 shift = (alt_shift + order_pos) % shift_span
                 dirs_try = dirs[shift:shift_span] + dirs[:shift] + dirs[shift_span:]
             else:
@@ -550,6 +568,126 @@ class WarehouseMAPF(
 
         return actions
 
+    def _ranked_joint_actions(
+        self,
+        state: MAPFState,
+        goal_cells: Dict[Tuple[int, int], int],
+        per_robot_dirs: List[List[int]],
+    ) -> List[MAPFAction]:
+        cap = self.max_joint_actions
+        if self.K >= 20:
+            cap = min(cap, 32)
+
+        ordered_dirs = self._ordered_dirs_to_goal(state, goal_cells, per_robot_dirs)
+        dist_maps = self._distance_maps_for_state(state, goal_cells)
+        dist_inf = int(np.iinfo(np.int16).max)
+        goal_positions = (
+            state.goal_positions.copy()
+            if state.goal_positions is not None
+            else self._goal_positions_from_cells(goal_cells)
+        )
+
+        dists: List[int] = []
+        for i in range(self.K):
+            r, c = self._get_pos(state, i)
+            dist = int(dist_maps[i][r, c])
+            dists.append(self.H + self.W if dist >= dist_inf else dist)
+
+        actions: List[MAPFAction] = []
+        seen_dirs: Set[tuple] = set()
+
+        def add_action(dirs: tuple) -> None:
+            if dirs in seen_dirs:
+                return
+            if self._compute_targets(state, dirs, goal_cells) is None:
+                return
+            seen_dirs.add(dirs)
+            actions.append(MAPFAction(dirs))
+
+        wait_dirs = tuple([WAIT] * self.K)
+        add_action(wait_dirs)
+
+        unsolved = [i for i, dist in enumerate(dists) if dist > 0]
+        solved = [i for i, dist in enumerate(dists) if dist == 0]
+        orders: List[List[int]] = []
+        seen_orders: Set[tuple[int, ...]] = set()
+
+        def add_order(order: List[int]) -> None:
+            order_t = tuple(order)
+            if order_t in seen_orders:
+                return
+            seen_orders.add(order_t)
+            orders.append(order)
+
+        add_order(unsolved + solved)
+        add_order(sorted(range(self.K), key=lambda idx: (-dists[idx], idx)))
+        add_order(sorted(range(self.K), key=lambda idx: (dists[idx], idx)))
+        add_order(list(range(self.K)))
+        add_order(list(reversed(range(self.K))))
+
+        rng = np.random.default_rng(self._seed_for_state_goal(state, goal_cells))
+        if unsolved:
+            for _ in range(min(16, len(unsolved))):
+                order = unsolved.copy()
+                rng.shuffle(order)
+                add_order(order + solved)
+
+        for order in orders:
+            for alt_shift in range(5):
+                action = self._try_greedy_joint_action(
+                    state, goal_cells, ordered_dirs, order, alt_shift=alt_shift)
+                if action is not None:
+                    add_action(action.dirs)
+
+        for action in self._get_single_robot_actions(state, goal_cells, per_robot_dirs):
+            add_action(action.dirs)
+
+        sample_budget = max(cap * 16, 256)
+        for _ in range(sample_budget):
+            dirs_sample: List[int] = []
+            for robot_idx, dirs_i in enumerate(ordered_dirs):
+                if dists[robot_idx] == 0 and rng.random() < 0.90:
+                    dirs_sample.append(WAIT)
+                    continue
+
+                span = min(len(dirs_i), 5)
+                draw = rng.random()
+                if draw < 0.55:
+                    choice_idx = 0
+                elif draw < 0.78:
+                    choice_idx = min(1, span - 1)
+                elif draw < 0.91:
+                    choice_idx = min(2, span - 1)
+                elif draw < 0.97:
+                    choice_idx = min(3, span - 1)
+                else:
+                    choice_idx = min(4, span - 1)
+
+                if draw >= 0.97 and WAIT in dirs_i:
+                    dirs_sample.append(WAIT)
+                else:
+                    dirs_sample.append(dirs_i[choice_idx])
+
+            add_action(tuple(dirs_sample))
+
+        if len(actions) <= cap:
+            return actions
+
+        base_dist = self._distance_sum_to_goal(state, goal_positions)
+        states_next, _ = self.next_state([state] * len(actions), actions)
+        scored_actions: List[Tuple[float, float, int, int, MAPFAction]] = []
+        for action_idx, (action, state_next) in enumerate(zip(actions, states_next, strict=True)):
+            dist = self._distance_sum_to_goal(state_next, goal_positions)
+            progress = base_dist - dist
+            moved = sum(1 for direction in action.dirs if direction != WAIT)
+            scored_actions.append((dist, -progress, -moved, action_idx, action))
+
+        scored_actions.sort(key=lambda item: item[:4])
+        ranked = [item[4] for item in scored_actions[:max(1, cap - 1)]]
+        if wait_dirs not in {action.dirs for action in ranked}:
+            ranked.append(MAPFAction(wait_dirs))
+        return ranked[:cap]
+
     def _get_single_robot_actions(
         self,
         state: MAPFState,
@@ -575,6 +713,9 @@ class WarehouseMAPF(
         per_robot_dirs = self._per_robot_dirs(state, goal_cells)
         if self.action_mode == "single":
             return self._get_single_robot_actions(state, goal_cells, per_robot_dirs)
+
+        if self.input_features == "dist" and self.K >= 20:
+            return self._ranked_joint_actions(state, goal_cells, per_robot_dirs)
 
         num_joint = 1
         for dirs in per_robot_dirs:
