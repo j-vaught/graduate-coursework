@@ -104,7 +104,7 @@
   placement: auto,
   kind: table,
   block(width: 100%)[
-    #set text(size: 8pt)
+    #set text(size: 10pt)
     #body
   ],
   caption: [#caption],
@@ -120,7 +120,7 @@
   placement: auto,
   kind: table,
   block(width: 100%)[
-    #set text(size: 8pt)
+    #set text(size: 10pt)
     #body
   ],
   caption: [#caption],
@@ -130,7 +130,7 @@
   placement: none,
   kind: table,
   block(width: 100%)[
-    #set text(size: 8pt)
+    #set text(size: 10pt)
     #body
   ],
   caption: [#caption],
@@ -146,7 +146,7 @@
   placement: none,
   kind: table,
   block(width: 100%)[
-    #set text(size: 7.4pt)
+    #set text(size: 10pt)
     #body
   ],
   caption: [#caption],
