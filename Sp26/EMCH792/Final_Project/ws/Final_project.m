@@ -331,9 +331,14 @@ function [sigmaPoints, Wm, Wc] = unscentedSigmaPoints(x, P, ukfParams)
     scaledCovariance = stabilizeCovariance(scaling * P);
 
     [lower, flag] = chol(scaledCovariance, "lower");
+    jitter = 1e-9;
+    while flag ~= 0 && jitter <= 1e-3
+        scaledCovariance = stabilizeCovariance(scaledCovariance + jitter * eye(n));
+        [lower, flag] = chol(scaledCovariance, "lower");
+        jitter = 10 * jitter;
+    end
     if flag ~= 0
-        scaledCovariance = stabilizeCovariance(scaledCovariance + 1e-9 * eye(n));
-        lower = chol(scaledCovariance, "lower");
+        error("Unable to compute UKF sigma points from the covariance matrix.");
     end
 
     sigmaPoints = zeros(n, 2 * n + 1);
