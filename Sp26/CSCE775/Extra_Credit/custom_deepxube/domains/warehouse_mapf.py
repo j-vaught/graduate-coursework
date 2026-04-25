@@ -174,7 +174,8 @@ class WarehouseMAPF(
     def __init__(self, height: int = 20, width: int = 20, n_robots: int = 8,
                  max_joint_actions: int = 256,
                  exact_joint_action_limit: int = 5000,
-                 action_mode: str = "joint"):
+                 action_mode: str = "joint",
+                 input_features: str = "base"):
         super().__init__()
         self.H = height
         self.W = width
@@ -185,6 +186,10 @@ class WarehouseMAPF(
         if self.action_mode not in {"joint", "single"}:
             raise ValueError(
                 f"Unknown MAPF action_mode {action_mode!r}; expected 'joint' or 'single'")
+        self.input_features = input_features.lower()
+        if self.input_features not in {"base", "dist"}:
+            raise ValueError(
+                f"Unknown MAPF input_features {input_features!r}; expected 'base' or 'dist'")
 
         layout_fn = WAREHOUSE_LAYOUTS.get((height, width))
         if layout_fn is not None:
@@ -825,6 +830,8 @@ class WarehouseMAPF(
     def get_input_info_2d_sg(
         self,
     ) -> Tuple[List[int], Tuple[int, int], List[int], Optional[int]]:
+        if self.input_features == "dist":
+            return [1, 1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1, 1], None
         return [1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1], None
 
     def to_np_2d_sg(
@@ -837,14 +844,29 @@ class WarehouseMAPF(
             self.obstacles.astype(np.int64)[None, None, :, :], batch, axis=0)
         state_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.int64)
         goal_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.int64)
+        dist_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
+        use_dist = self.input_features == "dist"
+        dist_scale = max(1.0, float(self.H + self.W))
+        dist_inf = int(np.iinfo(np.int16).max)
 
         for b, (state, goal) in enumerate(zip(states, goals)):
+            if use_dist:
+                goal_cells = self._goal_cells_from_goal(goal)
+                state_for_goal = MAPFState(state.positions, goal.positions.copy())
+                dist_maps = self._distance_maps_for_state(state_for_goal, goal_cells)
             for i in range(self.K):
                 sr, sc = self._get_pos(state, i)
                 gr, gc = self._get_goal_pos(goal, i)
                 state_grid[b, 0, sr, sc] = i + 1
                 goal_grid[b, 0, gr, gc] = i + 1
+                if use_dist:
+                    dist = int(dist_maps[i][sr, sc])
+                    if dist >= dist_inf:
+                        dist = self.H + self.W
+                    dist_grid[b, 0, sr, sc] = min(float(dist), dist_scale) / dist_scale
 
+        if use_dist:
+            return [obstacles, state_grid, goal_grid, dist_grid]
         return [obstacles, state_grid, goal_grid]
 
     # ======================================================= Visualization
@@ -947,7 +969,8 @@ class WarehouseMAPF(
         return (f"WarehouseMAPF(H={self.H}, W={self.W}, K={self.K}, "
                 f"free={self.n_free}, shelves={self.n_obs}, "
                 f"max_joint_actions={self.max_joint_actions}, "
-                f"action_mode={self.action_mode})")
+                f"action_mode={self.action_mode}, "
+                f"input_features={self.input_features})")
 
 
 @domain_factory.register_parser("mapf")
@@ -957,8 +980,14 @@ class MAPFParser(Parser):
         if len(parts) == 1:
             return {"n_robots": int(parts[0])}
         action_mode = "joint"
-        if len(parts) >= 2 and parts[-1].lower() in {"joint", "single"}:
-            action_mode = parts[-1].lower()
+        input_features = "base"
+        suffixes = {"joint", "single", "base", "dist"}
+        while len(parts) >= 2 and parts[-1].lower() in suffixes:
+            suffix = parts[-1].lower()
+            if suffix in {"joint", "single"}:
+                action_mode = suffix
+            else:
+                input_features = suffix
             parts = parts[:-1]
         if len(parts) in (3, 4):
             kwargs: Dict[str, Any] = {
@@ -966,16 +995,17 @@ class MAPFParser(Parser):
                 "width": int(parts[1]),
                 "n_robots": int(parts[2]),
                 "action_mode": action_mode,
+                "input_features": input_features,
             }
             if len(parts) == 4:
                 kwargs["max_joint_actions"] = int(parts[3])
             return kwargs
         raise ValueError(
             "Expected 'n_robots' or "
-            f"'height_width_n_robots[_max_joint_actions][_joint|_single]', got '{args_str}'"
+            f"'height_width_n_robots[_max_joint_actions][_joint|_single][_base|_dist]', got '{args_str}'"
         )
 
     def help(self) -> str:
-        return ("n_robots or height_width_n_robots[_max_joint_actions][_joint|_single]. "
+        return ("n_robots or height_width_n_robots[_max_joint_actions][_joint|_single][_base|_dist]. "
                 "E.g. 'mapf.4', 'mapf.8_8_4', 'mapf.28_28_30_128', "
-                "or 'mapf.28_28_16_128_single'")
+                "'mapf.28_28_16_128_single', or 'mapf.28_28_16_128_dist'")
