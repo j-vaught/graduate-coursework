@@ -58,6 +58,8 @@ class ModelConfig:
     search_step_cap: int = 500
     goal_hint: tuple[float, float, float] | None = None
     start_joints: tuple[int, ...] | None = None
+    min_goal_distance: int | None = None
+    sample_attempts: int = 1
 
 
 DEMO_CONFIGS: dict[str, DemoConfig] = {
@@ -80,11 +82,15 @@ MODEL_CONFIGS: dict[str, ModelConfig] = {
     ),
     "mapf30": ModelConfig(
         "resnet_2d.32C_2B_bn", "runs/models/mapf30_dist/model.pt", 40,
-        search_step_cap=2000,
+        search_step_cap=5000,
+        min_goal_distance=20,
+        sample_attempts=5,
     ),
     "mapf60": ModelConfig(
         "resnet_2d.32C_2B_bn", "runs/models/mapf60_dist/model.pt", 40,
-        search_step_cap=2000,
+        search_step_cap=5000,
+        min_goal_distance=20,
+        sample_attempts=5,
     ),
     "arm": ModelConfig(
         "resnet_fc.1024H_4B_bn", "runs/models/arm_64bins/model.pt", 30,
@@ -155,6 +161,8 @@ def _walk_from_goal(
 
 
 def _sample_problem(domain: Any, model_cfg: ModelConfig) -> tuple[Any, Any]:
+    if model_cfg.min_goal_distance is not None and hasattr(domain, "_distance_maps_for_state"):
+        return _sample_mapf_problem(domain, model_cfg.min_goal_distance)
     if model_cfg.goal_hint is not None and hasattr(domain, "_ee_position"):
         from domains.robotic_arm import ArmGoal, ArmState
         target = np.asarray(model_cfg.goal_hint, dtype=np.float64)
@@ -185,6 +193,62 @@ def _sample_problem(domain: Any, model_cfg: ModelConfig) -> tuple[Any, Any]:
     return states[0], goals[0]
 
 
+def _sample_mapf_problem(domain: Any, min_goal_distance: int) -> tuple[Any, Any]:
+    from domains.warehouse_mapf import MAPFState
+
+    dist_inf = int(np.iinfo(np.int16).max)
+    for _attempt in range(200):
+        states_goal, goals = domain.sample_goalstate_goal_pairs(1)
+        goal = goals[0]
+        goal_positions = goal.positions.copy()
+        goal_cells = domain._goal_cells_from_goal(goal)
+        goal_state = MAPFState(goal_positions.copy(), goal_positions.copy())
+        dist_maps = domain._distance_maps_for_state(goal_state, goal_cells)
+
+        positions = np.zeros_like(goal_positions)
+        occupied: set[tuple[int, int]] = set()
+        per_robot_distances: list[int] = []
+        ok = True
+        for robot_idx in range(domain.K):
+            near_candidates: list[tuple[int, int, int]] = []
+            far_candidates: list[tuple[int, int, int]] = []
+            for r, c in domain.free_cells:
+                if (r, c) in occupied:
+                    continue
+                dist = int(dist_maps[robot_idx][r, c])
+                if dist >= dist_inf or dist < min_goal_distance:
+                    continue
+                candidate = (dist, r, c)
+                far_candidates.append(candidate)
+                if dist <= min_goal_distance + 12:
+                    near_candidates.append(candidate)
+
+            candidates = near_candidates if near_candidates else far_candidates
+            if not candidates:
+                ok = False
+                break
+
+            dist, r, c = candidates[np.random.randint(len(candidates))]
+            occupied.add((r, c))
+            domain._set_pos(positions, robot_idx, r, c)
+            per_robot_distances.append(dist)
+
+        if ok:
+            start_state = MAPFState(positions, goal_positions.copy())
+            print(
+                f"[mapf] per-robot dock distance "
+                f"min/mean/max: {min(per_robot_distances)}/"
+                f"{float(np.mean(per_robot_distances)):.1f}/"
+                f"{max(per_robot_distances)}"
+            )
+            return start_state, goal
+
+    raise RuntimeError(
+        f"could not sample MAPF problem with every robot at least "
+        f"{min_goal_distance} steps from its dock"
+    )
+
+
 def _solve_with_model(
     domain: Any,
     domain_name: str,
@@ -202,25 +266,33 @@ def _solve_with_model(
     pathfind_name = get_pathfind_name_kwargs(model_cfg.pathfind)[0]
     pathfind_functions = get_pathfind_functions(pathfind_name, heur_fn, None)
 
-    start_state, goal = _sample_problem(domain, model_cfg)
+    for sample_attempt in range(max(1, model_cfg.sample_attempts)):
+        start_state, goal = _sample_problem(domain, model_cfg)
 
-    pathfind = get_pathfind_from_arg(domain, pathfind_functions, model_cfg.pathfind)[0]
-    instance = pathfind.make_instances([start_state], [goal], None, True)[0]
-    pathfind.add_instances([instance])
+        pathfind = get_pathfind_from_arg(domain, pathfind_functions, model_cfg.pathfind)[0]
+        instance = pathfind.make_instances([start_state], [goal], None, True)[0]
+        pathfind.add_instances([instance])
 
-    steps_taken = 0
-    while not instance.finished() and steps_taken < model_cfg.search_step_cap:
-        pathfind.step(verbose=False)
-        steps_taken += 1
+        steps_taken = 0
+        while not instance.finished() and steps_taken < model_cfg.search_step_cap:
+            pathfind.step(verbose=False)
+            steps_taken += 1
 
-    goal_node = instance.goal_node
-    if goal_node is None:
-        raise RuntimeError(
-            f"search did not solve instance within {model_cfg.search_step_cap} steps"
+        goal_node = instance.goal_node
+        if goal_node is not None:
+            path_states, _, _ = get_path(goal_node)
+            if sample_attempt > 0:
+                print(f"[{domain_name}] solved sampled problem on attempt {sample_attempt + 1}")
+            return path_states, goal
+
+        print(
+            f"[{domain_name}] sampled problem attempt {sample_attempt + 1} "
+            f"not solved within {model_cfg.search_step_cap} search steps"
         )
 
-    path_states, _, _ = get_path(goal_node)
-    return path_states, goal
+    raise RuntimeError(
+        f"search did not solve instance within {model_cfg.search_step_cap} steps"
+    )
 
 
 def _fig_to_frame(fig: plt.Figure, dpi: int) -> Image.Image:
