@@ -415,16 +415,29 @@ class WarehouseMAPF(
         state: MAPFState,
         goal_positions: NDArray[np.int8],
     ) -> float:
+        return self._distance_stats_to_goal(state, goal_positions)[0]
+
+    def _distance_stats_to_goal(
+        self,
+        state: MAPFState,
+        goal_positions: NDArray[np.int8],
+    ) -> Tuple[float, float, int]:
         goal_cells = self._goal_cells_from_positions(goal_positions)
         state_for_goal = MAPFState(state.positions, goal_positions.copy())
         dist_maps = self._distance_maps_for_state(state_for_goal, goal_cells)
         inf = int(np.iinfo(np.int16).max)
         total = 0
+        max_dist = 0
+        unfinished = 0
         for i in range(self.K):
             r, c = self._get_pos(state, i)
             dist = int(dist_maps[i][r, c])
-            total += self.H + self.W if dist >= inf else dist
-        return float(total)
+            dist = self.H + self.W if dist >= inf else dist
+            total += dist
+            max_dist = max(max_dist, dist)
+            if dist > 0:
+                unfinished += 1
+        return float(total), float(max_dist), unfinished
 
     def _ordered_dirs_to_goal(
         self,
@@ -624,6 +637,11 @@ class WarehouseMAPF(
         add_order(sorted(range(self.K), key=lambda idx: (dists[idx], idx)))
         add_order(list(range(self.K)))
         add_order(list(reversed(range(self.K))))
+        add_order(sorted(range(self.K), key=lambda idx: (*self._get_pos(state, idx), idx)))
+        add_order(sorted(range(self.K), key=lambda idx: (self._get_pos(state, idx)[1], self._get_pos(state, idx)[0], idx)))
+        add_order(sorted(range(self.K), key=lambda idx: (*self._goal_pos_for_robot(state, goal_cells, idx), idx)))
+        add_order(sorted(range(self.K), key=lambda idx: (self._goal_pos_for_robot(state, goal_cells, idx)[1],
+                                                         self._goal_pos_for_robot(state, goal_cells, idx)[0], idx)))
 
         rng = np.random.default_rng(self._seed_for_state_goal(state, goal_cells))
         if unsolved:
@@ -670,20 +688,28 @@ class WarehouseMAPF(
 
             add_action(tuple(dirs_sample))
 
-        if len(actions) <= cap:
-            return actions
-
-        base_dist = self._distance_sum_to_goal(state, goal_positions)
+        base_sum, base_max, _ = self._distance_stats_to_goal(state, goal_positions)
         states_next, _ = self.next_state([state] * len(actions), actions)
-        scored_actions: List[Tuple[float, float, int, int, MAPFAction]] = []
+        scored_actions: List[Tuple[float, float, float, float, int, int, int, MAPFAction]] = []
         for action_idx, (action, state_next) in enumerate(zip(actions, states_next, strict=True)):
-            dist = self._distance_sum_to_goal(state_next, goal_positions)
-            progress = base_dist - dist
+            dist_sum, dist_max, unfinished = self._distance_stats_to_goal(state_next, goal_positions)
+            sum_progress = base_sum - dist_sum
+            max_progress = base_max - dist_max
             moved = sum(1 for direction in action.dirs if direction != WAIT)
-            scored_actions.append((dist, -progress, -moved, action_idx, action))
+            waits = self.K - moved
+            scored_actions.append((
+                dist_max,
+                dist_sum,
+                -max_progress,
+                -sum_progress,
+                unfinished,
+                waits,
+                action_idx,
+                action,
+            ))
 
-        scored_actions.sort(key=lambda item: item[:4])
-        ranked = [item[4] for item in scored_actions[:max(1, cap - 1)]]
+        scored_actions.sort(key=lambda item: item[:7])
+        ranked = [item[7] for item in scored_actions[:max(1, cap - 1)]]
         if wait_dirs not in {action.dirs for action in ranked}:
             ranked.append(MAPFAction(wait_dirs))
         return ranked[:cap]
@@ -958,11 +984,6 @@ class WarehouseMAPF(
             MAPFState(all_pos[i].astype(np.int8), goal_positions[i])
             for i in range(N)
         ]
-        if self.input_features == "dist":
-            return result, [
-                self._distance_sum_to_goal(state, goal_pos)
-                for state, goal_pos in zip(result, goal_positions, strict=True)
-            ]
         return result, [float(s) for s in num_steps_l]
 
     def random_walk_rev(self, states: List[MAPFState],
