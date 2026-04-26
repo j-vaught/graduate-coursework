@@ -124,6 +124,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="Render the trained-agent solution path instead of a random walk.",
     )
     parser.add_argument(
+        "--polish-mapf",
+        action="store_true",
+        help="After the trained model solves a MAPF instance, replace the path with a shorter reservation-plan path for visualization.",
+    )
+    parser.add_argument(
         "--model-dir",
         type=Path,
         default=Path("runs/models"),
@@ -452,6 +457,7 @@ def _solve_with_model(
     domain_name: str,
     model_cfg: ModelConfig,
     model_file: Path,
+    polish_mapf: bool = False,
 ) -> tuple[List[Any], Any]:
     heur_par = get_heur_nnet_par_from_arg(domain, domain_name, model_cfg.heur, "V")[0]
     device, _, _ = nnet_utils.get_device()
@@ -479,7 +485,8 @@ def _solve_with_model(
         goal_node = instance.goal_node
         if goal_node is not None:
             path_states, _, _ = get_path(goal_node)
-            path_states = _try_shorten_mapf_path(domain, path_states, goal, domain_name)
+            if polish_mapf:
+                path_states = _try_shorten_mapf_path(domain, path_states, goal, domain_name)
             if sample_attempt > 0:
                 print(f"[{domain_name}] solved sampled problem on attempt {sample_attempt + 1}")
             return path_states, goal
@@ -569,6 +576,7 @@ def generate_demo(
     action_retries: int = 8,
     use_model: bool = False,
     model_dir: Path = Path("runs/models"),
+    polish_mapf: bool = False,
 ) -> Path:
     np.random.seed(seed)
     domain, domain_name = get_domain_from_arg(config.domain)
@@ -594,7 +602,8 @@ def generate_demo(
             try:
                 import torch
                 torch.manual_seed(seed)
-                path, goal = _solve_with_model(domain, domain_name, model_cfg, model_file)
+                path, goal = _solve_with_model(
+                    domain, domain_name, model_cfg, model_file, polish_mapf=polish_mapf)
                 used_model = True
                 print(f"[{config.key}] solved with trained model in {len(path) - 1} steps")
             except Exception as exc:
@@ -646,6 +655,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             action_retries=args.action_retries,
             use_model=args.use_model,
             model_dir=args.model_dir,
+            polish_mapf=args.polish_mapf,
         )
         print(f"wrote {out_path}")
 
