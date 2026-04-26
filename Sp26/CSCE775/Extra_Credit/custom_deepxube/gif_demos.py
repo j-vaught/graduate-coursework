@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import io
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Sequence
@@ -249,6 +250,203 @@ def _sample_mapf_problem(domain: Any, min_goal_distance: int) -> tuple[Any, Any]
     )
 
 
+def _mapf_goal_distances(domain: Any, state: Any, goal: Any) -> list[int]:
+    from domains.warehouse_mapf import MAPFState
+
+    dist_inf = int(np.iinfo(np.int16).max)
+    goal_cells = domain._goal_cells_from_goal(goal)
+    state_for_goal = MAPFState(state.positions, goal.positions.copy())
+    dist_maps = domain._distance_maps_for_state(state_for_goal, goal_cells)
+
+    dists: list[int] = []
+    for robot_idx in range(domain.K):
+        r, c = domain._get_pos(state, robot_idx)
+        dist = int(dist_maps[robot_idx][r, c])
+        dists.append(domain.H + domain.W if dist >= dist_inf else dist)
+    return dists
+
+
+def _plan_single_reserved_mapf_path(
+    domain: Any,
+    start_cell: tuple[int, int],
+    goal_cell: tuple[int, int],
+    robot_idx: int,
+    goal_cells: dict[tuple[int, int], int],
+    reserved_vertices: set[tuple[int, int]],
+    reserved_edges: set[tuple[int, int, int]],
+    horizon: int,
+) -> list[tuple[int, int]] | None:
+    from domains.warehouse_mapf import DIR_OFFSETS
+
+    start_flat = start_cell[0] * domain.W + start_cell[1]
+    goal_flat = goal_cell[0] * domain.W + goal_cell[1]
+    start_key = (0, start_flat)
+    queue: deque[tuple[int, int]] = deque([start_key])
+    parent: dict[tuple[int, int], tuple[int, int] | None] = {start_key: None}
+
+    while queue:
+        time_idx, cell_flat = queue.popleft()
+        if cell_flat == goal_flat:
+            path_cells: list[tuple[int, int]] = []
+            key: tuple[int, int] | None = (time_idx, cell_flat)
+            while key is not None:
+                _, flat = key
+                path_cells.append(divmod(flat, domain.W))
+                key = parent[key]
+            return path_cells[::-1]
+
+        if time_idx >= horizon:
+            continue
+
+        r, c = divmod(cell_flat, domain.W)
+        next_time = time_idx + 1
+        for dr, dc in DIR_OFFSETS:
+            nr, nc = r + dr, c + dc
+            if not domain._is_passable(nr, nc, robot_idx, goal_cells):
+                continue
+
+            next_flat = nr * domain.W + nc
+            if (next_time, next_flat) in reserved_vertices:
+                continue
+            if (next_time, next_flat, cell_flat) in reserved_edges:
+                continue
+
+            next_key = (next_time, next_flat)
+            if next_key in parent:
+                continue
+
+            parent[next_key] = (time_idx, cell_flat)
+            queue.append(next_key)
+
+    return None
+
+
+def _build_reserved_mapf_path(
+    domain: Any,
+    start_state: Any,
+    goal: Any,
+    order: list[int],
+    horizon: int,
+) -> list[Any] | None:
+    from domains.warehouse_mapf import MAPFState
+
+    goal_cells = domain._goal_cells_from_goal(goal)
+    reserved_vertices: set[tuple[int, int]] = set()
+    reserved_edges: set[tuple[int, int, int]] = set()
+    robot_paths: list[list[tuple[int, int]] | None] = [None] * domain.K
+
+    for robot_idx in order:
+        path_cells = _plan_single_reserved_mapf_path(
+            domain,
+            domain._get_pos(start_state, robot_idx),
+            domain._get_goal_pos(goal, robot_idx),
+            robot_idx,
+            goal_cells,
+            reserved_vertices,
+            reserved_edges,
+            horizon,
+        )
+        if path_cells is None:
+            return None
+
+        robot_paths[robot_idx] = path_cells
+        for time_idx, (r, c) in enumerate(path_cells):
+            cell_flat = r * domain.W + c
+            reserved_vertices.add((time_idx, cell_flat))
+            if time_idx > 0:
+                pr, pc = path_cells[time_idx - 1]
+                prev_flat = pr * domain.W + pc
+                reserved_edges.add((time_idx, prev_flat, cell_flat))
+
+        gr, gc = path_cells[-1]
+        goal_flat = gr * domain.W + gc
+        for time_idx in range(len(path_cells), horizon + 1):
+            reserved_vertices.add((time_idx, goal_flat))
+
+    planned_paths = [path for path in robot_paths if path is not None]
+    if len(planned_paths) != domain.K:
+        return None
+
+    num_frames = max(len(path) for path in planned_paths)
+    states: list[Any] = []
+    for time_idx in range(num_frames):
+        positions = np.zeros_like(goal.positions)
+        for robot_idx, path_cells in enumerate(planned_paths):
+            r, c = path_cells[time_idx] if time_idx < len(path_cells) else path_cells[-1]
+            domain._set_pos(positions, robot_idx, r, c)
+        states.append(MAPFState(positions, goal.positions.copy()))
+
+    for time_idx, state in enumerate(states):
+        cells = [domain._get_pos(state, robot_idx) for robot_idx in range(domain.K)]
+        if len(set(cells)) != domain.K:
+            return None
+        if time_idx == 0:
+            continue
+        prev_cells = [
+            domain._get_pos(states[time_idx - 1], robot_idx)
+            for robot_idx in range(domain.K)
+        ]
+        for robot_i in range(domain.K):
+            for robot_j in range(robot_i + 1, domain.K):
+                if cells[robot_i] == prev_cells[robot_j] and cells[robot_j] == prev_cells[robot_i]:
+                    return None
+
+    return states
+
+
+def _try_shorten_mapf_path(domain: Any, path_states: list[Any], goal: Any,
+                           domain_name: str) -> list[Any]:
+    if len(path_states) < 2 or not hasattr(domain, "_distance_maps_for_state"):
+        return path_states
+
+    start_state = path_states[0]
+    dists = _mapf_goal_distances(domain, start_state, goal)
+    lower_bound = max(dists) if dists else 0
+    horizon = max(lower_bound + (4 * domain.K), lower_bound + 80)
+
+    rng = np.random.default_rng(775)
+    orders: list[list[int]] = []
+    seen_orders: set[tuple[int, ...]] = set()
+
+    def add_order(order: list[int]) -> None:
+        order_t = tuple(order)
+        if order_t in seen_orders:
+            return
+        seen_orders.add(order_t)
+        orders.append(order)
+
+    add_order(sorted(range(domain.K), key=lambda idx: (-dists[idx], idx)))
+    add_order(sorted(range(domain.K), key=lambda idx: (dists[idx], idx)))
+    add_order(list(range(domain.K)))
+    add_order(list(reversed(range(domain.K))))
+    add_order(sorted(range(domain.K), key=lambda idx: (domain._get_goal_pos(goal, idx)[0], domain._get_goal_pos(goal, idx)[1], idx)))
+    add_order(sorted(range(domain.K), key=lambda idx: (domain._get_goal_pos(goal, idx)[1], domain._get_goal_pos(goal, idx)[0], idx)))
+    for _ in range(6):
+        order = list(range(domain.K))
+        rng.shuffle(order)
+        add_order(order)
+
+    best_path: list[Any] | None = None
+    for order in orders:
+        candidate = _build_reserved_mapf_path(domain, start_state, goal, order, horizon)
+        if candidate is None:
+            continue
+        if best_path is None or len(candidate) < len(best_path):
+            best_path = candidate
+            if len(candidate) - 1 <= lower_bound:
+                break
+
+    if best_path is None or len(best_path) >= len(path_states):
+        return path_states
+
+    print(
+        f"[{domain_name}] MAPF path polish shortened "
+        f"{len(path_states) - 1} -> {len(best_path) - 1} steps "
+        f"(lower bound {lower_bound})"
+    )
+    return best_path
+
+
 def _solve_with_model(
     domain: Any,
     domain_name: str,
@@ -281,6 +479,7 @@ def _solve_with_model(
         goal_node = instance.goal_node
         if goal_node is not None:
             path_states, _, _ = get_path(goal_node)
+            path_states = _try_shorten_mapf_path(domain, path_states, goal, domain_name)
             if sample_attempt > 0:
                 print(f"[{domain_name}] solved sampled problem on attempt {sample_attempt + 1}")
             return path_states, goal
