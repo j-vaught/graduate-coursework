@@ -188,9 +188,9 @@ class WarehouseMAPF(
             raise ValueError(
                 f"Unknown MAPF action_mode {action_mode!r}; expected 'joint' or 'single'")
         self.input_features = input_features.lower()
-        if self.input_features not in {"base", "dist"}:
+        if self.input_features not in {"base", "dist", "time"}:
             raise ValueError(
-                f"Unknown MAPF input_features {input_features!r}; expected 'base' or 'dist'")
+                f"Unknown MAPF input_features {input_features!r}; expected 'base', 'dist', or 'time'")
 
         layout_fn = WAREHOUSE_LAYOUTS.get((height, width))
         if layout_fn is not None:
@@ -417,6 +417,14 @@ class WarehouseMAPF(
     ) -> float:
         return self._distance_stats_to_goal(state, goal_positions)[0]
 
+    def _distance_makespan_score_to_goal(
+        self,
+        state: MAPFState,
+        goal_positions: NDArray[np.int8],
+    ) -> float:
+        dist_sum, dist_max, _ = self._distance_stats_to_goal(state, goal_positions)
+        return dist_sum + (float(self.K) * dist_max)
+
     def _distance_stats_to_goal(
         self,
         state: MAPFState,
@@ -637,11 +645,12 @@ class WarehouseMAPF(
         add_order(sorted(range(self.K), key=lambda idx: (dists[idx], idx)))
         add_order(list(range(self.K)))
         add_order(list(reversed(range(self.K))))
-        add_order(sorted(range(self.K), key=lambda idx: (*self._get_pos(state, idx), idx)))
-        add_order(sorted(range(self.K), key=lambda idx: (self._get_pos(state, idx)[1], self._get_pos(state, idx)[0], idx)))
-        add_order(sorted(range(self.K), key=lambda idx: (*self._goal_pos_for_robot(state, goal_cells, idx), idx)))
-        add_order(sorted(range(self.K), key=lambda idx: (self._goal_pos_for_robot(state, goal_cells, idx)[1],
-                                                         self._goal_pos_for_robot(state, goal_cells, idx)[0], idx)))
+        if self.input_features == "time":
+            add_order(sorted(range(self.K), key=lambda idx: (*self._get_pos(state, idx), idx)))
+            add_order(sorted(range(self.K), key=lambda idx: (self._get_pos(state, idx)[1], self._get_pos(state, idx)[0], idx)))
+            add_order(sorted(range(self.K), key=lambda idx: (*self._goal_pos_for_robot(state, goal_cells, idx), idx)))
+            add_order(sorted(range(self.K), key=lambda idx: (self._goal_pos_for_robot(state, goal_cells, idx)[1],
+                                                             self._goal_pos_for_robot(state, goal_cells, idx)[0], idx)))
 
         rng = np.random.default_rng(self._seed_for_state_goal(state, goal_cells))
         if unsolved:
@@ -688,18 +697,44 @@ class WarehouseMAPF(
 
             add_action(tuple(dirs_sample))
 
+        if self.input_features != "time" and len(actions) <= cap:
+            return actions
+
+        if self.input_features != "time":
+            base_dist = self._distance_sum_to_goal(state, goal_positions)
+            states_next, _ = self.next_state([state] * len(actions), actions)
+            scored_dist_actions: List[Tuple[float, float, int, int, MAPFAction]] = []
+            for action_idx, (action, state_next) in enumerate(zip(actions, states_next, strict=True)):
+                dist = self._distance_sum_to_goal(state_next, goal_positions)
+                progress = base_dist - dist
+                moved = sum(1 for direction in action.dirs if direction != WAIT)
+                scored_dist_actions.append((dist, -progress, -moved, action_idx, action))
+
+            scored_dist_actions.sort(key=lambda item: item[:4])
+            ranked_dist = [item[4] for item in scored_dist_actions[:max(1, cap - 1)]]
+            if wait_dirs not in {action.dirs for action in ranked_dist}:
+                ranked_dist.append(MAPFAction(wait_dirs))
+            return ranked_dist[:cap]
+
         base_sum, base_max, _ = self._distance_stats_to_goal(state, goal_positions)
+        base_score = base_sum + (float(self.K) * base_max)
         states_next, _ = self.next_state([state] * len(actions), actions)
-        scored_actions: List[Tuple[float, float, float, float, int, int, int, MAPFAction]] = []
+        scored_actions: List[
+            Tuple[float, float, float, float, float, float, int, int, int, MAPFAction]
+        ] = []
         for action_idx, (action, state_next) in enumerate(zip(actions, states_next, strict=True)):
             dist_sum, dist_max, unfinished = self._distance_stats_to_goal(state_next, goal_positions)
+            dist_score = dist_sum + (float(self.K) * dist_max)
+            score_progress = base_score - dist_score
             sum_progress = base_sum - dist_sum
             max_progress = base_max - dist_max
             moved = sum(1 for direction in action.dirs if direction != WAIT)
             waits = self.K - moved
             scored_actions.append((
+                dist_score,
                 dist_max,
                 dist_sum,
+                -score_progress,
                 -max_progress,
                 -sum_progress,
                 unfinished,
@@ -708,8 +743,8 @@ class WarehouseMAPF(
                 action,
             ))
 
-        scored_actions.sort(key=lambda item: item[:7])
-        ranked = [item[7] for item in scored_actions[:max(1, cap - 1)]]
+        scored_actions.sort(key=lambda item: item[:9])
+        ranked = [item[9] for item in scored_actions[:max(1, cap - 1)]]
         if wait_dirs not in {action.dirs for action in ranked}:
             ranked.append(MAPFAction(wait_dirs))
         return ranked[:cap]
@@ -740,7 +775,7 @@ class WarehouseMAPF(
         if self.action_mode == "single":
             return self._get_single_robot_actions(state, goal_cells, per_robot_dirs)
 
-        if self.input_features == "dist" and self.K >= 20:
+        if self.input_features in {"dist", "time"} and self.K >= 20:
             return self._ranked_joint_actions(state, goal_cells, per_robot_dirs)
 
         num_joint = 1
@@ -984,6 +1019,16 @@ class WarehouseMAPF(
             MAPFState(all_pos[i].astype(np.int8), goal_positions[i])
             for i in range(N)
         ]
+        if self.input_features == "dist":
+            return result, [
+                self._distance_sum_to_goal(state, goal_pos)
+                for state, goal_pos in zip(result, goal_positions, strict=True)
+            ]
+        if self.input_features == "time":
+            return result, [
+                self._distance_makespan_score_to_goal(state, goal_pos)
+                for state, goal_pos in zip(result, goal_positions, strict=True)
+            ]
         return result, [float(s) for s in num_steps_l]
 
     def random_walk_rev(self, states: List[MAPFState],
@@ -1013,7 +1058,7 @@ class WarehouseMAPF(
     def get_input_info_2d_sg(
         self,
     ) -> Tuple[List[int], Tuple[int, int], List[int], Optional[int]]:
-        if self.input_features == "dist":
+        if self.input_features in {"dist", "time"}:
             return [1, 1, 1, 1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1, 1, 1, 1], None
         return [1, 1, 1], (self.H, self.W), [2, self.K + 1, self.K + 1], None
 
@@ -1030,7 +1075,7 @@ class WarehouseMAPF(
         dist_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
         dist_sum_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
         dist_max_grid = np.zeros((batch, 1, self.H, self.W), dtype=np.float32)
-        use_dist = self.input_features == "dist"
+        use_dist = self.input_features in {"dist", "time"}
         dist_scale = max(1.0, float(self.H + self.W))
         dist_inf = int(np.iinfo(np.int16).max)
 
@@ -1171,7 +1216,7 @@ class MAPFParser(Parser):
             return {"n_robots": int(parts[0])}
         action_mode = "joint"
         input_features = "base"
-        suffixes = {"joint", "single", "base", "dist"}
+        suffixes = {"joint", "single", "base", "dist", "time"}
         while len(parts) >= 2 and parts[-1].lower() in suffixes:
             suffix = parts[-1].lower()
             if suffix in {"joint", "single"}:
@@ -1196,6 +1241,7 @@ class MAPFParser(Parser):
         )
 
     def help(self) -> str:
-        return ("n_robots or height_width_n_robots[_max_joint_actions][_joint|_single][_base|_dist]. "
+        return ("n_robots or height_width_n_robots[_max_joint_actions][_joint|_single][_base|_dist|_time]. "
                 "E.g. 'mapf.4', 'mapf.8_8_4', 'mapf.28_28_30_128', "
-                "'mapf.28_28_16_128_single', or 'mapf.28_28_16_128_dist'")
+                "'mapf.28_28_16_128_single', 'mapf.28_28_16_128_dist', "
+                "or 'mapf.28_28_16_128_time'")
