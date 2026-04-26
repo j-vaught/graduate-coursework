@@ -30,6 +30,7 @@ class TrainJob:
     up_nnet_batch_size: int
     test_search_itrs: int
     test_up_freq: int
+    test_pathfinds: str = "graph_v"
 
 
 SMOKE_JOBS = {
@@ -106,7 +107,7 @@ FULL_JOBS = {
                                          "resnet_2d.32C_2B_bn",
                                          "test_instances/mapf_28x28_30_quick.pkl",
                                          40, 1024, 3000, 200, 8, 128, 256, 8192,
-                                         1000, 15),
+                                         1000, 15, "graph_v.8B_0.2W"),
     "mapf60_2d32dist_quick256": TrainJob("mapf60_2d32dist_quick256", "mapf.28_28_60_256_dist",
                                          "resnet_2d.32C_2B_bn",
                                          "test_instances/mapf_28x28_60_quick.pkl",
@@ -116,7 +117,7 @@ FULL_JOBS = {
                                          "resnet_2d.32C_2B_bn",
                                          "test_instances/mapf_28x28_60_quick.pkl",
                                          40, 1024, 3000, 200, 8, 128, 256, 8192,
-                                         1000, 15),
+                                         1000, 15, "graph_v.8B_0.2W"),
     "mapf60_2d64dist_quick256": TrainJob("mapf60_2d64dist_quick256", "mapf.28_28_60_256_dist",
                                          "resnet_2d.64C_2B_bn",
                                          "test_instances/mapf_28x28_60_quick.pkl",
@@ -183,7 +184,7 @@ def make_train_command(job: TrainJob, run_tag: str, gpu: str, procs: int | str) 
         "--t_file", q(job.test_file),
         "--t_search_itrs", str(job.test_search_itrs),
         "--t_up_freq", str(job.test_up_freq),
-        "--t_pathfinds", "graph_v",
+        "--t_pathfinds", q(job.test_pathfinds),
         ">", q(log_file), "2>&1", "&", "echo", "$!", ">", q(pid_file),
     ])
 
