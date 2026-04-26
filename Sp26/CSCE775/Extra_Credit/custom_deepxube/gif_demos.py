@@ -65,6 +65,7 @@ DEMO_CONFIGS: dict[str, DemoConfig] = {
     "pancake": DemoConfig("pancake", "pancake.10", 12, (6.0, 5.0)),
     "mapf": DemoConfig("mapf", "mapf.28_28_4_64", 12, (8.0, 8.0)),
     "mapf30": DemoConfig("mapf30", "mapf.28_28_30_256_dist", 12, (8.0, 8.0)),
+    "mapf60": DemoConfig("mapf60", "mapf.28_28_60_256_dist", 12, (8.0, 8.0)),
     "arm": DemoConfig("arm", "arm.6_12_64", 12, (13.0, 5.0)),
     "retro": DemoConfig("retro", "retro.7", 12, (7.5, 6.0)),
 }
@@ -79,6 +80,10 @@ MODEL_CONFIGS: dict[str, ModelConfig] = {
     ),
     "mapf30": ModelConfig(
         "resnet_2d.32C_2B_bn", "runs/models/mapf30_dist/model.pt", 40,
+        search_step_cap=2000,
+    ),
+    "mapf60": ModelConfig(
+        "resnet_2d.32C_2B_bn", "runs/models/mapf60_dist/model.pt", 40,
         search_step_cap=2000,
     ),
     "arm": ModelConfig(
