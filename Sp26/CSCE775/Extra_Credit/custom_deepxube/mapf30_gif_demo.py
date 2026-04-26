@@ -1,0 +1,7 @@
+"""Generate the MAPF30 GIF demo."""
+
+from gif_demos import main_for_domain
+
+
+if __name__ == "__main__":
+    main_for_domain("mapf30")
