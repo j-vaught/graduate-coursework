@@ -1,0 +1,625 @@
+\documentclass[10pt]{article}
+\usepackage[letterpaper,margin=0.6in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{multicol}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{mathtools}
+
+\definecolor{garnet}{HTML}{73000A}
+\definecolor{atlantic}{HTML}{466A9F}
+\definecolor{congaree}{HTML}{1F414D}
+\definecolor{horseshoe}{HTML}{65780B}
+\definecolor{warmgrey}{HTML}{676156}
+\definecolor{tenblack}{HTML}{ECECEC}
+
+\tcbset{
+  studybox/.style={
+    colback=tenblack, colframe=garnet, sharp corners,
+    boxrule=0.6pt, left=4pt, right=4pt, top=3pt, bottom=3pt
+  },
+  procbox/.style={
+    colback=white, colframe=atlantic, sharp corners,
+    boxrule=0.6pt, left=4pt, right=4pt, top=3pt, bottom=3pt
+  },
+  warnbox/.style={
+    colback=white, colframe=horseshoe, sharp corners,
+    boxrule=0.6pt, left=4pt, right=4pt, top=3pt, bottom=3pt
+  }
+}
+
+\titleformat{\section}{\Large\bfseries\color{garnet}}{\thesection}{0.5em}{}[{\titlerule[0.6pt]}]
+\titleformat{\subsection}{\large\bfseries\color{congaree}}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{warmgrey}}{}{0em}{}
+
+\setlist{nosep, leftmargin=1.2em}
+
+\title{\color{garnet}\textbf{CSCE 763 Final Exam Study Sheet}}
+\author{J.C. Vaught}
+\date{Spring 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+\hrule
+\vspace{0.5em}
+
+\section{Image Fundamentals (Ch.~2)}
+
+\subsection{Pinhole / Geometric Imaging}
+\begin{tcolorbox}[studybox]
+Similar triangles relate object and image.
+\[
+\frac{h_{\text{img}}}{h_{\text{obj}}} = \frac{f}{d}
+\quad\Rightarrow\quad
+h_{\text{img}} = h_{\text{obj}} \cdot \frac{f}{d}
+\]
+where $f$ = focal length (lens to sensor), $d$ = object distance.
+\end{tcolorbox}
+
+\textbf{Worked example.} Palm tree $h_{\text{obj}} = 15$ m at $d = 100$ m, $f = 17$ mm.
+\[
+h_{\text{img}} = 15 \cdot \frac{0.017}{100} = 2.55 \times 10^{-3}\text{ m} = 2.55\text{ mm}.
+\]
+
+\subsection{Pixel Relationships}
+\begin{itemize}
+  \item \textbf{4-adjacency $N_4(p)$:} up, down, left, right.
+  \item \textbf{8-adjacency $N_8(p)$:} all 8 neighbors.
+  \item \textbf{m-adjacency:} $q \in N_4(p)$ \emph{or} ($q \in N_D(p)$ \emph{and} $N_4(p)\cap N_4(q)\cap V = \emptyset$). Removes path ambiguity of 8-adjacency.
+\end{itemize}
+
+\subsection{Distance Measures}
+\begin{tcolorbox}[studybox]
+For $p=(x,y)$, $q=(s,t)$:
+\[
+D_4 = |x-s|+|y-t| \quad\text{(city-block)}
+\]
+\[
+D_8 = \max(|x-s|,|y-t|) \quad\text{(chessboard)}
+\]
+\[
+D_E = \sqrt{(x-s)^2+(y-t)^2}
+\]
+\end{tcolorbox}
+
+\subsection{Linear vs.\ Nonlinear}
+$T$ is linear if $T(af + bg) = aT(f) + bT(g)$.
+\begin{itemize}
+  \item \textbf{Linear:} average, sum, weighted sum, convolution, Laplacian, Sobel.
+  \item \textbf{Nonlinear:} median, min, max, log, gamma, threshold, abs.
+\end{itemize}
+
+\subsection{Image Arithmetic Applications}
+\begin{itemize}
+  \item \textbf{Addition / averaging $K$ frames:} reduces \emph{zero-mean} additive noise; $\sigma_{\bar{g}} = \sigma/\sqrt{K}$. Does not help DC-biased noise.
+  \item \textbf{Subtraction:} change detection, mask-mode radiography, background removal.
+  \item \textbf{Multiplication:} shading correction (divide by flat field), region-of-interest masking.
+\end{itemize}
+
+\section{Intensity Transformations \& Histograms (Ch.~3)}
+
+\subsection{Point Transforms}
+\begin{tcolorbox}[studybox]
+\begin{tabular}{@{}lll@{}}
+\textbf{Negative} & $s = L-1-r$ & invert; reveal detail in dark regions \\
+\textbf{Log} & $s = c\log(1+r)$ & expand dark, compress bright (large dynamic range) \\
+\textbf{Inverse log} & $s = c(e^r - 1)$ & opposite of log \\
+\textbf{Gamma} & $s = c\, r^{\gamma}$ & $\gamma<1$ brightens dark; $\gamma>1$ darkens \\
+\textbf{$n$th power} & $s = c\,r^n$ & like gamma with $\gamma=n>1$ \\
+\textbf{$n$th root} & $s = c\,r^{1/n}$ & like gamma with $\gamma=1/n<1$ \\
+\end{tabular}
+\end{tcolorbox}
+Choose $c$ so output range is $[0, L-1]$, e.g.\ $c = (L-1)/\log L$ for log on $[0,L-1]$.
+
+\subsection{Histogram Equalization (discrete)}
+\begin{tcolorbox}[procbox]
+\textbf{Steps.}
+\begin{enumerate}
+  \item Count pixels per level: $n_k$ for $k=0,\dots,L-1$.
+  \item Probability: $p_r(r_k) = n_k / (MN)$.
+  \item CDF mapping:
+  \[
+  s_k = (L-1) \sum_{j=0}^{k} p_r(r_j)
+  \]
+  \item Round $s_k$ to nearest integer in $[0,L-1]$.
+  \item Replace each pixel of value $r_k$ with $s_k$.
+\end{enumerate}
+\end{tcolorbox}
+
+\textbf{Tiny example.} $L=8$, $MN=64$, $n = [8,10,10,2,12,16,4,2]$.
+$p = [0.125,0.156,0.156,0.031,0.188,0.250,0.062,0.031]$.
+CDF: $[0.125, 0.281, 0.438, 0.469, 0.656, 0.906, 0.969, 1.0]$.
+$s = 7\cdot$CDF rounded $= [1,2,3,3,5,6,7,7]$.
+
+\subsection{Histogram Matching}
+\begin{tcolorbox}[procbox]
+\textbf{Goal:} make $f$ have the histogram of target $z$.
+\begin{enumerate}
+  \item Equalize input: compute $T(r_k) = (L-1)\sum p_r(r_j)$.
+  \item Equalize target: compute $G(z_q) = (L-1)\sum p_z(z_j)$.
+  \item For each input level $r_k$, set $z_k = G^{-1}(T(r_k))$ — the smallest $z_q$ with $G(z_q)\ge T(r_k)$.
+\end{enumerate}
+\end{tcolorbox}
+
+\section{Spatial Filtering (Ch.~3)}
+
+\subsection{Convolution vs.\ Correlation}
+\begin{itemize}
+  \item \textbf{Correlation:} slide kernel over image, multiply-and-sum. \emph{No flip.}
+  \item \textbf{Convolution:} flip kernel by 180\textdegree, then correlate.
+  \item Symmetric kernels (Gaussian, average, Laplacian) → convolution = correlation.
+\end{itemize}
+
+\subsection{Convolution Properties}
+$f * g = g * f$ \quad (commutative); \quad
+$f * (g * h) = (f*g)*h$ \quad (associative); \quad
+$f*(g+h) = f*g + f*h$ \quad (distributive).
+
+\subsection{Smoothing Kernels}
+\begin{tcolorbox}[studybox]
+\textbf{Box / average} $3\times 3$:
+\(\frac{1}{9}\begin{bsmallmatrix}1&1&1\\1&1&1\\1&1&1\end{bsmallmatrix}\).
+Weighted: \(\frac{1}{16}\begin{bsmallmatrix}1&2&1\\2&4&2\\1&2&1\end{bsmallmatrix}\) (Gaussian-ish).
+\end{tcolorbox}
+
+\subsection{Sharpening Kernels}
+\begin{tcolorbox}[studybox]
+\textbf{Laplacian} (4-conn):
+\(\begin{bsmallmatrix}0&1&0\\1&-4&1\\0&1&0\end{bsmallmatrix}\)
+\quad
+\textbf{Laplacian} (8-conn):
+\(\begin{bsmallmatrix}1&1&1\\1&-8&1\\1&1&1\end{bsmallmatrix}\)
+\smallskip
+
+\textbf{Sharpened image:}
+\(g(x,y) = f(x,y) - \nabla^2 f(x,y)\) (when center is negative)
+or \(g = f + \nabla^2 f\) (center positive).
+
+\textbf{Unsharp mask:}
+\(g = f + k\bigl(f - \bar{f}\bigr)\), with $k=1$ standard, $k>1$ \emph{highboost}.
+\end{tcolorbox}
+
+\subsection{Gradient / First-Order Operators}
+\begin{tcolorbox}[studybox]
+\textbf{Roberts} ($2\times2$):
+\(G_x = \begin{bsmallmatrix}-1&0\\0&1\end{bsmallmatrix}\),
+\(G_y = \begin{bsmallmatrix}0&-1\\1&0\end{bsmallmatrix}\).
+\smallskip
+
+\textbf{Prewitt} ($3\times3$):
+\(G_x = \begin{bsmallmatrix}-1&0&1\\-1&0&1\\-1&0&1\end{bsmallmatrix}\),
+\(G_y = \begin{bsmallmatrix}-1&-1&-1\\0&0&0\\1&1&1\end{bsmallmatrix}\).
+\smallskip
+
+\textbf{Sobel} ($3\times3$, weights center row/col more):
+\(G_x = \begin{bsmallmatrix}-1&0&1\\-2&0&2\\-1&0&1\end{bsmallmatrix}\),
+\(G_y = \begin{bsmallmatrix}-1&-2&-1\\0&0&0\\1&2&1\end{bsmallmatrix}\).
+\smallskip
+
+\textbf{Magnitude:} $|\nabla f| \approx |G_x| + |G_y|$ (or $\sqrt{G_x^2+G_y^2}$).
+\textbf{Direction:} $\theta = \arctan(G_y/G_x)$.
+\end{tcolorbox}
+
+\subsection{Order-Statistic (nonlinear) Filters}
+\begin{itemize}
+  \item \textbf{Median:} salt \& pepper.
+  \item \textbf{Max:} removes pepper (dark).
+  \item \textbf{Min:} removes salt (bright).
+  \item \textbf{Midpoint} $\tfrac{1}{2}(\max+\min)$: Gaussian/uniform noise.
+  \item \textbf{Alpha-trimmed mean:} mixed noise (drop $d/2$ from each end, average rest).
+\end{itemize}
+
+\subsection{Filter Selection Cheat-Table}
+\begin{tcolorbox}[studybox]
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Symptom} & \textbf{Filter} \\
+\midrule
+Salt \& pepper & Median (or alpha-trimmed) \\
+Salt only & Min, harmonic, contraharmonic $Q<0$ \\
+Pepper only & Max, contraharmonic $Q>0$ \\
+Gaussian noise & Arithmetic mean, geometric mean, Wiener \\
+Uniform noise & Arithmetic / midpoint \\
+Sharpen edges & Laplacian, unsharp mask \\
+Detect edges & Sobel, Prewitt, Canny \\
+\bottomrule
+\end{tabular}
+\end{tcolorbox}
+
+\section{Fourier Transform (Ch.~4)}
+
+\subsection{Continuous FT}
+\begin{tcolorbox}[studybox]
+\[
+F(\mu) = \int_{-\infty}^{\infty} f(t)\, e^{-j2\pi\mu t}\, dt,
+\quad
+f(t) = \int_{-\infty}^{\infty} F(\mu)\, e^{j2\pi\mu t}\, d\mu
+\]
+\end{tcolorbox}
+
+\subsection{Sifting (impulse) Property}
+\[
+\int_{-\infty}^{\infty} f(t)\,\delta(t-t_0)\,dt = f(t_0)
+\]
+
+\subsection{Properties}
+\begin{tcolorbox}[studybox]
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Property} & \textbf{Time} & \textbf{Frequency} \\
+\midrule
+Linearity & $af(t)+bg(t)$ & $aF(\mu)+bG(\mu)$ \\
+Translation & $f(t-t_0)$ & $e^{-j2\pi\mu t_0}F(\mu)$ \\
+Modulation & $e^{j2\pi\mu_0 t}f(t)$ & $F(\mu-\mu_0)$ \\
+Scaling & $f(at)$ & $\tfrac{1}{|a|}F(\mu/a)$ \\
+Conjugation & $f^*(t)$ & $F^*(-\mu)$ \\
+Symmetry & $F(t)$ & $f(-\mu)$ \\
+Convolution & $f*g$ & $F\cdot G$ \\
+Multiplication & $f\cdot g$ & $F * G$ \\
+\bottomrule
+\end{tabular}
+\end{tcolorbox}
+
+\subsection{FT of a Rectangle (the trick for piecewise problems)}
+\begin{tcolorbox}[procbox]
+For $f(t) = A$ on $[a,b]$, 0 elsewhere:
+\[
+F(\mu) = A\,\frac{e^{-j2\pi\mu a} - e^{-j2\pi\mu b}}{j2\pi\mu}
+\]
+Equivalent (centered form), with width $W=b-a$, center $c=(a+b)/2$:
+\[
+F(\mu) = A\,W\,\operatorname{sinc}(\pi\mu W)\,e^{-j2\pi\mu c}
+\]
+where $\operatorname{sinc}(x) = \sin(x)/x$.
+\end{tcolorbox}
+
+\textbf{Worked piecewise example.}
+$f(t) = \begin{cases}2 & 3<t<7 \\ 4 & 7<t<9 \\ 0 & \text{else}\end{cases}$.
+Treat as two rectangles by linearity:
+\begin{align*}
+F(\mu) &= 2 \cdot \frac{e^{-j6\pi\mu}-e^{-j14\pi\mu}}{j2\pi\mu}
++ 4 \cdot \frac{e^{-j14\pi\mu}-e^{-j18\pi\mu}}{j2\pi\mu}.
+\end{align*}
+
+\subsection{Convolution Theorem (key for filtering in frequency domain)}
+\[
+f(x,y) * h(x,y) \;\longleftrightarrow\; F(u,v)\, H(u,v)
+\]
+\textbf{Use:} multiply spectra (cheap) instead of convolving (expensive). Apply lowpass / highpass / bandpass $H(u,v)$ in frequency, IFT back.
+
+\section{Image Restoration (Ch.~5)}
+
+\subsection{Degradation Model}
+\begin{tcolorbox}[studybox]
+\[
+g(x,y) = h(x,y) * f(x,y) + \eta(x,y)
+\quad\xleftrightarrow{\text{FT}}\quad
+G(u,v) = H(u,v)F(u,v) + N(u,v)
+\]
+\end{tcolorbox}
+
+\subsection{Noise PDFs}
+\begin{itemize}
+  \item \textbf{Gaussian:} $p(z) = \dfrac{1}{\sigma\sqrt{2\pi}}\, e^{-(z-\mu)^2/(2\sigma^2)}$.
+  \item \textbf{Salt-and-pepper (impulse):} $p(z) = P_a$ at $z=a$ (pepper, dark), $P_b$ at $z=b$ (salt, bright), 0 else.
+  \item \textbf{Uniform:} $p(z) = 1/(b-a)$ on $[a,b]$.
+  \item \textbf{Rayleigh, Erlang/Gamma, Exponential:} also covered; rare on exam.
+\end{itemize}
+
+\subsection{Mean-Filter Family}
+\begin{tcolorbox}[studybox]
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Filter} & \textbf{Formula} (window $S_{xy}$, $mn$ pixels) & \textbf{Best for} \\
+\midrule
+Arithmetic & $\frac{1}{mn}\sum g(s,t)$ & Gaussian, uniform; blurs \\
+Geometric & $\bigl[\prod g(s,t)\bigr]^{1/mn}$ & Gaussian; less blur \\
+Harmonic & $\dfrac{mn}{\sum 1/g(s,t)}$ & salt + Gaussian; \emph{fails on pepper} \\
+Contraharmonic & $\dfrac{\sum g^{Q+1}}{\sum g^{Q}}$ & $Q>0$ pepper, $Q<0$ salt \\
+\bottomrule
+\end{tabular}
+\end{tcolorbox}
+
+\subsection{Restoration Filters: When to Use}
+\begin{tcolorbox}[warnbox]
+\textbf{Inverse:} $\hat{F}(u,v) = G(u,v)/H(u,v)$.
+\begin{itemize}
+  \item Needs $H$ exactly, $H \ne 0$, no noise.
+  \item Where $H\to 0$, noise blows up.
+\end{itemize}
+\textbf{Wiener (min MSE):}
+\[
+\hat{F} = \left[\frac{1}{H}\frac{|H|^2}{|H|^2 + S_\eta/S_f}\right] G
+\]
+\begin{itemize}
+  \item Needs $|H|^2$, power spectra $S_\eta$ (noise) and $S_f$ (signal).
+  \item Approx: replace $S_\eta/S_f$ with constant $K$.
+\end{itemize}
+\textbf{Constrained Least Squares (CLS):}
+\[
+\hat{F} = \frac{H^*}{|H|^2 + \gamma|P|^2}\, G
+\]
+\begin{itemize}
+  \item $P(u,v)$ = FT of Laplacian (smoothness constraint).
+  \item Only needs noise mean and variance — no full spectra.
+  \item Tune $\gamma$ until $\|g - H\hat{f}\|^2 \approx \|\eta\|^2$.
+\end{itemize}
+\end{tcolorbox}
+
+\section{Color Image Processing (Ch.~6)}
+
+\subsection{Primaries}
+\begin{itemize}
+  \item \textbf{Light (additive):} R, G, B → mix $\to$ White. Secondary: Cyan, Magenta, Yellow.
+  \item \textbf{Pigment (subtractive):} C, M, Y absorb light. Secondary: R, G, B.
+  \item \emph{Primary of one = secondary of the other.}
+\end{itemize}
+
+\subsection{Chromaticity \& Gamut}
+Chromaticity = hue + saturation (color quality, no brightness).
+\textbf{Gamut rule:} any color on the line segment between two reference colors in the chromaticity diagram is reproducible by a mixture of those two. Inside a triangle of three primaries $\Rightarrow$ producible by that system. Same color reachable by many RGB combos.
+
+\subsection{Color Models}
+\begin{itemize}
+  \item \textbf{RGB:} hardware, displays.
+  \item \textbf{CMY/CMYK:} printing. $C=1-R$, $M=1-G$, $Y=1-B$. K extracts black: $K=\min(C,M,Y)$.
+  \item \textbf{HSI:} matches human perception (Hue, Saturation, Intensity).
+\end{itemize}
+
+\subsection{RGB to HSI}
+\begin{tcolorbox}[studybox]
+\[
+I = \tfrac{1}{3}(R+G+B), \qquad
+S = 1 - \frac{3}{R+G+B}\min(R,G,B)
+\]
+\[
+H = \begin{cases}\theta & B \le G \\ 360^{\circ}-\theta & B > G\end{cases},\quad
+\theta = \cos^{-1}\!\left[\frac{\tfrac{1}{2}\bigl[(R-G)+(R-B)\bigr]}{\sqrt{(R-G)^2 + (R-B)(G-B)}}\right]
+\]
+\end{tcolorbox}
+
+\subsection{Which Color Model for Which Task}
+\begin{tcolorbox}[studybox]
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Task} & \textbf{Best model} \\
+\midrule
+Intensity modification & HSI (modify I, leave H,S) \\
+Color complement & RGB ($s=L-1-r$ per channel) \\
+Tonal correction & HSI \\
+Color balancing & varies by image \\
+Histogram processing & HSI (equalize I only) \\
+\bottomrule
+\end{tabular}
+\end{tcolorbox}
+
+\subsection{Color Transformation General Form}
+\(s_i = T_i(r_1, r_2, \dots, r_n)\) for $i=1,\dots,n$.
+
+\section{Image Compression (Ch.~8)}
+
+\subsection{Definitions}
+\begin{tcolorbox}[studybox]
+\[
+C = \frac{b}{b'}, \qquad R = 1 - \frac{1}{C}
+\]
+where $b$ = bits original, $b'$ = bits compressed.
+\smallskip
+
+\textbf{Entropy:} $\;H = -\sum_{k=0}^{L-1} p_r(r_k)\,\log_2 p_r(r_k)$.
+
+\textbf{Avg code length:} $\;L_{\text{avg}} = \sum_{k=0}^{L-1} l(r_k)\, p_r(r_k)$.
+
+\textbf{Coding efficiency:} $\eta = H / L_{\text{avg}}$ (1 = optimal).
+
+\textbf{RMS error:}
+\(e_{\text{rms}} = \sqrt{\tfrac{1}{MN}\sum\sum [\hat{f}-f]^2}\).
+
+\textbf{SNR:}
+\(\text{SNR}_{\text{ms}} = \dfrac{\sum\sum \hat{f}^2}{\sum\sum [\hat{f}-f]^2}\).
+\end{tcolorbox}
+
+\subsection{Three Redundancies}
+\begin{itemize}
+  \item \textbf{Coding redundancy} — fixed-length code uses more bits than entropy. Fixed by Huffman / arithmetic coding.
+  \item \textbf{Spatial / temporal redundancy} — neighboring pixels (or frames) correlated. Fixed by run-length, predictive coding, transform coding, motion comp.
+  \item \textbf{Irrelevant information} — invisible to HVS. Fixed by quantization (lossy: JPEG, MP3).
+\end{itemize}
+
+\subsection{Huffman Coding}
+\begin{tcolorbox}[procbox]
+\textbf{Steps (encode).}
+\begin{enumerate}
+  \item List symbols with probabilities, sorted descending.
+  \item Take the two smallest, merge into a node with summed probability.
+  \item Reinsert sorted; repeat until one node remains (the root).
+  \item Label one branch 0 and the other 1 at every split.
+  \item Read each symbol's code from root → leaf.
+\end{enumerate}
+\textbf{Decode.} Walk the tree from root using bits; emit symbol at leaf, restart.
+\end{tcolorbox}
+\textbf{Worked example.} Symbols A,B,C,D,E with $p=0.4,0.2,0.2,0.1,0.1$.\\
+Merge D+E ($0.2$), then C+(DE) ($0.4$), then B+CDE ($0.6$), then A+rest. One valid set of codes: A=0, B=10, C=111, D=1100, E=1101. $L_{\text{avg}}=2.2$, $H \approx 2.12$.
+
+\subsection{Arithmetic Coding}
+\begin{tcolorbox}[procbox]
+\textbf{Encode.}
+\begin{enumerate}
+  \item Start with interval $[0,1)$.
+  \item For each symbol, partition the current interval by symbol probabilities (in fixed order).
+  \item Narrow to the sub-interval of the actual symbol.
+  \item Repeat. Final code = any number in the final interval (the shortest binary fraction).
+\end{enumerate}
+\end{tcolorbox}
+\textbf{Mini example.} Symbols a,b,c with $p=0.5,0.3,0.2$.\
+Sequence ``ab'': start $[0,1)$ → after `a' $[0,0.5)$ → partition again, after `b' $[0.25,0.4)$. Pick 0.3.
+
+\subsection{Run-Length Encoding (RLE)}
+\begin{tcolorbox}[procbox]
+Replace runs of the same value with (\emph{value}, \emph{count}) pairs.
+\end{tcolorbox}
+\textbf{Example.} Bitstream \texttt{0000011111100} → $(0,5)(1,6)(0,2)$.
+Best when long runs (binary masks, simple cartoons). For natural images, combine with predictive coding first.
+
+\section{Edge-Based Segmentation (Ch.~10)}
+
+\subsection{First- vs.\ Second-Order Edge Detection}
+\begin{itemize}
+  \item \textbf{First-order (gradient):} Roberts, Prewitt, Sobel. Detects edges as gradient maxima. Thicker edges; one operator per direction.
+  \item \textbf{Second-order (Laplacian):} zero-crossings = edges. Double edge response. More noise sensitive.
+  \item \textbf{Common issues:} both sensitive to noise; cannot handle scale changes (need LoG/DoG).
+\end{itemize}
+
+\subsection{Laplacian of Gaussian (LoG) / Marr-Hildreth}
+\begin{tcolorbox}[procbox]
+\begin{enumerate}
+  \item Smooth with Gaussian: $G_\sigma(x,y) = \tfrac{1}{2\pi\sigma^2}e^{-(x^2+y^2)/(2\sigma^2)}$.
+  \item Apply Laplacian: $\nabla^2[G_\sigma * f]$.
+  \item Find zero-crossings (edge locations).
+\end{enumerate}
+\textbf{Issues:} ``spaghetti'' closed-loop zero-crossings; need multiple $\sigma$ for scale.
+\end{tcolorbox}
+
+\subsection{Difference of Gaussians (DoG)}
+\(\text{DoG} = G_{\sigma_1} - G_{\sigma_2}\), $\sigma_1 < \sigma_2$. Cheap LoG approximation; ratio $\sigma_2/\sigma_1 \approx 1.6$.
+
+\subsection{Canny Edge Detector}
+\begin{tcolorbox}[procbox]
+\begin{enumerate}
+  \item Smooth with Gaussian.
+  \item Compute gradient magnitude and direction (Sobel).
+  \item \textbf{Non-maximum suppression:} thin edges to 1 pixel by keeping local maxima along gradient direction.
+  \item \textbf{Double threshold + hysteresis:} pixels above $T_H$ are strong; pixels in $[T_L,T_H]$ are weak; keep weak only if connected to a strong.
+\end{enumerate}
+\textbf{Optimal} (under Canny's criteria): good detection, good localization, single response.
+\end{tcolorbox}
+
+\subsection{Hough Transform (line detection)}
+\begin{tcolorbox}[procbox]
+Line in polar form: $\rho = x\cos\theta + y\sin\theta$.
+\begin{enumerate}
+  \item Build accumulator $A[\rho][\theta]$, all zero.
+  \item For each edge pixel $(x,y)$: for each $\theta$ in $[0,180^\circ)$, compute $\rho$ and increment $A[\rho][\theta]$.
+  \item Peaks in $A$ correspond to lines. Each peak's $(\rho,\theta)$ defines one line.
+\end{enumerate}
+\textbf{Generalize:} circle Hough uses $(a,b,r)$; can detect any parameterized shape.
+\end{tcolorbox}
+
+\subsection{Thresholding}
+Choose $T$ so $f(x,y)>T \to$ object, else background. \textbf{Otsu:} maximize between-class variance.\\
+\textbf{Factors that affect thresholding:} (1) separation between histogram peaks, (2) noise level, (3) relative size of object/background, (4) illumination/reflectance uniformity.
+
+\section{Region-Based Segmentation (Ch.~10)}
+
+\subsection{Region Growing}
+\begin{tcolorbox}[procbox]
+\begin{enumerate}
+  \item Pick seed pixel(s) (e.g., local maxima, user-defined).
+  \item Define predicate $Q(R)$ — e.g., $|f(p)-\mu_R|<T$ or intensity within $\pm5$ of seed.
+  \item Add neighbors of current region that satisfy $Q$ and connectivity (4 or 8).
+  \item Repeat until no more pixels qualify; restart with new seed if needed.
+\end{enumerate}
+\end{tcolorbox}
+
+\subsection{Region Splitting and Merging (Quadtree)}
+\begin{tcolorbox}[procbox]
+\begin{enumerate}
+  \item Start with whole image as one region.
+  \item \textbf{Split:} if $Q(R)$ false, split into 4 quadrants. Recurse.
+  \item \textbf{Merge:} merge any pair of adjacent regions $R_i, R_j$ if $Q(R_i \cup R_j)$ true.
+  \item Stop when no further split or merge is possible.
+\end{enumerate}
+$Q$ examples: $\sigma_R < T$, or $\max-\min < T$.
+\end{tcolorbox}
+
+\section{Mathematical Morphology (Ch.~9)}
+
+\subsection{Sets and Operators}
+\begin{tcolorbox}[studybox]
+\textbf{Reflection:} $\hat{B} = \{w \mid w = -b,\, b \in B\}$.\\
+\textbf{Translation:} $(B)_z = \{c \mid c = b+z,\, b \in B\}$.
+\smallskip
+
+\textbf{Erosion:}
+\(A \ominus B = \{z \mid (B)_z \subseteq A\}\) — SE fits entirely inside $A$.
+\smallskip
+
+\textbf{Dilation:}
+\(A \oplus B = \{z \mid (\hat{B})_z \cap A \ne \emptyset\}\) — reflected SE hits $A$.
+\smallskip
+
+\textbf{Opening:} \(A \circ B = (A \ominus B) \oplus B\).\\
+\textbf{Closing:} \(A \bullet B = (A \oplus B) \ominus B\).
+\end{tcolorbox}
+
+\subsection{Effects (memorize the verbs)}
+\begin{tcolorbox}[studybox]
+\textbf{Erosion} — shrinks objects, removes small noise, breaks thin connections.\\
+\textbf{Dilation} — grows objects, fills small holes, connects nearby pieces.\\
+\textbf{Opening} — smooths outer contour, breaks narrow isthmuses, eliminates thin protrusions, removes small bright blobs.\\
+\textbf{Closing} — fills narrow breaks/gaps, eliminates long thin gulfs, fills small dark holes.
+\end{tcolorbox}
+
+\subsection{Properties}
+\begin{itemize}
+  \item Dilation: commutative, associative, distributes over union.
+  \item Erosion: distributes over intersection: $(A\cap B)\ominus C = (A\ominus C)\cap (B\ominus C)$.
+  \item \textbf{Duality:} \(A \oplus B = (A^c \ominus \hat{B})^c\).
+  \item \textbf{Opening idempotent:} $(A\circ B)\circ B = A\circ B$. Opening shrinks: $A\circ B \subseteq A$.
+  \item \textbf{Closing idempotent:} $(A\bullet B)\bullet B = A\bullet B$. Closing grows: $A \subseteq A\bullet B$.
+  \item Monotone: $A \subseteq C \Rightarrow A\oplus B \subseteq C\oplus B$ and $A\ominus B \subseteq C\ominus B$.
+\end{itemize}
+
+\subsection{How to Apply by Hand (binary image)}
+\begin{tcolorbox}[procbox]
+\textbf{Erosion of $A$ by $B$.} For each pixel $p$ in $A$, place SE origin at $p$. If \emph{every} 1-pixel of $B$ overlays a 1-pixel of $A$, output is 1; else 0.
+
+\textbf{Dilation of $A$ by $B$.} Reflect $B$ to get $\hat{B}$. For each pixel $p$, place $\hat{B}$ origin at $p$. If \emph{any} 1-pixel of $\hat{B}$ overlays a 1-pixel of $A$, output is 1; else 0.
+
+\textbf{Opening = erode then dilate} (with the same SE).\\
+\textbf{Closing = dilate then erode}.
+\end{tcolorbox}
+
+\subsection{Other Morphology}
+\begin{itemize}
+  \item \textbf{Hit-or-miss:} detect specific shape — erode by foreground SE and complement-erode by background SE; intersect.
+  \item \textbf{Boundary:} $\beta(A) = A - (A\ominus B)$.
+  \item \textbf{Hole filling:} iteratively dilate seed inside hole, intersect with $A^c$, until convergence.
+  \item \textbf{Connected components:} same iterative dilation but seeded inside each component.
+  \item \textbf{Convex hull, thinning, thickening, skeleton} — covered in slides; less likely on exam.
+\end{itemize}
+
+\section{Last-Minute Quick-Recall List}
+\begin{multicols}{2}\small
+\begin{itemize}
+  \item Pinhole: $h_i/h_o = f/d$
+  \item $D_4 = |\Delta x|+|\Delta y|$, $D_8 = \max$, $D_E = \sqrt{\cdot}$
+  \item Averaging $K$ frames: $\sigma/\sqrt{K}$
+  \item Negative: $L-1-r$; Log: $c\log(1+r)$; Gamma: $cr^\gamma$
+  \item HE: $s_k = (L-1)\sum p_r(r_j)$
+  \item Sobel: $\pm 1, \pm 2, \pm 1$
+  \item Laplacian (4-conn): center $-4$
+  \item Sharpen: $g = f - \nabla^2 f$ (neg center)
+  \item FT: $\int f\,e^{-j2\pi\mu t}dt$
+  \item Sifting: $\int f\delta(t-t_0)dt = f(t_0)$
+  \item Conv $\leftrightarrow$ multiply
+  \item $g = h*f + \eta$, $G = HF + N$
+  \item Median = s\&p; arithmetic = Gaussian
+  \item HSI = perceptual; RGB = display
+  \item $C = b/b'$, $R = 1-1/C$, $H = -\sum p\log_2 p$
+  \item Huffman = sort+merge; RLE = (val,count)
+  \item Canny: smooth, grad, NMS, hyst.
+  \item Hough: $\rho = x\cos\theta + y\sin\theta$
+  \item Open = erode-then-dilate
+  \item Close = dilate-then-erode
+  \item Duality: $A\oplus B = (A^c \ominus \hat{B})^c$
+\end{itemize}
+\end{multicols}
+
+\end{document}
