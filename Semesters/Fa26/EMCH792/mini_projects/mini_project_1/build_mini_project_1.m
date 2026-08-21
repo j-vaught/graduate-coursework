@@ -139,6 +139,9 @@ fprintf("Maximum pendulum-angle difference: %.6e rad\n", theta_error);
 export_model_diagram(direct_model, "simulink_model.png");
 export_model_diagram(multibody_model, "multibody_model.png");
 
+%% Add native 3D learning geometry after exporting the report diagram.
+add_multibody_learning_geometry(multibody_model, parameters);
+
 close_system(direct_model, false);
 close_system(multibody_model, false);
 
@@ -251,6 +254,8 @@ function build_multibody_model(model_name, p)
     load_system("nesl_utility");
     new_system(model_name);
     open_system(model_name);
+
+    set_param(model_name, "SimMechanicsOpenEditorOnUpdate", "off");
 
     set_param(model_name, ...
         "Solver", "ode23t", ...
