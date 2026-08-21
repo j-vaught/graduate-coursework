@@ -23,3 +23,11 @@ Run the project from MATLAB with the following command.
 ```matlab
 run("build_mini_project_1.m")
 ```
+
+The function `build_learning_visuals.m` converts the saved Multibody trajectory into a full-duration animation, a slow-motion first-swing animation, and four explanatory screenshots. The cart-centered camera keeps the mechanism large while the numbered world-position ruler moves beneath the cart to make its translation visible.
+
+Run the learning-visual build from MATLAB with the following command.
+
+```matlab
+build_learning_visuals("all")
+```
