@@ -32,7 +32,9 @@ Run the learning-visual build from MATLAB with the following command.
 build_learning_visuals("all")
 ```
 
-The native Mechanics Explorer version is built into the Simscape Multibody model by `add_multibody_learning_geometry.m`. It adds a physical cylindrical rod from the revolute pivot to the bob and a fixed world-frame ruler beneath the cart. The function `record_mechanics_explorer_videos.m` uses `smwritevideo` to record the actual Mechanics Explorer playback and uses MATLAB `VideoReader` to save still frames from that recording.
+The native Mechanics Explorer version is built into the Simscape Multibody model by `add_multibody_learning_geometry.m`. It adds a slender physical cylindrical rod from the revolute pivot to the bob and a fixed world-frame ruler beneath the cart. All solids use the Simscape library's default color. The function `record_mechanics_explorer_videos.m` uses `smwritevideo` to record the actual Mechanics Explorer playback and uses MATLAB `VideoReader` to save still frames from that recording.
+
+The recorder uses `ffprobe` to count the native frames and `ffmpeg` to wrap MATLAB's Motion JPEG frame stream into MP4. These tools do not reconstruct animation from simulation data; every image originates in the Simscape Multibody renderer.
 
 The primary native recording is `mechanics_explorer_full_motion.mp4`, a 20-second, 1600-by-900 video at 30 frames per second. The file `mechanics_explorer_first_swing_slow_motion.mp4` provides a 16-second slow-motion view of the first eight simulated seconds.
 
