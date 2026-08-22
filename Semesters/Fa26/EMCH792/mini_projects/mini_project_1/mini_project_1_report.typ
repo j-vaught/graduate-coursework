@@ -71,13 +71,23 @@ The two independently constructed responses nearly overlap throughout the simula
 = Appendix B. Simscape Multibody Model
 
 #figure(
-  image("multibody_model.png", width: 100%),
-  caption: [Editable physical-component model with cart translation, gravity, damped pivot, rigid pendulum length, and point mass.],
+  image("multibody_model_diagram.png", width: 100%),
+  caption: [Simscape Multibody block diagram.],
 )
 
 #pagebreak()
 
-= Appendix C. Reproducible MATLAB Build and Simulation Code
+= Appendix C. Mechanics Explorer Model
+
+#figure(
+  image("multibody_model_mechanics_explorer.png", width: 100%),
+  caption: [Mechanics Explorer view of the cart, ruler, pendulum rod, and point mass.],
+)
+
+#pagebreak()
+#set page(paper: "us-letter", margin: 1in)
+
+= Appendix D. Reproducible MATLAB Build and Simulation Code
 
 #show raw.where(block: true): it => block(
   width: 100%,
