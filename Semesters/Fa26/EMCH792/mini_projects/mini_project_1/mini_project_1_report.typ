@@ -12,7 +12,7 @@
 )
 #set text(
   font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"),
-  size: 10pt,
+  size: 11pt,
   lang: "en",
 )
 #set par(justify: true, leading: 0.55em)
@@ -23,7 +23,7 @@
 #show heading.where(level: 2): it => block(above: 0.55em, below: 0.25em)[
   #text(size: 10pt, weight: "bold")[#it.body]
 ]
-#show figure.caption: set text(size: 8.5pt)
+#show figure.caption: set text(size: 11pt)
 
 #align(center)[
   #text(size: 17pt, weight: "bold")[Nonlinear Simulation of an Inverted Pendulum on a Cart]
@@ -40,8 +40,8 @@
   inset: (x: 0pt, y: 5pt),
   stroke: (top: 0.5pt + rgb("#A2A2A2"), bottom: 0.5pt + rgb("#A2A2A2")),
 )[
-  #text(weight: "bold", size: 9.5pt)[OBJECTIVE.]
-  #text(size: 9.5pt)[
+  #text(weight: "bold", size: 11pt)[OBJECTIVE.]
+  #text(size: 11pt)[
     The objective of this assignment is to model the nonlinear motion of an unforced inverted pendulum on a freely translating cart and to compare two independent implementations. The first implementation evaluates the equations of motion directly in Simulink. The second represents the same mechanism with physical components in Simscape Multibody. The cart position $x(t)$ and pendulum angle $theta(t)$ are compared after releasing the pendulum five degrees from the unstable upright equilibrium with zero initial velocity.
   ]
 ]
