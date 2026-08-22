@@ -97,7 +97,7 @@ The saved Simulink model contains the standard Constant, Integrator, and To Work
   stroke: 0.5pt + rgb("#A2A2A2"),
   inset: 9pt,
 )[
-  #set text(font: "DejaVu Sans Mono", size: 8.5pt)
+  #set text(font: "DejaVu Sans Mono", size: 8pt)
   #it
 ]
 
