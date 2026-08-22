@@ -1,3 +1,7 @@
+#import "@preview/lilaq:0.6.0" as lq
+
+#let plot-data = json("python_plot_data.json")
+
 #set page(
   paper: "us-letter",
   margin: 1in,
@@ -44,17 +48,87 @@ At each Simulink time step, the two equations are assembled as a $2 times 2$ mas
 The two responses are interpolated onto a common 0.01 s time grid. Agreement is assessed from the maximum absolute difference in cart position and pendulum angle over the simulation interval.
 
 #pagebreak()
+#set page(width: 11in, height: 8.5in, margin: 0.55in)
+
+= Results
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 0.35in,
+  figure(
+    lq.diagram(
+      width: 100%,
+      height: 4.2cm,
+      xlabel: [Time, $t$ (s)],
+      ylabel: [Cart position, $x$ (m)],
+      xlim: (0, 20),
+      lq.plot(
+        plot-data.time_20_s,
+        plot-data.x_20_m,
+        mark: none,
+        label: [Python reference],
+      ),
+    ),
+    caption: [Cart position over 20 s.],
+  ),
+  figure(
+    lq.diagram(
+      width: 100%,
+      height: 4.2cm,
+      xlabel: [Time, $t$ (s)],
+      ylabel: [Pendulum angle, $theta$ (rad)],
+      xlim: (0, 20),
+      lq.plot(
+        plot-data.time_20_s,
+        plot-data.theta_20_rad,
+        mark: none,
+        label: [Python reference],
+      ),
+    ),
+    caption: [Pendulum angle over 20 s.],
+  ),
+  figure(
+    lq.diagram(
+      width: 100%,
+      height: 4.2cm,
+      xlabel: [Time, $t$ (s)],
+      ylabel: [Cart position, $x$ (m)],
+      xlim: (0, 200),
+      lq.plot(
+        plot-data.time_200_s,
+        plot-data.x_200_m,
+        mark: none,
+        label: [Python reference],
+      ),
+    ),
+    caption: [Cart position over 200 s.],
+  ),
+  figure(
+    lq.diagram(
+      width: 100%,
+      height: 4.2cm,
+      xlabel: [Time, $t$ (s)],
+      ylabel: [Pendulum angle, $theta$ (rad)],
+      xlim: (0, 200),
+      lq.plot(
+        plot-data.time_200_s,
+        plot-data.theta_200_rad,
+        mark: none,
+        label: [Python reference],
+      ),
+    ),
+    caption: [Pendulum angle over 200 s.],
+  ),
+)
+
+#pagebreak()
+#set page(paper: "us-letter", margin: 1in)
 
 = Results and Discussion
 
-#figure(
-  image("response_comparison.png", width: 100%),
-  caption: [Cart position and pendulum angle from the direct-equations and physical-component models.],
-)
+The five-degree perturbation grows immediately because the upright equilibrium is unstable. The pendulum falls through the downward equilibrium and continues into a damped oscillation about $theta=pi$ rad. Over 20 s, the Python reference predicts $-0.183 <= x <= 0.217$ m and $0.087 <= theta <= 5.947$ rad. The cart remains bounded because there is no external horizontal force, while pivot damping gradually removes mechanical energy and contracts the angular oscillation about the downward equilibrium.
 
-The five-degree perturbation grows immediately because the upright equilibrium is unstable. The pendulum falls through the downward equilibrium and continues into a damped oscillation about $theta=pi$ rad. Over 20 s, the direct model predicts $-0.183 <= x <= 0.217$ m and $0.087 <= theta <= 5.947$ rad. The cart remains bounded because there is no external horizontal force, while pivot damping gradually removes mechanical energy and contracts the angular oscillation about the downward equilibrium.
-
-The two independently constructed responses nearly overlap throughout the simulation. Their maximum absolute differences are 0.014 m in $x$ and 0.056 rad in $theta$. The small phase separation late in the record is expected because the release begins near an unstable equilibrium, where small numerical and geometric differences amplify before damping dominates. The agreement supports both the nonlinear equation implementation and the orientation, gravity, damping, and sensing choices in the Multibody model.
+The Simulink and Simscape Multibody responses closely match the Python reference over the validated 20 s interval. Their maximum absolute differences are 0.014 m in $x$ and 0.056 rad in $theta$. The small phase separation late in the record is expected because the release begins near an unstable equilibrium, where small numerical and geometric differences amplify before damping dominates. The agreement supports both the nonlinear equation implementation and the orientation, gravity, damping, and sensing choices in the Multibody model.
 
 #pagebreak()
 #set page(width: 11in, height: 8.5in, margin: 0.55in)
