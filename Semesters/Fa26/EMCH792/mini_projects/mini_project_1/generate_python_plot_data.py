@@ -46,6 +46,9 @@ if not solution.success:
 
 
 data = {
+    "time_10_s": time[time <= 10.0].tolist(),
+    "x_10_m": solution.y[0, time <= 10.0].tolist(),
+    "theta_10_rad": solution.y[2, time <= 10.0].tolist(),
     "time_20_s": time[time <= 20.0].tolist(),
     "x_20_m": solution.y[0, time <= 20.0].tolist(),
     "theta_20_rad": solution.y[2, time <= 20.0].tolist(),
