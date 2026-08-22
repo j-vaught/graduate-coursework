@@ -87,17 +87,18 @@ The two independently constructed responses nearly overlap throughout the simula
 #pagebreak()
 #set page(paper: "us-letter", margin: 1in)
 
-= Appendix D. Reproducible MATLAB Build and Simulation Code
+= Appendix D. Simulink MATLAB Function Block
+
+The saved Simulink model contains the standard Constant, Integrator, and To Workspace blocks shown in Appendix A. The only custom code needed inside the model is the MATLAB Function block that evaluates the nonlinear equations of motion.
 
 #show raw.where(block: true): it => block(
   width: 100%,
   fill: rgb("#ECECEC"),
   stroke: 0.5pt + rgb("#A2A2A2"),
-  inset: 7pt,
-  breakable: true,
+  inset: 9pt,
 )[
-  #set text(font: "DejaVu Sans Mono", size: 6.4pt)
+  #set text(font: "DejaVu Sans Mono", size: 8.5pt)
   #it
 ]
 
-#raw(read("build_mini_project_1.m"), lang: "matlab", block: true)
+#raw(read("simulink_accelerations.m"), lang: "matlab", block: true)
