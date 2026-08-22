@@ -21,6 +21,7 @@ blocks_to_remove = [
 for index = 1:numel(blocks_to_remove)
     block_path = output_model + "/" + blocks_to_remove(index);
     if getSimulinkBlockHandle(block_path) ~= -1
+        delete_connected_lines(block_path);
         delete_block(block_path);
     end
 end
@@ -56,4 +57,16 @@ set_param(output_model, "Location", [80, 80, 1350, 720]);
 save_system(output_model);
 open_system(output_model);
 set_param(output_model, "ZoomFactor", "FitSystem");
+end
+
+function delete_connected_lines(block_path)
+line_handles = get_param(block_path, "LineHandles");
+port_groups = fieldnames(line_handles);
+for group_index = 1:numel(port_groups)
+    handles = unique(line_handles.(port_groups{group_index}));
+    handles = handles(handles ~= -1);
+    for handle_index = 1:numel(handles)
+        delete_line(handles(handle_index));
+    end
+end
 end
