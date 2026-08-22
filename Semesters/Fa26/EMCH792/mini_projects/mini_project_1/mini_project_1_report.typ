@@ -62,7 +62,7 @@ The two independently constructed responses nearly overlap throughout the simula
 = Appendix A. Direct-Equations Simulink Model
 
 #figure(
-  image("simulink_model.png", width: 100%),
+  image("simulink_model_diagram.png", width: 100%),
   caption: [Editable Simulink implementation of the nonlinear mass-matrix equations.],
 )
 
