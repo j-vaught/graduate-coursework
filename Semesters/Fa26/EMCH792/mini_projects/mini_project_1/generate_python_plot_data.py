@@ -48,12 +48,12 @@ if not solution.success:
 data = {
     "time_10_s": time[time <= 10.0].tolist(),
     "x_10_m": solution.y[0, time <= 10.0].tolist(),
-    "theta_10_rad": solution.y[2, time <= 10.0].tolist(),
+    "theta_10_deg": np.rad2deg(solution.y[2, time <= 10.0]).tolist(),
     "time_20_s": time[time <= 20.0].tolist(),
     "x_20_m": solution.y[0, time <= 20.0].tolist(),
     "theta_20_rad": solution.y[2, time <= 20.0].tolist(),
     "time_200_s": time.tolist(),
     "x_200_m": solution.y[0].tolist(),
-    "theta_200_rad": solution.y[2].tolist(),
+    "theta_200_deg": np.rad2deg(solution.y[2]).tolist(),
 }
 Path("python_plot_data.json").write_text(json.dumps(data), encoding="utf-8")

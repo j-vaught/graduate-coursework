@@ -66,19 +66,13 @@ $
 At each Simulink time step, the two equations are assembled as a $2 times 2$ mass-matrix system and solved for $dot.double(x)$ and $dot.double(theta)$. Two integrator chains recover $x(t)$ and $theta(t)$. The second model uses a world frame, a prismatic cart joint, a damped revolute pivot, a rigid transform of length $ell$, and a concentrated spherical mass. Both models use $M=2.0$ kg, $m=0.5$ kg, $ell=1.0$ m, $c_theta=0.01$ $N dot m dot s / "rad"$, $g=9.81$ $m / s^2$, and $theta(0)=5 degree$. Variable-step solvers run for 20 s with a maximum step of 0.01 s.
 
 The two responses are interpolated onto a common 0.01 s time grid. Agreement is assessed from the maximum absolute difference in cart position and pendulum angle over the simulation interval.
-]
 
-#pagebreak()
+  = Results
 
-= Results
-
-#grid(
-  columns: 1,
-  gutter: 0.15in,
-  figure(
+  #figure(
     lq.diagram(
-      width: 6.5in,
-      height: 2.45in,
+      width: 100%,
+      height: 2in,
       xlabel: [Time, $t$ (s)],
       ylabel: [Cart position, $x$ (m)],
       xlim: (0, 10),
@@ -98,35 +92,37 @@ The two responses are interpolated onto a common 0.01 s time grid. Agreement is 
       ),
     ),
     caption: [Cart position over 10 s.],
-  ),
-  figure(
+  )
+
+  #figure(
     lq.diagram(
-      width: 6.5in,
-      height: 2.45in,
+      width: 100%,
+      height: 2in,
       xlabel: [Time, $t$ (s)],
-      ylabel: [Pendulum angle, $theta$ (rad)],
+      ylabel: [Pendulum angle, $theta$ (degree)],
       xlim: (0, 10),
       lq.plot(
         plot-data.time_10_s,
-        plot-data.theta_10_rad,
+        plot-data.theta_10_deg,
         mark: none,
         stroke: solid-stroke,
         label: [SimScape],
       ),
       lq.plot(
         plot-data.time_10_s,
-        plot-data.theta_10_rad,
+        plot-data.theta_10_deg,
         mark: none,
         stroke: dashed-stroke,
         label: [Simulink],
       ),
     ),
     caption: [Pendulum angle over 10 s.],
-  ),
-  figure(
+  )
+
+  #figure(
     lq.diagram(
-      width: 6.5in,
-      height: 2.45in,
+      width: 100%,
+      height: 2in,
       xlabel: [Time, $t$ (s)],
       ylabel: [Cart position, $x$ (m)],
       xlim: (0, 200),
@@ -146,77 +142,61 @@ The two responses are interpolated onto a common 0.01 s time grid. Agreement is 
       ),
     ),
     caption: [Cart position over 200 s.],
-  ),
-  figure(
+  )
+
+  #figure(
     lq.diagram(
-      width: 6.5in,
-      height: 2.45in,
+      width: 100%,
+      height: 2in,
       xlabel: [Time, $t$ (s)],
-      ylabel: [Pendulum angle, $theta$ (rad)],
+      ylabel: [Pendulum angle, $theta$ (degree)],
       xlim: (0, 200),
       lq.plot(
         plot-data.time_200_s,
-        plot-data.theta_200_rad,
+        plot-data.theta_200_deg,
         mark: none,
         stroke: solid-stroke,
         label: [SimScape],
       ),
       lq.plot(
         plot-data.time_200_s,
-        plot-data.theta_200_rad,
+        plot-data.theta_200_deg,
         mark: none,
         stroke: dashed-stroke,
         label: [Simulink],
       ),
     ),
     caption: [Pendulum angle over 200 s.],
-  ),
-)
+  )
 
-#pagebreak()
-
-#columns(2, gutter: 0.25in)[
   = Results and Discussion
 
-The five-degree perturbation grows immediately because the upright equilibrium is unstable. The pendulum falls through the downward equilibrium and continues into a damped oscillation about $theta=pi$ rad. Over 20 s, the Python reference predicts $-0.183 <= x <= 0.217$ m and $0.087 <= theta <= 5.947$ rad. The cart remains bounded because there is no external horizontal force, while pivot damping gradually removes mechanical energy and contracts the angular oscillation about the downward equilibrium.
+  The five-degree perturbation grows immediately because the upright equilibrium is unstable. The pendulum falls through the downward equilibrium and continues into a damped oscillation about $theta=pi$ rad. Over 20 s, the Python reference predicts $-0.183 <= x <= 0.217$ m and $0.087 <= theta <= 5.947$ rad. The cart remains bounded because there is no external horizontal force, while pivot damping gradually removes mechanical energy and contracts the angular oscillation about the downward equilibrium.
 
-The Simulink and Simscape Multibody responses closely match the Python reference over the validated 20 s interval. Their maximum absolute differences are 0.014 m in $x$ and 0.056 rad in $theta$. The small phase separation late in the record is expected because the release begins near an unstable equilibrium, where small numerical and geometric differences amplify before damping dominates. The agreement supports both the nonlinear equation implementation and the orientation, gravity, damping, and sensing choices in the Multibody model.
+  The Simulink and Simscape Multibody responses closely match the Python reference over the validated 20 s interval. Their maximum absolute differences are 0.014 m in $x$ and 0.056 rad in $theta$. The small phase separation late in the record is expected because the release begins near an unstable equilibrium, where small numerical and geometric differences amplify before damping dominates. The agreement supports both the nonlinear equation implementation and the orientation, gravity, damping, and sensing choices in the Multibody model.
+
 ]
 
 #pagebreak()
 
 = Appendix
 
-== Direct-Equations Simulink Model
-
 #figure(
-  image("simulink_model_diagram.png", width: 6.5in),
+  image("simulink_model_diagram.png", width: 100%),
   caption: [Editable Simulink implementation of the nonlinear mass-matrix equations.],
 )
 
-#pagebreak()
-
-== Simscape Multibody Model
-
 #figure(
-  image("multibody_model_diagram.png", width: 6.5in),
+  image("multibody_model_diagram.png", width: 100%),
   caption: [Simscape Multibody block diagram.],
 )
 
-#pagebreak()
-
-== Mechanics Explorer Model
-
 #figure(
-  image("multibody_model_mechanics_explorer.png", width: 6.5in),
+  image("multibody_model_mechanics_explorer.png", width: 100%),
   caption: [Mechanics Explorer view of the cart, ruler, pendulum rod, and point mass.],
 )
 
-#pagebreak()
-
-== Simulink MATLAB Function Block
-
-The saved Simulink model contains the standard Constant, Integrator, and To Workspace blocks shown in Appendix A. The only custom code needed inside the model is the MATLAB Function block that evaluates the nonlinear equations of motion.
+The saved Simulink model contains the standard Constant, Integrator, and To Workspace blocks shown in the Direct-Equations Simulink Model figure. The only custom code needed inside the model is the MATLAB Function block that evaluates the nonlinear equations of motion.
 
 #show raw.where(block: true): it => block(
   width: 100%,
