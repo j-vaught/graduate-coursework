@@ -193,11 +193,6 @@ $
 
   Additionally, it is clearly seen that as the pendulum swings to and fro, the cart gets pulled along with it. This is a direct consequence of conservation of momentum. No external horizontal force acts on the system, so the center of mass stays fixed and the cart oscillates about a constant mean. Meanwhile, the viscous damper at the pivot slowly bleeds energy out of the swing, so the pendulum settles toward the hanging position at $theta = 180 degree$ in Figure 4. The decay takes the full 200 seconds because $c_theta$ is small.
 
-
-  In summary, I have learned plenty. Deriving the equations by hand and rebuilding the same system from physical components are genuinely different exercises, and having them agree is a much stronger check than either one alone.
-
-  As a parting note, the validated model captures both the instability upright and the slow damped settling, exactly what a future controller must handle.
-
 ]
 
 #pagebreak()
