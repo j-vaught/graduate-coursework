@@ -14,7 +14,7 @@
         let beam-bottom = 32
         let beam-top = 36
         let motor-x = 98
-        let motor-y = 44.5
+        let motor-y = 44.4
         let motor-radius = 4.8
 
         let outline = (
