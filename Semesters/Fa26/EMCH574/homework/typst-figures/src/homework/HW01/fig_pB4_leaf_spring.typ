@@ -104,7 +104,7 @@
         // Layer 4. A single bent mounting bar wraps under the axle and
         // returns to the spring seat on both sides.
         let mount-points = (
-          (center-x - 5.2, center-y + 1.7),
+          (center-x - 5.2, center-y - 5.2),
           (center-x - 5.2, wheel-y),
         )
         for index in range(17) {
@@ -114,7 +114,7 @@
             wheel-y + 5.2 * calc.sin(angle),
           ))
         }
-        mount-points.push((center-x + 5.2, center-y + 1.7))
+        mount-points.push((center-x + 5.2, center-y - 5.2))
         draw.line(
           ..mount-points,
           stroke: (
@@ -125,8 +125,8 @@
           ),
         )
         draw.line(
-          (center-x - 9, center-y + 1.7),
-          (center-x + 9, center-y + 1.7),
+          (center-x - 9, center-y - 5.2),
+          (center-x + 9, center-y - 5.2),
           stroke: (
             paint: mount-color,
             thickness: 3.0pt,
