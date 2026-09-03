@@ -14,7 +14,7 @@
         let beam-bottom = 32
         let beam-top = 36
         let motor-x = 98
-        let motor-y = 45
+        let motor-y = 44.5
         let motor-radius = 4.8
 
         let outline = (
@@ -27,6 +27,19 @@
           paint: color-ink,
           thickness: 0.75pt,
           cap: "butt",
+        )
+
+        // Dimension extensions are the back layer so the structure masks
+        // them wherever they pass behind the wall, beam, or motor assembly.
+        draw.line(
+          (beam-left, beam-top + 1),
+          (beam-left, 58),
+          stroke: mechanics-reference-style.stroke,
+        )
+        draw.line(
+          (beam-right, beam-top + 1),
+          (beam-right, 58),
+          stroke: mechanics-reference-style.stroke,
         )
 
         // Proper fixed wall support with the hatching outside the beam span.
@@ -75,16 +88,6 @@
             fill: color-ink,
             ..arrow-small,
           ),
-        )
-        draw.line(
-          (beam-left, beam-top + 1),
-          (beam-left, 58),
-          stroke: mechanics-reference-style.stroke,
-        )
-        draw.line(
-          (beam-right, beam-top + 1),
-          (beam-right, 58),
-          stroke: mechanics-reference-style.stroke,
         )
         draw.content(
           ((beam-left + beam-right) / 2, 59),
