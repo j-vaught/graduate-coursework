@@ -77,7 +77,7 @@
   spring-length: 22,
   mass-width: 11,
   mass-height: 11,
-  displacement-length: 13,
+  displacement-length: 18,
 ) = {
   let origin-x = origin.at(0)
   let origin-y = origin.at(1)
@@ -85,7 +85,6 @@
   let mass-right = mass-left + mass-width
   let mass-bottom = origin-y - mass-height / 2
   let mass-top = origin-y + mass-height / 2
-  let displacement-y = mass-top + 3
 
   fixed-support(
     (origin-x, origin-y + 7.5),
@@ -113,20 +112,11 @@
     ((mass-left + mass-right) / 2, origin-y),
     homework-math[$m$],
   )
-  draw.line(
-    (mass-left - 1, displacement-y),
-    (mass-left + displacement-length, displacement-y),
-    stroke: (
-      paint: color-displacement,
-      thickness: line-normal,
-      dash: "dashed",
-      cap: "butt",
-      join: "miter",
-    ),
-    mark: (fill: color-displacement, ..arrow-medium),
-  )
-  draw.content(
-    (mass-left + displacement-length / 2 - 0.5, displacement-y + 2.5),
-    homework-math[$u$],
+  displacement-indicator(
+    (mass-left, mass-top + 4),
+    length: displacement-length,
+    label: homework-math[$u(t)$],
+    label-offset: 2.6,
+    extension: 2,
   )
 }

@@ -18,7 +18,7 @@
         component-length,
         state-label,
         displacement: false,
-        applied-force: false,
+        force-label: none,
       ) = {
         let mass-left = wall-x + component-length
         let mass-right = mass-left + mass-width
@@ -63,17 +63,17 @@
           homework-math[$m$],
         )
         if displacement {
-          let rest-center = wall-x + rest-length + mass-width / 2
-          let excited-center = mass-left + mass-width / 2
+          let rest-left = wall-x + rest-length
+          let excited-left = mass-left
           displacement-indicator(
-            (rest-center, mass-top + 5),
-            length: excited-center - rest-center,
+            (rest-left, mass-top + 5),
+            length: excited-left - rest-left,
             label: homework-math[$u(t)$],
             label-offset: 2.8,
             extension: 2.2,
           )
         }
-        if applied-force {
+        if force-label != none {
           draw.line(
             (mass-right, center-y),
             (mass-right + 20, center-y),
@@ -82,7 +82,7 @@
           draw.content(
             (mass-right + 22, center-y),
             anchor: "west",
-            homework-math[$F(t)$],
+            homework-math(force-label),
           )
         }
         draw.content(
@@ -92,13 +92,18 @@
         )
       }
 
-      physical-row(67, rest-length, [at rest])
+      physical-row(
+        67,
+        rest-length,
+        [at rest],
+        force-label: [$F(t) = 0$],
+      )
       physical-row(
         40,
         excited-length,
         [excited by ] + homework-math[$F(t)$],
         displacement: true,
-        applied-force: true,
+        force-label: [$F(t)$],
       )
 
       let fbd-y = 12
