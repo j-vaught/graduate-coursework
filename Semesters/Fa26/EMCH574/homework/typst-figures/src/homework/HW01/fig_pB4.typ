@@ -252,7 +252,7 @@
 
         // Vertical spring-mass-damper idealization at right.
         draw.group({
-          draw.set-origin((110, 0))
+          draw.set-origin((110, -3))
 
           let ground-y = 4
           let component-length = 34
@@ -309,10 +309,6 @@
             label: homework-math[$u(t)$],
             label-offset: -3,
             extension: 2,
-          )
-          draw.content(
-            (25, ground-y - 5.5),
-            text(fill: color-ink, size: 8pt)[road datum],
           )
         })
       },
