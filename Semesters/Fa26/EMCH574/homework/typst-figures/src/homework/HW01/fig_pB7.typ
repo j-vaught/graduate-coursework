@@ -1,0 +1,133 @@
+#import "/styles/figure.typ": *
+#import "/styles/homework-components.typ": homework-math
+
+// Damped cantilever beam with a slightly unbalanced tip-mounted motor.
+
+#standalone(
+  full-width-artboard(
+    cetz-canvas(
+      length: 1mm,
+      {
+        let wall-x = 10
+        let beam-left = wall-x
+        let beam-right = 105
+        let beam-bottom = 32
+        let beam-top = 36
+        let motor-x = 92
+        let motor-y = 47
+
+        let outline = (
+          paint: color-ink,
+          thickness: 1.1pt,
+          cap: "butt",
+          join: "miter",
+        )
+        let dimension-stroke = (
+          paint: color-ink,
+          thickness: 0.75pt,
+          cap: "butt",
+        )
+
+        // Proper fixed wall support with the hatching outside the beam span.
+        fixed-support(
+          (wall-x, 17),
+          length: 34,
+          direction: 90deg,
+          hatch-side: 1,
+        )
+
+        // Uniform cantilever beam.
+        draw.rect(
+          (beam-left, beam-bottom),
+          (beam-right, beam-top),
+          fill: color-surface,
+          stroke: outline,
+        )
+
+        // Motor mounting foot and motor mass.
+        draw.line(
+          (84, beam-top),
+          (88, 41.5),
+          (96, 41.5),
+          (100, beam-top),
+          close: true,
+          fill: color-background,
+          stroke: outline,
+        )
+        draw.circle(
+          (motor-x, motor-y),
+          radius: 6,
+          fill: color-surface-strong,
+          stroke: outline,
+        )
+        draw.content(
+          (motor-x, motor-y),
+          homework-math[$m$],
+        )
+        draw.content(
+          (101, motor-y),
+          anchor: "west",
+          homework-math[$F(t)$],
+        )
+
+        // Beam length dimension.
+        draw.line(
+          (beam-left, 56),
+          (beam-right, 56),
+          stroke: dimension-stroke,
+          mark: (
+            start: arrow-head-shape,
+            fill: color-ink,
+            ..arrow-small,
+          ),
+        )
+        draw.line(
+          (beam-left, beam-top + 1),
+          (beam-left, 58),
+          stroke: mechanics-reference-style.stroke,
+        )
+        draw.line(
+          (beam-right, beam-top + 1),
+          (beam-right, 58),
+          stroke: mechanics-reference-style.stroke,
+        )
+        draw.content(
+          ((beam-left + beam-right) / 2, 59),
+          homework-math[$L$],
+        )
+
+        // Downward tip displacement, using the standard ticked indicator.
+        displacement-indicator(
+          (112, beam-top),
+          length: 20,
+          angle: -90deg,
+          label: homework-math[$u$],
+          label-offset: -3,
+          extension: 2,
+        )
+
+        draw.content(
+          ((beam-left + beam-right) / 2, 25),
+          homework-math[$E, h, b, zeta$],
+        )
+
+        // Rectangular beam cross-section.
+        draw.rect(
+          (48, 5),
+          (72, 13),
+          fill: color-background,
+          stroke: outline,
+        )
+        draw.content(
+          (60, 16.5),
+          homework-math[$b$],
+        )
+        draw.content(
+          (75, 9),
+          anchor: "west",
+          homework-math[$h$],
+        )
+      },
+    ),
+  ),
+)
