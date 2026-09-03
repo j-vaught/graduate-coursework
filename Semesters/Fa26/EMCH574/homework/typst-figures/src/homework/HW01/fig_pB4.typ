@@ -53,7 +53,7 @@
       {
         // Physical leaf-spring suspension at left.
         draw.group({
-          draw.set-origin((-5, 0))
+          draw.set-origin((-3, 0))
 
           let left-eye = 16
           let right-eye = 94
@@ -241,9 +241,13 @@
             stroke: none,
           )
 
-          callout([truck frame], (11, 63.5), (34, 64), (38, 68))
+          draw.content(
+            (11, 63.5),
+            anchor: "west",
+            text(fill: color-ink, size: 8pt)[truck frame],
+          )
           callout([damper], (65, 55), (63, 53.5), (57.2, 50))
-          callout([leaf spring], (87, 28.5), (89, 30), (75, 37), anchor: "east")
+          callout([leaf spring], (90, 25.5), (88.5, 27), (74, 30.7))
         })
 
         // Vertical spring-mass-damper idealization at right.
@@ -298,15 +302,13 @@
             ((mass-left + mass-right) / 2, (mass-bottom + mass-top) / 2),
             homework-math[$m$],
           )
-          draw.line(
+          displacement-indicator(
             (mass-right, mass-top),
-            (mass-right, mass-top + 18),
-            ..mechanics-displacement-style,
-          )
-          draw.content(
-            (mass-right + 3, mass-top + 9),
-            anchor: "west",
-            homework-math[$u(t)$],
+            length: 18,
+            angle: 90deg,
+            label: homework-math[$u(t)$],
+            label-offset: -3,
+            extension: 2,
           )
           draw.content(
             (25, ground-y - 5.5),
