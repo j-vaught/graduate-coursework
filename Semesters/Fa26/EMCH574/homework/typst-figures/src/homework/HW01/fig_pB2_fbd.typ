@@ -3,9 +3,10 @@
 
 // figure-pipeline: kind=mechanics
 #standalone(
-  cetz-canvas(
-    length: 1mm,
-    {
+  full-width-artboard(
+    cetz-canvas(
+      length: 1mm,
+      {
       let center-y = 13
       let mass-left = 28
       let mass-right = 42
@@ -51,6 +52,8 @@
         (mass-right + acceleration-length / 2, center-y + 3),
         homework-math[$dot.double(u)(t)$],
       )
-    },
+      },
+    ),
+    placement: "right",
   ),
 )

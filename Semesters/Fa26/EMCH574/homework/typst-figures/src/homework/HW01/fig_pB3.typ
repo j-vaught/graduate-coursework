@@ -3,9 +3,10 @@
 
 // figure-pipeline: kind=mechanics
 #standalone(
-  cetz-canvas(
-    length: 1mm,
-    {
+  full-width-artboard(
+    cetz-canvas(
+      length: 1mm,
+      {
       let wall-x = 4
       let center-y = 13
       let component-length = 31
@@ -53,10 +54,11 @@
       displacement-indicator(
         (mass-left, mass-top + 4),
         length: 18,
-        label: homework-math[$u$],
+        label: homework-math[$u(t)$],
         label-offset: 2.6,
         extension: 2,
       )
-    },
+      },
+    ),
   ),
 )

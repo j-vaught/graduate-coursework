@@ -3,9 +3,10 @@
 
 // figure-pipeline: kind=mechanics
 #standalone(
-  cetz-canvas(
-    length: 1mm,
-    {
+  full-width-artboard(
+    cetz-canvas(
+      length: 1mm,
+      {
       let wall-x = 4
       let center-y = 13
       let component-length = 34
@@ -57,6 +58,8 @@
         label-offset: 2.6,
         extension: 2,
       )
-    },
+      },
+    ),
+    placement: "left",
   ),
 )

@@ -3,9 +3,10 @@
 
 // figure-pipeline: kind=mechanics
 #standalone(
-  cetz-canvas(
-    length: 1mm,
-    {
+  full-width-artboard(
+    cetz-canvas(
+      length: 1mm,
+      {
       let wall-x = 4
       let rest-length = 35
       let excited-length = 61
@@ -168,6 +169,7 @@
         anchor: "west",
         text(fill: color-ink)[free-body diagram],
       )
-    },
+      },
+    ),
   ),
 )

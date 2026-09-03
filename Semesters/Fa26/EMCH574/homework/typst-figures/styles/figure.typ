@@ -10,6 +10,26 @@
 #let cetz-canvas = cetz.canvas
 #let draw = cetz.draw
 
+// Place a mechanics diagram on the standard full-width figure artboard.
+// Panel placement keeps independently generated left/right diagrams aligned
+// to the same page-width reference without changing their authored scale.
+#let full-width-artboard(body, placement: "center") = {
+  assert(
+    placement in ("center", "left", "right"),
+    message: "placement must be center, left, or right",
+  )
+  let artboard-width = figure-content-width("full")
+  let panel-width = artboard-width / 2
+  let positioned = if placement == "center" {
+    align(center, body)
+  } else if placement == "left" {
+    align(left, box(width: panel-width, align(center, body)))
+  } else {
+    align(right, box(width: panel-width, align(center, body)))
+  }
+  box(width: artboard-width, positioned)
+}
+
 // Standard negative-feedback summing junction. The offsets are proportional
 // to the radius so the operator marks retain their placement at custom sizes.
 #let summing-node(
