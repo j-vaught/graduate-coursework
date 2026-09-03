@@ -41,10 +41,10 @@
         let wheel-y = 22.5
         let damper-x = center-x
 
-        let tire-color = rgb("#41484c")
-        let wheel-color = rgb("#c8cdd0")
+        let tire-color = rgb("#c8cdd0")
+        let wheel-color = rgb("#ffffff")
         let axle-color = rgb("#000000")
-        let mount-color = rgb("#000000")
+        let mount-color = rgb("#a2a2a2")
         let leaf-color = color-secondary
         let damper-rod-color = rgb("#000000")
         let damper-body-color = color-secondary
@@ -82,7 +82,7 @@
           hatch-side: -1,
         )
 
-        // Layer 1. Dark-gray tire.
+        // Layer 1. Light-gray tire.
         draw.circle(
           (center-x, wheel-y),
           radius: 21.5,
@@ -90,7 +90,7 @@
           stroke: black-stroke,
         )
 
-        // Layer 2. Silver wheel.
+        // Layer 2. White wheel.
         draw.circle(
           (center-x, wheel-y),
           radius: 13,
@@ -181,8 +181,8 @@
           ),
         )
         draw.rect(
-          (damper-x - 2.7, 41),
-          (damper-x + 2.7, 57.4),
+          (damper-x - 2.2, 41),
+          (damper-x + 2.2, 57.4),
           fill: damper-body-color,
           stroke: none,
         )
