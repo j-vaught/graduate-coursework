@@ -142,23 +142,25 @@
         anchor: "east",
         homework-math[$c dot(u)(t)$],
       )
+      let applied-force-y = fbd-y + 3.5
       draw.line(
-        (fbd-right, fbd-y),
-        (fbd-right + 20, fbd-y),
+        (fbd-right, applied-force-y),
+        (fbd-right + 20, applied-force-y),
         ..mechanics-force-style,
       )
       draw.content(
-        (fbd-right + 22, fbd-y),
+        (fbd-right + 22, applied-force-y),
         anchor: "west",
         homework-math[$F(t)$],
       )
+      let acceleration-y = fbd-y - 3.5
       draw.line(
-        ((fbd-left + fbd-right) / 2 - 6, fbd-y - 11),
-        ((fbd-left + fbd-right) / 2 + 10, fbd-y - 11),
-        ..mechanics-displacement-style,
+        (fbd-right, acceleration-y),
+        (fbd-right + 20, acceleration-y),
+        ..mechanics-force-style,
       )
       draw.content(
-        ((fbd-left + fbd-right) / 2 + 2, fbd-y - 14),
+        (fbd-right + 10, acceleration-y - 3),
         homework-math[$dot.double(u)(t)$],
       )
       draw.content(
