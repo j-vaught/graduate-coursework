@@ -46,8 +46,8 @@
         let axle-color = rgb("#000000")
         let mount-color = rgb("#000000")
         let leaf-color = color-secondary
-        let damper-rod-color = color-secondary
-        let damper-body-color = rgb("#000000")
+        let damper-rod-color = rgb("#000000")
+        let damper-body-color = color-secondary
         let frame-color = rgb("#e4e6e7")
 
         let black-stroke = (
@@ -109,7 +109,7 @@
         // Layer 4. A single bent mounting bar wraps under the axle and
         // returns to the spring seat on both sides.
         let mount-points = (
-          (center-x - 5.2, center-y - 6.5),
+          (center-x - 5.2, center-y - 5.75),
           (center-x - 5.2, wheel-y),
         )
         for index in range(17) {
@@ -119,7 +119,7 @@
             wheel-y + 5.2 * calc.sin(angle),
           ))
         }
-        mount-points.push((center-x + 5.2, center-y - 6.5))
+        mount-points.push((center-x + 5.2, center-y - 5.75))
         draw.line(
           ..mount-points,
           stroke: (
@@ -130,8 +130,8 @@
           ),
         )
         draw.line(
-          (center-x - 9, center-y - 6.5),
-          (center-x + 9, center-y - 6.5),
+          (center-x - 9, center-y - 5.75),
+          (center-x + 9, center-y - 5.75),
           stroke: (
             paint: mount-color,
             thickness: 3.0pt,
@@ -169,10 +169,10 @@
           stroke: spring-eye-stroke,
         )
 
-        // Layer 6. Two-tone vertical damper. The thin teal rod enters the
-        // black upper tube, and its lower eye lands on the axle mount.
+        // Layer 6. Two-tone vertical damper. The thin black rod enters the
+        // teal upper tube, and its lower eye lands on the axle mount.
         draw.line(
-          (damper-x, wheel-y + 4.2),
+          (damper-x, wheel-y + 4.8),
           (damper-x, 43),
           stroke: (
             paint: damper-rod-color,
@@ -187,7 +187,7 @@
           stroke: none,
         )
         draw.circle(
-          (damper-x, wheel-y + 4.2),
+          (damper-x, wheel-y + 4.8),
           radius: 1.05,
           fill: damper-rod-color,
           stroke: none,
