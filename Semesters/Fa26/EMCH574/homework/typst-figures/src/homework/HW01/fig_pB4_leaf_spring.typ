@@ -58,13 +58,13 @@
         )
         let leaf-stroke = (
           paint: leaf-color,
-          thickness: 1.05pt,
+          thickness: 1.75pt,
           cap: "butt",
           join: "miter",
         )
         let master-stroke = (
           paint: leaf-color,
-          thickness: 1.35pt,
+          thickness: 1.75pt,
           cap: "butt",
           join: "miter",
         )
