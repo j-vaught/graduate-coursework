@@ -14,7 +14,7 @@
         let beam-bottom = 32
         let beam-top = 36
         let motor-x = 92
-        let motor-y = 47
+        let motor-y = 46.5
 
         let outline = (
           paint: color-ink,
@@ -64,12 +64,6 @@
           (motor-x, motor-y),
           homework-math[$m$],
         )
-        draw.content(
-          (101, motor-y),
-          anchor: "west",
-          homework-math[$F(t)$],
-        )
-
         // Beam length dimension.
         draw.line(
           (beam-left, 56),
@@ -111,22 +105,6 @@
           homework-math[$E, h, b, zeta$],
         )
 
-        // Rectangular beam cross-section.
-        draw.rect(
-          (48, 5),
-          (72, 13),
-          fill: color-background,
-          stroke: outline,
-        )
-        draw.content(
-          (60, 16.5),
-          homework-math[$b$],
-        )
-        draw.content(
-          (75, 9),
-          anchor: "west",
-          homework-math[$h$],
-        )
       },
     ),
   ),
