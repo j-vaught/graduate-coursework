@@ -247,7 +247,7 @@
             text(fill: color-ink, size: 8pt)[truck frame],
           )
           callout([damper], (65, 55), (63, 53.5), (57.2, 50))
-          callout([leaf spring], (90, 25.5), (88.5, 27), (74, 30.7))
+          callout([leaf spring], (90, 25.5), (88.5, 27), (77, 32))
         })
 
         // Vertical spring-mass-damper idealization at right.
@@ -303,7 +303,7 @@
             homework-math[$m$],
           )
           displacement-indicator(
-            (mass-right, mass-top),
+            (mass-right + 2, mass-top),
             length: 18,
             angle: 90deg,
             label: homework-math[$u(t)$],
