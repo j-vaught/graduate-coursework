@@ -169,8 +169,8 @@
           stroke: spring-eye-stroke,
         )
 
-        // Layer 6. Two-tone vertical damper. The thin black rod enters the
-        // teal upper tube, and its lower eye lands on the axle mount.
+        // Layer 6. Two-tone vertical damper. Black rods connect the shorter
+        // teal tube to the axle mount below and truck frame above.
         draw.line(
           (damper-x, wheel-y + 4.8),
           (damper-x, 43),
@@ -182,9 +182,18 @@
         )
         draw.rect(
           (damper-x - 2.2, 41),
-          (damper-x + 2.2, 57.4),
+          (damper-x + 2.2, 54.4),
           fill: damper-body-color,
           stroke: none,
+        )
+        draw.line(
+          (damper-x, 54.4),
+          (damper-x, 58),
+          stroke: (
+            paint: damper-rod-color,
+            thickness: 1.4pt,
+            cap: "butt",
+          ),
         )
         draw.circle(
           (damper-x, wheel-y + 4.8),
