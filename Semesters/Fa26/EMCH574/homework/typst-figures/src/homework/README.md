@@ -15,6 +15,8 @@ Every figure should import the shared facade and use the standalone wrapper. A c
 )
 ```
 
+Shared homework constructors are defined in `../../styles/homework-components.typ`. The current set provides the textbook-style fixed supports, pendulum schematic, projectile indicator, and horizontal spring-mass schematic used by HW01. The pendulum constructor uses a circular bob, while the spring-mass constructor retains a square translating mass.
+
 Mechanical schematics use `kind=mechanics`. Quantitative plots use `kind=plot`, declare a `width-profile=full` or `width-profile=half` comment, and call `book-diagram` so that Lilaq receives the common plot theme.
 
 Compile a new figure from the `typst-figures` directory. For example, `make figure FIGURE=src/homework/HW02/pendulum` writes `generated/homework/HW02/pendulum.pdf`.
