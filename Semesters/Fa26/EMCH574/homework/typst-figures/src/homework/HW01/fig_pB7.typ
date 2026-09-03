@@ -13,8 +13,9 @@
         let beam-right = 105
         let beam-bottom = 32
         let beam-top = 36
-        let motor-x = 92
-        let motor-y = 46.5
+        let motor-x = 98
+        let motor-y = 45
+        let motor-radius = 4.8
 
         let outline = (
           paint: color-ink,
@@ -46,17 +47,17 @@
 
         // Motor mounting foot and motor mass.
         draw.line(
-          (84, beam-top),
-          (88, 41.5),
-          (96, 41.5),
-          (100, beam-top),
+          (91.5, beam-top),
+          (94.8, 40.5),
+          (101.2, 40.5),
+          (104.5, beam-top),
           close: true,
           fill: color-background,
           stroke: outline,
         )
         draw.circle(
           (motor-x, motor-y),
-          radius: 6,
+          radius: motor-radius,
           fill: color-surface-strong,
           stroke: outline,
         )
