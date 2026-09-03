@@ -74,12 +74,6 @@
           cap: "butt",
           join: "miter",
         )
-        let rebound-clip-stroke = (
-          paint: wheel-color,
-          thickness: 4.0pt,
-          cap: "butt",
-          join: "miter",
-        )
         // Background road datum.
         fixed-support(
           (31, 1),
@@ -115,7 +109,7 @@
         // Layer 4. A single bent mounting bar wraps under the axle and
         // returns to the spring seat on both sides.
         let mount-points = (
-          (center-x - 5.2, center-y - 5.2),
+          (center-x - 5.2, center-y - 6.5),
           (center-x - 5.2, wheel-y),
         )
         for index in range(17) {
@@ -125,7 +119,7 @@
             wheel-y + 5.2 * calc.sin(angle),
           ))
         }
-        mount-points.push((center-x + 5.2, center-y - 5.2))
+        mount-points.push((center-x + 5.2, center-y - 6.5))
         draw.line(
           ..mount-points,
           stroke: (
@@ -136,8 +130,8 @@
           ),
         )
         draw.line(
-          (center-x - 9, center-y - 5.2),
-          (center-x + 9, center-y - 5.2),
+          (center-x - 9, center-y - 6.5),
+          (center-x + 9, center-y - 6.5),
           stroke: (
             paint: mount-color,
             thickness: 3.0pt,
@@ -145,7 +139,7 @@
           ),
         )
 
-        // Layer 5. Teal laminated leaf spring and its rebound clips.
+        // Layer 5. Teal laminated leaf spring.
         draw.line(
           ..leaf-profile(left-eye, right-eye, eye-y, sag),
           stroke: master-stroke,
@@ -162,8 +156,6 @@
           ..leaf-profile(left-eye, right-eye, eye-y, sag, start: 0.27, stop: 0.73, offset: 4.5),
           stroke: leaf-stroke,
         )
-        draw.line((35.5, 32), (35.5, 37.5), stroke: rebound-clip-stroke)
-        draw.line((74.5, 32), (74.5, 37.5), stroke: rebound-clip-stroke)
         draw.circle(
           (left-eye, eye-y),
           radius: 2.2,
