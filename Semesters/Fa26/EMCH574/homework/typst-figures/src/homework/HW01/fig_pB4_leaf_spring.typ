@@ -74,6 +74,12 @@
           cap: "butt",
           join: "miter",
         )
+        let rebound-clip-stroke = (
+          paint: wheel-color,
+          thickness: 4.0pt,
+          cap: "butt",
+          join: "miter",
+        )
         // Background road datum.
         fixed-support(
           (31, 1),
@@ -156,8 +162,8 @@
           ..leaf-profile(left-eye, right-eye, eye-y, sag, start: 0.27, stop: 0.73, offset: 4.5),
           stroke: leaf-stroke,
         )
-        draw.line((35.5, 35), (35.5, 40.5), stroke: leaf-stroke)
-        draw.line((74.5, 35), (74.5, 40.5), stroke: leaf-stroke)
+        draw.line((35.5, 32), (35.5, 37.5), stroke: rebound-clip-stroke)
+        draw.line((74.5, 32), (74.5, 37.5), stroke: rebound-clip-stroke)
         draw.circle(
           (left-eye, eye-y),
           radius: 2.2,
