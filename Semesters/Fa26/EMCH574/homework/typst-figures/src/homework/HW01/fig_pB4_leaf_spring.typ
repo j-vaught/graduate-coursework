@@ -232,9 +232,9 @@
         )
         draw.circle(
           (damper-x, 58),
-          radius: 1.4,
-          fill: frame-color,
-          stroke: black-stroke,
+          radius: 1.0,
+          fill: rgb("#000000"),
+          stroke: none,
         )
       },
     ),
