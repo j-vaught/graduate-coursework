@@ -58,13 +58,19 @@
         )
         let leaf-stroke = (
           paint: leaf-color,
-          thickness: 1.75pt,
+          thickness: 3.15pt,
           cap: "butt",
           join: "miter",
         )
         let master-stroke = (
           paint: leaf-color,
-          thickness: 1.75pt,
+          thickness: 3.15pt,
+          cap: "butt",
+          join: "miter",
+        )
+        let spring-eye-stroke = (
+          paint: leaf-color,
+          thickness: 1.35pt,
           cap: "butt",
           join: "miter",
         )
@@ -156,13 +162,13 @@
           (left-eye, eye-y),
           radius: 2.2,
           fill: color-background,
-          stroke: master-stroke,
+          stroke: spring-eye-stroke,
         )
         draw.circle(
           (right-eye, eye-y),
           radius: 2.2,
           fill: color-background,
-          stroke: master-stroke,
+          stroke: spring-eye-stroke,
         )
 
         // Layer 6. Two-tone vertical damper. The thin teal rod enters the
