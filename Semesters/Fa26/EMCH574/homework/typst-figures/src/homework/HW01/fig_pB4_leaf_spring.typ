@@ -1,5 +1,4 @@
 #import "/styles/figure.typ": *
-#import "/styles/homework-components.typ": homework-math
 
 // The spring centerline follows the normalized elastic curve for a centrally
 // loaded, simply supported equivalent beam. Component construction then runs
@@ -223,20 +222,6 @@
           radius: 1.4,
           fill: frame-color,
           stroke: black-stroke,
-        )
-        draw.content(
-          (55, 64),
-          text(fill: color-ink)[truck body ] + homework-math[$m$],
-        )
-        draw.content(
-          (23, 42.5),
-          anchor: "west",
-          text(fill: color-ink, size: 8pt)[leaf pack ] + homework-math[$k$],
-        )
-        draw.content(
-          (damper-x + 5, 49),
-          anchor: "west",
-          text(fill: color-ink, size: 8pt)[oil damper ] + homework-math[$c$],
         )
       },
     ),
