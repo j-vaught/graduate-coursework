@@ -9,6 +9,8 @@
       let wall-x = 4
       let rest-length = 35
       let excited-length = 61
+      let rest-center-y = 67
+      let excited-center-y = 40
       let mass-width = 14
       let mass-height = 14
       let label-x = 109
@@ -65,11 +67,13 @@
         if displacement {
           let rest-left = wall-x + rest-length
           let excited-left = mass-left
+          let rest-bottom = rest-center-y - mass-height / 2
+          let arrow-y = rest-bottom - 2.2
           displacement-indicator(
-            (rest-left, mass-top + 5),
+            (rest-left, arrow-y),
             length: excited-left - rest-left,
             label: homework-math[$u(t)$],
-            label-offset: 2.8,
+            label-offset: -3,
             extension: 2.2,
           )
         }
@@ -93,13 +97,13 @@
       }
 
       physical-row(
-        67,
+        rest-center-y,
         rest-length,
         [at rest],
         force-label: [$F(t) = 0$],
       )
       physical-row(
-        40,
+        excited-center-y,
         excited-length,
         [excited by ] + homework-math[$F(t)$],
         displacement: true,

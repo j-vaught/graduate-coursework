@@ -11,7 +11,6 @@
       let mass-right = 42
       let mass-bottom = center-y - 7
       let mass-top = center-y + 7
-      let mass-center-x = (mass-left + mass-right) / 2
       let acceleration-length = 18
 
       draw.rect(
@@ -44,12 +43,12 @@
         homework-math[$c dot(u)(t)$],
       )
       draw.line(
-        (mass-center-x - acceleration-length / 2, mass-top + 4),
-        (mass-center-x + acceleration-length / 2, mass-top + 4),
+        (mass-right, center-y),
+        (mass-right + acceleration-length, center-y),
         ..mechanics-displacement-style,
       )
       draw.content(
-        (mass-center-x, mass-top + 7),
+        (mass-right + acceleration-length / 2, center-y + 3),
         homework-math[$dot.double(u)(t)$],
       )
     },
