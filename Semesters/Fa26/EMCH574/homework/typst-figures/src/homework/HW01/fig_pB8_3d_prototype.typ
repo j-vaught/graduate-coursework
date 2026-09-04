@@ -44,37 +44,37 @@
     // The bordered inset stays in the page plane so the b by h section reads
     // as a true rectangle rather than inheriting the 3D camera projection.
     draw.rect(
-      (-4.6, -4.8),
-      (7.4, 4.8),
+      (-5.2, -5.4),
+      (8.2, 5.4),
       fill: color-background,
       stroke: callout-stroke,
     )
     draw.content(
-      (1.4, 3.65),
+      (1.5, 4.2),
       figure-small([Beam section]),
     )
     draw.rect(
-      (-2.4, -1.6),
-      (-1.2, 1.6),
+      (-3, -2.4),
+      (-1.2, 2.4),
       fill: color-surface-strong,
       stroke: shape-stroke,
     )
     draw.content(
-      (-1.8, -2.25),
+      (-2.1, -3.1),
       text(fill: color-secondary)[$b$],
     )
     draw.content(
-      (-3.1, 0),
+      (-3.75, 0),
       text(fill: color-secondary)[$h$],
     )
 
     draw.content(
-      (0.5, 0.85),
+      (0.6, 0.95),
       anchor: "west",
       figure-small([Length #text(fill: color-secondary)[$L$]]),
     )
     draw.content(
-      (0.5, -0.85),
+      (0.6, -0.95),
       anchor: "west",
       figure-small([Modulus #text(fill: color-secondary)[$E$]]),
     )
