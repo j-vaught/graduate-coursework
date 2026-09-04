@@ -24,7 +24,8 @@
 #let cube-length = 7
 #let cube-end = beam-length + cube-length
 #let cube-half = 3.5
-#let axis-length = 35
+#let x-axis-length = 40
+#let y-axis-length = 15
 #let z-axis-length = 10
 #let cube-fill = color-surface-strong
 #let projectile-x = 28.5
@@ -262,13 +263,13 @@
 
           draw.line(
             (0, 0, 0),
-            (axis-length, 0, 0),
+            (x-axis-length, 0, 0),
             stroke: axis-stroke,
             mark: (fill: color-ink, ..arrow-medium),
           )
           draw.line(
             (0, 0, 0),
-            (0, axis-length, 0),
+            (0, y-axis-length, 0),
             stroke: axis-stroke,
             mark: (fill: color-ink, ..arrow-medium),
           )
@@ -279,8 +280,8 @@
             mark: (fill: color-ink, ..arrow-medium),
           )
 
-          draw.content((axis-length + 0.8, 0, 0), anchor: "west", [$x=35$])
-          draw.content((0, axis-length + 0.8, 0), anchor: "south", [$y=35$])
+          draw.content((x-axis-length + 0.8, 0, 0), anchor: "west", [$x=40$])
+          draw.content((0, y-axis-length + 0.8, 0), anchor: "south", [$y=15$])
           draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z=10$])
           draw.content((0, 0, 0), anchor: "north", [$0$])
         },
