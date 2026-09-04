@@ -13,6 +13,8 @@
   join: "round",
 )
 
+#let beam-length = 25
+
 #standalone(
   cetz-canvas(
     length: 4mm,
@@ -43,8 +45,8 @@
           // three crease lines are drawn afterward to keep the joins clean.
           draw.line(
             (0, -0.75, 2),
-            (10, -0.75, 2),
-            (10, 0.75, 2),
+            (beam-length, -0.75, 2),
+            (beam-length, 0.75, 2),
             (0, 0.75, 2),
             close: true,
             fill: color-surface-strong,
@@ -52,18 +54,18 @@
           )
           draw.line(
             (0, -0.75, -2),
-            (10, -0.75, -2),
-            (10, -0.75, 2),
+            (beam-length, -0.75, -2),
+            (beam-length, -0.75, 2),
             (0, -0.75, 2),
             close: true,
             fill: color-surface-strong,
             stroke: none,
           )
           draw.line(
-            (10, -0.75, -2),
-            (10, 0.75, -2),
-            (10, 0.75, 2),
-            (10, -0.75, 2),
+            (beam-length, -0.75, -2),
+            (beam-length, 0.75, -2),
+            (beam-length, 0.75, 2),
+            (beam-length, -0.75, 2),
             close: true,
             fill: color-surface-strong,
             stroke: none,
@@ -73,17 +75,29 @@
           // edges meeting at the nearest corner.
           draw.line(
             (0, -0.75, -2),
-            (10, -0.75, -2),
-            (10, 0.75, -2),
-            (10, 0.75, 2),
+            (beam-length, -0.75, -2),
+            (beam-length, 0.75, -2),
+            (beam-length, 0.75, 2),
             (0, 0.75, 2),
             (0, -0.75, 2),
             close: true,
             stroke: solid-stroke,
           )
-          draw.line((10, -0.75, -2), (10, -0.75, 2), stroke: solid-stroke)
-          draw.line((0, -0.75, 2), (10, -0.75, 2), stroke: solid-stroke)
-          draw.line((10, -0.75, 2), (10, 0.75, 2), stroke: solid-stroke)
+          draw.line(
+            (beam-length, -0.75, -2),
+            (beam-length, -0.75, 2),
+            stroke: solid-stroke,
+          )
+          draw.line(
+            (0, -0.75, 2),
+            (beam-length, -0.75, 2),
+            stroke: solid-stroke,
+          )
+          draw.line(
+            (beam-length, -0.75, 2),
+            (beam-length, 0.75, 2),
+            stroke: solid-stroke,
+          )
 
           draw.line(
             (0, 0, 0),
