@@ -57,7 +57,7 @@
           if displacement {
             let rest-left = wall-x + rest-length
             let excited-left = mass-left
-            let arrow-y = rest-center-y - mass-height / 2 - 2.2
+            let arrow-y = rest-center-y - mass-height / 2 - 3
             displacement-indicator(
               (rest-left, arrow-y),
               length: excited-left - rest-left,
@@ -107,10 +107,10 @@
           homework-math[$m$],
         )
 
-        let force-y = fbd-y + 3.5
+        let force-y = fbd-y
         draw.line((fbd-left, force-y), (31, force-y), ..mechanics-force-style)
         draw.content(
-          (fbd-left - 2, force-y + 3.5),
+          (29, force-y),
           anchor: "east",
           homework-math[$k u(t)$],
         )
@@ -125,14 +125,15 @@
           homework-math[$F(t)$],
         )
 
-        let acceleration-y = fbd-y - 3.5
+        let acceleration-y = fbd-y - 4.5
         draw.line(
           (fbd-right, acceleration-y),
           (fbd-right + 20, acceleration-y),
           ..mechanics-force-style,
         )
         draw.content(
-          (fbd-right + 10, acceleration-y - 3),
+          (fbd-right + 22, acceleration-y),
+          anchor: "west",
           homework-math[$dot.double(u)(t)$],
         )
         draw.content(

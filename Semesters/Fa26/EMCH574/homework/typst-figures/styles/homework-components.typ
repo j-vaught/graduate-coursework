@@ -145,6 +145,20 @@
     cap: "butt",
     join: "miter",
   )
+  let dimension-y = y + 13
+
+  // Reference extensions are the back layer so the wall, beam, and mass mask
+  // their endpoints cleanly.
+  draw.line(
+    (x, y + beam-height / 2),
+    (x, dimension-y),
+    stroke: mechanics-reference-style.stroke,
+  )
+  draw.line(
+    (tip-x, mass-top),
+    (tip-x, dimension-y),
+    stroke: mechanics-reference-style.stroke,
+  )
 
   fixed-support(
     (x, y - 10),
@@ -168,17 +182,6 @@
     homework-math[$m$],
   )
 
-  let dimension-y = y + 13
-  draw.line(
-    (x, y + beam-height / 2),
-    (x, dimension-y),
-    stroke: mechanics-reference-style.stroke,
-  )
-  draw.line(
-    (tip-x, mass-top),
-    (tip-x, dimension-y),
-    stroke: mechanics-reference-style.stroke,
-  )
   draw.line(
     (x, dimension-y),
     (tip-x, dimension-y),
@@ -198,21 +201,13 @@
     ((x + tip-x) / 2, y - 7),
     homework-math[$E, h, b$],
   )
-  let displacement-x = mass-right + 4
-  draw.line(
-    (mass-right, mass-bottom),
-    (displacement-x, mass-bottom),
-    stroke: mechanics-displacement-style.stroke,
-  )
-  draw.line(
-    (displacement-x, mass-bottom),
-    (displacement-x, mass-bottom - 9),
-    ..mechanics-displacement-style,
-  )
-  draw.content(
-    (displacement-x + 2.5, mass-bottom - 4.5),
-    anchor: "west",
-    homework-math[$u(t)$],
+  displacement-indicator(
+    (mass-right + 2, mass-bottom),
+    length: 9,
+    angle: -90deg,
+    label: homework-math[$u(t)$],
+    label-offset: 4,
+    extension: 2,
   )
 
   if show-cross-section {

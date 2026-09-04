@@ -12,6 +12,11 @@
         let mass-height = 8
         let state-label = (body) => text(fill: color-ink, size: 8pt, body)
 
+        // Static-deflection references are the back layer so both masses mask
+        // the dashed endpoints.
+        draw.line((22, 16), (33, 16), stroke: mechanics-reference-style.stroke)
+        draw.line((33, 8), (45, 8), stroke: mechanics-reference-style.stroke)
+
         // Unloaded reference spring.
         fixed-support((7, top-y), length: 18, direction: 0deg, hatch-side: 1)
         linear-spring((16, top-y), length: 26, angle: -90deg, coils: 7, amplitude: 2.3)
@@ -21,11 +26,9 @@
           (16 + mass-width / 2, 24),
           ..mechanics-body-style,
         )
-        draw.content((16, 24 - mass-height / 2), homework-math[$m_0$])
+        draw.content((16, 24 - mass-height / 2), homework-math[$m = 0$])
 
         // Static deflection measured between matching block datums.
-        draw.line((22, 16), (33, 16), stroke: mechanics-reference-style.stroke)
-        draw.line((33, 8), (45, 8), stroke: mechanics-reference-style.stroke)
         draw.line(
           (33, 16),
           (33, 8),
@@ -47,15 +50,13 @@
           ..mechanics-body-style,
         )
         draw.content((51, 12), homework-math[$m$])
-        draw.line(
-          (60, 8),
-          (60, -1),
-          ..mechanics-displacement-style,
-        )
-        draw.content(
-          (62, 3.5),
-          anchor: "west",
-          homework-math[$u(t)$],
+        displacement-indicator(
+          (59, 8),
+          length: 9,
+          angle: -90deg,
+          label: homework-math[$u(t)$],
+          label-offset: 4,
+          extension: 2,
         )
 
         // Generic displaced configuration.
