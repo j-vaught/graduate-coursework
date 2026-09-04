@@ -54,17 +54,17 @@
       figure-small([Beam section]),
     )
     draw.rect(
-      (-3, -2.4),
-      (-1.2, 2.4),
+      (-3.4, -3.2),
+      (-1, 3.2),
       fill: color-surface-strong,
       stroke: shape-stroke,
     )
     draw.content(
-      (-2.1, -3.1),
+      (-2.2, -3.9),
       text(fill: color-secondary)[$b$],
     )
     draw.content(
-      (-3.75, 0),
+      (-4.15, 0),
       text(fill: color-secondary)[$h$],
     )
 
