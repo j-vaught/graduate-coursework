@@ -16,6 +16,22 @@
         z: -33.9052deg,
         sorted: false,
         {
+          // Semi-transparent 10 x 10 wall centered at the origin on x = 0.
+          // It is drawn first so all three calibration axes remain on top.
+          draw.on-zy(x: 0, {
+            draw.rect(
+              (-5, -5),
+              (5, 5),
+              fill: color-surface-strong.transparentize(45%),
+              stroke: (
+                paint: color-border,
+                thickness: line-normal,
+                cap: "butt",
+                join: "miter",
+              ),
+            )
+          })
+
           draw.line(
             (0, 0, 0),
             (10, 0, 0),
