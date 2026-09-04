@@ -69,7 +69,8 @@
           let rest-left = wall-x + rest-length
           let excited-left = mass-left
           let rest-bottom = rest-center-y - mass-height / 2
-          let arrow-y = rest-bottom - 2.2
+          // Leave 1.5 mm between the mass and the indicator's top tick.
+          let arrow-y = rest-bottom - 3.7
           displacement-indicator(
             (rest-left, arrow-y),
             length: excited-left - rest-left,
@@ -153,16 +154,6 @@
         (fbd-right + 22, applied-force-y),
         anchor: "west",
         homework-math[$F(t)$],
-      )
-      let acceleration-y = fbd-y - 3.5
-      draw.line(
-        (fbd-right, acceleration-y),
-        (fbd-right + 20, acceleration-y),
-        ..mechanics-force-style,
-      )
-      draw.content(
-        (fbd-right + 10, acceleration-y - 3),
-        homework-math[$dot.double(u)(t)$],
       )
       draw.content(
         (label-x, fbd-y),
