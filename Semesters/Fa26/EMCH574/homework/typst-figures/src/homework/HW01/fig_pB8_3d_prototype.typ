@@ -30,6 +30,19 @@
                 join: "miter",
               ),
             )
+
+            // A 4-high by 1.5-wide rectangle centered at the origin.
+            draw.rect(
+              (-2, -0.75),
+              (2, 0.75),
+              fill: color-background,
+              stroke: (
+                paint: color-ink,
+                thickness: line-emphasis,
+                cap: "butt",
+                join: "miter",
+              ),
+            )
           })
 
           draw.line(
