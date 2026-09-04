@@ -36,8 +36,9 @@
 #let projectile-length = 4
 #let projectile-back-y = projectile-front-y + projectile-length
 #let projectile-radius = 0.5
-#let velocity-arrow-x = projectile-x + projectile-radius + 0.75
+#let velocity-arrow-x = projectile-x + projectile-radius + 1.25
 #let displacement-arrow-x = cube-end + 1.5
+#let displacement-arrow-length = 9
 // Tangency offsets for the calibrated projection and a radius-0.5 circle.
 #let projectile-rim-x = 0.281
 #let projectile-rim-z = 0.414
@@ -288,7 +289,7 @@
           draw.on-xy(z: cube-half, {
             displacement-indicator(
               (displacement-arrow-x, -cube-half),
-              length: 2 * cube-half,
+              length: displacement-arrow-length,
               angle: 90deg,
               label: text(fill: color-displacement)[$u(t)$],
               label-offset: -1.7,
