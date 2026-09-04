@@ -35,7 +35,6 @@
 
 #let callout(point, label-position, label, anchor: "west") = {
   draw.line(point, label-position, stroke: callout-stroke)
-  draw.circle(point, radius: 0.14, fill: color-ink, stroke: none)
   draw.content(label-position, anchor: anchor, figure-small(label))
 }
 
@@ -331,21 +330,21 @@
 
           callout(
             (0, -5, 2),
-            (-4, -7, 5.5),
+            (7, -4, -4),
             [Fixed wall],
-            anchor: "east",
+            anchor: "west",
           )
           callout(
             (projectile-x, projectile-front-y, 0),
-            (21, -23, -4),
+            (21, -23, 3),
             [Projectile mass, #text(fill: color-secondary)[$m$]],
             anchor: "east",
           )
           callout(
             (projectile-x, 0, cube-half),
-            (22, 6, 7.5),
+            (35, 5, 7.5),
             [Mass, #text(fill: color-secondary)[$M$]],
-            anchor: "east",
+            anchor: "west",
           )
         },
       )
