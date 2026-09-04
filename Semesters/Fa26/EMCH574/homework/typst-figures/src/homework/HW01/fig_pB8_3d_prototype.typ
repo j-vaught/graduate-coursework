@@ -6,8 +6,8 @@
   cap: "butt",
 )
 
-#let solid-stroke = (
-  paint: color-ink,
+#let shape-stroke = (
+  paint: color-on-light,
   thickness: line-emphasis,
   cap: "round",
   join: "round",
@@ -42,13 +42,6 @@
 // Tangency offsets for the calibrated projection and a radius-0.5 circle.
 #let projectile-rim-x = 0.281
 #let projectile-rim-z = 0.414
-#let cube-stroke = (
-  paint: color-border,
-  thickness: line-normal,
-  cap: "round",
-  join: "round",
-)
-
 #standalone(
   cetz-canvas(
     length: 4mm,
@@ -66,12 +59,7 @@
               (-5, -5),
               (5, 5),
               fill: color-surface-strong.transparentize(45%),
-              stroke: (
-                paint: color-border,
-                thickness: line-normal,
-                cap: "butt",
-                join: "miter",
-              ),
+              stroke: shape-stroke,
             )
           })
 
@@ -115,22 +103,22 @@
             (0, 0.75, 2),
             (0, -0.75, 2),
             close: true,
-            stroke: solid-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (beam-length, -0.75, -2),
             (beam-length, -0.75, 2),
-            stroke: solid-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (0, -0.75, 2),
             (beam-length, -0.75, 2),
-            stroke: solid-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (beam-length, -0.75, 2),
             (beam-length, 0.75, 2),
-            stroke: solid-stroke,
+            stroke: shape-stroke,
           )
 
           // Extrude the 7 x 7 tip profile from x = 25 to x = 32.
@@ -171,22 +159,22 @@
             (beam-length, cube-half, cube-half),
             (beam-length, -cube-half, cube-half),
             close: true,
-            stroke: cube-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (cube-end, -cube-half, -cube-half),
             (cube-end, -cube-half, cube-half),
-            stroke: cube-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (beam-length, -cube-half, cube-half),
             (cube-end, -cube-half, cube-half),
-            stroke: cube-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (cube-end, -cube-half, cube-half),
             (cube-end, cube-half, cube-half),
-            stroke: cube-stroke,
+            stroke: shape-stroke,
           )
 
           // Plot the dashed construction line after all solid geometry and
@@ -204,7 +192,7 @@
               (projectile-x, 0),
               radius: projectile-radius,
               fill: color-surface-strong,
-              stroke: solid-stroke,
+              stroke: shape-stroke,
             )
           })
           draw.line(
@@ -237,7 +225,7 @@
               (projectile-x, 0),
               radius: projectile-radius,
               fill: color-surface-strong,
-              stroke: solid-stroke,
+              stroke: shape-stroke,
             )
           })
           draw.line(
@@ -251,7 +239,7 @@
               projectile-back-y,
               -projectile-rim-z,
             ),
-            stroke: solid-stroke,
+            stroke: shape-stroke,
           )
           draw.line(
             (
@@ -264,7 +252,7 @@
               projectile-back-y,
               projectile-rim-z,
             ),
-            stroke: solid-stroke,
+            stroke: shape-stroke,
           )
 
           // Velocity arrow parallel to the cylinder on the xy plane.
