@@ -329,20 +329,20 @@
           draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z$])
 
           callout(
-            (0, -5, 2),
+            (0, 0, -5),
             (7, -4, -4),
             [Fixed wall],
             anchor: "west",
           )
           callout(
             (projectile-x, projectile-front-y, 0),
-            (21, -23, 3),
+            (24, -23, 0.35),
             [Projectile mass, #text(fill: color-secondary)[$m$]],
             anchor: "east",
           )
           callout(
             (projectile-x, 0, cube-half),
-            (35, 5, 7.5),
+            (31, 1, 5),
             [Mass, #text(fill: color-secondary)[$M$]],
             anchor: "west",
           )
