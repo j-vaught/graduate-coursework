@@ -41,22 +41,6 @@
             )
           })
 
-          // Semi-transparent 7 x 7 plane centered at the beam tip on x = 25.
-          // Drawing it before the beam keeps the end cap visually in front.
-          draw.on-zy(x: beam-length, {
-            draw.rect(
-              (-3.5, -3.5),
-              (3.5, 3.5),
-              fill: color-surface-strong.transparentize(45%),
-              stroke: (
-                paint: color-border,
-                thickness: line-normal,
-                cap: "butt",
-                join: "miter",
-              ),
-            )
-          })
-
           // Fill the visible faces without borders. A single silhouette and
           // three crease lines are drawn afterward to keep the joins clean.
           draw.line(
@@ -114,6 +98,22 @@
             (beam-length, 0.75, 2),
             stroke: solid-stroke,
           )
+
+          // Semi-transparent 7 x 7 plane centered at the beam tip on x = 25.
+          // It overlays the beam and is drawn immediately before the axes.
+          draw.on-zy(x: beam-length, {
+            draw.rect(
+              (-3.5, -3.5),
+              (3.5, 3.5),
+              fill: color-surface-strong.transparentize(45%),
+              stroke: (
+                paint: color-border,
+                thickness: line-normal,
+                cap: "butt",
+                join: "miter",
+              ),
+            )
+          })
 
           draw.line(
             (0, 0, 0),
