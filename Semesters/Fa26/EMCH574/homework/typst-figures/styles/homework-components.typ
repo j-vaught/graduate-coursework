@@ -120,3 +120,157 @@
     extension: 2,
   )
 }
+
+// Cantilever beam with a rectangular tip mass and transverse displacement.
+// This constructor is shared by the vertical-flexure challenge problems so
+// their beam, dimension, and cross-section conventions stay identical.
+#let tip-mass-cantilever(
+  origin,
+  beam-length: 58,
+  beam-height: 2.6,
+  mass-width: 12,
+  mass-height: 12,
+  show-cross-section: true,
+) = {
+  let x = origin.at(0)
+  let y = origin.at(1)
+  let tip-x = x + beam-length
+  let mass-left = tip-x
+  let mass-right = mass-left + mass-width
+  let mass-bottom = y - mass-height / 2
+  let mass-top = y + mass-height / 2
+  let outline = (
+    paint: color-ink,
+    thickness: 1.0pt,
+    cap: "butt",
+    join: "miter",
+  )
+
+  fixed-support(
+    (x, y - 10),
+    length: 20,
+    direction: 90deg,
+    hatch-side: 1,
+  )
+  draw.rect(
+    (x, y - beam-height / 2),
+    (tip-x, y + beam-height / 2),
+    fill: color-surface,
+    stroke: outline,
+  )
+  draw.rect(
+    (mass-left, mass-bottom),
+    (mass-right, mass-top),
+    ..mechanics-body-style,
+  )
+  draw.content(
+    ((mass-left + mass-right) / 2, y),
+    homework-math[$m$],
+  )
+
+  draw.line(
+    (x, y + 8),
+    (tip-x, y + 8),
+    stroke: (
+      paint: color-ink,
+      thickness: 0.75pt,
+      cap: "butt",
+    ),
+    mark: (
+      start: arrow-head-shape,
+      fill: color-ink,
+      ..arrow-small,
+    ),
+  )
+  draw.content(((x + tip-x) / 2, y + 11), homework-math[$L$])
+  draw.content(
+    ((x + tip-x) / 2, y - 7),
+    homework-math[$E, h, b$],
+  )
+  displacement-indicator(
+    (mass-right + 4, y + 4),
+    length: 9,
+    angle: -90deg,
+    label: homework-math[$u$],
+    label-offset: -3,
+    extension: 1.8,
+  )
+
+  if show-cross-section {
+    let section-x = (x + tip-x) / 2
+    let section-y = y - 20
+    draw.rect(
+      (section-x - 8, section-y - 1.5),
+      (section-x + 8, section-y + 1.5),
+      fill: color-surface,
+      stroke: outline,
+    )
+    draw.content((section-x, section-y + 4.2), homework-math[$b$])
+    draw.content(
+      (section-x + 10, section-y),
+      anchor: "west",
+      homework-math[$h$],
+    )
+  }
+}
+
+// Vertical flex-beam pendulum used both alone and with an incoming projectile.
+#let hanging-flex-beam(
+  origin,
+  beam-length: 52,
+  mass-width: 13,
+  mass-height: 13,
+  mass-label: [$m$],
+  projectile: false,
+) = {
+  let x = origin.at(0)
+  let top-y = origin.at(1)
+  let tip-y = top-y - beam-length
+  let outline = (
+    paint: color-ink,
+    thickness: 1.0pt,
+    cap: "butt",
+    join: "miter",
+  )
+
+  fixed-support(
+    (x - 15, top-y),
+    length: 30,
+    direction: 0deg,
+    hatch-side: 1,
+  )
+  draw.rect(
+    (x - 1.4, tip-y),
+    (x + 1.4, top-y),
+    fill: color-surface,
+    stroke: outline,
+  )
+  draw.rect(
+    (x - mass-width / 2, tip-y - mass-height),
+    (x + mass-width / 2, tip-y),
+    ..mechanics-body-style,
+  )
+  draw.content(
+    (x, tip-y - mass-height / 2),
+    homework-math(mass-label),
+  )
+  draw.content(
+    (x - 5, top-y - beam-length / 2),
+    anchor: "east",
+    homework-math[$E, h, b$],
+  )
+  draw.content(
+    (x + 5, top-y - beam-length / 2),
+    anchor: "west",
+    homework-math[$L$],
+  )
+
+  if projectile {
+    projectile-indicator(
+      (x - 31, tip-y - mass-height / 2),
+      length: 20,
+      label: [$m, v$],
+      label-offset: 5,
+    )
+  }
+}

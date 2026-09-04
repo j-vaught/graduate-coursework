@@ -15,7 +15,7 @@ Every figure should import the shared facade and use the standalone wrapper. A c
 )
 ```
 
-Shared homework constructors are defined in `../../styles/homework-components.typ`. The current set provides the textbook-style fixed supports, pendulum schematic, projectile indicator, and horizontal spring-mass schematic used by HW01. The pendulum constructor uses a circular bob, while the spring-mass constructor retains a square translating mass.
+Shared homework constructors are defined in `../../styles/homework-components.typ`. The current set provides the textbook-style fixed supports, pendulum schematic, projectile indicator, horizontal spring-mass schematic, tip-mass cantilever, and hanging flex-beam used by HW01. The pendulum constructor uses a circular bob, while the spring-mass constructor retains a square translating mass. The cantilever and hanging flex-beam constructors keep repeated challenge-problem geometry consistent.
 
 Mechanical schematics use `kind=mechanics`. Quantitative plots use `kind=plot`, declare a `width-profile=full` or `width-profile=half` comment, and call `book-diagram` so that Lilaq receives the common plot theme.
 
