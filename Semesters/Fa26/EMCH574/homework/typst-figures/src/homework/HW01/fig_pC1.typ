@@ -44,6 +44,7 @@
         // Static equilibrium configuration.
         fixed-support((42, top-y), length: 18, direction: 0deg, hatch-side: 1)
         linear-spring((51, top-y), length: 34, angle: -90deg, coils: 8, amplitude: 2.3)
+        draw.content((57, 33), anchor: "west", homework-math[$k$])
         draw.rect(
           (51 - mass-width / 2, 16 - mass-height),
           (51 + mass-width / 2, 16),
@@ -63,6 +64,7 @@
         // Generic displaced configuration.
         fixed-support((78, top-y), length: 18, direction: 0deg, hatch-side: 1)
         linear-spring((87, top-y), length: 43, angle: -90deg, coils: 8, amplitude: 2.3)
+        draw.content((93, 28.5), anchor: "west", homework-math[$k$])
         draw.rect(
           (87 - mass-width / 2, 7 - mass-height),
           (87 + mass-width / 2, 7),

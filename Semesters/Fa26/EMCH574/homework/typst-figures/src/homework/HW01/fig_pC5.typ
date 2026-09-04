@@ -126,17 +126,6 @@
           homework-math[$F(t)$],
         )
 
-        let acceleration-y = fbd-y - 4.5
-        draw.line(
-          (fbd-right, acceleration-y),
-          (fbd-right + 20, acceleration-y),
-          ..mechanics-force-style,
-        )
-        draw.content(
-          (fbd-right + 22, acceleration-y),
-          anchor: "west",
-          homework-math[$dot.double(u)(t)$],
-        )
         draw.content(
           (label-x, fbd-y),
           anchor: "west",
