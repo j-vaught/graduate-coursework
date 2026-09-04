@@ -1,46 +1,46 @@
 #import "/styles/figure.typ": *
 
-#let outline = (
+#let axis-stroke = (
   paint: color-ink,
-  thickness: 0.85pt,
+  thickness: line-emphasis,
   cap: "butt",
-  join: "bevel",
 )
-
-// Fill the visible faces without strokes, then draw one outer silhouette and
-// the three visible creases. This prevents overlapping face outlines from
-// producing miter spikes at projected corners.
-#let beam-prism(origin, axis, height, depth-offset) = {
-  let x = origin.at(0)
-  let y = origin.at(1)
-  let dx = axis.at(0)
-  let dy = axis.at(1)
-  let ox = depth-offset.at(0)
-  let oy = depth-offset.at(1)
-
-  let a = (x, y)
-  let b = (x + dx, y + dy)
-  let c = (x + dx, y + dy + height)
-  let d = (x, y + height)
-  let bp = (x + dx + ox, y + dy + oy)
-  let cp = (x + dx + ox, y + dy + height + oy)
-  let dp = (x + ox, y + height + oy)
-
-  draw.line(a, b, c, d, close: true, fill: color-surface, stroke: none)
-  draw.line(d, dp, cp, c, close: true, fill: color-background, stroke: none)
-  draw.line(b, bp, cp, c, close: true, fill: color-surface-strong, stroke: none)
-
-  draw.line(a, b, bp, cp, dp, d, close: true, stroke: outline)
-  draw.line(b, c, stroke: outline)
-  draw.line(d, c, stroke: outline)
-  draw.line(c, cp, stroke: outline)
-}
 
 #standalone(
   cetz-canvas(
-    length: 1mm,
+    length: 4mm,
     {
-      beam-prism((0, 12), (72, -12), 8, (3, 0))
+      draw.ortho(
+        x: 15deg,
+        y: 35deg,
+        z: -2deg,
+        sorted: false,
+        {
+          draw.line(
+            (0, 0, 0),
+            (10, 0, 0),
+            stroke: axis-stroke,
+            mark: (fill: color-ink, ..arrow-medium),
+          )
+          draw.line(
+            (0, 0, 0),
+            (0, 10, 0),
+            stroke: axis-stroke,
+            mark: (fill: color-ink, ..arrow-medium),
+          )
+          draw.line(
+            (0, 0, 0),
+            (0, 0, 10),
+            stroke: axis-stroke,
+            mark: (fill: color-ink, ..arrow-medium),
+          )
+
+          draw.content((10.8, 0, 0), anchor: "west", [$x=10$])
+          draw.content((0, 10.8, 0), anchor: "south", [$y=10$])
+          draw.content((0, 0, 10.8), anchor: "east", [$z=10$])
+          draw.content((0, 0, 0), anchor: "north", [$0$])
+        },
+      )
     },
   ),
 )
