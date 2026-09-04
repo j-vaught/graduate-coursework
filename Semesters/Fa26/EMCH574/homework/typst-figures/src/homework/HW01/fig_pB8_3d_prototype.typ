@@ -342,7 +342,7 @@
           )
           callout(
             (projectile-x, 0, cube-half),
-            (31, 1, 5.75),
+            (31, 1, 7),
             [Mass, #text(fill: color-secondary)[$M$]],
             anchor: "west",
           )
