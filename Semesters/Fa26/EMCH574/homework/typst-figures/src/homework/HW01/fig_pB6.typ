@@ -144,7 +144,7 @@
         anchor: "east",
         homework-math[$c dot(u)(t)$],
       )
-      let applied-force-y = fbd-y + 3.5
+      let applied-force-y = fbd-y
       draw.line(
         (fbd-right, applied-force-y),
         (fbd-right + 20, applied-force-y),
