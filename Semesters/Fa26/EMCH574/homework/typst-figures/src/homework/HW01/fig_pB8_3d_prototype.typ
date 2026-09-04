@@ -27,6 +27,18 @@
   cap: "butt",
 )
 
+#let callout-stroke = (
+  paint: color-ink,
+  thickness: line-normal,
+  cap: "round",
+)
+
+#let callout(point, label-position, label, anchor: "west") = {
+  draw.line(point, label-position, stroke: callout-stroke)
+  draw.circle(point, radius: 0.14, fill: color-ink, stroke: none)
+  draw.content(label-position, anchor: anchor, figure-small(label))
+}
+
 #let beam-length = 25
 #let cube-length = 7
 #let cube-end = beam-length + cube-length
@@ -316,6 +328,25 @@
           draw.content((x-axis-length + 0.8, 0, 0), anchor: "west", [$x$])
           draw.content((0, y-axis-length + 0.8, 0), anchor: "south", [$y$])
           draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z$])
+
+          callout(
+            (0, -5, 2),
+            (-4, -7, 5.5),
+            [Fixed wall],
+            anchor: "east",
+          )
+          callout(
+            (projectile-x, projectile-front-y, 0),
+            (21, -23, -4),
+            [Projectile mass, #text(fill: color-secondary)[$m$]],
+            anchor: "east",
+          )
+          callout(
+            (projectile-x, 0, cube-half),
+            (22, 6, 7.5),
+            [Mass, #text(fill: color-secondary)[$M$]],
+            anchor: "east",
+          )
         },
       )
     },
