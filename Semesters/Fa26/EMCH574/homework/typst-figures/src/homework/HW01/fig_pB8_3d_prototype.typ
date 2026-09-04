@@ -13,6 +13,13 @@
   join: "round",
 )
 
+#let guide-stroke = (
+  paint: color-guide,
+  thickness: line-normal,
+  dash: "dashed",
+  cap: "butt",
+)
+
 #let beam-length = 25
 #let cube-length = 7
 #let cube-end = beam-length + cube-length
@@ -37,6 +44,13 @@
         z: -33.9052deg,
         sorted: false,
         {
+          // Draw dashed construction lines first so solids cover hidden spans.
+          draw.line(
+            (28.5, 0, 0),
+            (28.5, -10, 0),
+            stroke: guide-stroke,
+          )
+
           // Semi-transparent 10 x 10 wall centered at the origin on x = 0.
           // It is drawn first so all three calibration axes remain on top.
           draw.on-zy(x: 0, {
