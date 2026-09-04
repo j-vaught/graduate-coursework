@@ -182,6 +182,16 @@
             stroke: guide-stroke,
           )
 
+          // Radius-1 circular face at the guide endpoint, parallel to zx.
+          draw.on-xz(y: -20, {
+            draw.circle(
+              (28.5, 0),
+              radius: 1,
+              fill: color-surface-strong,
+              stroke: solid-stroke,
+            )
+          })
+
           draw.line(
             (0, 0, 0),
             (axis-length, 0, 0),
