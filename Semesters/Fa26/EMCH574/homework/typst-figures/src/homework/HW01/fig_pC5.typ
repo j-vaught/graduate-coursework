@@ -57,7 +57,8 @@
           if displacement {
             let rest-left = wall-x + rest-length
             let excited-left = mass-left
-            let arrow-y = rest-center-y - mass-height / 2 - 3
+            // Leave 1.5 mm between the block and the indicator's top tick.
+            let arrow-y = rest-center-y - mass-height / 2 - 3.7
             displacement-indicator(
               (rest-left, arrow-y),
               length: excited-left - rest-left,

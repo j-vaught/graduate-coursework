@@ -51,7 +51,8 @@
         )
         draw.content((51, 12), homework-math[$m$])
         displacement-indicator(
-          (59, 8),
+          // The tick is aligned to the block bottom with 1.5 mm clearance.
+          (60.5, 8),
           length: 9,
           angle: -90deg,
           label: homework-math[$u(t)$],

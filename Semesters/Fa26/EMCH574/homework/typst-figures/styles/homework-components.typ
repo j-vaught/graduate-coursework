@@ -202,7 +202,9 @@
     homework-math[$E, h, b$],
   )
   displacement-indicator(
-    (mass-right + 2, mass-bottom),
+    // The 1.5 mm clearance keeps the top tick aligned with, but visibly
+    // detached from, the mass block.
+    (mass-right + 3.5, mass-bottom),
     length: 9,
     angle: -90deg,
     label: homework-math[$u(t)$],
