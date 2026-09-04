@@ -38,71 +38,45 @@
   draw.content(label-position, anchor: anchor, figure-small(label))
 }
 
-#let section-dimension-mark = (
-  start: arrow-head-shape,
-  end: arrow-head-shape,
-  fill: color-ink,
-  length: 4.5pt,
-  width: 3.5pt,
-  inset: 1pt,
-)
-
 #let beam-section-inset = cetz-canvas(
   length: 2.2mm,
   {
-    // The inset stays in the page plane so the b by h section reads as a
-    // true rectangle rather than inheriting the 3D camera foreshortening.
+    // The bordered inset stays in the page plane so the b by h section reads
+    // as a true rectangle rather than inheriting the 3D camera projection.
+    draw.rect(
+      (-3.8, -4.2),
+      (4.8, 4.2),
+      fill: color-surface,
+      stroke: callout-stroke,
+    )
     draw.content(
-      (2.4, 3.35),
-      anchor: "west",
+      (0.5, 3.15),
       figure-small([Beam section]),
     )
     draw.rect(
-      (-1, -2),
-      (1, 2),
+      (-2, -1.6),
+      (-0.8, 1.6),
       fill: color-surface-strong,
       stroke: shape-stroke,
     )
-
-    draw.line(
-      (-1, -2.75),
-      (1, -2.75),
-      stroke: callout-stroke,
-      mark: section-dimension-mark,
-    )
     draw.content(
-      (0, -3.35),
+      (-1.4, -2.15),
       text(fill: color-secondary)[$b$],
     )
-    draw.line(
-      (-1.75, -2),
-      (-1.75, 2),
-      stroke: callout-stroke,
-      mark: section-dimension-mark,
-    )
     draw.content(
-      (-2.4, 0),
+      (-2.65, 0),
       text(fill: color-secondary)[$h$],
     )
 
-    draw.line(
-      (1.7, 0),
-      (4.1, 0),
-      stroke: callout-stroke,
-      mark: (fill: color-ink, ..arrow-small),
-    )
-    draw.content((4.45, 0), anchor: "west", [$y$])
-    draw.line(
-      (1.7, 0),
-      (1.7, 2.9),
-      stroke: callout-stroke,
-      mark: (fill: color-ink, ..arrow-small),
-    )
-    draw.content((1.7, 3.25), anchor: "south", [$z$])
-
     draw.content(
-      (0, -4.35),
-      figure-small([Length #text(fill: color-secondary)[$L$], modulus #text(fill: color-secondary)[$E$]]),
+      (0.25, 0.65),
+      anchor: "west",
+      figure-small([Length #text(fill: color-secondary)[$L$]]),
+    )
+    draw.content(
+      (0.25, -0.65),
+      anchor: "west",
+      figure-small([Modulus #text(fill: color-secondary)[$E$]]),
     )
   },
 )
