@@ -4,56 +4,43 @@
   paint: color-ink,
   thickness: 0.85pt,
   cap: "butt",
-  join: "miter",
+  join: "bevel",
 )
 
-#let face(points, fill) = {
-  draw.line(..points, close: true, fill: fill, stroke: outline)
-}
+// Fill the visible faces without strokes, then draw one outer silhouette and
+// the three visible creases. This prevents overlapping face outlines from
+// producing miter spikes at projected corners.
+#let beam-prism(origin, length, height, depth-offset) = {
+  let x = origin.at(0)
+  let y = origin.at(1)
+  let ox = depth-offset.at(0)
+  let oy = depth-offset.at(1)
 
-#let beam(x0, x1, y0, y1, z0, z1) = {
-  face(
-    ((x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1)),
-    color-background,
-  )
-  face(
-    ((x0, y1, z0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0)),
-    color-background,
-  )
-  face(
-    ((x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)),
-    color-surface,
-  )
-  face(
-    ((x0, y0, z0), (x0, y1, z0), (x1, y1, z0), (x1, y0, z0)),
-    color-surface-strong,
-  )
-  face(
-    ((x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (x0, y1, z0)),
-    color-surface-strong,
-  )
-  face(
-    ((x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)),
-    color-surface-strong,
-  )
+  let a = (x, y)
+  let b = (x + length, y)
+  let c = (x + length, y + height)
+  let d = (x, y + height)
+  let bp = (x + length + ox, y + oy)
+  let cp = (x + length + ox, y + height + oy)
+  let dp = (x + ox, y + height + oy)
+
+  draw.line(a, b, c, d, close: true, fill: color-surface, stroke: none)
+  draw.line(d, dp, cp, c, close: true, fill: color-background, stroke: none)
+  draw.line(b, bp, cp, c, close: true, fill: color-surface-strong, stroke: none)
+
+  draw.line(a, b, bp, cp, dp, d, close: true, stroke: outline)
+  draw.line(b, c, stroke: outline)
+  draw.line(d, c, stroke: outline)
+  draw.line(c, cp, stroke: outline)
 }
 
 #standalone(
   cetz-canvas(
     length: 1mm,
     {
-      draw.hide(draw.rect((-2, -2), (82, 33)))
       draw.group({
-        draw.translate((5, 16))
-        draw.ortho(
-          x: 15deg,
-          y: 35deg,
-          z: -2deg,
-          sorted: true,
-          {
-            beam(0, 72, -1, 1, -4, 4)
-          },
-        )
+        draw.rotate(-10deg)
+        beam-prism((0, 0), 72, 8, (3, 1.5))
       })
     },
   ),
