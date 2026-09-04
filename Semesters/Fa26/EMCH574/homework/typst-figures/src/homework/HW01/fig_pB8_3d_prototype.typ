@@ -9,8 +9,8 @@
 #let solid-stroke = (
   paint: color-ink,
   thickness: line-emphasis,
-  cap: "butt",
-  join: "miter",
+  cap: "round",
+  join: "round",
 )
 
 #standalone(
@@ -37,30 +37,18 @@
                 join: "miter",
               ),
             )
-
-            // A 4-high by 1.5-wide rectangle centered at the origin.
-            draw.rect(
-              (-2, -0.75),
-              (2, 0.75),
-              fill: color-background,
-              stroke: (
-                paint: color-ink,
-                thickness: line-emphasis,
-                cap: "butt",
-                join: "miter",
-              ),
-            )
           })
 
-          // Visible faces of the 4 x 1.5 profile extruded from x = 0 to x = 10.
+          // Fill the visible faces without borders. A single silhouette and
+          // three crease lines are drawn afterward to keep the joins clean.
           draw.line(
             (0, -0.75, 2),
             (10, -0.75, 2),
             (10, 0.75, 2),
             (0, 0.75, 2),
             close: true,
-            fill: color-surface,
-            stroke: solid-stroke,
+            fill: color-surface-strong,
+            stroke: none,
           )
           draw.line(
             (0, -0.75, -2),
@@ -69,7 +57,7 @@
             (0, -0.75, 2),
             close: true,
             fill: color-surface-strong,
-            stroke: solid-stroke,
+            stroke: none,
           )
           draw.line(
             (10, -0.75, -2),
@@ -77,9 +65,25 @@
             (10, 0.75, 2),
             (10, -0.75, 2),
             close: true,
-            fill: color-background,
+            fill: color-surface-strong,
+            stroke: none,
+          )
+
+          // VINNT-style prism outline: one closed silhouette plus the three
+          // edges meeting at the nearest corner.
+          draw.line(
+            (0, -0.75, -2),
+            (10, -0.75, -2),
+            (10, 0.75, -2),
+            (10, 0.75, 2),
+            (0, 0.75, 2),
+            (0, -0.75, 2),
+            close: true,
             stroke: solid-stroke,
           )
+          draw.line((10, -0.75, -2), (10, -0.75, 2), stroke: solid-stroke)
+          draw.line((0, -0.75, 2), (10, -0.75, 2), stroke: solid-stroke)
+          draw.line((10, -0.75, 2), (10, 0.75, 2), stroke: solid-stroke)
 
           draw.line(
             (0, 0, 0),
