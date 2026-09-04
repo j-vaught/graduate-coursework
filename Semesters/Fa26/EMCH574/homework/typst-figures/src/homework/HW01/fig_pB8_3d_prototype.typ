@@ -46,12 +46,12 @@
       draw.group({
         draw.translate((5, 16))
         draw.ortho(
-          x: 25deg,
-          y: 48deg,
-          z: -4deg,
+          x: 15deg,
+          y: 35deg,
+          z: -2deg,
           sorted: true,
           {
-            beam(0, 72, -3, 3, -2.5, 2.5)
+            beam(0, 72, -1, 1, -4, 4)
           },
         )
       })
