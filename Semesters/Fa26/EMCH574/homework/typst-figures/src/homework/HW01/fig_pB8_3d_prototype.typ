@@ -13,7 +13,7 @@
       draw.ortho(
         x: -54.736deg,
         y: 0deg,
-        z: -135deg,
+        z: -45deg,
         sorted: false,
         {
           draw.line(
