@@ -1,65 +1,145 @@
 #import "/styles/figure.typ": *
 #import "/styles/homework-components.typ": homework-math
 
-// Forced spring-mass system shown at rest, under load, and as an FBD.
+// Forced spring-mass system following the layout conventions of Figure 8.
 #standalone(
   full-width-artboard(
     cetz-canvas(
       length: 1mm,
       {
-        let wall-x = 12
-        let mass-left = 57
-        let mass-right = 70
-        let rest-mass-left = 45
-        let rest-mass-right = 58
-        let row-top = 48
-        let row-mid = 27
-        let row-low = 7
-        let note-x = 104
+        let wall-x = 4
+        let rest-length = 35
+        let excited-length = 61
+        let rest-center-y = 52
+        let excited-center-y = 31
+        let mass-width = 12
+        let mass-height = 12
+        let label-x = 109
 
-        // At rest.
-        fixed-support((wall-x, row-top - 8), length: 16, direction: 90deg, hatch-side: 1)
-        linear-spring((wall-x, row-top), length: rest-mass-left - wall-x, coils: 7, amplitude: 2.2)
-        draw.rect((rest-mass-left, row-top - 6), (rest-mass-right, row-top + 6), ..mechanics-body-style)
-        draw.content(((rest-mass-left + rest-mass-right) / 2, row-top), homework-math[$m$])
-        draw.content((28, row-top - 7), homework-math[$k$])
-        draw.content((note-x, row-top), anchor: "west", text(fill: color-ink, size: 8pt)[at rest])
+        let physical-row(
+          center-y,
+          component-length,
+          state-label,
+          displacement: false,
+          force-label: none,
+        ) = {
+          let mass-left = wall-x + component-length
+          let mass-right = mass-left + mass-width
+          let mass-bottom = center-y - mass-height / 2
+          let mass-top = center-y + mass-height / 2
 
-        // Excited configuration.
-        fixed-support((wall-x, row-mid - 8), length: 16, direction: 90deg, hatch-side: 1)
-        linear-spring((wall-x, row-mid), length: mass-left - wall-x, coils: 8, amplitude: 2.2)
-        draw.rect((mass-left, row-mid - 6), (mass-right, row-mid + 6), ..mechanics-body-style)
-        draw.content(((mass-left + mass-right) / 2, row-mid), homework-math[$m$])
+          fixed-support(
+            (wall-x, center-y + 9),
+            length: 18,
+            direction: 270deg,
+            hatch-side: -1,
+          )
+          linear-spring(
+            (wall-x, center-y),
+            length: component-length,
+            coils: 7,
+            amplitude: 2,
+            lead: 4,
+          )
+          draw.content(
+            (wall-x + component-length / 2, center-y - 6),
+            homework-math[$k$],
+          )
+          draw.rect(
+            (mass-left, mass-bottom),
+            (mass-right, mass-top),
+            ..mechanics-body-style,
+          )
+          draw.content(
+            ((mass-left + mass-right) / 2, center-y),
+            homework-math[$m$],
+          )
+          if displacement {
+            let rest-left = wall-x + rest-length
+            let excited-left = mass-left
+            let arrow-y = rest-center-y - mass-height / 2 - 2.2
+            displacement-indicator(
+              (rest-left, arrow-y),
+              length: excited-left - rest-left,
+              label: homework-math[$u(t)$],
+              label-offset: -3,
+              extension: 2.2,
+            )
+          }
+          if force-label != none {
+            draw.line(
+              (mass-right, center-y),
+              (mass-right + 20, center-y),
+              ..mechanics-force-style,
+            )
+            draw.content(
+              (mass-right + 22, center-y),
+              anchor: "west",
+              homework-math(force-label),
+            )
+          }
+          draw.content(
+            (label-x, center-y),
+            anchor: "west",
+            text(fill: color-ink, state-label),
+          )
+        }
+
+        physical-row(rest-center-y, rest-length, [at rest])
+        physical-row(
+          excited-center-y,
+          excited-length,
+          [excited by ] + homework-math[$F(t)$],
+          displacement: true,
+          force-label: [$F(t)$],
+        )
+
+        let fbd-y = 12
+        let fbd-left = 54
+        let fbd-right = fbd-left + mass-width
+        draw.rect(
+          (fbd-left, fbd-y - mass-height / 2),
+          (fbd-right, fbd-y + mass-height / 2),
+          ..mechanics-body-style,
+        )
+        draw.content(
+          ((fbd-left + fbd-right) / 2, fbd-y),
+          homework-math[$m$],
+        )
+
+        let force-y = fbd-y + 3.5
+        draw.line((fbd-left, force-y), (31, force-y), ..mechanics-force-style)
+        draw.content(
+          (fbd-left - 2, force-y + 3.5),
+          anchor: "east",
+          homework-math[$k u(t)$],
+        )
         draw.line(
-          (mass-right, row-mid),
-          (87, row-mid),
+          (fbd-right, force-y),
+          (fbd-right + 20, force-y),
           ..mechanics-force-style,
         )
-        draw.content((90, row-mid), anchor: "west", homework-math[$F(t)$])
-        draw.line(
-          (56, row-mid + 10),
-          (68, row-mid + 10),
-          stroke: mechanics-displacement-style.stroke,
-          mark: (fill: rgb("#466A9F"), ..arrow-small),
+        draw.content(
+          (fbd-right + 22, force-y),
+          anchor: "west",
+          homework-math[$F(t)$],
         )
-        draw.content((62, row-mid + 14), homework-math[$u(t)$])
-        draw.content((note-x, row-mid), anchor: "west", text(fill: color-ink, size: 8pt)[excited by $F(t)$])
 
-        // Free-body diagram.
-        draw.rect((mass-left, row-low - 6), (mass-right, row-low + 6), ..mechanics-body-style)
-        draw.content(((mass-left + mass-right) / 2, row-low), homework-math[$m$])
-        draw.line((mass-left, row-low), (42, row-low), ..mechanics-force-style)
-        draw.content((39, row-low), anchor: "east", homework-math[$k u(t)$])
-        draw.line((mass-right, row-low), (87, row-low), ..mechanics-force-style)
-        draw.content((90, row-low), anchor: "west", homework-math[$F(t)$])
+        let acceleration-y = fbd-y - 3.5
         draw.line(
-          (56, row-low - 10),
-          (68, row-low - 10),
-          stroke: mechanics-displacement-style.stroke,
-          mark: (fill: rgb("#466A9F"), ..arrow-small),
+          (fbd-right, acceleration-y),
+          (fbd-right + 20, acceleration-y),
+          ..mechanics-force-style,
         )
-        draw.content((62, row-low - 14), homework-math[$dot.double(u)(t)$])
-        draw.content((note-x, row-low), anchor: "west", text(fill: color-ink, size: 8pt)[free-body diagram])
+        draw.content(
+          (fbd-right + 10, acceleration-y - 3),
+          homework-math[$dot.double(u)(t)$],
+        )
+        draw.content(
+          (label-x, fbd-y),
+          anchor: "west",
+          text(fill: color-ink)[free-body diagram],
+        )
       },
     ),
   ),

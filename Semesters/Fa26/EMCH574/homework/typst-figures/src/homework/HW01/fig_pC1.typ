@@ -8,17 +8,27 @@
       length: 1mm,
       {
         let top-y = 50
+        let mass-width = 12
+        let mass-height = 8
         let state-label = (body) => text(fill: color-ink, size: 8pt, body)
 
         // Unloaded reference spring.
         fixed-support((7, top-y), length: 18, direction: 0deg, hatch-side: 1)
         linear-spring((16, top-y), length: 26, angle: -90deg, coils: 7, amplitude: 2.3)
         draw.content((22, 37), anchor: "west", homework-math[$k$])
-        draw.line((25, 24), (31, 24), stroke: mechanics-reference-style.stroke)
-        draw.line((25, 12), (31, 12), stroke: mechanics-reference-style.stroke)
+        draw.rect(
+          (16 - mass-width / 2, 24 - mass-height),
+          (16 + mass-width / 2, 24),
+          ..mechanics-body-style,
+        )
+        draw.content((16, 24 - mass-height / 2), homework-math[$m_0$])
+
+        // Static deflection measured between matching block datums.
+        draw.line((22, 16), (33, 16), stroke: mechanics-reference-style.stroke)
+        draw.line((33, 8), (45, 8), stroke: mechanics-reference-style.stroke)
         draw.line(
-          (28, 24),
-          (28, 12),
+          (33, 16),
+          (33, 8),
           stroke: mechanics-displacement-style.stroke,
           mark: (
             start: arrow-head-shape,
@@ -26,31 +36,41 @@
             ..arrow-small,
           ),
         )
-        draw.content((30, 18), anchor: "west", homework-math[$delta_("st")$])
+        draw.content((35, 12), anchor: "west", homework-math[$delta_("st")$])
 
         // Static equilibrium configuration.
         fixed-support((42, top-y), length: 18, direction: 0deg, hatch-side: 1)
         linear-spring((51, top-y), length: 34, angle: -90deg, coils: 8, amplitude: 2.3)
-        draw.rect((45, 8), (57, 16), ..mechanics-body-style)
+        draw.rect(
+          (51 - mass-width / 2, 16 - mass-height),
+          (51 + mass-width / 2, 16),
+          ..mechanics-body-style,
+        )
         draw.content((51, 12), homework-math[$m$])
-        draw.line((63, 16), (69, 16), stroke: mechanics-reference-style.stroke)
-        displacement-indicator(
-          (66, 16),
-          length: 11,
-          angle: -90deg,
-          label: homework-math[$u(t)$],
-          label-offset: -3,
-          extension: 1.8,
+        draw.line(
+          (60, 8),
+          (60, -1),
+          ..mechanics-displacement-style,
+        )
+        draw.content(
+          (62, 3.5),
+          anchor: "west",
+          homework-math[$u(t)$],
         )
 
         // Generic displaced configuration.
         fixed-support((78, top-y), length: 18, direction: 0deg, hatch-side: 1)
         linear-spring((87, top-y), length: 43, angle: -90deg, coils: 8, amplitude: 2.3)
-        draw.rect((81, 0), (93, 7), ..mechanics-body-style)
-        draw.content((87, 3.5), homework-math[$m$])
+        draw.rect(
+          (87 - mass-width / 2, 7 - mass-height),
+          (87 + mass-width / 2, 7),
+          ..mechanics-body-style,
+        )
+        draw.content((87, 7 - mass-height / 2), homework-math[$m$])
 
-        draw.content((106, 20), anchor: "west", state-label[Equilibrium position])
-        draw.content((106, 4), anchor: "west", state-label[Displaced position])
+        draw.content((16, -8), state-label[Undeformed position])
+        draw.content((51, -8), state-label[Equilibrium position])
+        draw.content((87, -8), state-label[Displaced position])
       },
     ),
   ),

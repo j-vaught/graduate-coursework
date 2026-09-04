@@ -168,9 +168,20 @@
     homework-math[$m$],
   )
 
+  let dimension-y = y + 13
   draw.line(
-    (x, y + 8),
-    (tip-x, y + 8),
+    (x, y + beam-height / 2),
+    (x, dimension-y),
+    stroke: mechanics-reference-style.stroke,
+  )
+  draw.line(
+    (tip-x, mass-top),
+    (tip-x, dimension-y),
+    stroke: mechanics-reference-style.stroke,
+  )
+  draw.line(
+    (x, dimension-y),
+    (tip-x, dimension-y),
     stroke: (
       paint: color-ink,
       thickness: 0.75pt,
@@ -182,26 +193,34 @@
       ..arrow-small,
     ),
   )
-  draw.content(((x + tip-x) / 2, y + 11), homework-math[$L$])
+  draw.content(((x + tip-x) / 2, dimension-y + 3), homework-math[$L$])
   draw.content(
     ((x + tip-x) / 2, y - 7),
     homework-math[$E, h, b$],
   )
-  displacement-indicator(
-    (mass-right + 4, y + 4),
-    length: 9,
-    angle: -90deg,
-    label: homework-math[$u$],
-    label-offset: -3,
-    extension: 1.8,
+  let displacement-x = mass-right + 4
+  draw.line(
+    (mass-right, mass-bottom),
+    (displacement-x, mass-bottom),
+    stroke: mechanics-displacement-style.stroke,
+  )
+  draw.line(
+    (displacement-x, mass-bottom),
+    (displacement-x, mass-bottom - 9),
+    ..mechanics-displacement-style,
+  )
+  draw.content(
+    (displacement-x + 2.5, mass-bottom - 4.5),
+    anchor: "west",
+    homework-math[$u(t)$],
   )
 
   if show-cross-section {
     let section-x = (x + tip-x) / 2
     let section-y = y - 20
     draw.rect(
-      (section-x - 8, section-y - 1.5),
-      (section-x + 8, section-y + 1.5),
+      (section-x - 6, section-y - 2),
+      (section-x + 6, section-y + 2),
       fill: color-surface,
       stroke: outline,
     )
