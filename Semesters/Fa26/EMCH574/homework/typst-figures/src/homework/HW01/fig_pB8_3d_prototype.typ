@@ -189,7 +189,7 @@
           // Plot the dashed construction line after all solid geometry and
           // immediately before the coordinate axes.
           draw.line(
-            (projectile-x, 0, 0),
+            (projectile-x, -cube-half, 0),
             (projectile-x, projectile-front-y, 0),
             stroke: guide-stroke,
           )
