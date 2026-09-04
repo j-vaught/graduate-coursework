@@ -27,6 +27,14 @@
 #let axis-length = 35
 #let z-axis-length = 10
 #let cube-fill = color-surface-strong
+#let projectile-x = 28.5
+#let projectile-front-y = -20
+#let projectile-length = 4
+#let projectile-back-y = projectile-front-y + projectile-length
+#let projectile-radius = 0.5
+// Tangency offsets for the calibrated projection and a radius-0.5 circle.
+#let projectile-rim-x = 0.281
+#let projectile-rim-z = 0.414
 #let cube-stroke = (
   paint: color-border,
   thickness: line-normal,
@@ -177,20 +185,80 @@
           // Plot the dashed construction line after all solid geometry and
           // immediately before the coordinate axes.
           draw.line(
-            (28.5, 0, 0),
-            (28.5, -20, 0),
+            (projectile-x, 0, 0),
+            (projectile-x, projectile-front-y, 0),
             stroke: guide-stroke,
           )
 
-          // Radius-1 circular face at the guide endpoint, parallel to zx.
-          draw.on-xz(y: -20, {
+          // Radius-0.5 cylinder extruded four units in the positive y direction.
+          // The rear cap is drawn first so the side surface masks its near arc.
+          draw.on-xz(y: projectile-back-y, {
             draw.circle(
-              (28.5, 0),
-              radius: 1,
+              (projectile-x, 0),
+              radius: projectile-radius,
               fill: color-surface-strong,
               stroke: solid-stroke,
             )
           })
+          draw.line(
+            (
+              projectile-x + projectile-rim-x,
+              projectile-front-y,
+              -projectile-rim-z,
+            ),
+            (
+              projectile-x + projectile-rim-x,
+              projectile-back-y,
+              -projectile-rim-z,
+            ),
+            (
+              projectile-x - projectile-rim-x,
+              projectile-back-y,
+              projectile-rim-z,
+            ),
+            (
+              projectile-x - projectile-rim-x,
+              projectile-front-y,
+              projectile-rim-z,
+            ),
+            close: true,
+            fill: color-surface-strong,
+            stroke: none,
+          )
+          draw.on-xz(y: projectile-front-y, {
+            draw.circle(
+              (projectile-x, 0),
+              radius: projectile-radius,
+              fill: color-surface-strong,
+              stroke: solid-stroke,
+            )
+          })
+          draw.line(
+            (
+              projectile-x + projectile-rim-x,
+              projectile-front-y,
+              -projectile-rim-z,
+            ),
+            (
+              projectile-x + projectile-rim-x,
+              projectile-back-y,
+              -projectile-rim-z,
+            ),
+            stroke: solid-stroke,
+          )
+          draw.line(
+            (
+              projectile-x - projectile-rim-x,
+              projectile-front-y,
+              projectile-rim-z,
+            ),
+            (
+              projectile-x - projectile-rim-x,
+              projectile-back-y,
+              projectile-rim-z,
+            ),
+            stroke: solid-stroke,
+          )
 
           draw.line(
             (0, 0, 0),
