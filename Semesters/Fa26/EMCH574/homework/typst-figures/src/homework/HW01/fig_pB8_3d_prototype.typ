@@ -103,11 +103,15 @@
 // Tangency offsets for the calibrated projection and a radius-0.5 circle.
 #let projectile-rim-x = 0.281
 #let projectile-rim-z = 0.414
-#standalone(
-  cetz-canvas(
-    length: 4mm,
-    {
-      draw.ortho(
+#let flex-beam-scene(
+  projectile: true,
+  tip-mass-label: [$M$],
+) = standalone(
+  full-width-artboard(
+    cetz-canvas(
+      length: 4mm,
+      {
+        draw.ortho(
         x: -69.2733deg,
         y: 0deg,
         z: -33.9052deg,
@@ -238,25 +242,27 @@
             stroke: shape-stroke,
           )
 
-          // Plot the dashed construction line after all solid geometry and
-          // immediately before the coordinate axes.
-          draw.line(
-            (projectile-x, -cube-half, 0),
-            (projectile-x, projectile-front-y, 0),
-            stroke: guide-stroke,
-          )
-
-          // Radius-0.5 cylinder extruded four units in the positive y direction.
-          // The rear cap is drawn first so the side surface masks its near arc.
-          draw.on-xz(y: projectile-back-y, {
-            draw.circle(
-              (projectile-x, 0),
-              radius: projectile-radius,
-              fill: color-surface-strong,
-              stroke: shape-stroke,
+          if projectile {
+            // Plot the dashed construction line after all solid geometry and
+            // immediately before the coordinate axes.
+            draw.line(
+              (projectile-x, -cube-half, 0),
+              (projectile-x, projectile-front-y, 0),
+              stroke: guide-stroke,
             )
-          })
-          draw.line(
+
+            // Radius-0.5 cylinder extruded four units in the positive y
+            // direction. The rear cap is drawn first so the side surface
+            // masks its near arc.
+            draw.on-xz(y: projectile-back-y, {
+              draw.circle(
+                (projectile-x, 0),
+                radius: projectile-radius,
+                fill: color-surface-strong,
+                stroke: shape-stroke,
+              )
+            })
+            draw.line(
             (
               projectile-x + projectile-rim-x,
               projectile-front-y,
@@ -281,15 +287,15 @@
             fill: color-surface-strong,
             stroke: none,
           )
-          draw.on-xz(y: projectile-front-y, {
-            draw.circle(
-              (projectile-x, 0),
-              radius: projectile-radius,
-              fill: color-surface-strong,
-              stroke: shape-stroke,
-            )
-          })
-          draw.line(
+            draw.on-xz(y: projectile-front-y, {
+              draw.circle(
+                (projectile-x, 0),
+                radius: projectile-radius,
+                fill: color-surface-strong,
+                stroke: shape-stroke,
+              )
+            })
+            draw.line(
             (
               projectile-x + projectile-rim-x,
               projectile-front-y,
@@ -302,7 +308,7 @@
             ),
             stroke: shape-stroke,
           )
-          draw.line(
+            draw.line(
             (
               projectile-x - projectile-rim-x,
               projectile-front-y,
@@ -316,23 +322,24 @@
             stroke: shape-stroke,
           )
 
-          // Velocity arrow parallel to the cylinder on the xy plane.
-          draw.on-xy(z: 0, {
-            draw.line(
-              (velocity-arrow-x, projectile-front-y),
-              (velocity-arrow-x, projectile-back-y),
-              stroke: motion-arrow-stroke,
-              mark: (fill: color-displacement, ..arrow-medium),
-            )
-            draw.content(
-              (
-                velocity-arrow-x + 0.8,
-                projectile-front-y + projectile-length / 2,
-              ),
-              anchor: "west",
-              text(fill: color-displacement)[$v$],
-            )
-          })
+            // Velocity arrow parallel to the cylinder on the xy plane.
+            draw.on-xy(z: 0, {
+              draw.line(
+                (velocity-arrow-x, projectile-front-y),
+                (velocity-arrow-x, projectile-back-y),
+                stroke: motion-arrow-stroke,
+                mark: (fill: color-displacement, ..arrow-medium),
+              )
+              draw.content(
+                (
+                  velocity-arrow-x + 0.8,
+                  projectile-front-y + projectile-length / 2,
+                ),
+                anchor: "west",
+                text(fill: color-displacement)[$v$],
+              )
+            })
+          }
 
           // Standard ticked displacement arrow, parallel to xy at z = 3.5.
           draw.on-xy(z: cube-half, {
@@ -388,20 +395,25 @@
             [Fixed wall],
             anchor: "west",
           )
-          callout(
-            (projectile-x, projectile-front-y, 0),
-            (24, -23, 0.35),
-            [Projectile mass, #text(fill: color-secondary)[$m$]],
-            anchor: "east",
-          )
+          if projectile {
+            callout(
+              (projectile-x, projectile-front-y, 0),
+              (24, -23, 0.35),
+              [Projectile mass, #text(fill: color-secondary)[$m$]],
+              anchor: "east",
+            )
+          }
           callout(
             (projectile-x, 0, cube-half),
             (31, 1, 7),
-            [Mass, #text(fill: color-secondary)[$M$]],
+            [Mass, #text(fill: color-secondary, tip-mass-label)],
             anchor: "west",
           )
         },
       )
-    },
+      },
+    ),
   ),
 )
+
+#flex-beam-scene()
