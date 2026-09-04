@@ -14,6 +14,16 @@
 )
 
 #let beam-length = 25
+#let cube-length = 7
+#let cube-end = beam-length + cube-length
+#let cube-half = 3.5
+#let cube-fill = color-surface-strong.transparentize(45%)
+#let cube-stroke = (
+  paint: color-border,
+  thickness: line-normal,
+  cap: "round",
+  join: "round",
+)
 
 #standalone(
   cetz-canvas(
@@ -99,21 +109,61 @@
             stroke: solid-stroke,
           )
 
-          // Semi-transparent 7 x 7 plane centered at the beam tip on x = 25.
-          // It overlays the beam and is drawn immediately before the axes.
-          draw.on-zy(x: beam-length, {
-            draw.rect(
-              (-3.5, -3.5),
-              (3.5, 3.5),
-              fill: color-surface-strong.transparentize(45%),
-              stroke: (
-                paint: color-border,
-                thickness: line-normal,
-                cap: "butt",
-                join: "miter",
-              ),
-            )
-          })
+          // Extrude the 7 x 7 tip profile from x = 25 to x = 32.
+          draw.line(
+            (beam-length, -cube-half, cube-half),
+            (cube-end, -cube-half, cube-half),
+            (cube-end, cube-half, cube-half),
+            (beam-length, cube-half, cube-half),
+            close: true,
+            fill: cube-fill,
+            stroke: none,
+          )
+          draw.line(
+            (beam-length, -cube-half, -cube-half),
+            (cube-end, -cube-half, -cube-half),
+            (cube-end, -cube-half, cube-half),
+            (beam-length, -cube-half, cube-half),
+            close: true,
+            fill: cube-fill,
+            stroke: none,
+          )
+          draw.line(
+            (cube-end, -cube-half, -cube-half),
+            (cube-end, cube-half, -cube-half),
+            (cube-end, cube-half, cube-half),
+            (cube-end, -cube-half, cube-half),
+            close: true,
+            fill: cube-fill,
+            stroke: none,
+          )
+
+          // One rounded silhouette and three crease lines define the cube.
+          draw.line(
+            (beam-length, -cube-half, -cube-half),
+            (cube-end, -cube-half, -cube-half),
+            (cube-end, cube-half, -cube-half),
+            (cube-end, cube-half, cube-half),
+            (beam-length, cube-half, cube-half),
+            (beam-length, -cube-half, cube-half),
+            close: true,
+            stroke: cube-stroke,
+          )
+          draw.line(
+            (cube-end, -cube-half, -cube-half),
+            (cube-end, -cube-half, cube-half),
+            stroke: cube-stroke,
+          )
+          draw.line(
+            (beam-length, -cube-half, cube-half),
+            (cube-end, -cube-half, cube-half),
+            stroke: cube-stroke,
+          )
+          draw.line(
+            (cube-end, -cube-half, cube-half),
+            (cube-end, cube-half, cube-half),
+            stroke: cube-stroke,
+          )
 
           draw.line(
             (0, 0, 0),
