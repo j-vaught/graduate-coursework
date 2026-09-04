@@ -18,6 +18,7 @@
 #let cube-end = beam-length + cube-length
 #let cube-half = 3.5
 #let axis-length = 35
+#let z-axis-length = 10
 #let cube-fill = color-surface-strong.transparentize(45%)
 #let cube-stroke = (
   paint: color-border,
@@ -180,14 +181,14 @@
           )
           draw.line(
             (0, 0, 0),
-            (0, 0, axis-length),
+            (0, 0, z-axis-length),
             stroke: axis-stroke,
             mark: (fill: color-ink, ..arrow-medium),
           )
 
           draw.content((axis-length + 0.8, 0, 0), anchor: "west", [$x=35$])
           draw.content((0, axis-length + 0.8, 0), anchor: "south", [$y=35$])
-          draw.content((0, 0, axis-length + 0.8), anchor: "east", [$z=35$])
+          draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z=10$])
           draw.content((0, 0, 0), anchor: "north", [$0$])
         },
       )
