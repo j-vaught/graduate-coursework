@@ -278,20 +278,17 @@
   label-offset: 2,
   extension: 2.5,
   arrow: arrow-medium,
+  stroke: mechanics-displacement-style.stroke,
 ) = mechanics-frame(origin, angle, {
   draw.line(
     (0, -extension),
     (0, extension),
-    stroke: (
-      paint: color-displacement,
-      thickness: line-normal,
-      cap: "butt",
-    ),
+    stroke: stroke,
   )
   draw.line(
     (0, offset),
     (length, offset),
-    stroke: mechanics-displacement-style.stroke,
+    stroke: stroke,
     mark: (fill: color-displacement, ..arrow),
   )
   draw.content(

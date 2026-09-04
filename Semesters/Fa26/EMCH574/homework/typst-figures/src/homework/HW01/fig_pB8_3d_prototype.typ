@@ -8,9 +8,16 @@
 
 #let shape-stroke = (
   paint: color-on-light,
-  thickness: line-emphasis,
+  thickness: line-normal,
   cap: "round",
   join: "round",
+)
+
+#let motion-arrow-stroke = (
+  paint: color-displacement,
+  thickness: line-emphasis,
+  cap: "butt",
+  join: "miter",
 )
 
 #let guide-stroke = (
@@ -260,8 +267,8 @@
             draw.line(
               (velocity-arrow-x, projectile-front-y),
               (velocity-arrow-x, projectile-back-y),
-              stroke: mechanics-displacement-style.stroke,
-              mark: (fill: color-displacement, ..arrow-small),
+              stroke: motion-arrow-stroke,
+              mark: (fill: color-displacement, ..arrow-medium),
             )
             draw.content(
               (
@@ -282,7 +289,8 @@
               label: text(fill: color-displacement)[$u(t)$],
               label-offset: -1.7,
               extension: 0.7,
-              arrow: arrow-small,
+              arrow: arrow-medium,
+              stroke: motion-arrow-stroke,
             )
           })
 
