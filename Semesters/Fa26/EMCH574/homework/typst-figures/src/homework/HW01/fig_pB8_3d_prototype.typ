@@ -6,6 +6,13 @@
   cap: "butt",
 )
 
+#let solid-stroke = (
+  paint: color-ink,
+  thickness: line-emphasis,
+  cap: "butt",
+  join: "miter",
+)
+
 #standalone(
   cetz-canvas(
     length: 4mm,
@@ -45,28 +52,57 @@
             )
           })
 
+          // Visible faces of the 4 x 1.5 profile extruded from x = 0 to x = 10.
+          draw.line(
+            (0, -0.75, 2),
+            (10, -0.75, 2),
+            (10, 0.75, 2),
+            (0, 0.75, 2),
+            close: true,
+            fill: color-surface,
+            stroke: solid-stroke,
+          )
+          draw.line(
+            (0, -0.75, -2),
+            (10, -0.75, -2),
+            (10, -0.75, 2),
+            (0, -0.75, 2),
+            close: true,
+            fill: color-surface-strong,
+            stroke: solid-stroke,
+          )
+          draw.line(
+            (10, -0.75, -2),
+            (10, 0.75, -2),
+            (10, 0.75, 2),
+            (10, -0.75, 2),
+            close: true,
+            fill: color-background,
+            stroke: solid-stroke,
+          )
+
           draw.line(
             (0, 0, 0),
-            (10, 0, 0),
+            (30, 0, 0),
             stroke: axis-stroke,
             mark: (fill: color-ink, ..arrow-medium),
           )
           draw.line(
             (0, 0, 0),
-            (0, 10, 0),
+            (0, 30, 0),
             stroke: axis-stroke,
             mark: (fill: color-ink, ..arrow-medium),
           )
           draw.line(
             (0, 0, 0),
-            (0, 0, 10),
+            (0, 0, 30),
             stroke: axis-stroke,
             mark: (fill: color-ink, ..arrow-medium),
           )
 
-          draw.content((10.8, 0, 0), anchor: "west", [$x=10$])
-          draw.content((0, 10.8, 0), anchor: "south", [$y=10$])
-          draw.content((0, 0, 10.8), anchor: "east", [$z=10$])
+          draw.content((30.8, 0, 0), anchor: "west", [$x=30$])
+          draw.content((0, 30.8, 0), anchor: "south", [$y=30$])
+          draw.content((0, 0, 30.8), anchor: "east", [$z=30$])
           draw.content((0, 0, 0), anchor: "north", [$0$])
         },
       )
