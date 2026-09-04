@@ -26,7 +26,7 @@
 #let cube-half = 3.5
 #let axis-length = 35
 #let z-axis-length = 10
-#let cube-fill = color-surface-strong.transparentize(45%)
+#let cube-fill = color-surface-strong
 #let cube-stroke = (
   paint: color-border,
   thickness: line-normal,
@@ -44,13 +44,6 @@
         z: -33.9052deg,
         sorted: false,
         {
-          // Draw dashed construction lines first so solids cover hidden spans.
-          draw.line(
-            (28.5, 0, 0),
-            (28.5, -10, 0),
-            stroke: guide-stroke,
-          )
-
           // Semi-transparent 10 x 10 wall centered at the origin on x = 0.
           // It is drawn first so all three calibration axes remain on top.
           draw.on-zy(x: 0, {
@@ -179,6 +172,14 @@
             (cube-end, -cube-half, cube-half),
             (cube-end, cube-half, cube-half),
             stroke: cube-stroke,
+          )
+
+          // Plot the dashed construction line after all solid geometry and
+          // immediately before the coordinate axes.
+          draw.line(
+            (28.5, 0, 0),
+            (28.5, -20, 0),
+            stroke: guide-stroke,
           )
 
           draw.line(
