@@ -11,9 +11,9 @@
     length: 4mm,
     {
       draw.ortho(
-        x: 15deg,
-        y: 35deg,
-        z: -2deg,
+        x: -54.736deg,
+        y: 0deg,
+        z: -135deg,
         sorted: false,
         {
           draw.line(
