@@ -38,6 +38,75 @@
   draw.content(label-position, anchor: anchor, figure-small(label))
 }
 
+#let section-dimension-mark = (
+  start: arrow-head-shape,
+  end: arrow-head-shape,
+  fill: color-ink,
+  length: 4.5pt,
+  width: 3.5pt,
+  inset: 1pt,
+)
+
+#let beam-section-inset = cetz-canvas(
+  length: 2.2mm,
+  {
+    // The inset stays in the page plane so the b by h section reads as a
+    // true rectangle rather than inheriting the 3D camera foreshortening.
+    draw.content(
+      (2.4, 3.35),
+      anchor: "west",
+      figure-small([Beam section]),
+    )
+    draw.rect(
+      (-1, -2),
+      (1, 2),
+      fill: color-surface-strong,
+      stroke: shape-stroke,
+    )
+
+    draw.line(
+      (-1, -2.75),
+      (1, -2.75),
+      stroke: callout-stroke,
+      mark: section-dimension-mark,
+    )
+    draw.content(
+      (0, -3.35),
+      text(fill: color-secondary)[$b$],
+    )
+    draw.line(
+      (-1.75, -2),
+      (-1.75, 2),
+      stroke: callout-stroke,
+      mark: section-dimension-mark,
+    )
+    draw.content(
+      (-2.4, 0),
+      text(fill: color-secondary)[$h$],
+    )
+
+    draw.line(
+      (1.7, 0),
+      (4.1, 0),
+      stroke: callout-stroke,
+      mark: (fill: color-ink, ..arrow-small),
+    )
+    draw.content((4.45, 0), anchor: "west", [$y$])
+    draw.line(
+      (1.7, 0),
+      (1.7, 2.9),
+      stroke: callout-stroke,
+      mark: (fill: color-ink, ..arrow-small),
+    )
+    draw.content((1.7, 3.25), anchor: "south", [$z$])
+
+    draw.content(
+      (0, -4.35),
+      figure-small([Length #text(fill: color-secondary)[$L$], modulus #text(fill: color-secondary)[$E$]]),
+    )
+  },
+)
+
 #let beam-length = 25
 #let cube-length = 7
 #let cube-end = beam-length + cube-length
@@ -327,6 +396,17 @@
           draw.content((x-axis-length + 0.8, 0, 0), anchor: "west", [$x$])
           draw.content((0, y-axis-length + 0.8, 0), anchor: "south", [$y$])
           draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z$])
+
+          draw.line(
+            (12.5, -0.75, 2),
+            (22, -7, 9.5),
+            stroke: callout-stroke,
+          )
+          draw.content(
+            (22, -7, 9.5),
+            anchor: "south",
+            beam-section-inset,
+          )
 
           callout(
             (0, 0, -5),
