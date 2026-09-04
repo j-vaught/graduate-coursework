@@ -36,6 +36,8 @@
 #let projectile-length = 4
 #let projectile-back-y = projectile-front-y + projectile-length
 #let projectile-radius = 0.5
+#let velocity-arrow-x = projectile-x + projectile-radius + 0.75
+#let displacement-arrow-x = cube-end + 1.5
 // Tangency offsets for the calibrated projection and a radius-0.5 circle.
 #let projectile-rim-x = 0.281
 #let projectile-rim-z = 0.414
@@ -264,6 +266,37 @@
             stroke: solid-stroke,
           )
 
+          // Velocity arrow parallel to the cylinder on the xy plane.
+          draw.on-xy(z: 0, {
+            draw.line(
+              (velocity-arrow-x, projectile-front-y),
+              (velocity-arrow-x, projectile-back-y),
+              stroke: mechanics-displacement-style.stroke,
+              mark: (fill: color-displacement, ..arrow-small),
+            )
+            draw.content(
+              (
+                velocity-arrow-x + 0.8,
+                projectile-front-y + projectile-length / 2,
+              ),
+              anchor: "west",
+              text(fill: color-displacement)[$v$],
+            )
+          })
+
+          // Standard ticked displacement arrow, parallel to xy at z = 3.5.
+          draw.on-xy(z: cube-half, {
+            displacement-indicator(
+              (displacement-arrow-x, -cube-half),
+              length: 2 * cube-half,
+              angle: 90deg,
+              label: text(fill: color-displacement)[$u(t)$],
+              label-offset: -1.7,
+              extension: 0.7,
+              arrow: arrow-small,
+            )
+          })
+
           draw.line(
             (x-axis-start, 0, 0),
             (x-axis-length, 0, 0),
@@ -283,9 +316,9 @@
             mark: (fill: color-ink, ..arrow-medium),
           )
 
-          draw.content((x-axis-length + 0.8, 0, 0), anchor: "west", [$x=40$])
-          draw.content((0, y-axis-length + 0.8, 0), anchor: "south", [$y=15$])
-          draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z=10$])
+          draw.content((x-axis-length + 0.8, 0, 0), anchor: "west", [$x$])
+          draw.content((0, y-axis-length + 0.8, 0), anchor: "south", [$y$])
+          draw.content((0, 0, z-axis-length + 0.8), anchor: "east", [$z$])
         },
       )
     },
