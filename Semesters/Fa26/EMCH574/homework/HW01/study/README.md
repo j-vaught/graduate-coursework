@@ -18,4 +18,4 @@ uv run python build.py
 
 `output/results.json` retains full precision and units, `output/A2_lengths.csv` stores the pendulum table, and `output/verification.json` records the analytical-versus-numerical checks. The plotted data are JSON files alongside the solution Typst sources in the homework figure library. Event markers are evaluated from the analytical expressions, including the exact final 2% crossing.
 
-The former standalone study guide and raster plotting outputs have been replaced by the solved homework and the Typst figure pipeline. The build selects the homework's blue, orange, and neutral palette without changing the default palette of unrelated reference figures.
+The former standalone study guide and raster plotting outputs have been replaced by the solved homework and the Typst figure pipeline. The build selects the homework's teal, orange, and neutral palette without changing the default palette of unrelated reference figures.

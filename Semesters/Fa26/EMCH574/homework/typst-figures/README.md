@@ -39,6 +39,6 @@ The original upstream figure-system documentation is preserved in [`UPSTREAM_FIG
 
 ## HW01 solved-assignment figures
 
-HW01 uses a blue, orange, and neutral palette through the `palette=homework` Typst input. The Makefile selects this palette automatically for HW01 sources. Other reference sources retain their default palette.
+HW01 uses a teal, orange, and neutral palette through the `palette=homework` Typst input. The Makefile selects this palette automatically for HW01 sources. Other reference sources retain their default palette.
 
 The solution plots import `styles/homework-response.typ`, which wraps the existing figure facade and Lilaq plot theme. Python supplies JSON data under `src/homework/HW01/solutions/data/`. New free-body diagrams use the same facade and CeTZ mechanics components. The complete homework build is driven by `../HW01/study/build.py`.

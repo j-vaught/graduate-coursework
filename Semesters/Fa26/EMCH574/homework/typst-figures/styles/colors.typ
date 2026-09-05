@@ -3,8 +3,8 @@
 // without editing individual figures.
 
 #let homework-palette = sys.inputs.at("palette", default: "reference") == "homework"
-#let color-garnet-rose = if homework-palette { rgb("#0072b2") } else { rgb("#8b3a4a") }
-#let color-deep-teal = if homework-palette { rgb("#0072b2") } else { rgb("#005f73") }
+#let color-garnet-rose = if homework-palette { rgb("#005f73") } else { rgb("#8b3a4a") }
+#let color-deep-teal = rgb("#005f73")
 #let color-graphite = rgb("#25282a")
 #let color-slate = rgb("#50565b")
 #let color-cool-grey = rgb("#7b858c")
@@ -36,7 +36,7 @@
 #let color-mechanical = color-ink
 
 #let plot-color-cycle = if homework-palette {
-  (rgb("#0072b2"), rgb("#d55e00"), color-graphite, rgb("#009e73"), color-slate, color-cool-grey)
+  (color-deep-teal, rgb("#d55e00"), color-graphite, rgb("#009e73"), color-slate, color-cool-grey)
 } else { (
   color-garnet-rose,
   color-deep-teal,

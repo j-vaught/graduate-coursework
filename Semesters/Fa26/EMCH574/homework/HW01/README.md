@@ -6,7 +6,7 @@ J.C. Vaught.
 
 `HW01_EMCH574.tex` is the main document. The generated solution fragments are in `solutions/`. Edit the explanatory source in `study/solutions_source.md` and the numerical inputs in `study/inputs.json` before rebuilding.
 
-Python calculates the responses and checks them against numerical integration. The existing homework figure library renders the plots with Lilaq and the mechanical diagrams with CeTZ. The output uses a blue, orange, and neutral palette selected only for HW01. The reference figure library keeps its default palette.
+Python calculates the responses and checks them against numerical integration. The existing homework figure library renders the plots with Lilaq and the mechanical diagrams with CeTZ. The output uses a teal, orange, and neutral palette selected only for HW01. The reference figure library keeps its default palette.
 
 Run the following commands from `study/`. The build needs uv, Typst, Pandoc, latexmk, and XeLaTeX.
 
