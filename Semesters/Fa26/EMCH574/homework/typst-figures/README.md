@@ -36,3 +36,9 @@ Each build uses the directory itself as the Typst project root, ignores system f
 Start from the source pattern documented in [`src/homework/README.md`](src/homework/README.md). Use `src/ch01` and `src/ch02` to borrow established layouts and component constructions. Keep colors, text settings, dimensions, arrows, line weights, and plot styles in the shared modules so the assignment figures remain visually consistent.
 
 The original upstream figure-system documentation is preserved in [`UPSTREAM_FIGURE_SYSTEM.md`](UPSTREAM_FIGURE_SYSTEM.md). Its paths and repository-level commands describe the textbook repository and are retained for reference.
+
+## HW01 solved-assignment figures
+
+HW01 uses a blue, orange, and neutral palette through the `palette=homework` Typst input. The Makefile selects this palette automatically for HW01 sources. Other reference sources retain their default palette.
+
+The solution plots import `styles/homework-response.typ`, which wraps the existing figure facade and Lilaq plot theme. Python supplies JSON data under `src/homework/HW01/solutions/data/`. New free-body diagrams use the same facade and CeTZ mechanics components. The complete homework build is driven by `../HW01/study/build.py`.

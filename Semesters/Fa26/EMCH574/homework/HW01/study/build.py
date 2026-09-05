@@ -1,54 +1,32 @@
-"""Calculate HW01 responses, verify the models, and build the study artifacts."""
+"""Calculate HW01 responses, render Typst figures, and solve the rewritten assignment."""
 
 from __future__ import annotations
 
 import json
 import math
+import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
-import plotly.graph_objects as go
-from matplotlib.axes import Axes
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
 from scipy.optimize import brentq
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "output"
-FIG = OUT / "figures"
+WORKSHOP = ROOT.parent.parent / "typst-figures"
+FIG = WORKSHOP / "generated/homework/HW01/solutions"
+SOURCE_FIG = WORKSHOP / "src/homework/HW01/solutions"
+DATA = SOURCE_FIG / "data"
 Array = NDArray[np.float64]
-GARNET, BLACK, GRAY, ATLANTIC = "#73000A", "#000000", "#5C5C5C", "#466A9F"
-COLORS = [GARNET, BLACK, ATLANTIC, "#1F414D", "#CC2E40"]
 RESULTS: dict[str, Any] = {}
 TABLES: dict[str, str] = {}
-HTML: list[str] = []
 CHECKS: dict[str, float | str] = {}
-plt.rcParams.update(
-    {
-        "font.family": "DejaVu Sans",
-        "font.size": 10,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.edgecolor": BLACK,
-        "axes.labelcolor": BLACK,
-        "text.color": BLACK,
-        "figure.facecolor": "white",
-        "axes.facecolor": "white",
-        "grid.color": "#C7C7C7",
-        "grid.linewidth": 0.5,
-        "legend.fancybox": False,
-        "lines.solid_capstyle": "butt",
-        "lines.solid_joinstyle": "miter",
-        "savefig.dpi": 180,
-    }
-)
+PLOTS: list[str] = []
 
 
 def fmt(x: float) -> str:
@@ -151,11 +129,23 @@ def verify(name: str, model: Oscillator, end: float) -> None:
         CHECKS[name + " final 2% crossing verified"] = "passed"
 
 
-def axes(title: str, ylabel: str, xlabel: str = "Time (s)") -> tuple[Any, Axes]:
-    fig, ax = plt.subplots(figsize=(8, 3.6), layout="constrained")
-    ax.set(title=title, xlabel=xlabel, ylabel=ylabel)
-    ax.grid(True)
-    return fig, ax
+def compile_figure(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "typst",
+            "compile",
+            "--root",
+            str(WORKSHOP),
+            "--ignore-system-fonts",
+            "--input",
+            "palette=homework",
+            str(source),
+            str(destination),
+        ],
+        check=True,
+        env={**os.environ, "SOURCE_DATE_EPOCH": "0"},
+    )
 
 
 def plot(
@@ -168,74 +158,32 @@ def plot(
     ylabel: str = "Displacement (mm)",
     xlabel: str = "Time (s)",
 ) -> None:
-    fig, ax = axes(title, ylabel, xlabel)
-    interactive = go.Figure()
-    for i, (label, y) in enumerate(curves):
-        color = COLORS[i % len(COLORS)]
-        dash = "--" if i % 2 else "-"
-        ax.plot(t, y, color=color, lw=1.35, ls=dash, label=label)
-        interactive.add_trace(
-            go.Scatter(
-                x=t.tolist(),
-                y=np.asarray(y).tolist(),
-                name=label,
-                mode="lines",
-                line={"color": color, "width": 2, "dash": "dash" if i % 2 else "solid"},
-                hovertemplate="%{x:.6g}<br>%{y:.6g}<extra>%{fullData.name}</extra>",
-            )
-        )
-    if band is not None:
-        for value in (-band, band):
-            ax.axhline(value, color=GRAY, ls=":", lw=1)
-            interactive.add_hline(y=value, line_dash="dot", line_color=GRAY)
-        ax.axhspan(-band, band, color="#ECECEC", zorder=0)
-    for i, (label, x, y) in enumerate(events or []):
-        ax.plot(x, y, "s", color=BLACK, ms=4)
-        ax.annotate(
-            f"{label}\n({fmt(x)}, {fmt(y)})",
-            xy=(x, y),
-            xytext=(0.02 + 0.32 * (i % 3), 0.96 if i < 3 else 0.70),
-            textcoords="axes fraction",
-            ha="left",
-            va="top",
-            fontsize=8,
-            bbox={"boxstyle": "square,pad=0.2", "fc": "white", "ec": "#C7C7C7"},
-            arrowprops={"arrowstyle": "-", "color": GRAY},
-        )
-        interactive.add_trace(
-            go.Scatter(
-                x=[x],
-                y=[y],
-                name=label,
-                mode="markers",
-                marker={"color": BLACK, "symbol": "square", "size": 9},
-                hovertemplate="%{x:.8g}<br>%{y:.8g}<extra>" + label + "</extra>",
-            )
-        )
-    if len(curves) > 1:
-        ax.legend(loc="lower right", fontsize=8)
-    ax.margins(y=0.3 if events else 0.08)
-    fig.savefig(FIG / f"{name}.png")
-    plt.close(fig)
-    interactive.update_layout(
-        title=title,
-        xaxis_title=xlabel,
-        yaxis_title=ylabel,
-        template="plotly_white",
-        font={"family": "Arial", "color": BLACK},
-        height=440,
-        margin={"l": 65, "r": 30, "t": 70, "b": 70},
-        legend={"orientation": "h", "y": -0.23},
-        hovermode="closest",
+    values = np.concatenate([np.asarray(y) for _, y in curves])
+    low, high = float(values.min()), float(values.max())
+    extent = max(high - low, 1e-10)
+    payload = {
+        "title": title,
+        "xlabel": xlabel,
+        "ylabel": ylabel,
+        "x": t.tolist(),
+        "xlim": [float(t[0]), float(t[-1])],
+        "ylim": [low - 0.13 * extent, high + (0.38 if events else 0.13) * extent],
+        "curves": [{"label": label, "y": np.asarray(y).tolist()} for label, y in curves],
+        "band": band,
+        "events": [
+            {"label": label, "x": x, "y": y, "value": f"({fmt(x)}, {fmt(y)})"}
+            for label, x, y in events or []
+        ],
+    }
+    DATA.mkdir(parents=True, exist_ok=True)
+    (DATA / f"{name}.json").write_text(json.dumps(payload, separators=(",", ":")) + "\n")
+    figure_source = SOURCE_FIG / f"{name}.typ"
+    figure_source.write_text(
+        '#import "/styles/homework-response.typ": response-figure\n'
+        f'#response-figure(json("data/{name}.json"))\n'
     )
-    HTML.append(
-        interactive.to_html(
-            full_html=False,
-            include_plotlyjs=True if not HTML else False,
-            div_id=name,
-            config={"responsive": True, "displaylogo": False},
-        )
-    )
+    compile_figure(figure_source, FIG / f"{name}.pdf")
+    PLOTS.append(name)
 
 
 def damped(name: str, mass: float, k: float, zeta: float, u0: float) -> Oscillator:
@@ -283,6 +231,18 @@ def damped(name: str, mass: float, k: float, zeta: float, u0: float) -> Oscillat
         ],
         band=0.02 * u0 * 1000,
     )
+    if name == "B3":
+        detail_t = np.unique(
+            np.r_[np.linspace(ts - 0.6 * model.period, ts + model.period, 1501), ts]
+        )
+        plot(
+            name + "_settling",
+            "B3. Final crossing of the 2% band",
+            detail_t,
+            [("Response", model.displacement(detail_t) * 1000)],
+            [("Final crossing", ts, float(model.displacement(ts)) * 1000)],
+            band=0.02 * u0 * 1000,
+        )
     verify(name, model, 10 * model.period)
     return model
 
@@ -369,6 +329,7 @@ def impact(name: str, d: dict[str, Any], wn: float) -> None:
 
 def main() -> None:
     FIG.mkdir(parents=True, exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     d = json.loads((ROOT / "inputs.json").read_text())
     a = d["A2"]
     lengths = np.array(a["lengths_mm"]) / 1000
@@ -417,6 +378,17 @@ def main() -> None:
     verify("A2", model, duration)
     a = d["A3"]
     impact("A3", a, math.sqrt(a["g"] / a["L"]))
+    sketch_t = grid(22)
+    envelope = np.exp(-0.2 * sketch_t)
+    sketch_u = envelope * np.sin(math.sqrt(1 - 0.2**2) * sketch_t + 0.5)
+    plot(
+        "B2_envelope",
+        "B2. Underdamped response and exponential envelope",
+        sketch_t,
+        [("Response", sketch_u), ("Upper envelope", envelope), ("Lower envelope", -envelope)],
+        ylabel="Displacement / C",
+        xlabel="Natural frequency x time",
+    )
     a = d["B3"]
     damped("B3", a["mass"], a["k"], a["c"] / (2 * math.sqrt(a["mass"] * a["k"])), a["u0"])
     a = d["B4"]
@@ -639,138 +611,87 @@ def main() -> None:
     impact(
         "C8", a, math.sqrt(beam(a)[2] / (a["M"] + a["projectile_mass"]) + 3 * a["g"] / (2 * a["L"]))
     )
-    unit_circle()
-    free_body_diagrams()
     (OUT / "results.json").write_text(json.dumps(RESULTS, indent=2) + "\n")
     (OUT / "verification.json").write_text(json.dumps(CHECKS, indent=2) + "\n")
+    for diagram in ["pendulum_fbd", "horizontal_fbd", "vertical_fbd", "flex_pendulum_fbd", "C9"]:
+        compile_figure(SOURCE_FIG / f"{diagram}.typ", FIG / f"{diagram}.pdf")
     source = (ROOT / "solutions_source.md").read_text()
     for key, content in TABLES.items():
         source = source.replace("{{" + key + "}}", content)
-    assert "{{" not in source, "Unresolved result placeholder"
-    (ROOT / "solutions.md").write_text(source)
-    page = """<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EMCH 574 HW01 response explorer</title>
-<style>body{max-width:1100px;margin:30px auto;padding:0 20px;font:17px Arial;color:#000}
-h1,h2{color:#73000A}section{border-top:2px solid #73000A;padding-top:12px;margin-top:30px}
-a{color:#73000A} .note{background:#ECECEC;padding:16px;border-left:4px solid #73000A}</style>
-</head><body><h1>EMCH 574 HW01 response explorer</h1><p>J.C. Vaught</p>
-<p>Hover for numerical data tips. Drag to zoom, double-click to reset, and click legend
-entries to compare curves. This file works offline.</p>
-<p class="note">All inputs are in SI units in inputs.json. Displacement plots show the labeled
-engineering units. Square markers evaluate the exact analytical response at the specified event.
-C6 is a formal linear prediction whose large deflection and dynamic yield exceed the model limits.
-C8 uses the course-note approximation on PDF page 252.</p>"""
-    html_document = page + "".join("<section>" + h + "</section>" for h in HTML) + "</body></html>"
-    (OUT / "interactive.html").write_text(
-        "\n".join(line.rstrip() for line in html_document.splitlines()) + "\n"
-    )
-    (OUT / "pdf").mkdir(exist_ok=True)
+    assert "{{" not in source
+    write_solutions(source)
+    assignment = ROOT.parent / "HW01_EMCH574.tex"
+    for figure in sorted(
+        set(re.findall(r"includegraphics.*?\{(\.\./typst-figures/[^}]+)\}", assignment.read_text()))
+    ):
+        destination = (assignment.parent / figure).resolve()
+        relative = destination.relative_to(WORKSHOP / "generated")
+        original_source = WORKSHOP / "src" / relative.with_suffix(".typ")
+        compile_figure(original_source, destination)
     subprocess.run(
-        [
-            "pandoc",
-            "solutions.md",
-            "--standalone",
-            "--pdf-engine=xelatex",
-            "--toc",
-            "--toc-depth=1",
-            "-V",
-            "geometry:margin=0.78in",
-            "-V",
-            "fontsize=10pt",
-            "-V",
-            "colorlinks=true",
-            "-V",
-            "linkcolor=black",
-            "-V",
-            "urlcolor=black",
-            "-o",
-            "output/pdf/HW01_worked_solutions.pdf",
-        ],
-        cwd=ROOT,
+        ["latexmk", "-xelatex", "-interaction=nonstopmode", "-halt-on-error", "HW01_EMCH574.tex"],
+        cwd=ROOT.parent,
         check=True,
+        stdout=(OUT / "latex-build.log").open("w"),
+        stderr=subprocess.STDOUT,
     )
-    print(f"Built {len(HTML)} interactive plots and verified {len(CHECKS)} checks.")
+    print(f"Solved HW01 in place; rendered {len(PLOTS)} Lilaq plots; passed {len(CHECKS)} checks.")
 
 
-def unit_circle() -> None:
-    fig, ax = plt.subplots(figsize=(5, 5), layout="constrained")
-    theta = np.linspace(0, 2 * math.pi, 501)
-    ax.plot(np.cos(theta), np.sin(theta), color=GRAY)
-    ax.axhline(0, color=BLACK, lw=0.8)
-    ax.axvline(0, color=BLACK, lw=0.8)
-    angles = [math.pi / 2, 3 * math.pi / 2, math.pi / 4, -math.pi / 4]
-    labels = [r"$i=e^{i\pi/2}$", r"$-i=e^{i3\pi/2}=e^{-i\pi/2}$", r"$e^{i\pi/4}$", r"$e^{-i\pi/4}$"]
-    for angle, label in zip(angles, labels, strict=True):
-        x, y = math.cos(angle), math.sin(angle)
-        ax.plot(x, y, "s", color=GARNET)
-        ax.annotate(
-            label, (x, y), xytext=(8, 8 if y >= 0 else -20), textcoords="offset points", fontsize=10
+def write_solutions(source: str) -> None:
+    destination = ROOT.parent / "solutions"
+    destination.mkdir(exist_ok=True)
+    matches = list(re.finditer(r"^## ([ABC])\.(\d+)\..*$", source, re.MULTILINE))
+    assert len(matches) == 20
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(source)
+        content = source[match.end() : end].strip()
+        content = re.sub(r"^# [BC]\..*$", "", content, flags=re.MULTILINE).strip()
+        key = match[1] + match[2]
+        content = content.replace(
+            "output/figures/", "../typst-figures/generated/homework/HW01/solutions/"
         )
-    ax.set(
-        xlim=(-1.35, 1.65),
-        ylim=(-1.35, 1.35),
-        xlabel="Real part",
-        ylabel="Imaginary part",
-        title="C9. Locations on the complex unit circle",
-        aspect="equal",
-    )
-    fig.savefig(FIG / "C9.png")
-    plt.close(fig)
-
-
-def free_body_diagrams() -> None:
-    fig, axes_array = plt.subplots(2, 3, figsize=(10, 6), layout="constrained")
-    titles = [
-        "A1. Pendulum",
-        "B1 / C3. Horizontal free",
-        "B2 / B6. Damped / forced",
-        "C1 / C2. Vertical",
-        "C5 / C6. Sudden load",
-        "C7. Course-note projection",
-    ]
-    for ax, title in zip(axes_array.flat, titles, strict=True):
-        ax.set(xlim=(-2, 2), ylim=(-2, 2), aspect="equal", title=title)
-        ax.axis("off")
-
-    def arrow(
-        ax: Axes, end: tuple[float, float], label: str, label_pos: tuple[float, float] | None = None
-    ) -> None:
-        ax.annotate(
-            "", xy=end, xytext=(0, 0), arrowprops={"arrowstyle": "->", "color": GARNET, "lw": 1.5}
+        content = content.replace(".png)", ".pdf)")
+        content = re.sub(r"!\[Free-body diagrams.*?\}\n", "", content)
+        diagram = {
+            "A1": "pendulum_fbd",
+            "B1": "horizontal_fbd",
+            "B2": "horizontal_fbd",
+            "B6": "horizontal_fbd",
+            "C1": "vertical_fbd",
+            "C2": "vertical_fbd",
+            "C3": "horizontal_fbd",
+            "C5": "horizontal_fbd",
+            "C7": "flex_pendulum_fbd",
+        }.get(key)
+        if diagram:
+            content = (
+                f"![Free-body diagram for Problem {match[1]}.{match[2]}.]"
+                f"(../typst-figures/generated/homework/HW01/solutions/{diagram}.pdf)"
+                "{width=95%}\n\n" + content
+            )
+        content = content.replace(
+            "The B.3 plot illustrates", "The response plot in B.3 illustrates"
         )
-        pos = end if label_pos is None else label_pos
-        ax.text(*pos, label, fontsize=9, ha="center", va="bottom")
-
-    for ax in axes_array.flat:
-        ax.plot(0, 0, "s", color=BLACK, ms=8)
-    ax = axes_array.flat[0]
-    arrow(ax, (-0.65, 1.35), "$T$")
-    arrow(ax, (0, -1.4), "$mg$", (0.3, -1.6))
-    ax.plot([-0.65, 0], [1.35, 0], color=GRAY, ls="--")
-    ax.text(-1.8, -1.7, r"Tangential force $=-mg\sin\theta$", fontsize=9)
-    ax = axes_array.flat[1]
-    arrow(ax, (-1.3, 0), "$ku$")
-    arrow(ax, (0, 1.1), "$N$")
-    arrow(ax, (0, -1.1), "$mg$", (0.3, -1.4))
-    ax.text(0.5, 0.35, r"$+u\ \rightarrow$", fontsize=10)
-    ax = axes_array.flat[2]
-    arrow(ax, (-1.4, 0), r"$ku+c\dot u$")
-    arrow(ax, (1.2, 0), "$F(t)$")
-    ax.text(-1.7, -1.6, "Vertical weight and support balance.\nSet F = 0 for B2.", fontsize=9)
-    ax = axes_array.flat[3]
-    arrow(ax, (0, 1.2), r"$k(\delta_{\rm st}+u)$")
-    arrow(ax, (0, -1.2), "$mg$", (0.4, -1.5))
-    ax.text(0.6, 0, r"$+u\ \downarrow$", fontsize=10)
-    ax = axes_array.flat[4]
-    arrow(ax, (0, 1.2), "$ku$")
-    arrow(ax, (0, -1.2), "$F_0$", (0.4, -1.5))
-    ax.text(-1.7, -1.9, "u measured from the unloaded position.", fontsize=9)
-    ax = axes_array.flat[5]
-    arrow(ax, (-1.3, 0), r"$ku+mg\theta$")
-    ax.text(-1.7, -1.4, r"$\theta\approx 3u/(2L)$" + "\nProjected restoring forces.", fontsize=10)
-    fig.savefig(FIG / "free_body_diagrams.png")
-    plt.close(fig)
+        content = content.replace(
+            "Zoom the companion HTML plot to inspect the small final lobe.",
+            "The square marker identifies the final crossing of the band.",
+        )
+        content = content.replace("The companion curve shows", "The second curve shows")
+        content = content.replace("The companion", "The second")
+        result = subprocess.run(
+            ["pandoc", "--from=markdown", "--to=latex", "--wrap=none"],
+            input=content,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        latex = result.stdout.replace(r"\begin{figure}", r"\begin{figure}[H]")
+        latex = latex.replace(r"\def\LTcaptype{none}", "")
+        latex = latex.replace(r"\begin{longtable}[]", r"\begin{center}\small\begin{tabular}")
+        latex = latex.replace("\\endhead\n\\bottomrule\\noalign{}\n\\endlastfoot\n", "")
+        latex = latex.replace(r"\end{longtable}", r"\bottomrule\end{tabular}\end{center}")
+        (destination / f"{key}.tex").write_text(latex)
 
 
 if __name__ == "__main__":

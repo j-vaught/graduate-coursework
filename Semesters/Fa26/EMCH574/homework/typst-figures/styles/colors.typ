@@ -2,12 +2,13 @@
 // Keep literal color definitions in this file so the palette can be changed
 // without editing individual figures.
 
-#let color-garnet-rose = rgb("#8b3a4a")
-#let color-deep-teal = rgb("#005f73")
+#let homework-palette = sys.inputs.at("palette", default: "reference") == "homework"
+#let color-garnet-rose = if homework-palette { rgb("#0072b2") } else { rgb("#8b3a4a") }
+#let color-deep-teal = if homework-palette { rgb("#0072b2") } else { rgb("#005f73") }
 #let color-graphite = rgb("#25282a")
 #let color-slate = rgb("#50565b")
 #let color-cool-grey = rgb("#7b858c")
-#let color-brass = rgb("#a49137")
+#let color-brass = if homework-palette { rgb("#d55e00") } else { rgb("#a49137") }
 
 #let color-ink = color-graphite
 #let color-muted = color-slate
@@ -34,11 +35,13 @@
 #let color-displacement = color-secondary
 #let color-mechanical = color-ink
 
-#let plot-color-cycle = (
+#let plot-color-cycle = if homework-palette {
+  (rgb("#0072b2"), rgb("#d55e00"), color-graphite, rgb("#009e73"), color-slate, color-cool-grey)
+} else { (
   color-garnet-rose,
   color-deep-teal,
   color-graphite,
   color-brass,
   color-slate,
   color-cool-grey,
-)
+) }

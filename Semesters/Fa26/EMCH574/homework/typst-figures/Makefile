@@ -32,7 +32,9 @@ figure:
 	esac; \
 	output="$${output%.typ}.pdf"; \
 	mkdir -p "$$(dirname "$$output")"; \
-	$(TYPST) compile $(TYPST_FLAGS) "$$source" "$$output"; \
+	palette_flags=""; \
+	case "$$source" in src/homework/HW01/*) palette_flags="--input palette=homework" ;; esac; \
+	$(TYPST) compile $(TYPST_FLAGS) $$palette_flags "$$source" "$$output"; \
 	echo "Built $$source -> $$output"
 
 reference-figures:

@@ -1,56 +1,3 @@
----
-title: "EMCH 574 HW01. Worked solutions and plotting companion"
-author: "J.C. Vaught"
-date: "September 4, 2026"
-header-includes:
-  - '\usepackage{float}'
-  - '\floatplacement{figure}{H}'
----
-
-# Where the solutions come from.
-
-The course notes contain the analytical basis for every HW01 topic and closely follow many of the analysis questions. They are not a complete worked numerical answer key. The supplied original homework is labeled “Solution” in its running header, but the inspected problem pages contain prompts rather than completed numerical solutions. This guide supplies the intermediate reasoning, calculations, and plots, including the graduate and optional challenge work.
-
-All note references below use the PDF page position in the 265-page file, not the smaller page numbers printed inside individual sections. The two source documents are `EMCH574_CourseNotes_20260826.pdf` in the lectures directory and `HW01_EMCH574_original.pdf` in the HW01 directory. The latter controls interpretation of the original beam cross sections.
-
-| HW01 problem | Course-note PDF pages | What is present and what must be supplied. |
-|---|---|---|
-| A.1 | 5–9 | Direct pendulum derivation, characteristic roots, and initial conditions. |
-| A.2 | 6, 8–10 | Frequency, period, and displacement-release formulas. Calculate the ten-length table and averages. |
-| A.3 | 5–9 | Pendulum response after the initial velocity is known. Add a short-duration impact momentum balance. |
-| B.1 | 17–20 | Direct free-body diagram, governing equation, roots, and initial-value solution. |
-| B.2 | 29–35 | Direct damped-system derivation, damping definitions, and underdamped initial-value solution. |
-| B.3 | 29–35 | Apply the damped solution numerically. Determine the final 2% crossing separately. |
-| B.4 | 29–35, 249, 251 | Combine damping theory with a simply supported beam under a center load. |
-| B.5 | 35–39 | Direct overdamped and critically damped solutions, including verification. |
-| B.6 | 39–48 | Direct forced response, normalized frequency response, magnitude, phase, and resonance. |
-| B.7 | 39–48, 247, 250 | Combine cantilever stiffness with the forced-response formulas. |
-| B.8 | 17–20, 247, 250 | Combine cantilever stiffness, impact momentum, and the velocity-release solution. |
-| C.1 | 20–22 | Direct equilibrium shift and vertical spring derivation. Generalize the force projection. |
-| C.2 | 20–22, 247–250 | Combine vertical equilibrium with cantilever stiffness. |
-| C.3–C.4 | 17–20, 247, 250 | Replace the spring by the correctly oriented beam stiffness. |
-| C.5 | 23–26 | Direct suddenly applied load derivation and twice-static maximum. |
-| C.6 | 23–26, 247–248, 250 | Combine step response, beam root stress, and yield safety factor. |
-| C.7 | 252 | Direct handwritten flex-beam pendulum approximation. |
-| C.8 | 252, 8–9 | Combine that approximation with impact momentum. |
-| C.9 | 7, 13–16, 19 | Euler representation, unit circle, and phase. Work out the requested roots and angles. |
-
-The source map distinguishes a derivation already present from a numerical application assembled here. The short-duration projectile collision is an additional mechanics step, not a worked impact solution located in the cited note pages.
-
-## Corrections and conventions that affect the answers.
-
-On page 21, the expansion of $mg-k(\delta_{\rm st}+u)$ must contain $-ku$. The intermediate positive signs in equations (29)–(30) are inconsistent with the force balance. The final governing equation $m\ddot u+ku=0$ is correct.
-
-On page 46, the condition for losing an interior displacement-magnification peak is $\zeta\geq1/\sqrt{2}$, not $\zeta\geq\sqrt{2}$. It follows immediately from $\omega_r=\omega_n\sqrt{1-2\zeta^2}$.
-
-In B.7(2c), the quasi-static limit is excitation frequency $\omega\to0$ while the structure remains fixed. The printed $\omega_n\to0$ would instead change the structure and does not express the intended limit.
-
-Use $\operatorname{atan2}$ for phase. An ordinary inverse tangent of a ratio loses quadrant information. Here the amplitude-phase convention is $C\sin(\omega_d t+\phi)$, so $\phi=\operatorname{atan2}(A,B)$ when the cosine and sine coefficients are $A$ and $B$.
-
-Use full precision internally. Round only displayed results to three significant digits, or four when the leading digit is one. Input dimensions are retained as given. SI denotes the International System of Units. Convert millimetres to metres, grams to kilograms, gigapascals to pascals, and millinewtons to newtons before calculation. Tables and plots convert the final values to convenient engineering units.
-
-# A. Pendulum.
-
 ## A.1. From the free-body diagram to the response.
 
 Assume a point mass, a massless inextensible rod or taut string of length $L$, a fixed frictionless pivot, uniform gravity, planar motion, and negligible air resistance. Measure $\theta$ from the downward vertical. Let $u=L\theta$ be arc displacement. This relation is exact for arc displacement; horizontal displacement is $L\sin\theta\approx u$ only for small angles.
@@ -93,7 +40,6 @@ C_2=\frac12\left(u_0+\frac{iv_0}{\omega_n}\right).$$
 
 Mass cancels because it multiplies both inertia and weight. A heavier ideal pendulum has the same small-angle frequency at the same length. This does not mean mass cancels from an impact calculation.
 
-![Free-body diagrams and force projections. Arrows are drawn for positive displacement and, where applicable, positive velocity. The C.7 panel shows the reduced projection used in the course notes.](output/figures/free_body_diagrams.png){width=100%}
 
 ## A.2. Ten manufactured lengths and an initial displacement.
 
@@ -207,6 +153,12 @@ C=\sqrt{A^2+B^2},\qquad \phi=\operatorname{atan2}(A,B).$$
 
 Then $u(t)=Ce^{-\alpha t}\sin(\omega_dt+\phi)$. Sketch a sinusoid bounded by $\pm Ce^{-\alpha t}$. Its successive peaks shrink while the damped period $\tau_d=2\pi/\omega_d$ remains constant. The B.3 plot illustrates this behavior. The envelope intercept $C$ need not equal an attained displacement peak.
 
+
+
+The following sketch separates oscillation from its exponential envelope. It illustrates the general form using $\omega_n=1$, $\zeta=0.20$, and phase $\phi=0.5$ radians; these are illustrative parameters, not additional assigned data.
+
+![B.2. Oscillation inside the exponential decay envelope.](output/figures/B2_envelope.png){width=95%}
+
 ## B.3. Numerical damped response and the 2% criterion.
 
 The inputs are $m=12\ \mathrm{kg}$, $k=655\ \mathrm{N/m}$, $c=19\ \mathrm{N\,s/m}$, $u_0=3.5\ \mathrm{mm}$, and $v_0=0$. Calculate $\omega_n$, $c_{\rm cr}$, $\zeta$, and $\omega_d$ in that order. Insert them into the B.2 solution. The table includes both exponential and trigonometric constants.
@@ -228,7 +180,9 @@ $$t_{\rm envelope}=\frac{1}{\alpha}
 
 The familiar approximation $4/(\zeta\omega_n)$ is not an exact last-crossing calculation. Both the exact result and the envelope bound appear in the table.
 
-![B.3. Exact final crossing and the 2% band. Zoom the companion HTML plot to inspect the small final lobe.](output/figures/B3.png){width=95%}
+![B.3. Exact final crossing and the 2% band. The detail plot resolves the final crossing of the settling band.](output/figures/B3.png){width=95%}
+
+![B.3. Detail of the final 2% crossing.](output/figures/B3_settling.png){width=95%}
 
 ## B.4. Truck suspension and a worn damper.
 
@@ -247,15 +201,19 @@ Now use the same B.2 formulas as before. For the original damper the numerical r
 
 {{B4_healthy}}
 
+![B.4. Original damper, with the required response markers.](output/figures/B4_healthy.png){width=95%}
+
 For the worn damper the spring and mass are unchanged. Therefore $\omega_n$ and $c_{\rm cr}$ are unchanged, while $c$, $\omega_d$, the roots, the constants, and the decay change.
 
 {{B4_worn}}
+
+![B.4. Worn damper, with the required response markers.](output/figures/B4_worn.png){width=95%}
 
 ![B.4. Displacement responses using identical initial conditions.](output/figures/B4_compare.png){width=95%}
 
 The worn damper permits more oscillation before settling. Its damped period is slightly shorter because damping lowers oscillation frequency. Both cases begin at the same largest displacement, so the relevant comparison is persistence and subsequent extrema rather than the initial peak.
 
-The given single 3 mm uniform beam is an educational equivalent. Its predicted static deflection $mg/k$ is very large for a truck suspension, and the imposed displacement is also large relative to the beam span. The calculation is a formal small-deflection, linear response about an assumed equilibrium. A physical design would require the actual leaf stack, geometry, stiffness, and available travel.
+The given 3 mm uniform beam predicts a very large static deflection $mg/k$ and a large displacement relative to its span. These are formal linear-model results. A physical suspension calculation would require the actual leaf stack, geometry, stiffness, and available travel.
 
 ## B.5. Overdamping and critical damping.
 
@@ -292,7 +250,7 @@ which cancel on substitution into $\ddot u+2\omega_n\dot u+\omega_n^2u=0$.
 
 For this fixed mass and stiffness with an initial displacement and zero velocity, critical damping returns to equilibrium most rapidly among the nonoscillatory cases. Overdamping reduces the early displacement more slowly and introduces a long decay associated with the less-negative root. Neither response oscillates for these initial conditions.
 
-For the race-car discussion, a critically damped single-mode model favors quick recovery without oscillatory overshoot. An overdamped model provides greater dissipation but can recover slowly and can transmit larger forces through the damper for a given relative velocity. Actual ride, road holding, and suspension travel depend on road input, tire and wheel dynamics, damping nonlinearity, and multiple modes. This one-degree-of-freedom release test cannot establish which setup is better for a complete vehicle.
+For the race-car discussion, critical damping favors quick recovery without oscillatory overshoot. Overdamping supplies greater dissipation but recovers more slowly and transmits larger damper forces for a given relative velocity. Choosing between them for a vehicle also requires road, tire, wheel, and suspension-travel models.
 
 ## B.6. Harmonic forcing and frequency response.
 
@@ -358,6 +316,8 @@ Finally, with one excitation cycle per revolution, the rotational speed is $N=60
 ## B.7. Motor on a cantilever.
 
 The inputs are $L=0.568\ \mathrm m$, $h=0.003\ \mathrm m$, $b=0.037\ \mathrm m$, $E=200\ \mathrm{GPa}$, motor mass $m=0.52\ \mathrm{kg}$, $\zeta=0.14$, $\hat F=0.012\ \mathrm N$, and operating speed $1500\ \mathrm{rpm}$. Neglect beam mass and use the weak-axis vertical bending shown in the original figure. This lumped approximation is prescribed here; a distributed beam model would need additional mass information.
+
+The quasi-static limit in item (2c) is $\omega\to0$ with $\omega_n$ fixed. The printed $\omega_n\to0$ is a typographical error.
 
 Compute $I=bh^3/12$, $k=3EI/L^3$, $\omega_n=\sqrt{k/m}$, and $c=2\zeta m\omega_n$. The force-normalized limit in B.6 then gives $u_{\rm qst}=\hat F/k$.
 
@@ -506,7 +466,7 @@ For a rectangular section with $b>h$, the minor and major second moments of area
 
 $$I_1=\frac{bh^3}{12},\qquad I_2=\frac{hb^3}{12}.$$
 
-Use $I_1$ for the stated weak-axis motion. Page 252 combines the cantilever stiffness $k=3EI_1/L^3$ with a small-angle gravitational restoring term. The angle used there is the beam-tip slope, not the straight-line pendulum angle $u/L$. For the assumed static tip-load bending shape,
+Use $I_1$ for weak-axis motion. Page 252 combines $k=3EI_1/L^3$ with gravity using the beam-tip slope $\theta$. The assumed static tip-load bending shape gives
 
 $$u=\frac{PL^3}{3EI_1},\qquad
 \theta=\frac{PL^2}{2EI_1},\qquad
@@ -522,9 +482,9 @@ The governing equation is $\ddot u+\omega_{n,\rm FBP}^2u=0$, so its general solu
 $$u(t)=u_0\cos(\omega_{n,\rm FBP}t)
 +\frac{v_0}{\omega_{n,\rm FBP}}\sin(\omega_{n,\rm FBP}t).$$
 
-This section reproduces the course's reduced approximation. It assumes a fixed beam shape, small slope, negligible beam mass, and no damping. It is not an exact tensioned-beam solution. In particular, the $3g/(2L)$ coefficient follows from the specific tip-slope force projection on page 252 and should not be silently replaced by the ordinary pendulum value $g/L$. A continuum or energy-consistent beam treatment can give a different gravitational stiffness and lies outside this reduced homework model.
+This approximation assumes a fixed bending shape, small slope, negligible beam mass, and no damping. The $3g/(2L)$ term uses the tip-slope projection on page 252, not the ordinary pendulum angle $u/L$. A continuum or energy-consistent tensioned-beam model can give a different gravitational stiffness.
 
-For bending about the major axis, substitute $I_2$ for $I_1$ everywhere in the elastic term. Its bending stiffness is larger by $(b/h)^2$, so its frequency is higher. Because the gravity term is additive, the total frequency ratio is not simply $b/h$ unless elastic stiffness dominates both cases.
+For major-axis bending, substitute $I_2$ for $I_1$. Elastic stiffness increases by $(b/h)^2$. The frequency increases, approaching a ratio of $b/h$ only when elastic stiffness dominates gravity in both cases.
 
 ## C.8. Flex-beam pendulum impact.
 
@@ -539,7 +499,7 @@ u(t)=\frac{v_0}{\omega_{n,\rm FBP}}\sin(\omega_{n,\rm FBP}t).$$
 
 ![C.8. Response under the approximation on note page 252.](output/figures/C8.png){width=95%}
 
-Compared with A.3, this case has an added elastic restoring term and the different geometric gravity approximation. It also has different length, target mass, projectile mass, and projectile speed, so the numerical comparison does not isolate beam stiffness alone. The calculated post-impact speeds happen to be similar. Within the respective homework models, the larger flex-beam pendulum frequency then produces a smaller displacement amplitude and a shorter period. The pointwise values at ten seconds also depend on phase and should not be used alone as an amplitude comparison.
+Compared with A.3, the post-impact speed is similar while the frequency is higher, giving a smaller amplitude and shorter period. The two problems also differ in mass, length, projectile data, and gravity approximation, so this comparison does not isolate beam stiffness. The ten-second displacements depend on phase as well as amplitude.
 
 ## C.9. Complex numbers and phase.
 
@@ -562,35 +522,9 @@ $$\Delta\phi_c=115^\circ-45^\circ=70^\circ=\frac{7\pi}{18}.$$
 
 The phases of $e^{i\pi/2}$, $e^{i3\pi/2}$, $e^{i\pi/4}$, $e^{-i\pi/2}$, and $e^{-i\pi/4}$ are $\pi/2$, $3\pi/2$, $\pi/4$, $-\pi/2$, and $-\pi/4$, respectively, or $90^\circ$, $270^\circ$, $45^\circ$, $-90^\circ$, and $-45^\circ$. The principal phase of $e^{i3\pi/2}$ is $-90^\circ$, and that point coincides with $e^{-i\pi/2}$. Angles differing by a full revolution represent the same complex number.
 
-![C.9. The requested complex numbers on the unit circle.](output/figures/C9.png){width=70%}
-
 Finally, for $Z=4+5i$,
 
 $$|Z|=\sqrt{4^2+5^2}=\sqrt{41}\approx6.40,\qquad
 \arg Z=\operatorname{atan2}(5,4)\approx51.3^\circ.$$
 
-# Python workflow and verification.
-
-Python is useful here because the same equations can produce the numerical tables, exact event markers, static figures, and interactive plots. NumPy evaluates arrays of times and frequencies. SciPy solves the final band-crossing equation and independently integrates the equations of motion. Matplotlib produces the report figures, while Plotly supplies hover data tips and zooming in the offline `output/interactive.html` companion.
-
-The Python figures in this package implement the express request to use Python plotting for this assignment. They use the specified garnet, black, and contrasting accent palette, square callout boxes, and line styles that remain distinguishable in grayscale. Physical displacement is shown in engineering units. The dimensionless FRF retains its actual magnification values rather than being rescaled to one.
-
-For a normalized displacement plot, use $u_{\rm norm}(t)=u(t)/\max|u(t)|$ over the stated interval and label it as dimensionless. Do not normalize by the largest positive sample when a negative extremum could have the larger magnitude. Do not independently normalize the healthy and worn responses if the purpose is to compare their physical amplitudes.
-
-Run the following commands from the `study` directory to reproduce the package. The PDF build also requires Pandoc and XeLaTeX.
-
-```sh
-uv sync
-uv run ruff format .
-uv run ruff check . --fix
-uv run ty check .
-uv run python build.py
-```
-
-The inputs are centralized in `inputs.json`. Edit `solutions_source.md` for explanatory changes. The builder writes the calculated `solutions.md`, `output/results.json`, the A.2 CSV table, figures, the offline interactive companion, and `output/pdf/HW01_worked_solutions.pdf`. The dependency versions are pinned in `uv.lock`.
-
-Verification compares the analytical free responses with independent numerical integration, including both underdamped and nonoscillatory cases. It also compares the complete B.7 forced response against numerical integration, verifies the impact momentum balances and the C.6 turning-point energy balance, and checks that each reported final 2% crossing is followed only by motion inside the band. Numerical verification checks the implementation of a model; it does not establish the physical validity of that model's assumptions.
-
-The relevant official implementation documentation is [SciPy initial-value integration](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html) and [Plotly offline interactive HTML export](https://plotly.com/python/interactive-html-export/). Course sources and these implementation references are recorded in the centralized `references.bib` file.
-
-The assignment mentions MATLAB code for partial credit and asks for data tips. The Python companion supplies reproducible calculations and equivalent interactive data tips, but the provided documents do not explicitly establish that Python code is accepted in place of MATLAB for submission. The mathematics and figures are ready to study; code-format acceptance remains an instructor decision.
+![C.9. The requested complex numbers on the unit circle.](output/figures/C9.png){width=70%}

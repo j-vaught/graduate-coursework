@@ -61,11 +61,11 @@
     )
     draw.content(
       (-2.2, -3.9),
-      text(fill: color-secondary)[$b$],
+      text(fill: color-secondary)[$h$],
     )
     draw.content(
       (-4.15, 0),
-      text(fill: color-secondary)[$h$],
+      text(fill: color-secondary)[$b$],
     )
 
     draw.content(

@@ -1,12 +1,12 @@
-# EMCH 574 HW01 study package.
+# HW01 calculations and solution source.
 
 J.C. Vaught.
 
-Open `output/pdf/HW01_worked_solutions.pdf` for the course-note map and worked solutions to A.1–A.3, B.1–B.8, and C.1–C.9. Open `output/interactive.html` in a browser for offline hover data tips, zooming, and curve comparisons.
+The deliverable is the parent directory's `HW01_EMCH574.pdf`, built from the existing rewritten homework document. This directory contains the Python numerical engine and explanatory source for the worked solutions.
 
-The source assignment and its diagrams remain in the parent directory. The guide identifies course-note errors, model assumptions, numerical precision conventions, and the original MATLAB submission-language uncertainty. C.7–C.8 use the specific reduced approximation on course-note PDF page 252.
+Edit `inputs.json` for input values and `solutions_source.md` for the mathematical explanation. The build inserts one generated solution fragment beneath each problem in `HW01_EMCH574.tex`. It uses the local homework Typst facade, Lilaq, and CeTZ for all figures. Python does not draw figures.
 
-Run the following commands from this directory. Pandoc and XeLaTeX must also be installed for PDF compilation.
+Run the following commands here. Typst, Pandoc, latexmk, and XeLaTeX must also be installed.
 
 ```sh
 uv sync
@@ -16,6 +16,6 @@ uv run ty check .
 uv run python build.py
 ```
 
-Edit `inputs.json` to change numerical inputs and `solutions_source.md` to change the explanatory text. The builder regenerates `solutions.md`, all figures, numerical results, the A.2 CSV table, the interactive HTML, and the PDF. `output/verification.json` records numerical integration comparisons and final-crossing checks. Full precision is retained in data exports; rounding applies only to display tables.
+`output/results.json` retains full precision and units, `output/A2_lengths.csv` stores the pendulum table, and `output/verification.json` records the analytical-versus-numerical checks. The plotted data are JSON files alongside the solution Typst sources in the homework figure library. Event markers are evaluated from the analytical expressions, including the exact final 2% crossing.
 
-Python plotting is used under the explicit request for this assignment. Figures use the specified garnet, black, and accent palette. Local calculation and rendering require no account or hosted service. The HTML includes its plotting library and works offline.
+The former standalone study guide and raster plotting outputs have been replaced by the solved homework and the Typst figure pipeline. The build selects the homework's blue, orange, and neutral palette without changing the default palette of unrelated reference figures.
