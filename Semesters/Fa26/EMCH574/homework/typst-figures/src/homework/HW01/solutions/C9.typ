@@ -2,9 +2,9 @@
 
 #standalone(
   cetz-canvas(length: 24mm, {
-    let ink=(paint:color-ink,thickness:0.7pt,cap:"butt")
-    draw.line((-1.25,0),(1.5,0),stroke:ink,mark:(end:">"))
-    draw.line((0,-1.3),(0,1.35),stroke:ink,mark:(end:">"))
+    let ink=(paint:color-ink,thickness:plot-axis-width,cap:"butt",join:"miter")
+    draw.line((-1.25,0),(1.5,0),stroke:ink,mark:(fill:color-ink,..arrow-small))
+    draw.line((0,-1.3),(0,1.35),stroke:ink,mark:(fill:color-ink,..arrow-small))
     draw.circle((0,0),radius:1,stroke:(paint:color-guide,thickness:0.7pt))
     draw.content((1.5,-0.12),[$"Re"$])
     draw.content((-0.15,1.32),[$"Im"$])
