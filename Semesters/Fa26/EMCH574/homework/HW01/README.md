@@ -10,4 +10,6 @@ The 58-page solved document previously occupying `HW01_EMCH574.pdf` has been rem
 
 The existing `solutions/` fragments and `study/` calculation files are retained as supporting work. They are not included by the restored unsolved document. The study builder compiles the current main document; it does not restore the removed solution inclusions.
 
-To rebuild the unsolved assignment from this directory, run `latexmk -xelatex -interaction=nonstopmode -halt-on-error HW01_EMCH574.tex`. The recovered PDF itself is the exact version stored at `cb5c53a`; rebuilding uses the current shared styles and figure assets.
+Figure sources and PDFs are duplicated locally in `figures/src/` and `figures/generated/`. Run `make` from `figures/` to rebuild them using the shared Typst styles. The original copies remain in `../typst-figures/`.
+
+To rebuild the unsolved assignment from this directory, run `latexmk -xelatex -interaction=nonstopmode -halt-on-error HW01_EMCH574.tex`. The recovered PDF itself is the exact version stored at `cb5c53a`; rebuilding uses the current shared styles and local figure assets.

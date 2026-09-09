@@ -1,0 +1,51 @@
+#import "/typst-figures/styles/figure.typ": *
+#import "/typst-figures/styles/homework-components.typ": homework-math
+
+// figure-pipeline: kind=mechanics
+#standalone(
+  full-width-artboard(
+    pad(
+      bottom: 2.5mm,
+      cetz-canvas(
+        length: 1mm,
+        {
+      let center-y = 13
+      let mass-left = 28
+      let mass-right = 42
+      let mass-bottom = center-y - 7
+      let mass-top = center-y + 7
+      draw.rect(
+        (mass-left, mass-bottom),
+        (mass-right, mass-top),
+        ..mechanics-body-style,
+      )
+      draw.content(
+        ((mass-left + mass-right) / 2, center-y),
+        homework-math[$m$],
+      )
+      draw.line(
+        (mass-left, center-y + 3.5),
+        (4, center-y + 3.5),
+        ..mechanics-force-style,
+      )
+      draw.content(
+        (mass-left - 2, center-y + 7),
+        anchor: "east",
+        homework-math[$k u(t)$],
+      )
+      draw.line(
+        (mass-left, center-y - 3.5),
+        (4, center-y - 3.5),
+        ..mechanics-force-style,
+      )
+      draw.content(
+        (mass-left - 2, center-y - 7),
+        anchor: "east",
+        homework-math[$c dot(u)(t)$],
+      )
+        },
+      ),
+    ),
+    placement: "right",
+  ),
+)
