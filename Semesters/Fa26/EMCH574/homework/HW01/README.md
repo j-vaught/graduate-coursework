@@ -2,22 +2,12 @@
 
 J.C. Vaught.
 
-`HW01_EMCH574.pdf` is the solved version of the rewritten assignment. It retains the problem statements and the custom Typst assignment figures, with a worked solution following each of the twenty problems. Graduate and optional challenge work is included.
+`HW01_EMCH574.pdf` is the corrected, unsolved assignment, restored with its LaTeX source from commit `cb5c53a`. It contains 28 pages, the custom assignment figures, and the prompt corrections agreed for B.4, C.5, and C.9.
 
-`HW01_EMCH574.tex` is the main document. The generated solution fragments are in `solutions/`. Edit the explanatory source in `study/solutions_source.md` and the numerical inputs in `study/inputs.json` before rebuilding.
+`HW01_EMCH574_original.pdf` is the professor's original 33-page document.
 
-Python calculates the responses and checks them against numerical integration. The existing homework figure library renders the plots with Lilaq and the mechanical diagrams with CeTZ. The output uses a teal, orange, and neutral palette selected only for HW01. The reference figure library keeps its default palette.
+The 58-page solved document previously occupying `HW01_EMCH574.pdf` has been removed from the current folder. Its PDF and main LaTeX source remain recoverable from commit `7f447236d2ff0a054a0ad57b41539dbf2d22e44d` at those same paths.
 
-Run the following commands from `study/`. The build needs uv, Typst, Pandoc, latexmk, and XeLaTeX.
+The existing `solutions/` fragments and `study/` calculation files are retained as supporting work. They are not included by the restored unsolved document. The study builder compiles the current main document; it does not restore the removed solution inclusions.
 
-```sh
-uv sync
-uv run ruff format .
-uv run ruff check . --fix
-uv run ty check .
-uv run python build.py
-```
-
-The builder writes response data to `../typst-figures/src/homework/HW01/solutions/data/` relative to the homework directory, compiles the figure sources, regenerates the solution fragments, and rebuilds the main PDF. The numerical outputs and validation results are stored in `study/output/`.
-
-The horizontal-beam section inset has its width and height labels corrected to match the original assignment. The numerical weak-axis bending model follows that corrected geometry. The flex-beam pendulum solution explicitly identifies the approximation used on course-note PDF page 252.
+To rebuild the unsolved assignment from this directory, run `latexmk -xelatex -interaction=nonstopmode -halt-on-error HW01_EMCH574.tex`. The recovered PDF itself is the exact version stored at `cb5c53a`; rebuilding uses the current shared styles and figure assets.
