@@ -1,10 +1,11 @@
 #import "figure.typ": *
 
 // Numerical data are supplied by Python; Lilaq authors the vector figure.
-#let response-figure(data) = {
+#let response-figure(data, y-limits: none) = {
   let x = data.x
+  let plot-ylim = if y-limits == none { data.ylim } else { y-limits }
   let span-x = data.xlim.at(1) - data.xlim.at(0)
-  let span-y = data.ylim.at(1) - data.ylim.at(0)
+  let span-y = plot-ylim.at(1) - plot-ylim.at(0)
   let elements = ()
   if data.band != none {
     elements.push(hlines(
@@ -32,7 +33,7 @@
     let label-y = if is-a2-tip {
       event.y + 0.9
     } else {
-      data.ylim.at(1) - 0.025 * span-y
+      plot-ylim.at(1) - 0.025 * span-y
     }
     let leader-start = if is-a2-tip {
       (label-x, event.y + 0.2)
@@ -56,7 +57,7 @@
     #book-diagram(
       size: "full", height: 58mm,
       xlabel: data.xlabel, ylabel: data.ylabel,
-      xlim: data.xlim, ylim: data.ylim,
+      xlim: data.xlim, ylim: plot-ylim,
       legend: (position: bottom + right),
       ..elements,
     )
