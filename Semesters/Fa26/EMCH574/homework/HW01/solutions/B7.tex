@@ -1,79 +1,342 @@
-The inputs are \(L=0.568\ \mathrm m\), \(h=0.003\ \mathrm m\), \(b=0.037\ \mathrm m\), \(E=200\ \mathrm{GPa}\), motor mass \(m=0.52\ \mathrm{kg}\), \(\zeta=0.14\), \(\hat F=0.012\ \mathrm N\), and operating speed \(1500\ \mathrm{rpm}\). Neglect beam mass and use the weak-axis vertical bending shown in the original figure. This lumped approximation is prescribed here; a distributed beam model would need additional mass information.
+\begingroup
+\setlength{\abovedisplayskip}{6pt}
+\setlength{\belowdisplayskip}{6pt}
+\setlength{\abovedisplayshortskip}{4pt}
+\setlength{\belowdisplayshortskip}{4pt}
+\setlength{\intextsep}{6pt}
 
-The quasi-static limit in item (2c) is \(\omega\to0\) with \(\omega_n\) fixed. The printed \(\omega_n\to0\) is a typographical error.
-
-Compute \(I=bh^3/12\), \(k=3EI/L^3\), \(\omega_n=\sqrt{k/m}\), and \(c=2\zeta m\omega_n\). The force-normalized limit in B.6 then gives \(u_{\rm qst}=\hat F/k\).
-
-{ % do not increment counter
-\begin{center}\small\begin{tabular}{@{}lrl@{}}
-\toprule\noalign{}
-Quantity & Value & Unit \\
-\midrule\noalign{}
-\(I\) & 83.2 & mm\(^4\) \\
-\(EI\) & 16.65 & N m\(^2\) \\
-\(k\) & 273 & N/m \\
-\(\omega_n\) & 22.9 & rad/s \\
-\(f_n\) & 3.64 & Hz \\
-\(c_{\rm cr}\) & 23.8 & N s/m \\
-\(c\) & 3.33 & N s/m \\
-\(u_{\rm qst}\) & 44.0 & \(\mu\)m \\
-\(\omega_r\) & 22.4 & rad/s \\
-\(\omega_d\) & 22.7 & rad/s \\
-\(f_r\) & 3.57 & Hz \\
-\(N_r\) & 214 & rpm \\
-\(N_{90}\) & 219 & rpm \\
-\(M_r\) & 3.61 & 1 \\
-\(M_{90}\) & 3.57 & 1 \\
-\(\vert{}\hat u_{90}\vert{}\) & 157.2 & \(\mu\)m \\
-\(\tau_{90}\) & 0.274 & s \\
-\(f_0\) & 25.0 & Hz \\
-\(\omega_0\) & 157.1 & rad/s \\
-\(\vert{}\hat u(f_0)\vert{}\) & 0.955 & \(\mu\)m \\
-\bottomrule\end{tabular}\end{center}
-}
-
-At phase resonance use \(\omega=\omega_n\), \(f=f_n\), and \(\tau=1/f_n\). For real force \(\hat F\cos(\omega_nt)\), the steady-state physical displacement is
-
-\[u_{\rm ss}(t)=\frac{u_{\rm qst}}{2\zeta}\sin(\omega_nt).\]
-
-Equivalently, the complex response amplitude is \(\hat u_{90}=-i|\hat u_{90}|\). The assignment does not prescribe starting conditions for the phase-resonant plot, so the steady-state curve is the direct interpretation. The second curve shows a force switched on at time zero from rest. In that case the transient must cancel the initial steady-state velocity, giving
-
-\[u_{\rm rest}(t)=U\sin(\omega_nt)
--\frac{U\omega_n}{\omega_d}e^{-\zeta\omega_nt}\sin(\omega_dt),
-\qquad U=\frac{u_{\rm qst}}{2\zeta}.\]
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.95\linewidth,height=\textheight,keepaspectratio,alt={B.7. Steady-state response and a separately identified rest-start interpretation.}]{figures/generated/solutions/B7_time.pdf}
-\caption{B.7. Steady-state response and a separately identified rest-start interpretation.}
-\end{figure}
-
-The requested frequency sweep uses exactly 5000 uniformly spaced points from zero to the operational frequency \(f_0=25\ \mathrm{Hz}\). Data markers at the requested frequencies are calculated analytically rather than substituted by the nearest sweep sample.
+\textbf{B.7.1. Input data.} Use the equivalent tip stiffness of the cantilever beam and the attached motor mass as the lumped vibrating mass. Beam mass is omitted because no beam density or beam mass is supplied. For vertical bending, $h$ is the bending depth, so the second moment of area is $I=bh^3/12$.
 
 { % do not increment counter
 \begin{center}\small\begin{tabular}{@{}lrl@{}}
 \toprule\noalign{}
 Quantity & Value & Unit \\
 \midrule\noalign{}
-Phase resonance \(f\) & 3.64 & Hz \\
-Double resonance RPM \(f\) & 7.29 & Hz \\
-Operating RPM \(f\) & 25.0 & Hz \\
-Phase resonance \(\vert{}\mathrm{FRF}\vert{}\) & 3.57 & 1 \\
-Double resonance RPM \(\vert{}\mathrm{FRF}\vert{}\) & 0.328 & 1 \\
-Operating RPM \(\vert{}\mathrm{FRF}\vert{}\) & 0.0217 & 1 \\
+$L$ & 0.568 & m \\
+$E$ & 200 & GPa \\
+$h$ & 3.00 & mm \\
+$b$ & 37.0 & mm \\
+$m$ & 0.520 & kg \\
+$\zeta$ & 0.140 & 1 \\
+$\hat F$ & 12.0 & mN \\
+$N_0$ & 1500 & rpm \\
+$N_{\mathrm{osc}}$ & 10 & oscillations \\
+$N_f$ & 5000 & points \\
 \bottomrule\end{tabular}\end{center}
 }
 
+\textbf{B.7.2. Beam and damping parameters.}
+
+\textbf{(a) Section and beam stiffness.} Because the beam bends about the weak axis, the rectangular-section second moment of area is
+
+\[
+I=\frac{bh^3}{12}
+ =\frac{(0.037)(0.003)^3}{12}
+ =8.325\times10^{-11}\ \mathrm{m^4}
+ =83.25\ \mathrm{mm^4}.
+\]
+
+The tip stiffness of a fixed-free beam is $k=3EI/L^3$. Therefore,
+
+\[
+EI=(200\times10^9)(8.325\times10^{-11})
+ =16.65\ \mathrm{N\,m^2},
+\qquad
+k=\frac{3(16.65)}{(0.568)^3}
+ =272.58\ \mathrm{N/m}.
+\]
+
+\[
+\boxed{
+\begin{aligned}
+I&=8.325\times10^{-11}\ \mathrm{m^4},&
+EI&=16.65\ \mathrm{N\,m^2},&
+k&=272.58\ \mathrm{N/m}
+\end{aligned}}
+\qquad\text{(B.7.2.a)}
+\]
+
+\textbf{(b) Natural frequency and damping.} The natural frequency follows from the lumped mass and beam stiffness.
+
+\[
+\omega_n=\sqrt{\frac{k}{m}}
+ =\sqrt{\frac{272.58}{0.520}}
+ =22.895\ \mathrm{rad/s},
+\qquad
+f_n=\frac{\omega_n}{2\pi}=3.6439\ \mathrm{Hz}.
+\]
+
+Critical damping is $c_{\mathrm{cr}}=2m\omega_n$. Since the damping ratio is $\zeta=c/c_{\mathrm{cr}}$, the physical damping coefficient is
+
+\[
+c_{\mathrm{cr}}=2(0.520)(22.895)=23.811\ \mathrm{N\,s/m},
+\qquad
+c=\zeta c_{\mathrm{cr}}=(0.140)(23.811)=3.3335\ \mathrm{N\,s/m}.
+\]
+
+\[
+\boxed{
+\begin{aligned}
+\omega_n&=22.895\ \mathrm{rad/s},&
+f_n&=3.6439\ \mathrm{Hz},\\
+c_{\mathrm{cr}}&=23.811\ \mathrm{N\,s/m},&
+c&=3.3335\ \mathrm{N\,s/m}
+\end{aligned}}
+\qquad\text{(B.7.2.b)}
+\]
+
+\textbf{(c) Quasi-static deflection.} Because quasi-static loading means that the excitation frequency becomes negligible, use $\omega\to0$ while $\omega_n$ remains fixed. The force-normalized frequency response then approaches one, so
+
+\[
+u_{\mathrm{qst}}=\frac{\hat F}{k}
+ =\frac{0.012}{272.58}
+ =4.4024\times10^{-5}\ \mathrm{m}.
+\]
+
+\[
+\boxed{u_{\mathrm{qst}}=44.024\ \mu\mathrm{m}}
+\qquad\text{(B.7.2.c)}
+\]
+
+\textbf{B.7.3. Resonance quantities.}
+
+\textbf{(a) True resonance and damped frequency.} Since $\zeta<1/\sqrt{2}$, the magnification has a nonzero maximum. Differentiating the magnification with respect to the frequency ratio gives
+
+\[
+\omega_r=\omega_n\sqrt{1-2\zeta^2}
+ =22.442\ \mathrm{rad/s}.
+\]
+
+The damped natural frequency comes from the complementary solution.
+
+\[
+\omega_d=\omega_n\sqrt{1-\zeta^2}
+ =22.670\ \mathrm{rad/s}.
+\]
+
+\[
+\boxed{\omega_r=22.442\ \mathrm{rad/s},
+\qquad
+\omega_d=22.670\ \mathrm{rad/s}}
+\qquad\text{(B.7.3.a)}
+\]
+
+\textbf{(b) Peak magnification.} Substituting $\omega_r$ into the magnification expression gives
+
+\[
+M_r=\frac{1}{2\zeta\sqrt{1-\zeta^2}}
+ =\frac{1}{2(0.140)\sqrt{1-(0.140)^2}}
+ =3.60695.
+\]
+
+\[
+\boxed{M_r=3.60695}
+\qquad\text{(B.7.3.b)}
+\]
+
+\textbf{(c) Magnification at phase resonance.} Phase resonance occurs when the real part of the FRF denominator is zero, which gives $\omega=\omega_n$. Thus,
+
+\[
+M_{90}=\frac{1}{2\zeta}
+ =\frac{1}{2(0.140)}
+ =3.57143.
+\]
+
+\[
+\boxed{M_{90}=3.57143}
+\qquad\text{(B.7.3.c)}
+\]
+
+\textbf{(d) Physical response at phase resonance.} At $\omega=\omega_n$, the normalized FRF is
+
+\[
+\operatorname{FRF}(\omega_n)
+ =\frac{1}{2i\zeta}
+ =-\frac{i}{2\zeta}.
+\]
+
+Multiplying by the quasi-static displacement gives
+
+\[
+\hat u_{90}
+ =u_{\mathrm{qst}}\operatorname{FRF}(\omega_n)
+ =-i\frac{u_{\mathrm{qst}}}{2\zeta}
+ =-i\,157.229\ \mu\mathrm{m}.
+\]
+
+Therefore,
+
+\[
+\boxed{\hat u_{90}=-i\,157.229\ \mu\mathrm{m},
+\qquad
+\lvert\hat u_{90}\rvert=157.229\ \mu\mathrm{m}}
+\qquad\text{(B.7.3.d)}
+\]
+
+\textbf{(e) Frequency and RPM conversions.} Divide each angular frequency by $2\pi$ to obtain hertz, and multiply the result by $60$ to obtain revolutions per minute.
+
+\[
+\begin{aligned}
+f_r&=\frac{\omega_r}{2\pi}=3.57174\ \mathrm{Hz},
+&N_r&=60f_r=214.305\ \mathrm{rpm},\\
+f_n&=\frac{\omega_n}{2\pi}=3.64388\ \mathrm{Hz},
+&N_{90}&=60f_n=218.633\ \mathrm{rpm}.
+\end{aligned}
+\]
+
+\[
+\boxed{
+\begin{aligned}
+f_r&=3.57174\ \mathrm{Hz},&N_r&=214.305\ \mathrm{rpm},\\
+f_n&=3.64388\ \mathrm{Hz},&N_{90}&=218.633\ \mathrm{rpm}
+\end{aligned}}
+\qquad\text{(B.7.3.e)}
+\]
+
+\textbf{B.7.4. Time response at phase resonance.}
+
+\textbf{(a) Excitation frequency.} Phase resonance uses $\omega=\omega_n$, so
+
+\[
+\boxed{\omega=22.895\ \mathrm{rad/s},
+\qquad
+f=\frac{\omega}{2\pi}=3.64388\ \mathrm{Hz}}
+\qquad\text{(B.7.4.a)}
+\]
+
+\textbf{(b) Period.} The period of the phase-resonant oscillation is
+
+\[
+\tau=\frac{2\pi}{\omega}
+ =\frac{2\pi}{22.895}
+ =0.274433\ \mathrm{s}.
+\]
+
+\[
+\boxed{\tau=0.274433\ \mathrm{s},
+\qquad
+N_{\mathrm{osc}}\tau=2.74433\ \mathrm{s}}
+\qquad\text{(B.7.4.b)}
+\]
+
+\textbf{(c) Real displacement.} Take the physical force as $F(t)=\hat F\cos(\omega_nt)$. Since $\hat u_{90}=-iU$, where
+
+\[
+U=\frac{u_{\mathrm{qst}}}{2\zeta}=157.229\ \mu\mathrm{m},
+\]
+
+the real part of the complex steady-state response is
+
+\[
+u_{\mathrm{ss}}(t)
+ =\operatorname{Re}\{\hat u_{90}e^{i\omega_nt}\}
+ =U\sin(\omega_nt).
+\]
+
+The assignment specifies the number of cycles but not initial conditions for this plot, so the steady-state response is the direct result. For comparison, the figure also shows the response when the force is switched on at $t=0$ and the mass starts from rest. Applying $u(0)=0$ and $\dot u(0)=0$ to the complete response gives
+
+\[
+u_{\mathrm{rest}}(t)
+ =U\sin(\omega_nt)
+ -\frac{U\omega_n}{\omega_d}
+ e^{-\zeta\omega_nt}\sin(\omega_dt).
+\]
+
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\linewidth,height=\textheight,keepaspectratio,alt={B.7. Dimensionless FRF magnitude and three requested frequency markers.}]{figures/generated/solutions/B7_magnitude.pdf}
-\caption{B.7. Dimensionless FRF magnitude and three requested frequency markers.}
+\includegraphics[width=0.95\linewidth,height=0.30\textheight,keepaspectratio,alt={B.7.4.c. Phase-resonant steady-state displacement and separately identified switched-on-from-rest response.}]{figures/generated/solutions/B7_time.pdf}
+\caption{B.7.4.c. Phase-resonant real displacement over $N_{\mathrm{osc}}=10$ cycles. The orange curve includes the transient required when the force is switched on from rest.}
+\end{figure}
+
+\textbf{B.7.5. Graduate work.}
+
+\textbf{(a) Operational frequency and FRF sweep.} The operating speed is $N_0=1500\ \mathrm{rpm}$, so
+
+\[
+f_0=\frac{N_0}{60}=25.0\ \mathrm{Hz},
+\qquad
+\omega_0=2\pi f_0=157.080\ \mathrm{rad/s}.
+\]
+
+For the sweep, define $p=\omega/\omega_n=2\pi f/\omega_n$. The magnitude and phase are
+
+\[
+M(f)=\frac{1}{\sqrt{(1-p^2)^2+(2\zeta p)^2}},
+\qquad
+\phi(f)=-\operatorname{atan2}(2\zeta p,1-p^2).
+\]
+
+Use $N_f=5000$ uniformly spaced frequencies from $f=0$ to $f=f_0$. The resulting magnitude and phase are shown below.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.30\textheight,keepaspectratio,alt={B.7.5.a. Dimensionless FRF magnitude from quasi-static excitation to the operational frequency.}]{figures/generated/solutions/B7_magnitude.pdf}
+\caption{B.7.5.a. Dimensionless FRF magnitude from $0$ to $f_0=25.0\ \mathrm{Hz}$.}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\linewidth,height=\textheight,keepaspectratio,alt={B.7. Phase relative to the harmonic force.}]{figures/generated/solutions/B7_phase.pdf}
-\caption{B.7. Phase relative to the harmonic force.}
+\includegraphics[width=0.95\linewidth,height=0.30\textheight,keepaspectratio,alt={B.7.5.a. FRF phase from quasi-static excitation to the operational frequency.}]{figures/generated/solutions/B7_phase.pdf}
+\caption{B.7.5.a. FRF phase from $0$ to $f_0=25.0\ \mathrm{Hz}$.}
 \end{figure}
 
-During a sufficiently slow run-up with the assumed constant force amplitude, the vibration grows near the response peak and falls as the operating speed moves above resonance. A rapid run-up need not reach the steady-state peak because the system takes time to build that response. An actual fixed rotating imbalance produces force proportional to speed squared, so a physical run-up prediction needs that speed dependence and an acceleration schedule. The homework supplies only one force amplitude; the plotted FRF is the structural response normalized by that force, not a complete run-up simulation.
+\textbf{(b) Requested FRF values.} The phase-resonance speed is $N_{90}=218.633\ \mathrm{rpm}$. Doubling that speed doubles the excitation frequency, so the second requested point is $2N_{90}=437.265\ \mathrm{rpm}$ and $f=2f_n=7.28775\ \mathrm{Hz}$.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule\noalign{}
+Operating point & $f$ (Hz) & $N$ (rpm) & $\lvert\mathrm{FRF}\rvert$ \\
+\midrule\noalign{}
+Phase resonance & 3.64388 & 218.633 & 3.57143 \\
+Double phase-resonance speed & 7.28775 & 437.265 & 0.32767 \\
+Operational speed & 25.0000 & 1500.000 & 0.02169 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{(c) Operational vibration magnitude.} At $f_0=25.0\ \mathrm{Hz}$, the frequency ratio is $p_0=\omega_0/\omega_n=6.86082$. Therefore,
+
+\[
+\lvert\hat u_0\rvert
+ =u_{\mathrm{qst}}M(f_0)
+ =(44.024\ \mu\mathrm{m})(0.0216868)
+ =0.954744\ \mu\mathrm{m}.
+\]
+
+\[
+\boxed{\lvert\hat u_0\rvert=0.954744\ \mu\mathrm{m}}
+\qquad\text{(B.7.5.c)}
+\]
+
+\textbf{(d) Run-up interpretation.} When the motor starts, the displacement contains a transient because the mass begins away from the eventual forced steady state. As the motor accelerates, the excitation frequency passes through true resonance near $N_r=214.305\ \mathrm{rpm}$, where the steady-state magnification is largest. Phase resonance occurs slightly later at $N_{90}=218.633\ \mathrm{rpm}$, so the two speeds are close but not identical.
+
+After the motor passes this region, the FRF magnitude decreases and the displacement becomes small at the operational speed. Under the supplied constant force amplitude, the predicted steady-state magnitude decreases from about $157\ \mu\mathrm{m}$ near phase resonance to $0.955\ \mu\mathrm{m}$ at $1500\ \mathrm{rpm}$. The actual maximum during acceleration also depends on how quickly the motor crosses resonance. A rotating imbalance normally produces a force that varies with speed squared, so the fixed-$\hat F$ sweep describes the structural FRF and does not by itself predict the complete transient run-up.
+
+\clearpage
+\matlabcaption{Time response and FRF plots for B.7.}
+
+\begin{center}
+\begin{matlabcode}
+L=.568; E=200e9; h=.003; b=.037; m=.52; zeta=.14;
+Fhat=.012; N0=1500; Nosc=10; Nf=5000;
+I=b*h^3/12; EI=E*I; k=3*EI/L^3; wn=sqrt(k/m);
+wd=wn*sqrt(1-zeta^2); uqst=Fhat/k; U=uqst/(2*zeta);
+
+t=linspace(0,Nosc*2*pi/wn,2000);
+uss=U*sin(wn*t);
+urest=uss-U*wn/wd*exp(-zeta*wn*t).*sin(wd*t);
+plot(t,uss,'Color',[0 .427 .459],'LineWidth',1.5); hold on
+plot(t,urest,'--','Color',[.776 .365 0],'LineWidth',1.5);
+xlabel('Time (s)'); ylabel('Displacement (m)'); grid on
+
+f=linspace(0,N0/60,Nf); p=2*pi*f/wn;
+M=1./sqrt((1-p.^2).^2+(2*zeta*p).^2);
+phi=-atan2(2*zeta*p,1-p.^2)*180/pi;
+figure
+plot(f,M,'Color',[0 .427 .459],'LineWidth',1.5);
+figure
+plot(f,phi,'Color',[0 .427 .459],'LineWidth',1.5);
+\end{matlabcode}
+\end{center}
+
+\endgroup
