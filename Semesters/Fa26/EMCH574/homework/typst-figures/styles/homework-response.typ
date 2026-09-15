@@ -23,10 +23,24 @@
     elements.push(plot(x, curve.y, stroke: stroke, label: if data.curves.len() > 1 { curve.label } else { none }))
   }
   for (index, event) in data.events.enumerate() {
-    let label-x = data.xlim.at(0) + (0.02 + 0.33 * index) * span-x
-    let label-y = data.ylim.at(1) - 0.025 * span-y
+    let is-a2-tip = data.title == "A2. Pendulum released from 2 mm"
+    let label-x = if is-a2-tip {
+      event.x + 0.45
+    } else {
+      data.xlim.at(0) + (0.02 + 0.33 * index) * span-x
+    }
+    let label-y = if is-a2-tip {
+      event.y + 0.9
+    } else {
+      data.ylim.at(1) - 0.025 * span-y
+    }
+    let leader-start = if is-a2-tip {
+      (label-x, event.y + 0.2)
+    } else {
+      (label-x + 0.05 * span-x, label-y - 0.12 * span-y)
+    }
     elements.push(line(
-      (label-x + 0.05 * span-x, label-y - 0.12 * span-y), (event.x, event.y),
+      leader-start, (event.x, event.y),
       stroke: (paint: color-guide, thickness: 0.5pt, cap: "butt"),
     ))
     elements.push(scatter((event.x,), (event.y,), mark: "s", size: 3.5pt, color: color-ink))
