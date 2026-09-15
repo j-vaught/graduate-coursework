@@ -16,8 +16,6 @@
     draw.content((115, 49), [$k(delta_("st")+u)$])
     draw.line((139, 30), (139, 12), ..mechanics-displacement-style)
     draw.content((145, 21), [$+u$])
-    draw.content((34, -7), figure-small[$m g-k delta_("st")=0$])
-    draw.content((115, -7), figure-small[$m dot.double(u)=-k u$])
   }),
  ),
 )
