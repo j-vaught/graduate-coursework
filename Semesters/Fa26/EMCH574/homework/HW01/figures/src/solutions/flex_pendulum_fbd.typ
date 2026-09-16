@@ -19,13 +19,11 @@
     draw.rect((111,22),(123,36),..mechanics-body-style)
     draw.content((117,29),[$m$])
     draw.line((111,32),(86,32),..mechanics-force-style)
-    draw.content((97,37),[$k u$])
+    draw.content((97,37),[$k_1 u$])
     draw.line((111,25),(86,25),..mechanics-force-style)
     draw.content((97,18),[$m g theta$])
     draw.line((126,29),(146,29),..mechanics-displacement-style)
     draw.content((137,34),[$+u$])
-    draw.content((117,4),figure-small[Course-note approximation, PDF page 252.])
-    draw.content((117,-3),figure-small[$m dot.double(u)+(k+(3 m g)/(2 L))u=0$])
   }),
  ),
 )
