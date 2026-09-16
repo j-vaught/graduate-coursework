@@ -2,14 +2,14 @@
 
 J.C. Vaught.
 
-`HW01_EMCH574.pdf` is the corrected, unsolved assignment, restored with its LaTeX source from commit `cb5c53a`. It contains 28 pages, the custom assignment figures, and the prompt corrections agreed for B.4, C.5, and C.9.
+`HW01_EMCH574_solved.pdf` contains the solutions and their runnable MATLAB sources. `HW01_EMCH574.pdf` is the corrected unsolved assignment, and `HW01_EMCH574_original.pdf` is the original assignment.
 
-`HW01_EMCH574_original.pdf` is the professor's original 33-page document.
+C.7 and C.8 use the flex-beam-pendulum approximation on PDF page 252 of `../../lectures/EMCH574_CourseNotes_20260826.pdf`. The primary frequency is $\omega_n=\sqrt{3EI/(mL^3)+3g/(2L)}$. The tension-loaded beam model appears only as a separately identified comparison. Clear sign and resonance-threshold errors in the notes are identified in the relevant solutions rather than propagated.
 
-The 58-page solved document previously occupying `HW01_EMCH574.pdf` has been removed from the current folder. Its PDF and main LaTeX source remain recoverable from commit `7f447236d2ff0a054a0ad57b41539dbf2d22e44d` at those same paths.
+Run `run_all` from the `matlab/` directory in MATLAB. It executes all eleven numerical problem scripts, displays SI inputs and results, writes `matlab/output/results.txt`, checks initial conditions, and regenerates the numerical JSON data for the solution figures. `verify_hw01` independently compares free responses with a matrix-exponential solution and checks forty settling cases with varying inputs. Individual problem scripts can also be run from that directory.
 
-The existing `solutions/` fragments and `study/` calculation files are retained as supporting work. They are not included by the restored unsolved document. The study builder compiles the current main document; it does not restore the removed solution inclusions.
+The MATLAB files are included directly in the document through `lstinputlisting`. Shared numerical and plotting functions are printed in the final section. All calculations use SI units, with explicit conversion at display boundaries. The settling routine assumes an underdamped release with zero initial velocity and locates the final threshold crossing after the last extremum outside the specified band. The result is distinguished from the conservative envelope bound.
 
-Figure sources and PDFs are duplicated locally in `figures/src/` and `figures/generated/`. Run `make` from `figures/` to rebuild them using the shared Typst styles. The original copies remain in `../typst-figures/`.
+From `figures/`, run `make` to compile the local Typst figures. Numerical response figures use the local garnet, blue, and grayscale style in `figures/styles/response.typ`. The compiled figures and their data are retained for reproducibility.
 
-To rebuild the unsolved assignment from this directory, run `latexmk -xelatex -interaction=nonstopmode -halt-on-error HW01_EMCH574.tex`. The recovered PDF itself is the exact version stored at `cb5c53a`; rebuilding uses the current shared styles and local figure assets.
+From this directory, rebuild the solved document with `latexmk -xelatex -interaction=nonstopmode -halt-on-error HW01_EMCH574_solved.tex`. The original course-notes PDF and unsolved assignment are separate reference documents.
