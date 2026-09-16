@@ -7,7 +7,7 @@ cfg.samplesPerCycle = 200;
 cfg.samplesPerDecayTime = 50;
 cfg.settlingFraction = 0.02;
 cfg.checkTolerance = 1e-10;
-cfg.colors = [115 0 10; 70 106 159; 54 54 54]/255;
+cfg.colors = [0 95 115; 213 94 0; 37 40 42]/255;
 cfg.dataDirectory = fullfile(fileparts(mfilename('fullpath')), ...
     '..','figures','src','solutions','data');
 end

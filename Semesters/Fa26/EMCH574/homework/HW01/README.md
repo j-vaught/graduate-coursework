@@ -10,6 +10,6 @@ Run `run_all` from the `matlab/` directory in MATLAB. It executes all eleven num
 
 The MATLAB files are included directly in the document through `lstinputlisting`. Shared numerical and plotting functions are printed in the final section. All calculations use SI units, with explicit conversion at display boundaries. The settling routine assumes an underdamped release with zero initial velocity and locates the final threshold crossing after the last extremum outside the specified band. The result is distinguished from the conservative envelope bound.
 
-From `figures/`, run `make` to compile the local Typst figures. Numerical response figures use the local garnet, blue, and grayscale style in `figures/styles/response.typ`. The compiled figures and their data are retained for reproducibility.
+From `figures/`, run `make` to compile the local Typst figures. Numerical response figures use the established homework palette, with teal primary curves and orange secondary curves. The local style in `figures/styles/response.typ` imports that shared palette. MATLAB uses the same colors, and the printed code has a light-gray background. The compiled figures and their data are retained for reproducibility.
 
 From this directory, rebuild the solved document with `latexmk -xelatex -interaction=nonstopmode -halt-on-error HW01_EMCH574_solved.tex`. The original course-notes PDF and unsolved assignment are separate reference documents.

@@ -1,7 +1,7 @@
 #import "/typst-figures/styles/figure.typ": *
 
 // MATLAB supplies numerical data; Lilaq authors the vector figure.
-#let response-colors = (rgb("#73000A"), rgb("#466A9F"), rgb("#363636"))
+#let response-colors = plot-color-cycle
 #let response-figure(data, y-limits: none) = {
   let x = data.x
   let plot-ylim = if y-limits == none { data.ylim } else { y-limits }
