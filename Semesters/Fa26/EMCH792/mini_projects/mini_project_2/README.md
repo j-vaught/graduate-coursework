@@ -1,7 +1,7 @@
 # Mini Project 2
 
-The assignment is in `mini-project-2.pdf`. The copied `inverted_pendulum_simulink.slx` and `simulink_accelerations.m` preserve the Mini Project 1 starting point. The other copied Mini Project 1 files remain as references.
+J.C. Vaught.
 
-Run `run_project2` in MATLAB from this folder. It derives the state-space controller, builds `inverted_pendulum_controlled.slx` from the copied model, runs the required tests and stress cases, and writes the results and figure data. The model builder uses `controlled_accelerations.m` for the new cart-force input. Re-running the script recreates the controlled model.
+Run `run_project2` in MATLAB from this folder. It uses `inverted_pendulum_simulink.slx` as the inherited plant, computes the controller, builds the editable `inverted_pendulum_controlled.slx`, and runs the required and stress tests. It writes `metrics.json`, `plot_data.json`, and the two Simulink diagram images needed by the report. MATLAB, Simulink, and Control System Toolbox are required.
 
-Compile the report with `typst compile mini_project_2_report.typ mini_project_2_report.pdf` after the MATLAB run. The report source imports the MATLAB-generated JSON and the exported Simulink diagram.
+Compile the report with `typst compile mini_project_2_report.typ mini_project_2_report.pdf`. The committed JSON files and diagrams let the PDF compile without rerunning MATLAB. The PDF is the finished report.

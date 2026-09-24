@@ -75,8 +75,7 @@ results.random_test = struct('metrics', ...
 results.angle_stress = angle_stress;
 results.force_stress = force_stress;
 
-% Retain every computed sample and a compact JSON copy for Typst/Lilaq.
-save(fullfile(project_dir, 'simulation_results.mat'), 'results');
+% Export the JSON inputs required to compile the Typst report.
 plot_data = struct('perturbation', plot_sample(perturbation), ...
     'random_test', plot_sample(random_test), ...
     'disturbance_step_s', 0.1);
@@ -103,6 +102,10 @@ open_system([model '/Nonlinear plant']);
 print(['-s' model '/Nonlinear plant'], '-dpng', '-r170', ...
     fullfile(project_dir, 'nonlinear_plant_diagram.png'));
 close_system(model, 0);
+cache_files = dir(fullfile(project_dir, '*.slxc'));
+for j = 1:numel(cache_files)
+    delete(fullfile(project_dir, cache_files(j).name));
+end
 end
 
 function response = simulate_case(model, initial_angle_rad, disturbance, stop_time)
