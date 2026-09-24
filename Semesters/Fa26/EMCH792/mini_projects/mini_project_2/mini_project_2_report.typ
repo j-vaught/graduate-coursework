@@ -306,7 +306,7 @@ The top level exposes the disturbance, total cart force, nonlinear plant, feedba
 
 #pagebreak()
 
-= Appendix H. Nonlinear plant detail
+= Appendix I. Nonlinear plant detail
 
 #figure(
   image("nonlinear_plant_diagram.png", width: 8.5in),
@@ -319,7 +319,7 @@ Inside the plant, the inherited equations and four integrators retain their orig
 #set page(paper: "us-letter", flipped: false, margin: 1in,
   numbering: "1", number-align: center + bottom)
 
-= Appendix I. Nonlinear acceleration code
+= Appendix J. Nonlinear acceleration function
 
 #show raw.where(block: true): it => block(
   width: 100%, fill: rgb("#ECECEC"),
@@ -333,16 +333,4 @@ The following is the complete source loaded into the copied MATLAB Function bloc
 
 #raw(read("controlled_accelerations.m"), lang: "matlab", block: true)
 
-= Appendix J. Model-construction code
-
-The complete builder copies the Mini Project 1 Simulink model, adds the force input and feedback blocks, and saves an editable Project 2 model.
-
-#raw(read("build_controlled_model.m"), lang: "matlab", block: true)
-
-#pagebreak()
-
-= Appendix K. Experiment and verification code
-
-The experiment script derives $A$ and $B$, checks controllability and closed-loop poles, rebuilds the model, runs all cases, computes metrics, and exports simulation data and the model diagram.
-
-#raw(read("run_project2.m"), lang: "matlab", block: true)
+The complete model builder and experiment script are supplied as separate MATLAB files alongside this report.
