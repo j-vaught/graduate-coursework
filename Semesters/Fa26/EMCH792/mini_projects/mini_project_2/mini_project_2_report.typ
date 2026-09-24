@@ -2,10 +2,6 @@
 
 #let plots = json("plot_data.json")
 #let stats = json("metrics.json")
-#let garnet = rgb("#73000A")
-#let black = rgb("#000000")
-#let atlantic = rgb("#466A9F")
-#let gray = rgb("#5C5C5C")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 
 #let angle-plot(run) = lq.diagram(
@@ -14,15 +10,15 @@
   xlabel: [Time, $t$ (s)],
   ylabel: [Pendulum angle, $theta$ (deg)],
   lq.plot(run.time_s, run.theta_deg, mark: none,
-    stroke: (paint: garnet, thickness: 1.35pt)),
+    stroke: (thickness: 1.2pt)),
 )
-#let position-plot(run) = lq.diagram(
+#let position-plot(run, height: 2.7in) = lq.diagram(
   width: 100%,
-  height: 2.7in,
+  height: height,
   xlabel: [Time, $t$ (s)],
   ylabel: [Cart position, $x$ (m)],
   lq.plot(run.time_s, run.x_m, mark: none,
-    stroke: (paint: black, thickness: 1.25pt)),
+    stroke: (thickness: 1.2pt)),
 )
 #let force-plot(run, height: 2.7in) = lq.diagram(
   width: 100%,
@@ -30,9 +26,9 @@
   xlabel: [Time, $t$ (s)],
   ylabel: [Horizontal force (N)],
   lq.plot(run.time_s, run.u_N, mark: none,
-    stroke: (paint: garnet, thickness: 1.25pt), label: [Control command]),
+    stroke: (thickness: 1.2pt), label: [Control command]),
   lq.plot(run.time_s, run.disturbance_N, mark: none,
-    stroke: (paint: black, thickness: 1.25pt, dash: "dashed"),
+    stroke: (thickness: 1.2pt, dash: "dashed"),
     label: [Base disturbance]),
 )
 
@@ -71,48 +67,59 @@
 #columns(2, gutter: 0.25in)[
 = METHODOLOGY.
 
-  The state is $z = (x, dot(x), theta, dot(theta))^T$, where $theta = 0$ is upright. The plant retains the Mini Project 1 values $M=2.0$ kg, $m=0.5$ kg, $ell=1.0$ m, $c_theta=0.01$ N m s/rad, and $g=9.81$ m/s². Linearizing the coupled mass-matrix equations at $z=0$ gives $dot(z)=A z+B F$. The controllability matrix has rank four.
+  The plant has a frictionless cart of mass $M=2.0$ kg and a massless rod carrying a point mass $m=0.5$ kg at length $ell=1.0$ m. Its pivot damping is $c_theta=0.01$ N m s/rad, and gravity is $g=9.81$ m/s². The angle $theta=0$ denotes the unstable upright position. A positive force $F$ pushes the cart in the positive $x$ direction. As in Mini Project 1, the two accelerations are solved together from a mass matrix, then integrated twice to obtain velocities and positions.
 
-  A linear-quadratic regulator with $Q="diag"(4,2,300,10)$ and $R=0.5$ sets the feedback $u=-K z$. The actuator command is limited to $abs(u) <= 10$ N, and the nonlinear plant receives $F=u+d$, where $d$ is an external horizontal force on the cart. This choice gives the base disturbance a precise physical meaning.
+  The controller uses the state $z=(x,dot(x),theta,dot(theta))^T$. Adding $F$ to the cart equation and linearizing the inherited nonlinear model about $z=0$ gives $dot(z)=A z+B F$. The controllability matrix has rank four, so this local model can be stabilized by state feedback. The nonlinear simulation retains the trigonometric coupling and pivot damping, which lets the tests expose behavior beyond the linear approximation.
 
-== SIMULATION STEPS.
-
-  The first 12 s test begins at $theta(0)=5 degree$ with $d=0$. The second begins upright and applies a fixed-seed random force held for 0.1 s per sample, bounded by $abs(d) <= 2.5$ N. Simulink integrates the nonlinear model with ode45 and a 0.01 s maximum step. The appendix gives the derivation, model, code, and additional tests.
+  A linear-quadratic regulator uses $Q="diag"(4,2,300,10)$ and $R=0.5$. The larger angular weight makes upright balance the priority while the cart-position weight discourages unrestricted travel. MATLAB gives $K=(-2.8284,-6.3204,-86.8641,-25.2346)$ for $u=-K z$. Both closed-loop pole pairs have negative real parts. The actuator limits $u$ to $plus.minus 10$ N before an external disturbance $d$ is added, so the plant receives $F=u+d$. This ordering distinguishes command saturation from disturbance magnitude.
 
   #colbreak()
 
-= RESULTS.
+== SIMULATION STEPS.
 
-  #figure(
-    angle-plot(plots.perturbation),
-    caption: [Upright-angle response after a 5#sym.degree release with no disturbance.],
-  )
+  The editable Simulink model copies the Mini Project 1 nonlinear MATLAB Function and four integrators into the plant subsystem. The additional function input applies the total cart force. Outside that subsystem, a gain computes $-K z$, a saturation block limits the command, and a circular sum block adds the disturbance. The State order block presents its inputs as $theta$, $dot(theta)$, $dot(x)$, and $x$ from top to bottom, then assembles $z$ internally. Thus the visible wiring and the controller's matrix order are both explicit.
 
-  The 5#sym.degree release returns inside $plus.minus 1 degree$ by #fmt(stats.perturbation.settling_time_s) s and stays there. Its peak cart travel is #fmt(stats.perturbation.peak_cart_position_m, digits: 3) m. The response confirms local stabilization of the nonlinear model, including the pivot damping and trigonometric terms absent from the design model.
+  The first 12 s test starts at $theta(0)=5 degree$ with all other states and $d$ zero. The second starts upright and applies a horizontal force sampled uniformly between $-2.5$ and $2.5$ N every 0.1 s. A zero-order hold keeps each value until the next sample. Seed 79202 fixes the random realization, so rerunning the MATLAB script produces the same force history and figures. Simulink uses ode45 with a 0.01 s maximum step, and the analysis resamples the logged states at 0.02 s.
+
+  The report measures angle, cart travel, and command force separately. A settling time is recorded only after $abs(theta)$ remains below 1#sym.degree for the rest of the run. Additional release angles and disturbance amplitudes test the controller's margin without retuning $K$. Those cases appear in the appendix because the two required experiments are the central result. The appendix also contains the equations, numerical gain, editable block diagrams, MATLAB source, and complete stress-test metrics.
 ]
 
 #pagebreak()
 
 #columns(2, gutter: 0.25in)[
-= RESULTS (CONTINUED).
+= RESULTS.
 
   #figure(
-    angle-plot(plots.random_test),
-    caption: [Upright-angle response under the bounded random horizontal disturbance.],
+    position-plot(plots.perturbation, height: 1.8in),
+    caption: [Cart position during recovery from the 5#sym.degree release.],
   )
 
-  With the cart excited throughout the second test, the pendulum's angle has an RMS magnitude of #fmt(stats.random_test.rms_angle_deg) degree and a peak of #fmt(stats.random_test.peak_angle_deg) degree. The controller therefore keeps the pendulum near upright without requiring the disturbance to stop. The corresponding cart motion and command-force histories appear in the appendix.
+  The release moves the cart by at most #fmt(stats.perturbation.peak_cart_position_m, digits: 3) m before it returns toward the origin. The largest commanded force is #fmt(stats.perturbation.peak_command_N) N, below the 10 N limit. Thus the required small-angle recovery does not depend on saturation.
+
+  #figure(
+    angle-plot(plots.perturbation),
+    caption: [Pendulum angle after the 5#sym.degree release.],
+  )
+
+  The pendulum crosses upright once and then decays toward it. After #fmt(stats.perturbation.settling_time_s) s, the angle remains within $plus.minus 1 degree$. This response tests the nonlinear plant, rather than only the linear model used to compute $K$.
 
   #colbreak()
 
   #figure(
+    angle-plot(plots.random_test),
+    caption: [Pendulum angle under the bounded random horizontal disturbance.],
+  )
+
+  During the second test, the pendulum has an RMS angle of #fmt(stats.random_test.rms_angle_deg) degree and a peak of #fmt(stats.random_test.peak_angle_deg) degree. The cart moves at most #fmt(stats.random_test.peak_cart_position_m, digits: 3) m while the disturbance continues.
+
+  #figure(
     force-plot(plots.random_test, height: 1.8in),
-    caption: [Feedback command and externally applied disturbance in the random-force test. Solid garnet is the command; dashed black is the disturbance.],
+    caption: [Random-force test. Solid blue is the control command; dashed orange is the external disturbance.],
   )
 
 = DISCUSSION.
 
-  The actuator never reaches its 10 N limit in the required random test. Under larger perturbations, the 20#sym.degree release recovers, but the 30#sym.degree release does not. A 10 N random-force bound also causes sustained saturation and loss of upright control. The local linear design therefore has a finite recovery region. The model assumes an unlimited cart track and exact state measurements; physical rail limits and measurement noise would reduce practical margin.
+  The command peaks at #fmt(stats.random_test.peak_command_N) N in the random test and never reaches saturation. The controller therefore holds the pendulum near upright in both required cases. Its margin is finite. A 20#sym.degree release recovers only after almost 3 m of cart travel, whereas a 30#sym.degree release saturates throughout and fails. A random-force bound of 10 N also defeats the controller. The model assumes an unlimited track and exact state measurements; rail stops and measurement noise would further limit a physical implementation.
 ]
 
 #pagebreak()
@@ -222,11 +229,6 @@ The additional tests reuse the same 10 N controller. One sweep starts at 10, 20,
 #pagebreak()
 
 = Appendix E. Release-test signals
-
-#figure(
-  position-plot(plots.perturbation),
-  caption: [Cart displacement during recovery from the 5#sym.degree release.],
-)
 
 #figure(
   force-plot(plots.perturbation),
