@@ -116,8 +116,8 @@ add_block('simulink/Sources/From Workspace', ...
     'OutputAfterFinalValue', 'Holding final value', ...
     'Position', [70 105 225 145]);
 add_block('simulink/Math Operations/Sum', [model '/Cart force'], ...
-    'Inputs', '++', 'ShowName', 'off', ...
-    'Position', [315 240 345 290]);
+    'Inputs', '++', 'IconShape', 'round', 'ShowName', 'off', ...
+    'Position', [315 240 365 290]);
 add_block('simulink/Math Operations/Gain', [model '/State feedback'], ...
     'Gain', mat2str(-K, 16), 'Multiplication', 'Matrix(K*u)', ...
     'Position', [805 220 940 280]);
@@ -136,11 +136,24 @@ for j = 1:numel(log_blocks)
         'Position', log_positions{j});
 end
 
-connect(model, 'Base disturbance/1', 'Cart force/2');
+% Bring the disturbance down to the top of the circular junction.
+disturbance_ports = get_param([model '/Base disturbance'], 'PortHandles');
+sum_ports = get_param([model '/Cart force'], 'PortHandles');
+disturbance_xy = get_param(disturbance_ports.Outport(1), 'Position');
+sum_top_xy = get_param(sum_ports.Inport(2), 'Position');
+add_line(model, [disturbance_xy; ...
+    sum_top_xy(1) disturbance_xy(2); sum_top_xy]);
 connect(model, 'Cart force/1', 'Nonlinear plant/1');
 connect(model, 'Nonlinear plant/1', 'State feedback/1');
 connect(model, 'State feedback/1', 'Actuator limit/1');
-connect(model, 'Actuator limit/1', 'Cart force/1');
+% The actuator return travels below the entire loop to the lower input.
+actuator_ports = get_param([model '/Actuator limit'], 'PortHandles');
+actuator_xy = get_param(actuator_ports.Outport(1), 'Position');
+sum_bottom_xy = get_param(sum_ports.Inport(1), 'Position');
+return_x = 1125;
+return_y = 390;
+add_line(model, [actuator_xy; return_x actuator_xy(2); ...
+    return_x return_y; sum_bottom_xy(1) return_y; sum_bottom_xy]);
 connect(model, 'Nonlinear plant/1', 'State log/1');
 connect(model, 'Actuator limit/1', 'Command log/1');
 connect(model, 'Base disturbance/1', 'Disturbance log/1');

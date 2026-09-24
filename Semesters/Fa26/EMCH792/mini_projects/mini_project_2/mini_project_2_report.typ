@@ -10,7 +10,7 @@
 
 #let angle-plot(run) = lq.diagram(
   width: 100%,
-  height: 2.35in,
+  height: 1.8in,
   xlabel: [Time, $t$ (s)],
   ylabel: [Pendulum angle, $theta$ (deg)],
   lq.plot(run.time_s, run.theta_deg, mark: none,
@@ -24,9 +24,9 @@
   lq.plot(run.time_s, run.x_m, mark: none,
     stroke: (paint: black, thickness: 1.25pt)),
 )
-#let force-plot(run) = lq.diagram(
+#let force-plot(run, height: 2.7in) = lq.diagram(
   width: 100%,
-  height: 2.7in,
+  height: height,
   xlabel: [Time, $t$ (s)],
   ylabel: [Horizontal force (N)],
   lq.plot(run.time_s, run.u_N, mark: none,
@@ -36,65 +36,90 @@
     label: [Base disturbance]),
 )
 
-#set page(paper: "us-letter", margin: 1in, numbering: "1",
+#set page(paper: "us-letter", margin: (top: 0.75in, bottom: 1in, x: 1in), numbering: "1",
   number-align: center + bottom)
-#set text(font: ("Times New Roman", "New Computer Modern"), size: 10.5pt,
+#set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"), size: 11pt,
   lang: "en")
 #set par(justify: true, leading: 0.55em)
 #set heading(numbering: none)
-#show heading.where(level: 1): it => block(above: 0.65em, below: 0.28em)[
+#show heading.where(level: 1): it => block(above: 0.75em, below: 0.35em)[
   #text(size: 11pt, weight: "bold")[#it.body]
 ]
 #show heading.where(level: 2): it => block(above: 0.5em, below: 0.2em)[
   #text(size: 10.5pt, weight: "bold")[#it.body]
 ]
-#show figure.caption: set text(size: 9.5pt)
+#show figure.caption: set text(size: 11pt)
 
 #align(center)[
-  #text(size: 15pt, weight: "bold")[State-feedback control of an inverted pendulum on a cart]
+  #text(size: 17pt, weight: "bold")[State-feedback control of an inverted pendulum on a cart]
   #v(0.2em)
-  J.C. Vaught \
-  EMCH 792, Learning-Based Controls
+  #text(size: 10pt)[J.C. Vaught]
+  #v(0.1em)
+  #text(size: 9pt)[EMCH 792: Learning-Based Controls]
 ]
 
-= Objective
+#v(0.35em)
+#block(
+  width: 100%,
+  inset: (x: 0pt, y: 5pt),
+  stroke: (top: 0.5pt + rgb("#A2A2A2"), bottom: 0.5pt + rgb("#A2A2A2")),
+)[
+  #text(weight: "bold")[OBJECTIVE.]
+  The objective is to hold the cart-mounted pendulum near its unstable upright equilibrium with state feedback. Mini Project 1 supplied the nonlinear Simulink plant. A horizontal cart force now acts as the control input, and the same plant tests whether a controller designed from a local linearization can recover from a small release and reject a random disturbance.
+]
 
-The objective of this assignment is to hold the cart-mounted pendulum near its unstable upright equilibrium with state feedback. Mini Project 1 supplied a nonlinear Simulink model of the freely moving cart and pendulum. Here, a horizontal cart force becomes the control input, and the same nonlinear plant tests whether a controller designed from a local linearization can recover from a small release and reject a random disturbance.
+#columns(2, gutter: 0.25in)[
+= METHODOLOGY.
 
-= Methodology
+  The state is $z = (x, dot(x), theta, dot(theta))^T$, where $theta = 0$ is upright. The plant retains the Mini Project 1 values $M=2.0$ kg, $m=0.5$ kg, $ell=1.0$ m, $c_theta=0.01$ N m s/rad, and $g=9.81$ m/s². Linearizing the coupled mass-matrix equations at $z=0$ gives $dot(z)=A z+B F$. The controllability matrix has rank four.
 
-The state is $z = (x, dot(x), theta, dot(theta))^T$, where $theta = 0$ is upright. The plant retains the Mini Project 1 values $M=2.0$ kg, $m=0.5$ kg, $ell=1.0$ m, $c_theta=0.01$ N m s/rad, and $g=9.81$ m/s². Linearizing the coupled mass-matrix equations at $z=0$ gives $dot(z)=A z+B F$. The controllability matrix has rank four. A linear-quadratic regulator with $Q="diag"(4,2,300,10)$ and $R=0.5$ sets the feedback $u=-K z$. The actuator command is limited to $abs(u) <= 10$ N, and the nonlinear plant receives $F=u+d$, where $d$ is an external horizontal force on the cart. This choice gives the assignment's base disturbance a precise physical meaning.
+  A linear-quadratic regulator with $Q="diag"(4,2,300,10)$ and $R=0.5$ sets the feedback $u=-K z$. The actuator command is limited to $abs(u) <= 10$ N, and the nonlinear plant receives $F=u+d$, where $d$ is an external horizontal force on the cart. This choice gives the base disturbance a precise physical meaning.
 
-The first 12 s test begins at $theta(0)=5 degree$ with $d=0$. The second begins upright and applies a fixed-seed random force held for 0.1 s per sample, bounded by $abs(d) <= 2.5$ N. Simulink integrates the nonlinear model with ode45 and a 0.01 s maximum step. The appendix gives the derivation, model, code, and additional tests.
+== SIMULATION STEPS.
 
-= Results and Discussion
+  The first 12 s test begins at $theta(0)=5 degree$ with $d=0$. The second begins upright and applies a fixed-seed random force held for 0.1 s per sample, bounded by $abs(d) <= 2.5$ N. Simulink integrates the nonlinear model with ode45 and a 0.01 s maximum step. The appendix gives the derivation, model, code, and additional tests.
 
-#figure(
-  angle-plot(plots.perturbation),
-  caption: [Upright-angle response after a 5#sym.degree release with no disturbance.],
-)
+  #colbreak()
 
-The 5#sym.degree release returns inside $plus.minus 1 degree$ by #fmt(stats.perturbation.settling_time_s) s and stays there. Its peak cart travel is #fmt(stats.perturbation.peak_cart_position_m, digits: 3) m. The response confirms local stabilization of the nonlinear model, including the pivot damping and trigonometric terms absent from the design model.
+= RESULTS.
 
-#pagebreak()
+  #figure(
+    angle-plot(plots.perturbation),
+    caption: [Upright-angle response after a 5#sym.degree release with no disturbance.],
+  )
 
-= Results and Discussion (continued)
-
-#figure(
-  angle-plot(plots.random_test),
-  caption: [Upright-angle response under the bounded random horizontal disturbance.],
-)
-
-With the cart excited throughout the second test, the pendulum's angle has an RMS magnitude of #fmt(stats.random_test.rms_angle_deg) degree and a peak of #fmt(stats.random_test.peak_angle_deg) degree. The controller therefore keeps the pendulum near upright without requiring the disturbance to stop. The corresponding cart motion and command-force histories appear in the appendix.
-
-#figure(
-  force-plot(plots.random_test),
-  caption: [Feedback command and externally applied disturbance in the random-force test. Solid garnet is the command; dashed black is the disturbance.],
-)
-
-The actuator never reaches its 10 N limit in the required random test. Under larger perturbations, the 20#sym.degree release recovers, but the 30#sym.degree release does not. A 10 N random-force bound also causes sustained saturation and loss of upright control. The local linear design therefore has a finite recovery region. The model assumes an unlimited cart track and exact state measurements; physical rail limits and measurement noise would reduce practical margin.
+  The 5#sym.degree release returns inside $plus.minus 1 degree$ by #fmt(stats.perturbation.settling_time_s) s and stays there. Its peak cart travel is #fmt(stats.perturbation.peak_cart_position_m, digits: 3) m. The response confirms local stabilization of the nonlinear model, including the pivot damping and trigonometric terms absent from the design model.
+]
 
 #pagebreak()
+
+#columns(2, gutter: 0.25in)[
+= RESULTS (CONTINUED).
+
+  #figure(
+    angle-plot(plots.random_test),
+    caption: [Upright-angle response under the bounded random horizontal disturbance.],
+  )
+
+  With the cart excited throughout the second test, the pendulum's angle has an RMS magnitude of #fmt(stats.random_test.rms_angle_deg) degree and a peak of #fmt(stats.random_test.peak_angle_deg) degree. The controller therefore keeps the pendulum near upright without requiring the disturbance to stop. The corresponding cart motion and command-force histories appear in the appendix.
+
+  #colbreak()
+
+  #figure(
+    force-plot(plots.random_test, height: 1.8in),
+    caption: [Feedback command and externally applied disturbance in the random-force test. Solid garnet is the command; dashed black is the disturbance.],
+  )
+
+= DISCUSSION.
+
+  The actuator never reaches its 10 N limit in the required random test. Under larger perturbations, the 20#sym.degree release recovers, but the 30#sym.degree release does not. A 10 N random-force bound also causes sustained saturation and loss of upright control. The local linear design therefore has a finite recovery region. The model assumes an unlimited cart track and exact state measurements; physical rail limits and measurement noise would reduce practical margin.
+]
+
+#pagebreak()
+#set page(paper: "us-letter", margin: 1in, numbering: "1",
+  number-align: center + bottom)
+#set text(size: 10.5pt)
+#show figure.caption: set text(size: 9.5pt)
 
 = Appendix A. Nonlinear plant and sign convention
 
