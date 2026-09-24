@@ -1,6 +1,6 @@
 # HW02 figures.
 
-This folder owns the figures used by HW02. Existing extracted raster images remain here. Editable Typst sources belong in `src/`, and compiled PDFs belong in `generated/`. The shared workshop retains its original copies.
+This folder owns the figures used by HW02. The images in `original/` are byte-for-byte copies of the supplied DOCX media and are inserted directly into the assignment. Earlier PDF-extracted raster images remain here as references. Editable Typst sources, if the images are converted later, belong in `src/`, and compiled PDFs belong in `generated/`. The shared workshop retains its original copies.
 
 From this directory, run `make` to compile all local Typst figures, or `make figure FIGURE=src/figure-name` to compile one. Include compiled figures from the homework document with `figures/generated/figure-name.pdf`.
 
