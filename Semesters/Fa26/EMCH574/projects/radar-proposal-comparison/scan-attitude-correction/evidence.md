@@ -1,0 +1,35 @@
+# Evidence and claim checks
+
+J.C. Vaught. Verified October 2, 2026.
+
+## Scope
+
+This record supports a proposed course project and its computed illustration. It does not report a completed radar experiment. The local package contains no downloaded radar scans, surveyed landmark coordinates, measured motion statistics, or fitted hull parameters. Proposal milestones are planned work.
+
+## Primary-source record
+
+| Source | Verified content | Consequence |
+| --- | --- | --- |
+| [McCann and Bell, 2018, DOI 10.1109/ACCESS.2018.2814081](https://doi.org/10.1109/ACCESS.2018.2814081). Original article is readable through the [author-uploaded full text](https://www.researchgate.net/publication/323819056_A_Simple_Offset_Calibration_Method_for_the_Accurate_Geographic_Registration_of_Ship-Borne_X-Band_Radar_Intensity_Imagery). | Section I acknowledges radar/navigation lever arm and pitch, roll, heave errors, with possible importance on small craft in high seas. The demonstrated method calibrates angular, range, and time offsets using image sharpness. | Do not claim attitude error was previously unrecognized or that this paper demonstrates full attitude correction. No verified explicit future-work promise of pitch/roll/heave correction was found. |
+| [Lund et al., 2018, DOI 10.1029/2018JC013769](https://doi.org/10.1029/2018JC013769). [Author-hosted full paper](https://faculty.washington.edu/jmt3rd/Publications/2018JC013769.pdf). | Section 3.1, printed PDF page 6, georeferences pulse by pulse with interpolated heading and position. It omits heave/pitch/roll because their mapping errors were considered smaller than the 7.5 m range resolution and averaging was expected to reduce them. | Per-ray horizontal correction is a mandatory baseline. Finer-bin comparison is an operating-regime question, not an invention of pulse-time correction. |
+| [Burnett, Schoellig and Barfoot, 2021, DOI 10.1109/LRA.2021.3052439](https://doi.org/10.1109/LRA.2021.3052439). [Author preprint](https://arxiv.org/abs/2011.03512). | Studies motion distortion and Doppler compensation for spinning radar vehicle navigation. | General deskew and non-instantaneous scan acquisition already have direct precedent. Marine vertical geometry and coverage remain bounded extensions. |
+| [Xie, Li, Yao and Xi, 2019, DOI 10.1109/ICEICT.2019.8846419](https://doi.org/10.1109/ICEICT.2019.8846419). [Official proceedings table of contents](https://www.proceedings.com/content/050/050603webtoc.pdf), page 6. | Confirms title, Junhao Xie, Meiwei Li, Guowei Yao, Kun Xi, and first page 274. Full text was not accessible during this review. | Only metadata-level scope is reported. Methods, quantitative results, and claimed differences remain unverified. Obtain the full text before a publication novelty claim. |
+| [CN106772285A, 2017](https://patents.google.com/patent/CN106772285A/en). | Published May 31, 2017. Claims and description discuss vessel response, roll/pitch/heave/surge effects, sensor-informed range-cell offsets, shifting and interpolation for wave-radar images. | Strong prior art. The English text is a machine translation and the patent is not peer-reviewed experimental evidence. No legal-status conclusion is needed. |
+| [CANOE official data reference](https://github.com/utiasASRL/pycanoe/blob/main/DATA_REFERENCE.md). Sections Sensor Details, Timestamps, Radar, Pose Files, Synchronization, and Calibration. | Documents 4 Hz RAS6, 400 ray directions, ray timestamp/encoder bytes, 100 Hz raw inertial measurements, post-processed sensor poses, per-sequence configurations, and a −0.408 m range offset. Short and long modes differ. Radar-lidar translation uses CAD and yaw uses scan matching. | Verify each selected sequence. Raw inertial attitude correction, post-processed oracle, and reference-assisted translation must be separated. Metadata establishes feasibility, not acquired local radar evidence. |
+| [Navtech RAS6 datasheet, June 2024](https://navtechradar.com/wp-content/uploads/2024/06/RAS6-Series-datasheet-updated-11.06.24.pdf). | Specifies 76–77 GHz and multiple elevation-beam options, including 3.6 degrees and 21.8 degrees with infill. | CANOE is not an X-band validation dataset. The plotted beam widths are illustrative manufacturer-listed options; exact collected-unit beam pattern is not established. |
+
+## Reference independence
+
+CANOE post-processed navigation poses derive from global satellite navigation and inertial processing with base-station corrections. The pose files are not an independent shoreline survey. A correction generated from these poses cannot be validated against those same poses and called an absolute target-accuracy experiment. The proposal therefore uses separate-traversal consistency for the public-data pilot and reserves absolute accuracy for genuinely independent surveyed landmarks.
+
+## Analytical audit
+
+`src/analytical-data.mjs` imports `data/config.json`, computes the forced steady-state response, forms `R_y(pitch) R_x(roll)`, rotates the inertial-to-radar lever arm, and solves a range sphere and azimuth half-plane against `z=0`. The principal near-horizontal elevation branch is used. At the configured ranges, all intersections exist. The inverse test re-expresses each target in the sensor frame and checks slant range, azimuth, and plane height. Its maximum discrepancy is approximately 2.7e-13 in the combined meter-scaled checks. Exact per-ray reconstruction is zero by construction, which is a numerical identity rather than independent validation.
+
+The selected resonance calculation gives maximum horizontal errors of 0.4051879 m at 100 m slant range and 1.1375916 m at 300 m slant range for one configured scan. Normalization uses 0.0438 and 0.292 m range bins respectively. These are range-sampling diagnostics, not isotropic spatial resolution. CANOE's documented 0.9-degree angular spacing alone corresponds to about 1.57 m at 100 m, and the finite beam further limits angular resolution.
+
+The maximum is over 400 sampled rays and the forcing phase defined by the script, not over all phases or all possible target scenes. The plotted geometry deliberately includes rays outside an assumed beam. A separate hard-gate calculation counts the fraction of 100 m plane intersections inside the vertical beam, giving 18.5% for 3.6 degrees and 100% for 21.8 degrees at resonance. A gain pattern, clutter model, radio-frequency scattering model, and actual detection threshold are absent. The coverage fraction cannot be interpreted as an observed detection probability.
+
+## Verification and remaining work
+
+The five-page Letter PDF compiles with Typst 0.15.1. All five rendered pages were visually inspected. The one-page pitch uses 10.7-point body text. All three figure sources compile independently with their project root set to this folder. The computational inverse check passed. MATLAB is the proposed course-analysis implementation; its matching source has not been executed in this environment. The radar payload, exact beam pattern, independent survey, measured motion range, and full Xie article remain to be acquired or verified during the project.

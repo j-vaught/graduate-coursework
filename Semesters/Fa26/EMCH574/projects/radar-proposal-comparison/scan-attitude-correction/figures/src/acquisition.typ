@@ -1,0 +1,33 @@
+#import "@preview/cetz:0.5.2" as cetz
+#let teal=rgb("#005F73")
+#let orange=rgb("#D55E00")
+#let ink=rgb("#25282A")
+#let schematic()={
+  set text(font:"Arial",size:9pt,fill:ink)
+  cetz.canvas(length:1cm,{
+    import cetz.draw: *
+    let arrow=(end:">>",fill:ink)
+    rect((0,0),(4.2,1.05),fill:rgb("#EAF3F4"),stroke:0.7pt+teal)
+    content((2.1,0.53),[Wave forcing $M(t)$\ Damped roll / pitch modes])
+    rect((5.0,0),(9.2,1.05),fill:white,stroke:0.7pt+ink)
+    content((7.1,0.53),[Ray acquisition $t_i,alpha_i,rho_i$\ Pose $bold(R)_i$, origin $bold(s)_i$])
+    rect((10.0,0),(14.8,1.05),fill:rgb("#FFF1E7"),stroke:0.7pt+orange)
+    content((12.4,0.53),[Map correction\ + coverage / ambiguity flag])
+    line((4.2,0.53),(4.95,0.53),stroke:0.8pt+ink,mark:arrow)
+    line((9.2,0.53),(9.95,0.53),stroke:0.8pt+ink,mark:arrow)
+    line((0,-2.9),(14.8,-2.9),stroke:0.7pt+ink)
+    content((13.4,-3.17),[Known plane $z=0$])
+    line((1,-2.7),(2,-2.7),(2,-2.2),(2.8,-2.2),(2.8,-2.7),(3.8,-2.7),stroke:1pt+ink)
+    content((2.5,-3.4),[Vessel / IMU])
+    line((2.4,-2.2),(2.9,-1.75),stroke:0.9pt+ink,mark:(end:">>",fill:ink))
+    rect((2.82,-1.83),(3.0,-1.67),fill:teal,stroke:none)
+    content((1.2,-1.6),[Lever arm $bold(ell)$])
+    line((2.9,-1.75),(12,-2.9),stroke:(paint:teal,thickness:1pt),mark:(end:">>",fill:teal))
+    line((2.9,-1.75),(12,-0.95),stroke:(paint:orange,thickness:1pt,dash:"dashed"),mark:(end:">>",fill:orange))
+    line((12,-1.1),(12,-2.65),stroke:0.65pt+ink,mark:(end:">>",fill:ink))
+    rect((11.9,-3.0),(12.1,-2.8),fill:teal,stroke:none)
+    content((7.5,-2.9),[Ray at $t_i$])
+    content((8.6,-0.55),[Midpoint boresight applied to whole scan])
+    content((13.45,-1.9),[Elevation changes\ before mapping])
+  })
+}

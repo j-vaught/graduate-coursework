@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const r = Array.from({ length: 301 }, (_, i) => i / 100);
+const gain = (zeta) => r.map((v) => 1 / Math.sqrt((1-v*v)**2 + (2*zeta*v)**2));
+const nu = Array.from({ length: 301 }, (_, i) => -1.5 + i / 100);
+const loss = nu.map(v => v <= -0.78 ? 0 : 6.9 + 20 * Math.log10(Math.sqrt((v-0.1)**2 + 1) + v - 0.1));
+const transmission = loss.map(v => 10 ** (-v / 10));
+const doc = { heave: { r, light: gain(0.12), heavy: gain(0.30) }, edge: { nu, loss, transmission, geometric: nu.map(v=>v<0?1:0) } };
+fs.writeFileSync(path.join(root,'data/analytical.json'), JSON.stringify(doc, null, 2)+'\n');
+const diagnostics = { samplesPerCurve: r.length, gainAtZero: gain(0.12)[0], gainAtResonanceLight: gain(0.12)[100], gainAtResonanceHeavy: gain(0.30)[100], knifeEdgeLossAtZeroDb: loss[150], knifeEdgeOneWayPowerAtZero: transmission[150], allFinite: [...gain(0.12), ...gain(0.30), ...loss, ...transmission].every(Number.isFinite), dataRole:'Analytical illustrations, no measured target detections.' };
+if (!diagnostics.allFinite || diagnostics.gainAtZero !== 1) throw Error('Analytical check failed');
+fs.writeFileSync(path.join(root,'data/checks.json'), JSON.stringify(diagnostics, null, 2)+'\n');
+console.log(diagnostics);
