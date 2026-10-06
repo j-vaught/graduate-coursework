@@ -1,0 +1,492 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx,booktabs,tabularx,array,float}
+\usepackage[numbers,square]{natbib}
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+\urlstyle{same}
+\hypersetup{pdftitle={Predicting Small-Target Radar Reliability under Wave-Driven Vessel Motion},pdfauthor={J.C. Vaught}}
+\graphicspath{{figures/generated/}}
+\title{Predicting Small-Target Radar Reliability under Wave-Driven Vessel Motion}
+\author{J.C. Vaught}
+\date{EMCH 574 (Vibrations \& Waves) \quad October 7th, 2026}
+\begin{document}
+\maketitle
+
+\section*{Abstract}
+
+The ultimate goal of this work is to predict whether the next radar scan will detect a small maritime target (within an acceptable position error) and identify the physical 'blockage?' when detectoin fails.
+
+
+\section{Introduction}
+
+In oceans, lakes, and other bodies of water(henceforth referred to as maritime), small targets can disappear or `fade' in and out of radar returns. behind wave geometry, move outside a pitching radar beam, or remain detectable while its mapped position is distorted by motion during the scan. Those failures share a forcing source. Water waves move both the radar vessel and the target while changing the path between them. Treating propagation and scan correction separately therefore leaves a sponsor without a complete explanation of when an observation is usable. This project will connect the mechanisms in one predictive model and produce an operating envelope for small-target sensing.
+
+\section{The hypothesis and contribution}
+
+The hypothesis is that a shared estimate of wave phase, vessel response, and target motion improves one-scan-ahead forecasts of usable observations beyond detection history, motion-only features, or propagation-only features. The contribution is a controlled test of their interaction, followed by a decision map linking failure regimes to corrective action. Existing work establishes small-target detection in sea clutter, diffraction in wave illumination, and motion compensation for rotating radar. \cite{Panagopoulos2004SmallTarget,Janssen2026Diffraction,Lund2018SeaIceDrift,Burnett2021MotionDistortion} The proposed increment is to evaluate detection interruptions and conditional position quality together under the same evolving physical state and the same held-out observations.
+
+\section{The coupled approach}
+
+A MATLAB model will propagate prescribed linear waves and drive damped roll, pitch, and heave modes of the radar vessel and a separate target-heave mode. Shared spatial phase will determine the forcing at each body. Vessel heading and speed will change encounter frequency, while sensor separation will move the radar origin as the vessel rotates. At each azimuth timestamp, the model will calculate pointing, vertical beam gain, wave-path clearance, target illumination, and the resulting two-way echo with clutter and receiver noise. A fixed detector will supply misses; acquisition-time geometry will supply position error when a return is available.
+
+This chain gives the project a direct connection to vibration response, resonance, damping, phase, wave propagation, and sampling. The initial scope uses linear modes, nonbreaking waves, known synthetic target geometry, and a transparent diffraction surrogate. A geometric visibility calculation and an ideal knife-edge limit will precede a richer two-dimensional crest model. Ray-by-ray pose correction will be evaluated separately from beam and propagation loss, because coordinate correction cannot recreate an echo that was never acquired.
+
+\section{The sponsor's outcome}
+
+The sponsor will receive a reproducible way to distinguish three engineering responses. Scan distortion can justify time-resolved pose correction. Beam loss can justify a different mounting height, vertical coverage, or scan rate. Propagation loss can justify wave-state sensing or more conservative target tracking. The project will characterize these choices before considering a controller, creating a practical result from the course mechanics rather than expanding immediately into autonomous control.
+
+\section{The benchmark that decides the hypothesis}
+
+The primary study will separate physical ablations from forecasting methods. Four prescribed truth conditions will retain neither vessel-motion nor wave-path modulation, motion alone, propagation alone, or their shared forcing. Within every held-out condition, all predictors will receive identical radar observations and usable-observation labels. A history reference, a motion-feature predictor, a propagation-feature predictor, and a coupled predictor will share the same fitting and calibration procedure. Complete wave realizations will be split into development and test sets before fitting, preventing adjacent samples from appearing in both sets.
+
+The primary score will be the Brier score for the next scan's usable-observation probability, supported by reliability diagrams and outage forecasts. Detection probability, empirical false alarms, consecutive misses, outage duration, and position-error distributions will show the physical consequences. A declared operational correction and position tolerance will define common usable-observation labels; a separate paired comparison will test midpoint, per-azimuth horizontal-motion, and per-azimuth attitude correction. Timing, wave-state, beam-pattern, and target-height errors will test whether an apparent gain survives realistic uncertainty.
+
+\section{Data and resources}
+
+MATLAB and a documented synthetic scene are sufficient for the semester's central experiment. CANOE provides timestamped rotating-radar intensity scans, inertial data, and calibration for a selective motion-correction pilot. IPIX provides coherent target and sea-clutter records for detector calibration and measured interruption statistics. \cite{UTIAS2026CANOE,McMaster1993IPIX} These pilots will test separate components. A complete field test requires synchronized wave profiles along the path, vessel and target motion, known target geometry, radar calibration, and acquisition timing. The public records do not supply that combined measurement set.
+
+Preparation already includes reproduced published-model calculations and a processed IPIX target record, documented in Appendix~\ref{app:published}. The sponsor's immediate support is project selection, review of the acceptable position tolerance, and identification of available radar or wave measurements. The course endpoint does not depend on procuring hardware. A later campaign will target conditions that distinguish the competing mechanisms.
+
+\section{Delivery and decision gates}
+
+By 7 October, I will freeze the coupled model, forecast horizon, detector operating point, split policy, and comparison methods. By 23 October, I will complete the MATLAB state and observation model with analytical and geometric checks. By 13 November, I will complete paired physical comparisons and development calibration. By 27 November, I will complete frozen forecast evaluation, uncertainty analysis, and the public-data pilots where suitable. By 2 December, I will deliver the report, source, configuration and data manifests, verified figures, and a radar-reliability decision map.
+
+The hypothesis advances if the coupled predictor improves held-out probability scores over the history reference and both single-mechanism predictors across at least two wave regimes, with a realization-level confidence interval excluding zero and acceptable detector false-alarm calibration. A negative result will identify when the simpler method is sufficient. The publication extension will test the surviving predictions with independent synchronized measurements and an expanded prior-work review. The resulting contribution will be an experimentally defensible operating envelope, with the physical mechanism and practical remedy tied to each failure regime.
+
+\clearpage
+
+\appendix
+
+\section{Shared wave forcing and mechanical response}
+
+\label{app:forcing}
+
+The main proposal relies on a common state rather than independently sampled sea conditions. With surface elevation $\eta$, component amplitude $a_j$, propagation vector $\mathbf{k}_j$, angular frequency $\omega_j$, phase $\phi_j$, water depth $h$, and gravity $g$, the first wave field is
+
+\begin{equation}
+\label{eq:1}
+\eta(\mathbf{x},t)=\sum_j a_j\cos(\mathbf{k}_j\cdot\mathbf{x}-\omega_j t+\phi_j),\quad\omega_j^2=g\lVert\mathbf{k}_j\rVert\tanh(\lVert\mathbf{k}_j\rVert h).
+\end{equation}
+
+Deep water gives $\omega_j^2=g\lVert\mathbf{k}_j\rVert$. For a vessel moving at constant velocity $\mathbf{U}$, substitution of its path into the phase gives $\omega_{e,j}=\omega_j-\mathbf{k}_j\cdot\mathbf{U}$. Here $\mathbf{k}_j$ points in the propagation direction, so head seas increase the encountered frequency. Speed changes forcing frequency; it does not change a mode's natural frequency in this fixed-parameter model. Linear wave-body response is the extension connecting these waves to course oscillators. \cite{MITOCW2002WaveBody}
+
+For vessel mode $q$ representing roll or pitch, inertia $I_q$, damping $c_q$, restoring stiffness $k_q$, and wave moment $M_q(t)$ give
+
+\begin{equation}
+\label{eq:2}
+I_q\ddot\theta_q+c_q\dot\theta_q+k_q\theta_q=M_q(t),\quad\omega_{n,q}=\sqrt{k_q/I_q},\quad\zeta_q=\frac{c_q}{2\sqrt{k_q I_q}}.
+\end{equation}
+
+Vessel and target heave use $m\ddot z+c\dot z+kz=F_w(t)$. The first forcing rules are linear projections of local elevation and slope, with declared amplitude and phase. Each body has its own response parameters. Harmonic forcing at frequency ratio $r=\omega_e/\omega_n$ has gain and lag
+
+\begin{equation}
+\label{eq:3}
+\lvert H(r)\rvert=\frac{1}{\sqrt{(1-r^2)^2+(2\zeta r)^2}},\qquad\delta(r)=\operatorname{atan2}(2\zeta r,1-r^2).
+\end{equation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{mechanism.pdf}
+\caption{Shared forcing connects vessel motion and target state to acquisition-time geometry, propagation, and radar reliability. The same realization and clock must drive both branches. Radar cross section (RCS) specifies the target scattering term; position quality is assessed when the detector supplies a return.}
+\label{fig:mechanism}
+\end{figure}
+
+For the semester model, effective mode parameters are prescribed and swept. A measured extension can replace them with identified response-amplitude operators. Breaking waves, target wetting, nonlinear buoyancy, and large-angle coupled hydrodynamics require separate models. The state manifest will retain frame definitions, forcing phase, sign conventions, natural frequencies, damping, and all sensor offsets so these extensions can be added without changing the benchmark contract.
+
+\section{From ray-time geometry to a usable observation}
+
+\label{app:observation}
+
+Mechanical response determines the radar origin and rotation at acquisition time $t_i$. With vessel reference position $\mathbf{p}_i$, body rotation $\mathbf{R}_{b,i}$, lever arm $\boldsymbol{\ell}$, and radar extrinsic rotation $\mathbf{R}_{\mathrm{br}}$, use $\mathbf{s}_i=\mathbf{p}_i+\mathbf{R}_{b,i}\boldsymbol{\ell}$ and $\mathbf{R}_i=\mathbf{R}_{b,i}\mathbf{R}_{\mathrm{br}}$. Slant range $\rho_i$ and azimuth $\alpha_i$ define a family indexed by unmeasured elevation $\epsilon$,
+
+\begin{equation}
+\label{eq:4}
+\mathbf{q}_i(\epsilon)=\mathbf{s}_i+\rho_i\mathbf{R}_i\begin{pmatrix}\cos\epsilon\cos\alpha_i\\\cos\epsilon\sin\alpha_i\\\sin\epsilon\end{pmatrix}.
+\end{equation}
+
+A known synthetic target-height plane closes this inverse. Public two-dimensional returns retain an elevation interval or target-height assumption. A general angular displacement bound cannot substitute for the horizontal error of this geometry.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{geometry.pdf}
+\caption{A moving radar and target change beam offset, direct-path clearance, and the pose used for mapping. Geometric obstruction, beam loss, and position distortion are distinct outcomes of the same state.}
+\label{fig:geometry}
+\end{figure}
+
+Let $B_i$ be one-way antenna power gain at the target direction and $G_i$ the one-way propagation power factor. The illustrative Gaussian beam uses full half-power width $\beta$ and $B_i=\exp[-4\ln(2)(\epsilon_i/\beta)^2]$. For an obstructing edge of height $d_c$ above the direct ray, wavelength $\lambda$, and path distances $d_1,d_2$, the limiting diffraction parameter is
+
+\begin{equation}
+\label{eq:5}
+\nu=d_c\sqrt{\frac{2(d_1+d_2)}{\lambda d_1d_2}},\quad J(\nu)=6.9+20\log_{10}\!\left(\sqrt{(\nu-0.1)^2+1}+\nu-0.1\right).
+\end{equation}
+
+The illustration sets $J=0$ for $\nu\leq-0.78$ and $G=10^{-J/10}$. The maximum normalized intrusion along the path represents one dominant obstacle. This ITU-R approximation supplies a check and sensitivity arm; a reflective smooth sea crest requires richer propagation treatment. \cite{ITUR2025P526}
+
+For baseline target power $P_{0,i}$ and reciprocal complex propagation $q_i$ with $\lvert q_i\rvert^2=G_i$, a monostatic return is $Y_i=\sqrt{P_{0,i}}B_iq_i^2 e^{\mathrm{i}\phi_{T,i}}+C_i+N_i$. Thus target power scales as $P_{0,i}B_i^2G_i^2$. Target phase, clutter $C_i$, noise $N_i$, range loss, polarization, and integration are explicit terms. Incident illumination alone is not a detection. \cite{Janssen2026Diffraction}
+
+For detector decision $D_i$, correction method $\mathcal{C}$, horizontal error $E_i(\mathcal{C})$, and tolerance $E_{\max}$, define usable observation $U_i(\mathcal{C})=D_i\mathbf{1}\{E_i(\mathcal{C})\leq E_{\max}\}$. The probability forecast uses one frozen $\mathcal{C}$ so all predictors share labels. Separate correction experiments compare $U_i$ across mapping methods. Missing returns remain misses; they do not become zero-error positions.
+
+\section{Computed illustration of the coupled mechanism}
+
+\label{app:illustration}
+
+The figures below are computed from a shared, single-component deep-water field and linear steady responses. They illustrate why the proposed experiment is needed. They evaluate deterministic target power and conditional geometry, while clutter, noise, detector statistics, and forecasting remain part of the proposed MATLAB study.
+
+\begin{table}[H]
+\centering
+\caption{Prescribed inputs for the coupled illustration.}
+\label{tab:1}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=1.23364\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.74766\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.27103\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.74766\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Input & Value & Input & Value \\
+\midrule
+Wave amplitude / frequency & 0.30 m / 0.35 Hz & Target range / nominal height & 100 m / 0.22 m \\
+Pitch natural frequency / damping & 0.35 Hz / 0.15 & Static pitch deflection & 2.0$^{\circ}$ \\
+Target heave natural frequency / damping & 0.80 Hz / 0.25 & Vessel heave natural frequency / damping & 0.80 Hz / 0.30 \\
+Roll forcing / phase lead & 60\% of pitch / 60$^{\circ}$ & Radar nominal height / lever arm & 2.0 m / $(0.6,0,0.8)$ m \\
+Full vertical beamwidth / radio wavelength & 4.0$^{\circ}$ / 0.03 m & Unattenuated power / power gate & 20 dB / 10 dB \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The wave propagates 25$^{\circ}$ from the target bearing. Its wavelength is 12.745 m and steepness $ka=0.148$. Pitch forcing is proportional to local elevation; target and vessel heave use separate oscillator responses. At resonance the pitch amplitude is 6.667$^{\circ}$, with roll and target phase retained from the same field. The target scatterer remains above the local surface in the entire trace, with minimum exposed height 0.116 m.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{motion.pdf}
+\caption{Computed roll and pitch for the stated forcing and response parameters. The modes determine the beam offset and radar-origin movement in Figure~\ref{fig:power}.}
+\label{fig:motion}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{power.pdf}
+\caption{Target-power signal-to-noise ratio (SNR) proxy for motion-only, propagation-only, and coupled conditions. The line labeled Power gate is the prescribed threshold. Curves below -40 dB are clipped for display. This target-only power calculation does not report detector probability.}
+\label{fig:power}
+\end{figure}
+
+Across 180 uniformly spaced wave-phase samples, the fraction above the power gate is 1.000 for the reference, 0.250 for motion only, 0.472 for propagation only, and 0.122 for the coupled case. Target motion is common. These phase samples isolate the stated antenna and path mechanisms; the benchmark separately evaluates rotating-scan acquisition times.
+
+\subsection{Operating choices and sensitivity}
+
+The preceding example suggests two distinct remedies. Increasing vertical coverage can reduce beam loss, while path attenuation remains even after the target re-enters the beam. Conversely, changing the mechanical response can alter when favorable illumination and pointing coincide. The next sweeps retain the wave, target, power gate, and all other configuration values.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{amplitude.pdf}
+\caption{Computed phase fraction above the target-power gate as the static pitch deflection varies. The response gain remains 3.333, so the horizontal axis controls excitation amplitude rather than changing the natural frequency. The propagation-only curve uses a fixed radar platform.}
+\label{fig:amplitude}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{beam.pdf}
+\caption{Computed phase fraction above the power gate as vertical beamwidth varies. The coupled curve retains wave-path attenuation, so recovering pointing coverage does not guarantee a usable return. Peak antenna gain is held fixed to isolate width; a hardware design must include its gain tradeoff.}
+\label{fig:beam}
+\end{figure}
+
+These sweeps motivate the sponsor's decision map, but do not select an antenna. The study will add receiver calibration, measured or bounded beam patterns, target aspect, and clutter before comparing hardware choices. Scan speed will be evaluated through actual ray timestamps and target revisit time rather than inferred from this phase-averaged calculation. Natural-frequency and damping sweeps will identify whether a mount or vessel response changes the operating regime.
+
+\begin{table}[H]
+\centering
+\caption{Engineering responses and discriminating measurements.}
+\label{tab:2}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.71429\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.14286\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.14286\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Dominant observed limit & Candidate engineering response & Discriminating measurement \\
+\midrule
+Position distortion with strong returns & Ray-time pose correction and clock calibration. & Paired localization residuals on retained targets. \\
+Beam gain loss with clear propagation & Vertical coverage, mounting, or scan/revisit changes. & Target angle, measured beam pattern, and return persistence. \\
+Path loss despite acceptable pointing & Antenna height, wave sensing, or tracking uncertainty. & Independent along-path waves and calibrated target returns. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Phase coupling and conditional geometry}
+
+The availability of motion-only and propagation-only observations does not determine their joint availability. Shared phase correlates the two mechanisms, and their power losses consume the same detection margin. The following sensitivity changes the vessel's roll and pitch forcing phase relative to elevation while preserving the target and wave histories. It represents a controlled forcing-phase sensitivity, not a fitted vessel response.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{phase.pdf}
+\caption{Computed joint power availability and the product of motion-only and propagation-only marginal fractions. The marginal product is an independence reference, not a joint radar model. Phase offsets give joint fractions from 0.000 to 0.144; the largest product discrepancy is 0.121. These differences motivate a common-state benchmark rather than establish field improvement.}
+\label{fig:phase}
+\end{figure}
+
+For the separate geometry illustration, each time sample creates a range and azimuth from the true target and radar pose. Reconstruction then uses the same target-height plane with the nearest 0.25 s scan-midpoint pose. The exact per-ray inverse returns the target within $5.7\times10^{-14}$ m, providing an algebra check. Midpoint reconstruction has maximum horizontal error 0.241 m and median 0.058 m across the 20 s trace.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{mapping.pdf}
+\caption{Computed midpoint reconstruction error over eight seconds using a known target-height plane. The error is evaluated at all time samples, including those rejected by the power gate, to isolate geometry. It is not conditional detected-return accuracy; the benchmark will report that quantity with the missed fraction.}
+\label{fig:mapping}
+\end{figure}
+
+The numerical record contains 801 time samples, 180 phase samples, and 501 path subdivisions. Doubling path subdivisions leaves the reported default gate fraction unchanged. The complete proposed experiment will additionally refine time and phase sampling, introduce receiver realizations, and use surveyed or uncertainty-bounded target heights. A moving scan's actual illumination times will replace the nearest-midpoint sampling illustration.
+
+\section{Published-model calculations}
+
+\label{app:published}
+
+The coupled illustration now has two independent literature baselines. Wijaya and van Groesen construct surface visibility from geometric obstruction. Their published harmonic case uses period $T=9$ s, depth $h=50$ m, and radar-height ratios $H_r/A=5$ and $10$. \cite{Wijaya2016Shadowing} The published chapter gives the obstruction indicator and its image average as Equations 3.4 and 3.7. \cite{Wijaya2017Reconstruction} With a surface point $\eta(r,t)$ and radar height $H_r$, the equivalent skyline test is
+
+\begin{equation}
+\label{eq:6}
+\begin{aligned}\chi(r,t)&=\mathbf{1}\!\left\{\frac{\eta(r,t)-H_r}{r}\geq\sup_{0<x<r}\frac{\eta(x,t)-H_r}{x}\right\},\\V(r)&=\frac{1}{M}\sum_{j=1}^{M}\chi(r,t_j).\end{aligned}
+\end{equation}
+
+For $\eta=A\cos(kr-\omega t)$, exact finite-depth dispersion gives $\lambda=124.829$ m. The reproduction averages $M=1400$ uniform phases on a grid of $\lambda/400$. It reproduces the paper's numerical visibility construction rather than digitizing its graph.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{visibility.pdf}
+\caption{Calculated surface visibility using Wijaya and van Groesen's equations and Figure 3.4 parameter case. At $r/\lambda=10$, visibility is 0.153 for $H_r/A=5$ and 0.235 for $H_r/A=10$. Doubling phase and radial resolution changes the curves by at most 0.0011. Surface visibility supplies a propagation baseline; it is not target detection probability.}
+\label{fig:visibility}
+\end{figure}
+
+Lund et al. map each pulse with interpolated horizontal vessel position and heading. Their radar rotates in 1.25 s and uses a 7.5 m Cartesian grid. \cite{Lund2018SeaIceDrift} In the constant-heading limit, acquisition-time mapping is $\mathbf{x}_i=\mathbf{p}(t_i)+\mathbf{R}(\psi_i)\mathbf{r}_i$. Holding pose at the midpoint instead introduces $E_h=U\lvert t_i-t_{\mathrm{mid}}\rvert$. Using the paper's 11 kn speed example gives the following calculation.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{raytime.pdf}
+\caption{Calculated midpoint-pose error for constant translation at 11 kn over a 1.25 s rotation. The maximum is 3.537 m. Ideal ray-time mapping removes this prescribed translation error. The line labeled 0.5 m tolerance is the proposal's position limit. These are model calculations, not Lund et al.'s measured residuals.}
+\label{fig:raytime}
+\end{figure}
+
+Together, these baselines separate surface shadowing from acquisition distortion before coupling them. The semester study adds vessel oscillation, target exposure, beam gain, and a received-echo model, then tests whether the combined state improves a common forecast event.
+
+\subsection{Measured small-target radar fluctuations}
+
+The calculations above establish mechanisms, while an actual radar acquisition establishes the processing problem. IPIX record 17 contains a one-meter mesh-wrapped floating sphere, with primary range bin 9 and secondary bins 8-11. \cite{McMaster1993IPIX} The downloaded record has 131,072 sweeps, 14 range bins, 9.39 GHz carrier frequency, a 30 m antenna height, and bin 9 beginning at 2694 m. Horizontal-transmit/horizontal-receive (HH) data are processed below.
+
+The first 32,768 sweeps train one common receiver correction using clutter bins 1-7 and 12-14. Unsigned-byte interpretation follows the official loader. Separate in-phase and quadrature means and scales, followed by phase-imbalance correction, are learned from that clutter and applied identically to every bin. \cite{McMaster2026IPIXProcessing} This retains target-to-clutter contrast. For corrected samples $I_n,Q_n$, nonoverlapping 64-sweep powers are $P_j=\frac{1}{64}\sum_{n=64j}^{64j+63}(I_n^2+Q_n^2)$. The development-clutter mean sets the relative dB scale; its 99th percentile sets the fixed gate at 11.346 dB.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{measured.pdf}
+\caption{Measured target-bin and clutter-bin powers for every held-out window. The gate and receiver correction are frozen before sweep 32,768. File and tutorial pulse-frequency conventions conflict, so the horizontal axis retains sweep index. Powers are relative receiver quantities, not calibrated target cross sections.}
+\label{fig:measured}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{survival.pdf}
+\caption{Measured fractions above candidate power thresholds in the held-out segment. The vertical line is the frozen development gate. Pooled clutter comprises ten non-target bins. Target-bin crossings are an observability proxy, without per-sweep target-visibility labels.}
+\label{fig:survival}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Measured power-gate quantities in the held-out IPIX segment.}
+\label{tab:3}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=1.33333\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.66667\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.33333\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.66667\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Measured quantity & Value & Measured quantity & Value \\
+\midrule
+Held-out primary windows & 1536 & Held-out clutter windows & 15,360 \\
+Clutter above fixed gate & 0.990\% & Primary bin below fixed gate & 66.602\% \\
+Longest primary run below gate & 6656 sweeps & Nonfinite / missing samples & 0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Because target-bin power crosses the same calibrated gate repeatedly, average return power alone cannot describe persistence. These measurements motivate an outage-aware forecast. They do not identify a wave cause. Local wave profiles and target pose remain necessary for that attribution, and a bin-wise power gate remains distinct from the proposed spatial detector.
+
+\section{A benchmark that isolates the contribution}
+
+\label{app:benchmark}
+
+The numerical illustrations establish a mechanism, while the benchmark must decide whether it predicts useful observations. Two axes remain separate. Physical truth conditions test which mechanisms matter in a generator. Feature ablations test whether estimated state helps predict the same observations. Target motion, geometry, random draws, and detector settings remain paired.
+
+\begin{table}[H]
+\centering
+\caption{Physical truth conditions for paired comparisons.}
+\label{tab:4}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.6\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.92727\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.47273\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Truth condition & Enabled physical changes & Role in interpretation \\
+\midrule
+Reference & Fixed nominal radar pose; no path attenuation. & Tests the baseline signal chain with the same target trajectory. \\
+Motion only & Ray-time radar pose and beam gain; path factor one. & Isolates scan geometry and pointing. \\
+Propagation only & Fixed nominal radar pose; evolving wave-path attenuation. & Isolates the propagation assumption. \\
+Coupled & Shared field drives pose, target, beam, and path. & Tests their joint outcome with retained spatial and temporal phase. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Predictor information and experimental controls.}
+\label{tab:5}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.6\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.30909\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.09091\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Predictor & Information available before the forecast & Control \\
+\midrule
+History reference & Recent detections, clutter power, range, and available aspect proxies. & Common development fit and probability calibration. \\
+Motion features & History plus estimated attitude, angular rate, beam offset, and scan timing. & Same target labels and test returns. \\
+Propagation features & History plus estimated wave state, target heave, clearance, and transmission. & Same fitting capacity and observation horizon. \\
+Coupled features & Both feature groups and predeclared phase/beam/transmission interactions. & Test whether the combination improves both single-group models. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Use logistic models with regularization selected only on development realizations. Predict $\Pr(U_{i+1}=1\mid\mathcal{F}_i)$ for the target's next scheduled scan, where $\mathcal{F}_i$ contains only available history and estimated state. A separate forecast predicts three consecutive missed target visits. Present-state estimates are propagated with uncertainty; future truth is excluded from predictor features. The default synthetic detector operates at $P_{\mathrm{FA}}=10^{-2}$ per declared target decision, calibrated before evaluation. Lower operating rates require enough independent clutter trials. Report the empirical rate with uncertainty rather than equating it with a nominal threshold.
+
+Brier score and reliability are primary. Report detection rate, missed fraction, outage lengths, conditional median and 95th-percentile localization error, and processing time. Compare paired score differences with realization-level bootstrap intervals. An interaction contrast $S_M+S_W-S_C-S_H$, where $S$ is a lower-is-better score and subscripts denote motion, wave, coupled, and history predictors, quantifies nonadditive gain in this design. Direct superiority over both single-group models remains the main gate.
+
+Hold out complete wave realizations, period/damping regimes, and acquired files. Evaluate alternate geometric and continuous-transmission truth worlds, phase-shuffled controls, perturbed timestamps, unknown elevation, and target-aspect variation. Keep one correction method and tolerance for common forecast labels; separately compare correction methods on paired retained scenes. Report misses alongside localization to prevent selective target loss from appearing as improved accuracy.
+
+\subsection{Parameter design and implementation checks}
+
+The first MATLAB experiment will use a constrained space-filling design rather than the full Cartesian product. Select 32 development configurations, 8 probability-calibration configurations, and 16 held-out configurations, each with 8 independent initial-phase and clutter/noise realizations. Every realization lasts 120 s and supplies one target visit per scan. Pair its state and random draws across the four physical conditions. Expand replication only when score intervals or convergence checks remain unresolved.
+
+\begin{table}[H]
+\centering
+\caption{Initial parameter design.}
+\label{tab:6}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.83784\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.08108\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.08108\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Variable group & Initial design values & Constraint or purpose \\
+\midrule
+Wave amplitude / frequency & 0.10, 0.30, 0.50 m / 0.15, 0.25, 0.35, 0.50 Hz. & Retain $ka\leq0.20$ and continuously exposed target geometry. \\
+Vessel natural frequency / damping & 0.25-0.75 Hz / 0.10-0.40. & Include $\omega_e/\omega_n$ below, near, and above resonance. \\
+Forcing / phase & Static pitch 0-3$^{\circ}$; roll fraction 0-0.8; forcing phase -180$^{\circ}$ to 180$^{\circ}$. & Preserve the declared common wave realization. \\
+Scan / motion & Scan period 0.125, 0.25, 0.50 s; speed 0-1 m/s; head, following, and oblique waves. & Use the vector encounter-frequency convention. \\
+Geometry / beam & Range 20, 50, 100, 300 m; radar height 1-4 m; target height 0.10-0.50 m; full beamwidth 4-12$^{\circ}$. & Avoid identifying a range bin with full two-dimensional resolution. \\
+Power / uncertainty & Baseline target SNR 10-25 dB; timing offset 0-25 ms; extrinsic tilt 0-1$^{\circ}$; wave-state error 0-20\%. & Test noise, calibration, and state-estimation sensitivity. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The primary geometry tolerance is $E_{\max}=0.50$ m, with 0.10 and 1.00 m sensitivity cases. These are declared study tolerances pending the sponsor's mission requirement. The default target-decision false-alarm rate is 0.01. A cell-averaging constant false alarm rate (CA-CFAR) detector will use the same reference/guard-cell rule across methods, with threshold scale calibrated on at least 10,000 clutter-only development decisions. Compound-Gaussian and simpler Gaussian clutter cases test threshold robustness. Primary and secondary target bins are excluded from reference clutter. An estimated false-alarm rate applies to this decision definition, rather than an entire searched radar image.
+
+\begin{table}[H]
+\centering
+\caption{Implementation checks.}
+\label{tab:7}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.78378\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.2973\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.91892\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Check & Expected result & Failure action \\
+\midrule
+Zero forcing / constant pose & Mechanical motion vanishes and the two mapping methods agree. & Stop before detector evaluation. \\
+Oscillator limits & Static gain one; resonant gain $1/(2\zeta)$; correct phase and encounter sign. & Repair response and forcing conventions. \\
+Frames / inverse & Known pose and plane recover synthetic target; zero lever arm removes its displacement. & Repair transform order and geometry. \\
+Beam / path / echo & Half-power angle matches $\beta/2$; worsening edge intrusion attenuates; reciprocal power uses $B^2G^2$. & Repair gain or propagation scaling. \\
+Sampling / randomness & Time, phase, and path refinements stabilize results; paired arms share seeds. & Refine discretization or repeat the affected configurations. \\
+Forecast / missingness & Future truth is inaccessible; every predictor shares labels; lost targets remain failures. & Reject leaked or selectively filtered results. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Eligibility is fixed before splitting. Configurations with breaking-wave assumptions, target wetting, or incompatible range modes are excluded and recorded. Hold-out wave periods and response regimes test transfer beyond fitted configurations. The course endpoint uses the declared dominant-edge model; one two-dimensional crest case will assess whether a richer incident field materially changes the result before committing to a larger propagation solver.
+
+\section{Data contract, work plan, and review gates}
+
+\label{app:data}
+
+The benchmark above defines the information needed for validation. Existing public sources support component tests with complementary missing channels, so each pilot has a bounded role.
+
+\begin{table}[H]
+\centering
+\caption{Data observables and proposed uses.}
+\label{tab:8}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.60714\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.17857\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.17857\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.03571\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Source & Documented input & Missing joint truth & Planned use \\
+\midrule
+CANOE. \cite{UTIAS2026CANOE} & 4 Hz rotating intensity scans, 400 azimuths, per-azimuth timestamps, raw 100 Hz inertial measurements, calibration. & Along-path wave profiles and known small-target height/visibility. & Held-out shoreline consistency and scan-time correction. \\
+IPIX. \cite{McMaster1993IPIX} & Coherent radar records, target bins, and summary wave/wind conditions. & Instantaneous local wave profile, full target motion, and vessel pose. & Fixed-detector calibration and interruption statistics. \\
+RAS6 specification. \cite{Navtech2024RAS6} & 76-77 GHz sensor and alternative antenna characteristics. & Collected-unit beam pattern and acquisition calibration. & Bound geometry inputs; keep separate from X-band propagation validation. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+CANOE's raw inertial stream needs bias handling and frame verification. Postprocessed navigation supplies a labeled reference-assisted comparison, not an independent target survey. Each sequence's range configuration and radar offset will be checked. IPIX's target is a one-meter mesh-wrapped sphere; target-bin experiments do not represent every low-profile vessel. The two archives will remain separate, because combining their marginal metadata cannot create synchronized field truth.
+
+A later campaign will record per-ray radar samples, vessel pose, target position and exposed height, independent wave elevations along the relevant path, radar-to-inertial extrinsics, polarization, receiver settings, and dropped-packet flags on a common clock. A fixed surveyed target can isolate platform motion first; an instrumented floating target can then add target response. A single wave gauge cannot establish every intervening crest, so the selected propagation claim must match spatial wave coverage. Accurate surface reconstruction or an instrumented transect is required for path-specific validation.
+
+\begin{table}[H]
+\centering
+\caption{Milestones and acceptance checks.}
+\label{tab:9}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.6\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.52727\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=0.87273\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Milestone & Reviewable output & Acceptance check \\
+\midrule
+7 October & Equations, state schema, forecast event, tolerances, sources, and splits. & All benchmark arms forecast the same event. \\
+23 October & MATLAB generator, pose/ray inverse, beam/path/echo chain. & Limit checks, transform checks, and sample refinement pass. \\
+13 November & Paired physics results and development-calibrated predictors. & Clutter trials and detector thresholds are frozen. \\
+27 November & Held-out scores, uncertainty, sensitivity, and component pilots. & No leakage, no target-drop selection, and robust score comparisons. \\
+2 December & Final report, source, manifests, figures, and operating decision map. & Every result is traceable to a configuration and evaluation split. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The sponsor reviews the mission tolerance and the mechanism-specific decision map. If shared state provides no reliable forecast gain, the deliverable recommends the simpler model. If public data lack meaningful wave motion, the report retains simulation predictions and the measurement plan. Field acquisition and a richer propagation solver are publication extensions rather than dependencies of the semester endpoint.
+
+\section{Prior work and the proposed increment}
+
+\label{app:prior}
+
+The combined study follows established detection and correction methods. The comparison below locates its contribution without treating the combination of familiar mechanisms as proof of novelty.
+
+\begin{table}[H]
+\centering
+\caption{Prior work and the proposed increment.}
+\label{tab:10}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.62162\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.18919\hsize\linewidth=\hsize\raggedright\arraybackslash}X>{\hsize=1.18919\hsize\linewidth=\hsize\raggedright\arraybackslash}X@{}}
+\toprule
+Prior work & Established result & Increment evaluated here \\
+\midrule
+Panagopoulos and Soraghan, 2004. \cite{Panagopoulos2004SmallTarget} & Small-target extraction from real staring-radar sea-clutter records, including wave-obscured returns. & Prospective usable-observation forecasts from estimated wave, target, and vessel state. \\
+Plant and Farquharson, 2012. \cite{Plant2012WaveShadowing} & Sea-backscatter modulation challenges simple binary-shadow interpretations. & Separate target propagation loss from clutter, noise-floor, and aspect explanations. \\
+Wijaya and van Groesen, 2016. \cite{Wijaya2016Shadowing} & Surface-visibility curves link geometric shadowing to normalized radar height and range. & Add target geometry, moving-platform response, beam gain, and received-echo decisions. \\
+Janssen et al., 2026. \cite{Janssen2026Diffraction} & Two-dimensional diffraction calculation for incident sea-wave illumination; backscatter is outside its calculation. & Explicit target echo and detection model coupled to vessel pose and target response. \\
+Lund et al., 2018. \cite{Lund2018SeaIceDrift} & Pulse-by-pulse position/heading correction; vertical effects omitted in a 7.5 m range-resolution regime. & Quantify limits under finer sampling, target-height uncertainty, and lost beam coverage. \\
+Burnett et al., 2021. \cite{Burnett2021MotionDistortion} & Motion distortion and Doppler compensation in spinning-radar vehicle navigation. & Marine oscillations and target observation reliability alongside conditional localization. \\
+McCann and Bell, 2018. \cite{McCann2018OffsetCalibration} & Range, angle, and timing-offset registration; lever arm and vertical motion are identified concerns. & Shared-state adequacy map and robustness to calibration uncertainty. \\
+Xie et al., 2019. \cite{Xie2019WaveCompensation} & Vertical-motion study for X-band significant-wave-height estimation. & Full text remains necessary before narrowing a publication claim against its methods. \\
+CN106772285A, 2017. \cite{Wang2017Preprocessing} & Motion-informed marine echo shifting and interpolation are described in patent prior art. & Coupled forecasting, fixed-observation comparisons, and joint missingness/accuracy outcomes. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Implementation and scientific risks}
+
+The principal technical risk is interpreting an illumination surrogate as a sea-target return. The course study addresses it with explicit echo formation, geometric and continuous-transmission alternatives, and matched downstream processing. The next risk is overstating exact geometry from two-dimensional radar; target-height uncertainty remains part of the result. Finally, shared forcing can produce optimistic synthetic forecasts if state estimates are treated as perfect. Measurement errors, phase controls, and alternate truth models directly test that dependence.
+
+These controls make the course result reviewable even when the hypothesis fails. The publication path adds independently measured joint state, characterized antenna patterns, sufficient sea-condition holdouts, and a full-text review of related compensation and target-detection work. The final research claim will follow the evidence produced by those tests.
+
+\section{Reproducibility}
+
+\label{app:reproduction}
+
+\subsection{Source and result record}
+
+The editable proposal is \path{proposal.tex}. Figure sources use Typst with Lilaq 0.6.0 for plots and CeTZ 0.5.2 for diagrams. All figure text and mathematics use Latin Modern. Lilaq supplies the default colors and built-in legends. \path{src/illustrative-model.mjs} reads \path{data/config.json} and writes the coupled illustrations and \path{data/checks.json}. \path{src/published_evidence.py} writes the paper-model reproduction and measured IPIX record, with preprocessing, split, threshold, and source hash retained. \path{build.sh} regenerates twelve figures and compiles the LaTeX proposal using the centralized \path{references.bib}. A pinned Python environment supports evidence processing; the MATLAB companion supports the semester model.
+
+The checks include finite output, target exposure, range/azimuth inversion, path refinement, paper-model sampling refinement, and measured-record integrity. Raw downloads remain local; manifests and derived records support reproduction. The IPIX analysis establishes measured threshold fluctuations. Wave attribution, the spatial detector, learned forecasts, and coupled field validation remain project work.
+
+\clearpage
+
+\nocite{*}
+
+\bibliographystyle{unsrtnat}
+
+\bibliography{references}
+
+\end{document}

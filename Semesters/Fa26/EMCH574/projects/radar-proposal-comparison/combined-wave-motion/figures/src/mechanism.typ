@@ -1,10 +1,11 @@
 #import "@preview/cetz:0.5.2" as cetz
-#let garnet=rgb("#73000A")
+#let garnet=black
 #let ink=black
-#let pale=rgb("#F3F3F3")
+#let pale=white
 #let arr=(end:"stealth",fill:ink,length:2.2mm,width:1.4mm)
 #let mechanism()={
-  set text(font:"Arial",size:8.8pt,fill:ink)
+  show math.equation: set text(font: "Latin Modern Math")
+  set text(font:"Latin Modern Roman",size:8.8pt,fill:ink)
   cetz.canvas(length:0.78mm, {
     import cetz.draw: *
     let box(x0,y0,x1,y1,a,b,accent:false)={

@@ -14,5 +14,5 @@ done
 for plot in visibility raytime measured survival; do
     typst compile --root . --input "plot=$plot" figures/src/evidence-standalone.typ "figures/generated/$plot.pdf"
 done
-typst compile --root . proposal.typ proposal.pdf
+latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error proposal.tex
 pdfinfo proposal.pdf

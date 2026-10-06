@@ -1,12 +1,13 @@
 #import "@preview/cetz:0.5.2" as cetz
 
-#let garnet = rgb("#73000A")
+#let garnet = black
 #let ink = rgb("#000000")
-#let water = rgb("#E9E9E9")
+#let water = white
 #let arr = (end: "stealth", fill: ink, length: 2.4mm, width: 1.5mm)
 
 #let geometry() = {
-  set text(font: "Arial", size: 8.7pt, fill: ink)
+  show math.equation: set text(font: "Latin Modern Math")
+  set text(font: "Latin Modern Roman", size: 8.7pt, fill: ink)
   cetz.canvas(length: 0.85mm, {
   import cetz.draw: *
   rect((0, 0), (190, 82), fill: white, stroke: none)
