@@ -91,7 +91,7 @@
     $#coefficient times 10^(#exponent)$
   } else { [#fmt(value, digits: digits)] }
 }
-#let model-error-table(runs, input-label) = {
+#let model-error-table(runs, input-label, time-dividers: false) = {
   set text(size: 9pt)
   table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr, 1fr),
     inset: (x: 4pt, y: 4pt),
@@ -100,12 +100,13 @@
     table.header(
       table.cell(rowspan: 2)[#input-label],
       table.cell(colspan: 2)[0.1 s], table.cell(colspan: 2)[0.25 s], table.cell(colspan: 2)[0.5 s],
-      [$e_x$ (m)], [$e_theta$ (deg)], [$e_x$ (m)], [$e_theta$ (deg)], [$e_x$ (m)], [$e_theta$ (deg)],
+      [$e_x$ (%)], [$e_theta$ (%)], [$e_x$ (%)], [$e_theta$ (%)], [$e_x$ (%)], [$e_theta$ (%)],
     ),
     table.hline(stroke: 0.5pt),
+    ..if time-dividers { (table.vline(x: 3, stroke: 0.4pt), table.vline(x: 5, stroke: 0.4pt)) } else { () },
     ..runs.map(run => ([#str(run.input_value)],
-      ..range(3).map(i => (error-value(run.x_error_m.at(i), digits: 6),
-        error-value(run.angle_error_deg.at(i)))).flatten())).flatten(),
+      ..range(3).map(i => (error-value(run.x_error_percent.at(i)),
+        error-value(run.angle_error_percent.at(i)))).flatten())).flatten(),
     table.hline(stroke: 0.8pt),
   )
 }
@@ -126,7 +127,7 @@
 #set page(paper: "us-letter", margin: (top: 0.75in, bottom: 1in, x: 1in),
   numbering: "1", number-align: center + bottom)
 #set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"),
-  size: 11pt, lang: "en")
+  size: 11pt, lang: "en", region: "US")
 #set par(justify: true, leading: 0.55em, first-line-indent: (amount: 1em, all: true))
 #set heading(numbering: none)
 #show heading.where(level: 1): it => block(above: 0.6em, below: 0.3em)[
@@ -137,6 +138,7 @@
 ]
 #show figure.caption: set text(size: 9pt)
 #set figure(gap: 4pt)
+#show figure.where(kind: table): set figure.caption(position: top)
 
 #align(center)[
   #text(size: 17pt, weight: "bold")[LQR Control of an Inverted Pendulum on a Cart]
@@ -314,9 +316,16 @@ Before designing the controller, MATLAB forms the controllability matrix $cal(C)
 
 == Comparison procedure
 
-Having obtained the linear model, we compare it with the original nonlinear equations under identical initial conditions and inputs. Both models run without feedback for 1 s using MATLAB's ode45 solver, relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.002 s. The nonlinear calculation uses the same acceleration function as the Simulink plant. No actuator limit is applied to these prescribed-force comparisons.
+We compare both models under identical initial conditions and inputs, without feedback or actuator limits. Each runs for 1 s using MATLAB's ode45 solver, relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.002 s. The nonlinear model uses the Simulink plant's acceleration function.
 
-Because upright is unstable without feedback, 10 or 20 s would primarily compare motion far outside the linearization region. We instead tabulate absolute differences at 0.1, 0.25, and 0.5 s and show the complete first second. The errors are $e_x(t)=abs(x_"lin"(t)-x_"nonlin"(t))$ and $e_theta(t)=abs(theta_"lin"(t)-theta_"nonlin"(t))$, reported in metres and degrees. The curves use matching colors for each input, with solid lines for the nonlinear model and dashed lines for the linear model.
+Because uncontrolled motion grows away from upright, we compare errors at 0.1, 0.25, and 0.5 s rather than 10 or 20 s. Relative to the nonlinear response, the percentage errors are
+
+$
+e_x(t)=100 abs(x_"lin"(t)-x_"nonlin"(t))/abs(x_"nonlin"(t)),
+quad e_theta(t)=100 abs(theta_"lin"(t)-theta_"nonlin"(t))/abs(theta_"nonlin"(t)).
+$
+
+Percentage errors are undefined at a zero reference value. All reference values at the selected times are nonzero.
 
 #pagebreak()
 
@@ -332,11 +341,11 @@ First, we release both models from 2, 5, 10, 15, 20, 25, and 30#sym.degree, with
   )
 ], caption: [Uncontrolled responses from seven initial angles over 1 s. Solid lines use the nonlinear equations; dashed lines use the upright linearization. Matching colors indicate matching initial angles.]) <fig-model-angles>
 
-#figure(model-error-table(model_tests.angle_runs, [Initial angle (deg)]),
-  kind: table, caption: [Absolute model differences following unforced releases. Each time has cart-position error $e_x$ in metres and angle error $e_theta$ in degrees.],
+#figure(model-error-table(model_tests.angle_runs, [Initial angle (deg)], time-dividers: true),
+  kind: table, caption: [Percentage model errors following unforced releases, relative to the nonlinear response at each comparison time.],
 ) <tab-model-angles>
 
-At 0.5 s, the 2#sym.degree release differs by #fmt(model_tests.angle_runs.first().angle_error_deg.last(), digits: 3)#sym.degree and #fmt(1000*model_tests.angle_runs.first().x_error_m.last(), digits: 3) mm. At 30#sym.degree, those differences increase to #fmt(model_tests.angle_runs.last().angle_error_deg.last())#sym.degree and #fmt(model_tests.angle_runs.last().x_error_m.last(), digits: 3) m. The increasing differences show why the linear model is appropriate near upright and why larger releases require verification with the nonlinear plant.
+At 0.5 s, the 2#sym.degree release has an angle error of #fmt(model_tests.angle_runs.first().angle_error_percent.last(), digits: 3)% and a cart-position error of #fmt(model_tests.angle_runs.first().x_error_percent.last(), digits: 3)%. At 30#sym.degree, those errors increase to #fmt(model_tests.angle_runs.last().angle_error_percent.last())% and #fmt(model_tests.angle_runs.last().x_error_percent.last())%, respectively. The increasing differences show why the linear model is appropriate near upright and why larger releases require verification with the nonlinear plant.
 
 #pagebreak()
 
@@ -353,10 +362,10 @@ Second, we start both models upright and at rest and apply a constant horizontal
 ], caption: [Uncontrolled responses to six constant cart forces applied from upright at rest. Solid lines use the nonlinear equations; dashed lines use the upright linearization. Matching colors indicate matching forces.]) <fig-model-inputs>
 
 #figure(model-error-table(model_tests.force_runs, [Force (N)]),
-  kind: table, caption: [Absolute model differences under constant cart force. Each time has cart-position error $e_x$ in metres and angle error $e_theta$ in degrees.],
+  kind: table, caption: [Percentage model errors under constant cart force, relative to the nonlinear response at each comparison time.],
 ) <tab-model-inputs>
 
-At 0.5 s, the 0.5 N input gives an angle difference of #fmt(model_tests.force_runs.first().angle_error_deg.last(), digits: 4)#sym.degree, while 16 N gives #fmt(model_tests.force_runs.last().angle_error_deg.last())#sym.degree. Stronger forces drive the pendulum farther from upright, increasing the effect of the nonlinear terms. Together, the release and force comparisons support using the linear model for local controller design. They also establish the need to test that controller on the nonlinear model, as done in Appendices C and D.
+At 0.5 s, the 0.5 N input gives an angle error of #fmt(model_tests.force_runs.first().angle_error_percent.last(), digits: 3)%, while 16 N gives #fmt(model_tests.force_runs.last().angle_error_percent.last())%. Stronger forces drive the pendulum farther from upright, increasing the effect of the nonlinear terms. Together, the release and force comparisons support using the linear model for local controller design. They also establish the need to test that controller on the nonlinear model, as done in Appendices C and D.
 
 #pagebreak()
 
@@ -368,7 +377,7 @@ $
 J = integral_0^infinity (4x^2 + 2dot(x)^2 + 300theta^2 + 10dot(theta)^2 + 0.5u^2) dif t.
 $
 
-Here $x$ is in metres, $theta$ is in radians, and $u$ is in newtons. The state-error matrix is $Q="diag"(4,2,300,10)$, and the input penalty is $R=0.5$. These weights were selected to prioritize upright balance, retain a penalty on cart displacement, damp velocity, and discourage excessive force. They are tuning choices, rather than coefficients derived from the mechanical equations.
+Here $x$ is in meters, $theta$ is in radians, and $u$ is in newtons. The state-error matrix is $Q="diag"(4,2,300,10)$, and the input penalty is $R=0.5$. These weights were selected to prioritize upright balance, retain a penalty on cart displacement, damp velocity, and discourage excessive force. They are tuning choices, rather than coefficients derived from the mechanical equations.
 
 MATLAB solves the algebraic Riccati equation through its LQR routine. It returns
 
