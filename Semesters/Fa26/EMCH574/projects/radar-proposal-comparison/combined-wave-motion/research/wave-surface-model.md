@@ -25,3 +25,7 @@ The plot uses separate meter axes; its vertical scale is exaggerated relative to
 ## Artifacts
 
 src/wave_surface.py computes data/wave-surface.json and data/wave-components.csv. figures/src/wave-surface.typ imports those data and draws the preview with Lilaq default colors and its native legend. No plotting library is used in Python. The PDF and PNG are figures/generated/wave-surface.pdf and figures/generated/wave-surface.png.
+
+## Horizontal radar beam overlay
+
+The radar symbol is located at x = 25 m and elevation 0.8 m in the preview. The centerline remains at elevation 0.8 m throughout. Two schematic half-power directions are symmetric about that centerline, and the beta arc spans both. The plot height is 60 mm, with elevation limits from -1 to 1.8 m. Since the axes have unequal physical scales, the overlay defines no numerical antenna beamwidth. The ray spread is a drawing choice, not a physical radar input or a propagation calculation. Dashed rays denote geometric directions, including their intersections with the surface. They do not imply unattenuated illumination beyond a crest.
