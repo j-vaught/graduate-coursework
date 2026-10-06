@@ -92,7 +92,7 @@
 #set figure(gap: 4pt)
 
 #align(center)[
-  #text(size: 17pt, weight: "bold")[State-feedback control of an inverted pendulum on a cart]
+  #text(size: 17pt, weight: "bold")[LQR Control of an Inverted Pendulum on a Cart]
   #v(0.15em)
   #text(size: 10pt)[J.C. Vaught]
   #v(0.1em)
