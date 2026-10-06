@@ -75,7 +75,7 @@
   numbering: "1", number-align: center + bottom)
 #set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"),
   size: 11pt, lang: "en")
-#set par(justify: true, leading: 0.55em)
+#set par(justify: true, leading: 0.55em, first-line-indent: (amount: 1em, all: true))
 #set heading(numbering: none)
 #show heading.where(level: 1): it => block(above: 0.6em, below: 0.3em)[
   #text(size: 11pt, weight: "bold")[#it.body]
