@@ -43,9 +43,6 @@
     stroke: (paint: black, thickness: 0.8pt, dash: "dashed"),
     tip: tiptoe.stealth),
   lq.path(..beam-arc, stroke: 0.8pt + black),
-  lq.line((radar-x, radar-height), object.direct_contact_m,
-    stroke: 1pt + rgb("#73000A"), tip: tiptoe.stealth),
-  lq.place(210, 0.66, [Blocked direct path]),
   lq.path(
     (object.object_x_m - 4, object.object_base_m),
     (object.object_x_m + 4, object.object_base_m),
@@ -65,5 +62,6 @@
 #align(center)[
   #block(width: 150mm)[
     Wave obstruction for $H_s = 1$ m, $T_p = 9$ s, and $h = 50$ m.
+    The intervening crest prevents direct geometric rays from reaching the object.
   ]
 ]
