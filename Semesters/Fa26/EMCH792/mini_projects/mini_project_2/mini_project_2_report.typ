@@ -128,7 +128,7 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
     sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, failed-from: 3, with-legend: true, legend-position: top + left),
     sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], data-size: panel-size, ylim: (-0.15, 3.2), failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, failed-from: 3),
-    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], data-size: panel-size, ylim: (-20, 65), failed-from: 3),
+    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], data-size: panel-size, ylim: (-20, 400), failed-from: 3),
   )
 ], caption: [Initial-angle sweep. Dashed traces indicate initial angles where the controller failed to stabilize.]) <fig-releases>
 
