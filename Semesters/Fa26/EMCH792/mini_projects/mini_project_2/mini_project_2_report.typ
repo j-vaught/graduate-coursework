@@ -127,7 +127,7 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], height: 0.95in, failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], height: 0.95in, ylim: (-20, 65), failed-from: 3),
   )
-], caption: [Initial-angle sweep. Dashed traces fail. Detail panels limit the vertical range to show recovery; failed traces leave that range.]) <fig-releases>
+], caption: [Initial-angle sweep. Dashed traces indicate initial angles where the controller failed to stabilize.]) <fig-releases>
 
 = DISCUSSION.
 
