@@ -58,10 +58,3 @@
   lq.place(25, 1.08, [Radar]),
 )
 
-#v(3mm)
-#align(center)[
-  #block(width: 150mm)[
-    Wave obstruction for $H_s = 1$ m, $T_p = 9$ s, and $h = 50$ m.
-    The intervening crest prevents direct geometric rays from reaching the object.
-  ]
-]

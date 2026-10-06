@@ -1,6 +1,6 @@
 # Wave surface for the first observation diagram
 
-The new preview plots an instantaneous long-crested linear gravity-wave field. It supplies the mathematical surface for the developing obstruction diagram, now including a stable radar and a shadowed object. The proposal retains its existing figure while this preview is developed.
+The new preview plots an instantaneous long-crested linear gravity-wave field. It supplies the mathematical surface for the developing obstruction diagram, now including a stable radar and a shadowed object. The figure is inserted into Appendix B of the proposal.
 
 ## Governing model
 
@@ -36,4 +36,4 @@ The rectangular object is centered at x = 375 m, with an illustrative width of 8
 
 ## Preview layout
 
-The legend uses Lilaq's native legend with position bottom + left and 5 pt padding inside the data area. The half-power entry is shortened to keep the box clear of the nearby wave trough. The wave parameters appear in the caption below the graph rather than in a header.
+The legend uses Lilaq's native legend with position bottom + left and 5 pt padding inside the data area. The half-power entry is shortened to keep the box clear of the nearby wave trough. The exported image has no embedded caption or parameter header. Wave parameters and the obstruction explanation appear in the LaTeX figure caption in the report.
