@@ -12,6 +12,7 @@
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit, ylim: ylim, yscale: yscale,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
+      else if limit.last() == 3 { (0, 0.5, 1, 1.5, 2, 2.5, 3) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
     legend: if with-legend { (radius: 0pt, position: legend-position) } else { none },
     ..runs.enumerate().map(pair => {
@@ -35,6 +36,7 @@
     height: if data-size == none { 0% + height } else { data-size.last() }, title: panel,
     xlabel: [Time (s)], ylabel: [Disturbance (N)], xlim: limit, ylim: ylim,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
+      else if limit.last() == 3 { (0, 0.5, 1, 1.5, 2, 2.5, 3) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
     legend: none,
     ..plots.force_runs.enumerate().map(pair => {
@@ -119,7 +121,7 @@ We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart f
 
 For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition from successful recovery to failure to recover therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
 
-For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--1 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
+For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--3 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
 
 #pagebreak()
 
@@ -143,11 +145,11 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
   #let panel-size = (2.6in, 0.95in)
   #grid(columns: (1fr, 1fr), gutter: 5pt,
     sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 1), failed-from: 3, with-legend: true, legend-position: bottom + right),
-    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 1), [(b) Cart detail], data-size: panel-size, failed-from: 3),
+    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 3), [(b) Cart detail], data-size: panel-size, failed-from: 3),
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 10), failed-from: 3),
-    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 1), [(d) Angle detail], data-size: panel-size, failed-from: 3),
+    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 3), [(d) Angle detail], data-size: panel-size, failed-from: 3),
     forcing((0, 30), [(e) Applied random forces], data-size: panel-size),
-    forcing((0, 1), [(f) Force detail], data-size: panel-size, ylim: (-10, 5)),
+    forcing((0, 3), [(f) Force detail], data-size: panel-size, ylim: (-10, 5)),
   )
 ], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed. Panels (a,c) use symmetric log scales, linear within $plus.minus 1$ m and $plus.minus 10 degree$, respectively.]) <fig-forces>
 
