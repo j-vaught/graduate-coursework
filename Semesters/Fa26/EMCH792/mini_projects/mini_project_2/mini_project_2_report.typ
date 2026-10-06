@@ -3,338 +3,374 @@
 #let plots = json("plot_data.json")
 #let stats = json("metrics.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
+#let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
+#let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, failed-from: 99, with-legend: false) = {
+  set text(size: if height > 2in { 10pt } else { 8pt })
+  lq.diagram(
+    width: 100%, height: 0% + height, title: panel,
+    xlabel: [Time (s)], ylabel: ylabel, xlim: limit, ylim: ylim,
+    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
+      else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
+      else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
+    legend: if with-legend { (radius: 0pt) } else { none },
+    ..runs.enumerate().map(pair => {
+      let (i, run) = pair
+      let indices = run.response.time_s.enumerate().filter(pair =>
+        limit.first() <= pair.last() and pair.last() <= limit.last()).map(pair => pair.first())
+      lq.plot(indices.map(index => run.response.time_s.at(index)),
+        indices.map(index => run.response.at(field).at(index)), mark: none,
+        label: if "initial_angle_deg" in run { [#str(run.initial_angle_deg)#sym.degree] }
+          else { [#fmt(run.amplitude_N, digits: 1) N] },
+        color: colors.at(i), stroke: (thickness: 1.0pt,
+          dash: if i >= failed-from { "dashed" } else { "solid" }))
+    }),
+  )
+}
 
-#let angle-plot(run) = lq.diagram(
-  width: 100%,
-  height: 1.8in,
-  xlabel: [Time, $t$ (s)],
-  ylabel: [Pendulum angle, $theta$ (deg)],
-  lq.plot(run.time_s, run.theta_deg, mark: none,
-    stroke: (thickness: 1.2pt)),
-)
-#let position-plot(run, height: 2.7in) = lq.diagram(
-  width: 100%,
-  height: height,
-  xlabel: [Time, $t$ (s)],
-  ylabel: [Cart position, $x$ (m)],
-  lq.plot(run.time_s, run.x_m, mark: none,
-    stroke: (thickness: 1.2pt)),
-)
-#let force-plot(run, height: 2.7in) = lq.diagram(
-  width: 100%,
-  height: height,
-  xlabel: [Time, $t$ (s)],
-  ylabel: [Horizontal force (N)],
-  lq.plot(run.time_s, run.u_N, mark: none,
-    stroke: (thickness: 1.2pt), label: [Control command]),
-  lq.plot(run.time_s, run.disturbance_N, mark: none,
-    stroke: (thickness: 1.2pt, dash: "dashed"),
-    label: [Base disturbance]),
-)
+#let forcing(limit, panel, height: 1.05in) = {
+  set text(size: 8pt)
+  lq.diagram(width: 100%, height: 0% + height, title: panel,
+    xlabel: [Time (s)], ylabel: [Disturbance (N)], xlim: limit,
+    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
+      else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
+    legend: none,
+    ..plots.force_runs.enumerate().map(pair => {
+      let (i, run) = pair
+      let indices = plots.disturbance_time_s.enumerate().filter(pair =>
+        limit.first() <= pair.last() and pair.last() <= limit.last()).map(pair => pair.first())
+      lq.plot(indices.map(index => plots.disturbance_time_s.at(index)),
+        indices.map(index => plots.unit_disturbance.at(index) * run.amplitude_N),
+        mark: none, color: colors.at(i), step: end,
+        stroke: (thickness: 0.9pt, dash: if i == 3 { "dashed" } else { "solid" }))
+    }),
+  )
+}
 
-#set page(paper: "us-letter", margin: (top: 0.75in, bottom: 1in, x: 1in), numbering: "1",
-  number-align: center + bottom)
-#set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"), size: 11pt,
-  lang: "en")
+#let comparison(field, ylabel, panel, height: 1.35in, legend-position: top + left) = {
+  set text(size: 9pt)
+  lq.diagram(width: 100%, height: 0% + height, title: panel,
+    xlabel: [Time (s)], ylabel: ylabel, xlim: (0, 0.5),
+    legend: (position: legend-position, radius: 0pt),
+    lq.plot(plots.comparison.time_s, plots.comparison.at("nonlinear_" + field),
+      mark: none, label: [Nonlinear], color: colors.first(), stroke: (thickness: 1.3pt)),
+    lq.plot(plots.comparison.time_s, plots.comparison.at("linear_" + field),
+      mark: none, label: [Linear], color: colors.at(1), stroke: (thickness: 1.1pt, dash: "dashed")),
+  )
+}
+
+#let velocity(field, ylabel, height: 2.6in) = {
+  set text(size: 10pt)
+  lq.diagram(width: 100%, height: 0% + height,
+    xlabel: [Time (s)], ylabel: ylabel, xlim: (0, 30), legend: (radius: 0pt),
+    lq.plot(plots.perturbation.time_s, plots.perturbation.at(field),
+      mark: none, label: [5#sym.degree release], color: colors.first(),
+      stroke: (thickness: 1.2pt)),
+    lq.plot(plots.random_test.time_s, plots.random_test.at(field),
+      mark: none, label: [2.5 N random force], color: colors.at(1),
+      stroke: (thickness: 1.2pt, dash: "dashed")),
+  )
+}
+
+#set page(paper: "us-letter", margin: (top: 0.75in, bottom: 1in, x: 1in),
+  numbering: "1", number-align: center + bottom)
+#set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"),
+  size: 11pt, lang: "en")
 #set par(justify: true, leading: 0.55em)
 #set heading(numbering: none)
-#show heading.where(level: 1): it => block(above: 0.75em, below: 0.35em)[
+#show heading.where(level: 1): it => block(above: 0.6em, below: 0.3em)[
   #text(size: 11pt, weight: "bold")[#it.body]
 ]
-#show heading.where(level: 2): it => block(above: 0.5em, below: 0.2em)[
+#show heading.where(level: 2): it => block(above: 0.5em, below: 0.25em)[
   #text(size: 10.5pt, weight: "bold")[#it.body]
 ]
-#show figure.caption: set text(size: 11pt)
+#show figure.caption: set text(size: 9pt)
+#set figure(gap: 4pt)
 
 #align(center)[
   #text(size: 17pt, weight: "bold")[State-feedback control of an inverted pendulum on a cart]
-  #v(0.2em)
+  #v(0.15em)
   #text(size: 10pt)[J.C. Vaught]
   #v(0.1em)
   #text(size: 9pt)[EMCH 792: Learning-Based Controls]
 ]
+#v(0.3em)
 
-#v(0.35em)
-#block(
-  width: 100%,
-  inset: (x: 0pt, y: 5pt),
-  stroke: (top: 0.5pt + rgb("#A2A2A2"), bottom: 0.5pt + rgb("#A2A2A2")),
-)[
-  #text(weight: "bold")[OBJECTIVE.]
-  Mini Project 1 modelled the motion of a pendulum on a cart without a controller. Project 2 adds a controller that pushes the cart to keep the pendulum upright and bring the cart back toward its starting position. We test whether it can recover from a small initial tilt and maintain balance while random horizontal forces push the cart.
-]
+We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart force. Since designing a controller directly from nonlinear equations is complex, we linearize them near upright. First, we use $sin(theta) approx theta$ and $cos(theta) approx 1$. Second, we discard the product $theta dot(theta)^2$, which does not contribute to the first-order model. This gives $dot(z)=A z+B F$ for $z=(x,dot(x),theta,dot(theta))^T$. Appendix A gives the derivation.
 
-#columns(2, gutter: 0.25in)[
-= METHODOLOGY.
+#figure([
+  #grid(columns: (1fr, 1fr), gutter: 10pt,
+    comparison("x_m", [Cart position (m)], [(a) Cart motion], legend-position: bottom + left),
+    comparison("theta_deg", [Pendulum angle (deg)], [(b) Pendulum motion]),
+  )
+], caption: [Linear and nonlinear responses to the same unforced 5#sym.degree release over 0.5 s.]) <fig-model>
 
-  We began with the nonlinear Simulink model from Mini Project 1 and added a horizontal force $F$ to the cart equation. The cart mass is $M=2.0$ kg, the pendulum mass is $m=0.5$ kg, and the massless rod length is $ell=1.0$ m. The model retains the original pivot damping, $c_theta=0.01$ N m s/rad, and gravity, $g=9.81$ m/s². The upright position is $theta=0$. The equations calculate both accelerations, and four integrators then calculate the velocities and positions.
+  @fig-model shows that the models respond closely near upright. Their largest differences are #fmt(stats.model_comparison.max_angle_difference_deg, digits: 3)#sym.degree and #fmt(1000 * stats.model_comparison.max_x_difference_m, digits: 2) mm. This supports using the linear model for local controller design. Before designing that controller, we form $cal(C)=[B,A B,A^2 B,A^3 B]$. MATLAB finds rank four, equal to the number of states, so the system is controllable @MathWorks2026Controllability.
 
-  With the force input added, we needed a rule for deciding how hard to push the cart. We linearized the equations near upright to obtain $dot(z)=A z+B F$, where $z=(x,dot(x),theta,dot(theta))^T$. These four states describe cart position, cart velocity, pendulum angle, and angular velocity. A MATLAB controllability check confirmed that the cart force can control all four states. We used this simpler model to design the controller, then tested it on the original nonlinear model.
+  Since we know the model and have all four states, we choose a linear-quadratic regulator (LQR). A proportional-integral-derivative (PID) controller can instead be tuned from measured response when a reliable model is unavailable @MathWorks2018PIDTuning. Here, LQR lets us assign a cost to each state error and to the force command @MathWorks2026LQR. We select weights of 4 for cart position, 2 for cart velocity, 300 for angle, and 10 for angular velocity, collected in $Q="diag"(4,2,300,10)$. The force penalty is $R=0.5$. These are design choices that emphasize balance while discouraging unnecessary motion and force. Appendix B gives the design and essential MATLAB functions.
 
-  We chose a linear-quadratic regulator (LQR), which balances angle error, cart movement, and control force. Its weights give the angle the highest priority while also encouraging the cart to return to the origin. MATLAB calculated the gain $K$ for the force command $u=-K z$. The resulting linear model is stable. Appendix C gives the weights, gain, and design equation; the following tests show how the controller performs with the full nonlinear equations and a limited actuator.
 
-  #colbreak()
+  MATLAB calculates $u=-K z$ and confirms that all poles of $A-B K$ have negative real parts. We also simulate the linear closed loop and verify that its states return to zero. We then connect this controller to the nonlinear Simulink model in Appendix C. The actuator limits $u$ to $plus.minus 10$ N, and a separate disturbance $d$ is added afterward, so the cart receives $F=u+d$.
 
-== SIMULATION STEPS.
-
-  To apply the controller, we connected the four simulated states to the feedback gain. An actuator block limits its command to $plus.minus 10$ N. A sum block then adds the external disturbance $d$, so the cart receives $F=u+d$. The State order block displays $theta$, $dot(theta)$, $dot(x)$, and $x$ from top to bottom and rearranges them internally into the order used by $K$. Appendices H and I show the complete loop and the nonlinear model inside it.
-
-  We first released the pendulum from $5 degree$ with no disturbance. We then started it upright and applied random horizontal pushes between $-2.5$ and $2.5$ N. Each force value is drawn independently from a uniform distribution every 0.1 s and held until the next draw. This represents a force that changes in short steps. Seed 79202 makes the sequence repeatable. Both tests run for 12 s using ode45 with a maximum step of 0.01 s.
-
-  We measured angle, cart displacement, and control force to determine whether balance required excessive motion or actuator saturation. Settling time marks when the angle enters $plus.minus 1 degree$ and stays there through the end of the run. We also tested larger tilts and scaled the same random sequence to force bounds of 5, 7.5, and 10 N. These are stronger versions of one disturbance model. We did not compare different force distributions, steady biases, impulses, or sensor noise.
-]
-
+  To test the controller, we run two categories of 30 s simulations. First, we release the pendulum from 5, 10, 20, 30, 45, and 60#sym.degree to test the linearization and actuator limits. Second, we start upright and apply random cart forces with bounds of $plus.minus 2.5$, 5, 7.5, and 10 N. Each force is an independent uniform draw held for 0.1 s. The same seeded sequence is scaled for each bound. Appendix D explains this generation method and its scope. Appendix E gives the full metrics and actuator histories.
 #pagebreak()
 
-#columns(2, gutter: 0.25in)[
 = RESULTS.
 
-  #figure(
-    position-plot(plots.perturbation, height: 1.8in),
-    caption: [Cart position during recovery from the 5#sym.degree release.],
+For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
+
+#figure([
+  #grid(columns: (1fr, 1fr), gutter: 5pt,
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], height: 1.6in, failed-from: 3, with-legend: true),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], height: 1.6in, ylim: (-0.15, 3.2), failed-from: 3),
+    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], height: 0.95in, failed-from: 3),
+    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], height: 0.95in, ylim: (-20, 65), failed-from: 3),
   )
+], caption: [Initial-angle sweep. Dashed traces fail. Detail panels limit the vertical range to show recovery; failed traces leave that range.]) <fig-releases>
 
-  Figure 1 shows the cart moving to catch the tilted pendulum and then returning toward the origin. Its maximum displacement is #fmt(stats.perturbation.peak_cart_position_m, digits: 3) m. The largest control force is #fmt(stats.perturbation.peak_command_N) N, so this recovery stays below the 10 N actuator limit.
+For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--1 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
 
-  #figure(
-    angle-plot(plots.perturbation),
-    caption: [Pendulum angle after the 5#sym.degree release.],
+#figure([
+  #grid(columns: (1fr, 1fr), gutter: 5pt,
+    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], height: 1.25in, failed-from: 3, with-legend: true),
+    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 1), [(b) Cart detail], height: 1.25in, failed-from: 3),
+    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], height: 0.9in, failed-from: 3),
+    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 1), [(d) Angle detail], height: 0.9in, failed-from: 3),
+    forcing((0, 30), [(e) Applied random forces], height: 0.9in),
+    forcing((0, 1), [(f) Force detail], height: 0.9in),
   )
-
-  That cart motion brings the pendulum back toward upright, as Figure 2 shows. After #fmt(stats.perturbation.settling_time_s) s, the angle stays within $plus.minus 1 degree$. The controller therefore recovers from the initial tilt in the full nonlinear simulation.
-
-  #colbreak()
-
-  #figure(
-    angle-plot(plots.random_test),
-    caption: [Pendulum angle under the bounded random horizontal disturbance.],
-  )
-
-  Figure 3 shows small angle changes while the controller maintains balance. The root-mean-square (RMS) angle is #fmt(stats.random_test.rms_angle_deg) degree, and the maximum is #fmt(stats.random_test.peak_angle_deg) degree. The cart moves at most #fmt(stats.random_test.peak_cart_position_m, digits: 3) m. Figure 4 shows the corresponding forces.
-
-  #figure(
-    force-plot(plots.random_test, height: 1.8in),
-    caption: [Control command (solid blue) and random disturbance (dashed orange).],
-  )
+], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed.]) <fig-forces>
 
 = DISCUSSION.
 
-  The random test needs at most #fmt(stats.random_test.peak_command_N) N, below the actuator limit. Both main tests therefore maintain balance. Stronger tests in Appendix G show the limits. A 20#sym.degree release recovers but needs almost 3 m of cart travel. A 30#sym.degree release reaches the force limit throughout and fails, as does the 10 N random-force case. Larger inputs can therefore exceed the available force or require substantial cart travel. The force sweep changes strength only; other disturbance types remain untested.
-]
+The smaller tested inputs recover or remain balanced. Failed releases stay at the actuator limit, and the 10 N disturbance also causes sustained saturation. Even successful recovery at 20#sym.degree needs #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of cart travel, so a physical track could constrain performance. The sweeps identify an operating range for this gain and force limit. The random-force result applies to the recorded sequence described in Appendix D.
 
 #pagebreak()
-#set page(paper: "us-letter", margin: 1in, numbering: "1",
-  number-align: center + bottom)
+#set page(margin: 1in)
 #set text(size: 10.5pt)
 #show figure.caption: set text(size: 9.5pt)
 
-= Appendix A. Nonlinear plant and sign convention
+= Appendix A. Nonlinear equations and upright linearization
 
-The main report begins by adding a cart force to the Mini Project 1 model. Here, positive $F$ pushes the cart in the positive $x$ direction, and $theta$ measures the pendulum angle from upright. The rod is massless, its end mass is $m$, the cart mass is $M$, and $c_theta$ represents pivot damping. Adding the force changes the cart equation to
+The report begins with the nonlinear model inherited from Project 1. The cart moves in the positive $x$ direction under positive force $F$, and $theta=0$ is upright. The rod is massless, its end mass is $m$, and its pivot has viscous damping $c_theta$. Adding cart force gives the coupled equations
 
 $
 (M+m) dot.double(x) + m ell cos(theta) dot.double(theta)
 - m ell sin(theta) dot(theta)^2 = F,
 $
-
-while the angular equation remains
-
 $
 m ell cos(theta) dot.double(x) + m ell^2 dot.double(theta)
 + c_theta dot(theta) - m g ell sin(theta) = 0.
 $
 
-These equations couple the two accelerations, so the MATLAB Function block solves them together at each solver step. The four original integrators then convert the accelerations into velocities and positions. The following table lists the model parameters.
+Because the accelerations are coupled, the MATLAB Function solves them together using
 
-#table(
-  columns: (1.1fr, 2.7fr, 1.2fr),
-  inset: 5pt,
+$
+mat(M+m, m ell cos(theta); m ell cos(theta), m ell^2)
+mat(dot.double(x); dot.double(theta))
+= mat(F + m ell sin(theta) dot(theta)^2; m g ell sin(theta) - c_theta dot(theta)).
+$
+
+Each acceleration then passes through two integrators to obtain velocity and position. The resulting state vector is $z=(x,dot(x),theta,dot(theta))^T$. The model parameters are
+
+#table(columns: (1fr, 2fr, 1.4fr), inset: 6pt,
   [Parameter], [Meaning], [Value],
   [$M$], [Cart mass], [2.0 kg],
   [$m$], [Pendulum point mass], [0.5 kg],
-  [$ell$], [Pendulum length], [1.0 m],
-  [$c_theta$], [Pivot rotational damping], [0.01 N m s/rad],
-  [$g$], [Gravitational acceleration], [9.81 m/s²],
+  [$ell$], [Rod length], [1.0 m],
+  [$c_theta$], [Pivot damping], [0.01 N m s/rad],
+  [$g$], [Gravity], [9.81 m/s²],
 )
 
-The simulation uses an unlimited track and exact state values, with no track friction or actuator delay. Its actuator command is limited to 10 N.
+The track has no friction or end stops, and all four states are available directly to the feedback block. These assumptions allow the controller's angle response, cart motion, and force limit to be evaluated separately.
 
 #pagebreak()
 
-= Appendix B. Upright linearization
+== Linearization and controllability
 
-The nonlinear equations in Appendix A provide the model used for testing. To design the controller, we simplify those equations near upright. For small $theta$, use $sin(theta) approx theta$ and $cos(theta) approx 1$, and drop the term $theta dot(theta)^2$. The equations become
+To obtain the design model from the preceding equations, we expand about $z=0$ and $F=0$. First, use $sin(theta) approx theta$ and $cos(theta) approx 1$. Second, remove products of perturbations, including $theta dot(theta)^2$. The first-order equations are
 
 $
 (M+m) dot.double(x) + m ell dot.double(theta) = F,
-$
-$
-m ell dot.double(x) + m ell^2 dot.double(theta)
-+ c_theta dot(theta) - m g ell theta = 0.
+quad m ell dot.double(x) + m ell^2 dot.double(theta) + c_theta dot(theta) - m g ell theta = 0.
 $
 
-Eliminating $dot.double(theta)$ from the first equation gives
+Eliminating one acceleration at a time gives
 
 $
-dot.double(x) = F/M - (m g)/M theta + c_theta/(M ell) dot(theta).
+dot.double(x) = F/M - (m g)/M theta + c_theta/(M ell) dot(theta),
+$
+$
+dot.double(theta) = -F/(M ell) + ((M+m)g)/(M ell) theta
+- (c_theta(M+m))/(M m ell^2) dot(theta).
 $
 
-Substitution gives the angular acceleration
+Using the same state order as the nonlinear model, $dot(z)=A z+B F$ with
 
 $
-dot.double(theta) = -F/(M ell)
-+ ((M+m) g)/(M ell) theta
-- (c_theta (M+m))/(M m ell^2) dot(theta).
+A = mat(0,1,0,0; 0,0,-2.4525,0.005; 0,0,0,1; 0,0,12.2625,-0.025),
+quad B = mat(0;0.5;0;-0.5).
 $
 
-With $z=(x,dot(x),theta,dot(theta))^T$, this is $dot(z)=A z+B F$. At the assigned parameter values,
+Before using these matrices for control, MATLAB forms $cal(C)=[B,A B,A^2 B,A^3 B]$ and finds $"rank"(cal(C))=4$. Since the state dimension is four, the model is controllable.
 
-$
-A = mat(
-  0, 1, 0, 0;
-  0, 0, -2.4525, 0.005;
-  0, 0, 0, 1;
-  0, 0, 12.2625, -0.025
-), quad
-B = mat(0;0.5;0;-0.5).
-$
-
-The entries of $B$ show the immediate effect of a push. A positive force accelerates the cart right and changes the pendulum's angular acceleration in the opposite direction. Appendix C uses these matrices to calculate the feedback gain.
+The comparison in Figure 1 uses identical initial states, $z(0)=(0,0,5 pi/180,0)^T$, and zero cart force. MATLAB integrates both sets of equations for 0.5 s with tight tolerances. The largest position difference is #fmt(1000*stats.model_comparison.max_x_difference_m, digits: 3) mm, and the largest angle difference is #fmt(stats.model_comparison.max_angle_difference_deg, digits: 4)#sym.degree. This checks agreement near upright. The longer release sweep then tests the controller when larger angles and actuator saturation weaken that approximation.
 
 #pagebreak()
 
-= Appendix C. Feedback design
+= Appendix B. LQR design and essential MATLAB functions
 
-Before choosing a gain, we checked whether the force input in Appendix B can control all four states. The controllability matrix $cal(C)=(B,A B,A^2 B,A^3 B)$ has rank four, confirming that it can. We then chose an LQR that penalizes state errors and control force through
+With the controllable model from Appendix A, we choose a gain that minimizes the accumulated state error and force cost,
 
 $
-J = integral_0^infinity (z^T Q z + R u^2) dif t,
-quad Q="diag"(4,2,300,10), quad R=0.5.
+J = integral_0^infinity (4x^2 + 2dot(x)^2 + 300theta^2 + 10dot(theta)^2 + 0.5u^2) dif t.
 $
 
-The weights in $Q$ correspond to $x$, $dot(x)$, $theta$, and $dot(theta)$ in that order. The angle receives the largest weight, while $R$ penalizes the force command. MATLAB's `lqr` function returns $u=-K z$ with $K=(-2.8284,-6.3204,-86.8641,-25.2346)$. The nonlinear model limits this command to $plus.minus 10$ N, then adds the external force $d$.
+Here $x$ is in metres, $theta$ is in radians, and $u$ is in newtons. The state-error matrix is $Q="diag"(4,2,300,10)$, and the input penalty is $R=0.5$. These weights were selected to prioritize upright balance, retain a penalty on cart displacement, damp velocity, and discourage excessive force. They are tuning choices, rather than coefficients derived from the mechanical equations.
 
-The poles of $A-B K$ are approximately $-0.699 plus.minus 0.548 i$ and $-4.042 plus.minus 1.125 i$. Their negative real parts confirm stability of the linear design. Because the actual model retains the nonlinear equations and force limit, we next test whether the same gain maintains balance in that model. The builder stores the numerical gain directly in the Simulink block.
+MATLAB solves the algebraic Riccati equation through its LQR routine. It returns
 
-#pagebreak()
+$
+u=-K z, quad K=(-2.8284,-6.3204,-86.8641,-25.2346).
+$
 
-= Appendix D. Simulation and measurement protocol
+The poles of $A-B K$ are $-0.699 plus.minus 0.548i$ and $-4.042 plus.minus 1.125i$. Their negative real parts establish stability of the linear closed loop. To verify the corresponding time response, we also simulate it from a 5#sym.degree release with no disturbance. Its final state norm after 30 s is approximately $#fmt(stats.design.linear_final_state_norm * 1e10, digits: 2) times 10^(-10)$.
 
-To test the gain from Appendix C, we ran two 12 s simulations with the same nonlinear model. The release test sets $theta(0)=5 degree$ and all other states and the disturbance to zero. The random-force test starts upright and draws independent uniform samples in $[-2.5,2.5]$ N every 0.1 s. Each value remains constant until the next draw. This describes irregular pushes with abrupt changes and a known force bound. Seed 79202 reproduces the force history stored in `metrics.json`.
+#figure([
+  #set text(size: 10pt)
+  #lq.diagram(width: 100%, height: 0% + 2.8in,
+    xlabel: [Time (s)], ylabel: [Pendulum angle (deg)], xlim: (0, 30),
+    lq.plot(plots.linear_closed_loop.time_s, plots.linear_closed_loop.theta_deg,
+      mark: none, color: colors.first(), stroke: (thickness: 1.2pt)),
+  )
+], caption: [Linear closed-loop response used to verify the designed gain.])
 
-We sample the logged response every 0.02 s to calculate the metrics. Peak angle is $max_t abs(theta(t))$, while RMS angle is $sqrt((1/N) sum_i theta_i^2)$. Peak angle captures the largest deviation; RMS angle describes its overall size across the run. Settling time marks entry into the 1#sym.degree band with no later exit. For the continuously disturbed run, this time describes the particular force history, rather than the response to a single release.
-
-Saturation fraction is the fraction of analysis samples where $abs(u) >= 10$ N. A trial counts as recovered when its final angle magnitude and its RMS angle over the final two seconds are both below 2#sym.degree. Metrics use every analysis sample, and figures use every second sample to keep the PDF compact.
-
-We then tested stronger inputs without changing the gain or the 10 N actuator limit. The release angles were 10, 20, 30, 45, and 60#sym.degree. The random-force bounds were 2.5, 5, 7.5, and 10 N, all using the same sequence of draws. This isolates the effect of force strength. We used one random-force model and one seed; we did not vary its distribution or update interval, or test correlated forces, steady biases, impulses, or sensor noise.
-
-#pagebreak()
-
-= Appendix E. Release-test signals
-
-#figure(
-  force-plot(plots.perturbation),
-  caption: [Actuator command during the release test. The disturbance is zero.],
-)
-
-The release test from Appendix D needs a large initial push to catch the tilted pendulum. As the angle approaches upright, the force decreases and changes direction to bring the cart back. The peak command is #fmt(stats.perturbation.peak_command_N) N, so the actuator does not reach its limit.
+The nonlinear model in Appendix C uses this same gain, with its command limited to $plus.minus 10$ N. The nonlinear sweeps therefore evaluate how the linear design performs when the exact equations and force limit are restored.
 
 #pagebreak()
 
-= Appendix F. Random-disturbance signals
+== Controller and acceleration functions
 
-#figure(
-  position-plot(plots.random_test),
-  caption: [Cart displacement while random force excites the base.],
-)
+The preceding design is implemented by the following function. It constructs the matrices, checks controllability, computes the gain, and checks the closed-loop poles.
 
-#figure(
-  force-plot(plots.random_test),
-  caption: [Actuator and disturbance histories for the bounded random-force test.],
-)
-
-Unlike the single release in Appendix E, the random pushes continue throughout this run. The controller responds by moving the cart and changing its force command. The maximum displacement is #fmt(stats.random_test.peak_cart_position_m, digits: 3) m, and the maximum command is #fmt(stats.random_test.peak_command_N) N. Recording both shows how much movement and force were needed to maintain balance.
-
-#pagebreak()
-
-= Appendix G. Stress-test summary
-
-The preceding tests use a 5#sym.degree tilt and a 2.5 N disturbance bound. We increased each input to find where the same controller loses balance. The first table reports the larger release tests. Recovery follows the angle criterion defined in Appendix D, while peak cart displacement shows the motion needed to achieve it.
-
-#let angle_rows = stats.angle_stress.map(entry => (
-  [#str(entry.initial_angle_deg)],
-  [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
-  [#fmt(100*entry.metrics.saturation_fraction)],
-  [#if entry.metrics.recovered { "Yes" } else { "No" }],
-)).flatten()
-#table(
-  columns: (1fr, 1.3fr, 1.3fr, 0.8fr),
-  inset: 5pt,
-  [Initial tilt (deg)], [Peak cart travel (m)],
-  [Saturation time (%)], [Recovered],
-  ..angle_rows,
-)
-
-#v(0.5em)
-
-The second table scales the random-force sequence used in Appendix F. Because the sequence and update interval stay the same, changes in the response result from increasing the force bound.
-
-#let force_rows = stats.force_stress.map(entry => (
-  [#fmt(entry.amplitude_N, digits: 1)],
-  [#fmt(entry.metrics.rms_angle_deg)],
-  [#fmt(entry.metrics.peak_angle_deg)],
-  [#fmt(100*entry.metrics.saturation_fraction)],
-)).flatten()
-#table(
-  columns: (1fr, 1.3fr, 1.3fr, 1.3fr),
-  inset: 5pt,
-  [Force bound (N)], [RMS angle (deg)],
-  [Peak angle (deg)], [Saturation time (%)],
-  ..force_rows,
-)
-
-The 20#sym.degree release recovers after nearly 3 m of cart travel, while the 30#sym.degree release reaches the force limit throughout and fails. The 10 N random-force case also loses balance. After failure, the angle records full rotations and the cart continues along the model's unlimited track. The large recorded angles and displacements therefore describe loss of control. These tables compare input strength within the chosen tests; they do not compare different disturbance models.
-
-#pagebreak()
-#set page(paper: "us-letter", flipped: true, margin: 1in,
-  numbering: "1", number-align: center + bottom)
-
-= Appendix H. Editable Simulink model
-
-#figure(
-  image("controlled_model_diagram.png", width: 8.5in),
-  caption: [Top-level feedback loop in the delivered `inverted_pendulum_controlled.slx` model.],
-)
-
-The preceding results come from this feedback loop. The nonlinear model outputs four states, the feedback gain converts them into a force command, and the actuator block limits that command. The circular sum adds the disturbance before the total force returns to the cart. Four output blocks save the states and force histories for analysis.
-
-#pagebreak()
-
-= Appendix I. Nonlinear plant detail
-
-#figure(
-  image("nonlinear_plant_diagram.png", width: 8.5in),
-  caption: [Inside the nonlinear plant subsystem. The equations and four integrators come from Mini Project 1.],
-)
-
-The nonlinear model in Appendix H contains the equations and four integrators inherited from Mini Project 1. The MATLAB Function calculates angular and cart acceleration; each acceleration passes through two integrators to produce velocity and position. The State order inputs are $(theta,dot(theta),dot(x),x)$ from top to bottom. Its internal wiring assembles $(x,dot(x),theta,dot(theta))$ for the controller.
-
-#pagebreak()
-#set page(paper: "us-letter", flipped: false, margin: 1in,
-  numbering: "1", number-align: center + bottom)
-
-= Appendix J. Nonlinear acceleration function
-
-#show raw.where(block: true): it => block(
-  width: 100%, fill: rgb("#ECECEC"),
-  stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt,
-)[
-  #set text(font: "DejaVu Sans Mono", size: 7.5pt)
+#show raw.where(block: true): it => block(width: 100%, fill: rgb("#ECECEC"),
+  stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt)[
+  #set text(font: "DejaVu Sans Mono", size: 7.3pt)
   #it
 ]
+#raw(read("design_controller.m"), lang: "matlab", block: true)
 
-The acceleration block shown in Appendix I uses the function below. It solves the two coupled equations from Appendix A. The first seven inputs come from Mini Project 1, and the eighth supplies the total cart force.
+The nonlinear Simulink block then uses the function below to calculate the two accelerations. Its eighth input is the total cart force.
 
 #raw(read("controlled_accelerations.m"), lang: "matlab", block: true)
 
-The complete model builder and experiment script are supplied as separate MATLAB files alongside this report.
+The separate model builder and experiment script remain runnable files alongside the report. The control methods are documented in the following sources.
+
+#bibliography("references.bib", title: none, style: "ieee")
+
+#pagebreak()
+#set page(flipped: true, margin: 1in)
+
+= Appendix C. Simulink feedback loop and nonlinear plant
+
+#figure(image("controlled_model_diagram.png", width: 100%),
+  caption: [Complete feedback loop. The disturbance enters above the circular sum, and the limited actuator command returns below the loop.])
+
+The gain from Appendix B acts on all four simulated states. The actuator block limits the command, then the sum adds the disturbance before the total force reaches the cart. Output blocks record the states, command, disturbance, and total force. This wiring implements $F="sat"(-K z)+d$.
+
+#pagebreak()
+
+== Nonlinear plant subsystem
+
+#figure(image("nonlinear_plant_diagram.png", width: 100%),
+  caption: [Nonlinear equations and four integrators retained from Project 1.])
+
+Inside the preceding feedback loop, the acceleration function from Appendix B drives two integrator chains. The State order block receives $(theta,dot(theta),dot(x),x)$ from top to bottom and rearranges them internally into $(x,dot(x),theta,dot(theta))$ for the gain. The display order therefore follows the diagram, while the vector sent to the controller follows the design matrices.
+
+#pagebreak()
+#set page(flipped: false, margin: 1in)
+
+= Appendix D. Random-force generation and measurement protocol
+
+The feedback loop in Appendix C receives a separate external force. To generate it, MATLAB draws independent samples $xi_k$ uniformly in $[-1,1]$ and holds each value for $Delta t=0.1$ s. For force bound $a$, the applied disturbance is
+
+$
+d_a(t)=a xi_k, quad k Delta t <= t < (k+1) Delta t.
+$
+
+We use $a=2.5$, 5, 7.5, and 10 N. The generator uses the Twister algorithm with seed 79202. Every bound uses the same $xi_k$ sequence, so the tests change force strength while retaining the timing and sign of each push. A sample beyond 30 s prevents the source block from needing to extrapolate at the final solver step. Interpolation is disabled, and the source holds its last value after the final sample.
+
+This is one model of short, irregular pushes. Its theoretical mean is zero and its variance is $a^2/3$, although the finite sequence has its own sample mean. It does not model a persistent bias, correlated low-frequency force, isolated impact, or sensor noise. A different seed would produce a different trajectory. The results therefore compare the four strengths for this recorded sequence; they do not estimate a failure probability across random realizations.
+
+Both test categories run for 30 s using ode45 with a 0.01 s maximum step. Release tests set the initial angle to 5, 10, 20, 30, 45, or 60#sym.degree, with all other initial states and the disturbance zero. Random-force tests start with every state zero. The gain and actuator limit stay fixed across all trials.
+
+To compare the trials, the logged states are sampled on a uniform 0.02 s grid. Peak angle is $max_i abs(theta_i)$, and root-mean-square (RMS) angle is
+
+$
+theta_"RMS"=sqrt((1/N)sum_i theta_i^2).
+$
+
+Settling time is the first sampled time after which $abs(theta)$ stays within 1#sym.degree through the end of the run. This describes release recovery; under continuous forcing it depends on the particular later draws. Saturation fraction counts analysis samples with $abs(u)>=10$ N. For release tests, recovery requires the final angle magnitude and the RMS angle over the final two seconds to be below 2#sym.degree. For random-force tests, peak and RMS angle measure the continuing motion, and loss of upright balance is identified by leaving $plus.minus 90 degree$. Figures use every second analysis sample, while metrics use every sample. The forcing panels use the original 0.1 s values and display the actual held steps.
+
+#pagebreak()
+
+= Appendix E. Detailed release and disturbance results
+
+The release tests defined in Appendix D produce the following metrics. The final-two-second RMS checks that a successful final angle is accompanied by sustained balance. The saturation percentage is measured on the analysis grid.
+
+#let release_entries = ((initial_angle_deg: 5, metrics: stats.perturbation),) + stats.angle_stress
+#table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: 5pt,
+  [Initial angle (deg)], [Peak cart displacement (m)], [Final 2 s RMS (deg)], [Saturation (%)], [Recovered],
+  ..release_entries.map(entry => (
+    [#str(entry.initial_angle_deg)],
+    [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
+    [#fmt(entry.metrics.final_2s_rms_angle_deg, digits: 4)],
+    [#fmt(100*entry.metrics.saturation_fraction)],
+    [#if entry.metrics.recovered { "Yes" } else { "No" }],
+  )).flatten(),
+)
+
+#figure([
+  #sweep(plots.angle_runs, "u_N", [Actuator command (N)], (0, 30), [Release-test actuator commands],
+    height: 3.3in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
+], caption: [Force used in the initial-angle sweep. The three failed cases remain at the actuator limit.])
+
+The tested 20#sym.degree case recovers but reaches #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of displacement. The tested 30#sym.degree case fails, placing the transition somewhere between those two inputs for this controller. No trials between them were run. After failure, the unlimited-track model permits the cart to keep accelerating, and the angle records full rotations rather than being wrapped into a single revolution.
+
+#pagebreak()
+
+== Random-force metrics and actuator use
+
+The force sweep measures continuing balance while the disturbance remains active. Its angle, travel, and actuator metrics are
+
+#table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: 5pt,
+  [Bound (N)], [RMS angle (deg)], [Peak angle (deg)], [Peak cart displacement (m)], [Saturation (%)], [Peak command (N)],
+  ..stats.force_stress.map(entry => (
+    [#fmt(entry.amplitude_N, digits: 1)],
+    [#fmt(entry.metrics.rms_angle_deg)],
+    [#fmt(entry.metrics.peak_angle_deg)],
+    [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
+    [#fmt(100*entry.metrics.saturation_fraction)],
+    [#fmt(entry.metrics.peak_command_N)],
+  )).flatten(),
+)
+
+#figure([
+  #sweep(plots.force_runs, "u_N", [Actuator command (N)], (0, 30), [Random-force actuator commands],
+    height: 3.3in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
+], caption: [Actuator use under the four disturbance bounds. The dashed 10 N case loses balance and remains saturated after failure.])
+
+The held inputs appear in Figure 3(e,f). At bounds through 7.5 N, the angle stays within 5.4#sym.degree and the actuator never saturates. The 7.5 N case ends at #fmt(stats.force_stress.at(2).metrics.final_angle_deg)#sym.degree because the pushes continue; this is ongoing disturbed balance rather than a return to zero. At 10 N, the pendulum leaves the upright region and the command saturates. Once it falls, that limited command cannot restore the local upright response.
+
+#pagebreak()
+
+== Velocity states used by the controller
+
+The preceding figures show position, angle, and force. The remaining two feedback states are cart velocity and angular velocity. The following histories compare the nominal 5#sym.degree release and 2.5 N random-force test.
+
+#figure(velocity("x_dot_m_s", [Cart velocity (m/s)]),
+  caption: [Cart velocity supplied to the state-feedback gain.])
+
+#figure(velocity("theta_dot_deg_s", [Angular velocity (deg/s)]),
+  caption: [Pendulum angular velocity. The controller uses radians per second internally.])
+
+The release velocities decay as the cart and pendulum settle. Under continuing random pushes, the velocities continue to vary while the controller maintains balance. These signals complete the four-state record used to produce the report's position and angle responses.

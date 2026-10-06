@@ -21,7 +21,7 @@ if bdIsLoaded(model)
 end
 new_system(model);
 set_param(model, 'Solver', 'ode45', 'MaxStep', '0.01', ...
-    'StopTime', '12', 'SaveTime', 'off', 'SaveOutput', 'off');
+    'StopTime', '30', 'SaveTime', 'off', 'SaveOutput', 'off');
 
 plant = [model '/Nonlinear plant'];
 add_block('simulink/Ports & Subsystems/Subsystem', plant, ...
