@@ -79,7 +79,7 @@ Four paired truth conditions will represent a reference case, vessel motion only
 
 The primary forecast will estimate the probability that the target produces a usable observation on its next scheduled scan, using only history and state estimates available at the forecast time. A secondary forecast will estimate the probability of three consecutive missed visits. The Brier score will be the primary measure of probabilistic accuracy, with reliability diagrams used to assess calibration. Detection rate, false-alarm rate, missed-run length, outage duration, conditional position-error distributions, and processing time will describe operational performance.
 
-The common forecast label will use one declared position-correction method and tolerance. A paired comparison will separately evaluate midpoint pose, per-azimuth horizontal-motion correction, and per-azimuth attitude correction. This separation ensures that differences in forecast scores reflect differences in predicted usable observations, while the correction comparison measures how mapping choices affect position quality among acquired returns. Misses will remain failures in the position analysis rather than being omitted as if their position error were zero. Appendix~\ref{app:benchmark} explains the comparison logic, and Appendix~\ref{app:parameter-design} justifies the numerical design.
+The common forecast label will use one declared position-correction method and tolerance. A paired comparison will separately evaluate midpoint pose, per-azimuth horizontal-motion correction, and per-azimuth attitude correction. This separation ensures that differences in forecast scores reflect differences in predicted usable observations, while the correction comparison measures how mapping choices affect position quality among acquired returns. The position analysis will report miss fraction alongside localization error. Appendix~\ref{app:benchmark} explains the comparison logic, and Appendix~\ref{app:parameter-design} justifies the numerical design.
 
 
 \clearpage
@@ -152,12 +152,7 @@ A known synthetic target-height plane closes this inverse. Public two-dimensiona
 
 Let $B_i$ be one-way antenna power gain at the target direction and $G_i$ the one-way propagation power factor. The illustrative Gaussian beam uses full half-power width $\beta$ and $B_i=\exp[-4\ln(2)(\epsilon_i/\beta)^2]$. Figure~\ref{fig:beam-misalignment} illustrates this gain reduction when the target direction lies beyond a half-power direction.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=\linewidth]{beam-misalignment.pdf}
-\caption{Vertical beam misalignment. The target's angular offset $\epsilon_i$ exceeds the half-power angle $\beta/2$, reducing its normalized one-way antenna power gain below $1/2$.}
-\label{fig:beam-misalignment}
-\end{figure}
+
 
 For an obstructing edge of height $d_c$ above the direct ray, wavelength $\lambda$, and path distances $d_1,d_2$, the limiting diffraction parameter is
 
@@ -168,9 +163,16 @@ For an obstructing edge of height $d_c$ above the direct ray, wavelength $\lambd
 
 The illustration sets $J=0$ for $\nu\leq-0.78$ and $G=10^{-J/10}$. The maximum normalized intrusion along the path represents one dominant obstacle. This ITU-R approximation supplies a check and sensitivity arm; a reflective smooth sea crest requires richer propagation treatment. \cite{ITUR2025P526}
 
-For baseline target power $P_{0,i}$ and reciprocal complex propagation $q_i$ with $\lvert q_i\rvert^2=G_i$, a monostatic return is $Y_i=\sqrt{P_{0,i}}B_iq_i^2 e^{\mathrm{i}\phi_{T,i}}+C_i+N_i$. Thus target power scales as $P_{0,i}B_i^2G_i^2$. Target phase, clutter $C_i$, noise $N_i$, range loss, polarization, and integration are explicit terms. Incident illumination alone is not a detection. \cite{Janssen2026Diffraction}
+For baseline target power $P_{0,i}$ and reciprocal complex propagation $q_i$ with $\lvert q_i\rvert^2=G_i$, a monostatic return is $Y_i=\sqrt{P_{0,i}}B_iq_i^2 e^{\mathrm{i}\phi_{T,i}}+C_i+N_i$. Thus target power scales as $P_{0,i}B_i^2G_i^2$. Target phase, clutter $C_i$, noise $N_i$, range loss, polarization, and integration are explicit terms. \cite{Janssen2026Diffraction}
 
-For detector decision $D_i$, correction method $\mathcal{C}$, horizontal error $E_i(\mathcal{C})$, and tolerance $E_{\max}$, define usable observation $U_i(\mathcal{C})=D_i\mathbf{1}\{E_i(\mathcal{C})\leq E_{\max}\}$. The probability forecast uses one frozen $\mathcal{C}$ so all predictors share labels. Separate correction experiments compare $U_i$ across mapping methods. Missing returns remain misses; they do not become zero-error positions.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{beam-misalignment.pdf}
+\caption{Vertical beam misalignment. The target's angular offset $\epsilon_i$ exceeds the half-power angle $\beta/2$, reducing its normalized one-way antenna power gain below $1/2$.}
+\label{fig:beam-misalignment}
+\end{figure}
+
+For detector decision $D_i$, correction method $\mathcal{C}$, horizontal error $E_i(\mathcal{C})$, and tolerance $E_{\max}$, define usable observation $U_i(\mathcal{C})=D_i\mathbf{1}\{E_i(\mathcal{C})\leq E_{\max}\}$. The probability forecast uses one frozen $\mathcal{C}$ so all predictors share labels. Separate correction experiments compare $U_i$ across mapping methods.
 
 
 Figure~\ref{fig:scan-time-error} isolates the position error caused by assigning the scan-midpoint radar position to an earlier acquisition. Under constant heading, the radar displacement transfers directly to the reconstructed target position.
@@ -206,6 +208,12 @@ For $\eta=A\cos(kr-\omega t)$, exact finite-depth dispersion gives $\lambda=124.
 
 Lund et al. map each pulse with interpolated horizontal vessel position and heading. Their radar rotates in 1.25 s and uses a 7.5 m Cartesian grid. \cite{Lund2018SeaIceDrift} In the constant-heading limit, acquisition-time mapping is $\mathbf{x}_i=\mathbf{p}(t_i)+\mathbf{R}(\psi_i)\mathbf{r}_i$. Holding pose at the midpoint instead introduces $E_h=U\lvert t_i-t_{\mathrm{mid}}\rvert$. Using the paper's $11\,\mathrm{kn}$ speed example gives a maximum midpoint error of $3.537\,\mathrm{m}$ in Figure~\ref{fig:raytime}. Ideal ray-time mapping removes the prescribed translation error, while the $0.5\,\mathrm{m}$ reference marks the proposed position tolerance. These calculated errors are model outputs, rather than Lund et al.'s measured residuals.
 
+Together, these baselines separate surface shadowing from acquisition distortion before coupling them. The semester study adds vessel oscillation, target exposure, beam gain, and a received-echo model, then tests whether the combined state improves a common forecast event.
+
+
+
+The two model reproductions will serve as component checks before the coupled benchmark. The visibility curve tests the obstruction geometry and phase average, while the constant-translation result tests acquisition-time mapping without an oscillator or detector. Consequently, agreement with either baseline verifies a specific implementation component; it does not measure forecast skill. The IPIX record supplies a separate example of measured return variability. Its use here documents preparation evidence and does not select it as the project's experimental evaluation dataset.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{raytime.pdf}
@@ -213,9 +221,6 @@ Lund et al. map each pulse with interpolated horizontal vessel position and head
 \label{fig:raytime}
 \end{figure}
 
-Together, these baselines separate surface shadowing from acquisition distortion before coupling them. The semester study adds vessel oscillation, target exposure, beam gain, and a received-echo model, then tests whether the combined state improves a common forecast event.
-
-The two model reproductions will serve as component checks before the coupled benchmark. The visibility curve tests the obstruction geometry and phase average, while the constant-translation result tests acquisition-time mapping without an oscillator or detector. Consequently, agreement with either baseline verifies a specific implementation component; it does not measure forecast skill. The IPIX record supplies a separate example of measured return variability. Its use here documents preparation evidence and does not select it as the project's experimental evaluation dataset.
 
 \subsection{Measured small-target radar fluctuations}
 
@@ -266,7 +271,7 @@ Because target-bin power crosses the same calibrated gate repeatedly, average re
 
 The central question is whether a shared estimate of waves and vessel response predicts the next usable target observation better than detection history or either mechanism alone. A comparison of unrelated scenes cannot answer that question because a change in sea state also changes target motion, clutter, and acquisition geometry. Thus, the benchmark separates changes to the physical generator from changes to the information supplied to the predictor. The former identifies which mechanisms cause loss; the latter tests whether estimating those mechanisms improves a forecast of the same observations.
 
-Four physical conditions will be generated from each underlying realization. The target trajectory, wave phases, sensor configuration, scan clock, and background random draws remain common. The reference condition freezes the radar at its nominal pose and sets path transmission to unity. Motion only enables vessel motion and its effects on pointing and mapping. Propagation only enables wave-path attenuation while keeping the radar pose nominal. The coupled condition enables both. Target motion remains common to all four conditions, so changing a physical arm does not quietly substitute a different target experiment. Table~\ref{tab:truth-worlds} states the interventions explicitly.
+Four physical conditions will be generated from each underlying realization. The target trajectory, wave phases, sensor configuration, scan clock, and background random draws remain common. The reference condition freezes the radar at its nominal pose and sets path transmission to unity. Motion only enables vessel motion and its effects on pointing and mapping. Propagation only enables wave-path attenuation while keeping the radar pose nominal. The coupled condition enables both. Target motion remains common to all four conditions, isolating vessel-motion and propagation effects. Table~\ref{tab:truth-worlds} states the interventions explicitly.
 
 \begin{table}[H]
 \centering
@@ -287,7 +292,7 @@ Coupled & Time-resolved pose and transmission from the same spatial wave realiza
 
 Pairing also makes the numerical comparison more efficient. If two score estimates are $S_a$ and $S_b$, then $\operatorname{Var}(S_a-S_b)=\operatorname{Var}(S_a)+\operatorname{Var}(S_b)-2\operatorname{Cov}(S_a,S_b)$. Common random numbers reduce comparison variance when they induce positive covariance; their benefit is therefore checked rather than assumed. \cite{Glasserman1992CommonRandomNumbers} The primary ablation will hold the background process common to isolate target-path and antenna effects. However, because real sea clutter can also change with waves and look direction, a separate sensitivity comparison will vary its conditional distribution. Otherwise, an apparent propagation benefit could simply reflect an unrealistically fixed clutter field.
 
-Within each physical condition, four predictors will use the information sets in Table~\ref{tab:predictor-groups}. The history predictor establishes how much persistence alone explains. Motion features add estimated vessel state and acquisition geometry. Propagation features add estimated wave and target state. The coupled predictor adds both groups and a small set of declared phase, pointing, and transmission interactions. Each predictor will use logistic regression with the same regularization-selection and probability-calibration procedure. Greater input dimension is allowed, but a different model family or a larger tuning search is not introduced only for the coupled case. Ergo, the comparison tests added physical information under a common learning procedure.
+Within each physical condition, four predictors will use the information sets in Table~\ref{tab:predictor-groups}. The history predictor establishes how much persistence alone explains. Motion features add estimated vessel state and acquisition geometry. Propagation features add estimated wave and target state. The coupled predictor adds both groups and a small set of declared phase, pointing, and transmission interactions. Each predictor will use logistic regression with the same regularization-selection and probability-calibration procedure. All predictors use the same model family and tuning budget. Ergo, the comparison tests added physical information under a common learning procedure.
 
 \begin{table}[H]
 \centering
@@ -306,7 +311,7 @@ Coupled & Both state groups and declared interactions among phase, beam offset, 
 \end{tabularx}
 \end{table}
 
-The simulator will retain complete physical truth, but the predictors will receive only estimates available at the forecast cutoff. A perfect-state predictor can be reported as an oracle diagnostic, separately from the operational comparison. All state errors will be applied before generating predictor inputs; future target position, future waves, and test outcomes will not be exposed during fitting. Future states may be propagated from the cutoff estimates using frozen dynamics, while subsequent simulator truth remains reserved for evaluation. Thus, knowing the synthetic truth does not automatically give the forecaster the answer.
+The simulator will retain complete physical truth, but the predictors will receive only estimates available at the forecast cutoff. A perfect-state predictor can be reported as an oracle diagnostic, separately from the operational comparison. All state errors will be applied before generating predictor inputs; future target position, future waves, and test outcomes will not be exposed during fitting. Future states may be propagated from the cutoff estimates using frozen dynamics, while subsequent simulator truth remains reserved for evaluation.
 
 Let $D_i$ denote a correctly associated target detection, and let $E_i(\mathcal{C}_0)$ be its horizontal position error under one frozen correction method $\mathcal{C}_0$. With tolerance $E_{\max}$, the next-scan event follows the usable-observation definition in Appendix~\ref{app:observation}. The primary probability $p_i$ and the separate three-miss event $V_i$ are
 \begin{equation}
@@ -491,7 +496,7 @@ At $N_r=24$ and $P_{\mathrm{FA}}=0.01$, this gives $\alpha=5.077$. This relation
 \toprule
 Quantity & Initial selection & Justification \\
 \midrule
-Reference window & $N_r=24$, with $16$ as a sensitivity case. & Rohling examines these reference-window sizes. They supply documented starting cases rather than a claim of optimality. \cite{Rohling1983RadarCFAR} \\
+Reference window & $N_r=24$, with $16$ as a sensitivity case. & Rohling examines these reference-window sizes. These documented cases initialize the reference-window comparison. \cite{Rohling1983RadarCFAR} \\
 Guard cells & Initially one cell on each side of the cell under test; enlarge if development target spread requires it. & Exclude target leakage from the background estimate, consistent with the two-guard-cell example in Rohling. Freeze the rule before testing. \cite{Rohling1983RadarCFAR} \\
 False-alarm probability & $P_{\mathrm{FA}}=0.01$ per declared decision. & Proposed starting operating point, chosen to permit explicit finite-sample calibration. Report empirical false alarms separately from target misses. \\
 Target-power levels & Unattenuated target SNR $10$--$25\,\mathrm{dB}$; also record margin above the local threshold. & Proposed power bracket. A $6\,\mathrm{dB}$ two-way pointing loss can move a near-threshold target across the decision boundary. \\
@@ -506,7 +511,7 @@ The calibration count follows from Bernoulli precision. With $N=10{,}000$ indepe
 \operatorname{SE}(\widehat p)=\sqrt{\frac{p(1-p)}{N}}=0.000995,
 \qquad 1.96\operatorname{SE}(\widehat p)\simeq0.00195.
 \end{equation}
-Thus, the initial count gives approximately $\pm0.002$ absolute precision near the design rate; it does not demonstrate an arbitrarily small false-alarm probability. The detector will be calibrated on development clutter and checked again on independent test clutter, with a binomial interval for independent decisions or realization-level uncertainty for clustered decisions. Reusing neighboring correlated cells or evaluating the selected threshold on its own calibration sample would overstate the evidence. Lower operating probabilities require a separately justified larger trial budget.
+Thus, the initial count gives approximately $\pm0.002$ absolute precision near the design rate. The detector will be calibrated on development clutter and checked again on independent test clutter, with a binomial interval for independent decisions or realization-level uncertainty for clustered decisions. Reusing neighboring correlated cells or evaluating the selected threshold on its own calibration sample would overstate the evidence. Lower operating probabilities require a separately justified larger trial budget.
 
 \subsubsection{Configuration coverage and numerical verification}
 
@@ -530,7 +535,7 @@ Total cost & $56\times8=448$ underlying realizations and $448\times4=1792$ physi
 \end{tabularx}
 \end{table}
 
-These counts allocate effort; they are not a literature-established power calculation. The first pilot will estimate realization-level score variance and detector-event prevalence. Additional independent realizations will then be added when the paired intervals cannot resolve the declared comparison. Numerical resolution is a separate problem. Initial state integration will use at least $50$ steps per shortest retained natural or encounter period, with interpolation evaluated at the true ray timestamps. Time steps, path subdivisions, and phase samples will be refined independently, because stable detector fractions alone can hide an unstable geometry calculation.
+The pilot will refine this allocation using realization-level score variance and detector-event prevalence. Additional independent realizations will then be added when the paired intervals cannot resolve the declared comparison. Numerical resolution is a separate problem. Initial state integration will use at least $50$ steps per shortest retained natural or encounter period, with interpolation evaluated at the true ray timestamps. Time steps, path subdivisions, and phase samples will be refined independently, because stable detector fractions alone can hide an unstable geometry calculation.
 
 \begin{table}[H]
 \centering
@@ -551,7 +556,7 @@ Information boundary & Future truth is unavailable to fitted predictors; paired 
 \end{tabularx}
 \end{table}
 
-The proposed convergence tolerances keep numerical changes smaller than the operational and statistical comparisons being reported. If a claimed predictor gain is smaller than the Brier refinement tolerance, refinement must continue before interpreting that gain. Finally, binary obstruction and continuous diffraction transmission will be evaluated as alternate propagation assumptions, with the latter tied to the limiting model in Appendix~\ref{app:observation}. These controls establish whether the conclusion survives the observation model instead of merely reflecting the preferred simulator.
+The proposed convergence tolerances keep numerical changes smaller than the operational and statistical comparisons being reported. If a claimed predictor gain is smaller than the Brier refinement tolerance, refinement must continue before interpreting that gain. Finally, binary obstruction and continuous diffraction transmission will be evaluated as alternate propagation assumptions, with the latter tied to the limiting model in Appendix~\ref{app:observation}. These controls test sensitivity to the observation model.
 
 \clearpage
 
