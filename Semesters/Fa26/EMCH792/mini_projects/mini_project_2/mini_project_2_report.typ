@@ -2,6 +2,7 @@
 
 #let plots = json("plot_data.json")
 #let stats = json("metrics.json")
+#let model_tests = json("model_comparisons.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 #let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
 #let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, yscale: "linear", failed-from: 99, with-legend: false, legend-position: top + right, data-size: none) = {
@@ -61,6 +62,51 @@
       mark: none, label: [Nonlinear], color: colors.first(), stroke: (thickness: 1.3pt)),
     lq.plot(plots.comparison.time_s, plots.comparison.at("linear_" + field),
       mark: none, label: [Linear], color: colors.at(1), stroke: (thickness: 1.1pt, dash: "dashed")),
+  )
+}
+
+#let model-sweep(runs, field, ylabel, panel, unit: [], with-legend: false, legend-position: top + left) = {
+  set text(size: 9pt)
+  let palette = colors + (rgb("#009E73"),)
+  lq.diagram(width: 5.8in, height: 1.1in, title: panel,
+    xlabel: [Time (s)], ylabel: ylabel, xlim: (0, 1),
+    xaxis: (ticks: (0, 0.2, 0.4, 0.6, 0.8, 1)),
+    legend: if with-legend { (position: legend-position, radius: 0pt) } else { none },
+    ..runs.enumerate().map(pair => {
+      let (i, run) = pair
+      lq.plot(run.time_s, run.at("nonlinear_" + field), mark: none,
+        label: [#str(run.input_value)#unit], color: palette.at(i), stroke: (thickness: 1pt))
+    }),
+    ..runs.enumerate().map(pair => {
+      let (i, run) = pair
+      lq.plot(run.time_s, run.at("linear_" + field), mark: none,
+        color: palette.at(i), stroke: (thickness: 1pt, dash: "dashed"))
+    }),
+  )
+}
+#let error-value(value, digits: 4) = {
+  if value > 0 and value < 0.0001 {
+    let exponent = calc.floor(calc.log(value, base: 10))
+    let coefficient = fmt(value / calc.pow(10, exponent), digits: 2)
+    $#coefficient times 10^(#exponent)$
+  } else { [#fmt(value, digits: digits)] }
+}
+#let model-error-table(runs, input-label) = {
+  set text(size: 9pt)
+  table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr, 1fr),
+    inset: (x: 4pt, y: 4pt),
+    align: (x, y) => if y <= 1 { center } else { right },
+    table.hline(stroke: 0.8pt),
+    table.header(
+      table.cell(rowspan: 2)[#input-label],
+      table.cell(colspan: 2)[0.1 s], table.cell(colspan: 2)[0.25 s], table.cell(colspan: 2)[0.5 s],
+      [$e_x$ (m)], [$e_theta$ (deg)], [$e_x$ (m)], [$e_theta$ (deg)], [$e_x$ (m)], [$e_theta$ (deg)],
+    ),
+    table.hline(stroke: 0.5pt),
+    ..runs.map(run => ([#str(run.input_value)],
+      ..range(3).map(i => (error-value(run.x_error_m.at(i), digits: 6),
+        error-value(run.angle_error_deg.at(i)))).flatten())).flatten(),
+    table.hline(stroke: 0.8pt),
   )
 }
 
@@ -168,9 +214,9 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
 #show table: set par(justify: false, first-line-indent: 0pt)
 #show table: set text(hyphenate: false)
 
-= Appendix A. Nonlinear equations and upright linearization
+= Appendix A. Nonlinear model, linearization, and model comparisons
 
-The report begins with the nonlinear model inherited from Project 1. The cart moves in the positive $x$ direction under positive force $F$, and $theta=0$ is upright. The rod is massless, its end mass is $m$, and its pivot has viscous damping $c_theta$. Adding cart force gives the coupled equations
+We reuse the nonlinear model from Project 1, along with its mechanical assumptions. The cart translates horizontally on a frictionless track. A rigid, massless rod carries a point mass, and a viscous rotational damper acts at the pivot. Motion is planar, gravity is constant, and the track has no end stops. Project 2 adds the horizontal cart force $F$ to the original equations,
 
 $
 (M+m) dot.double(x) + m ell cos(theta) dot.double(theta)
@@ -181,62 +227,134 @@ m ell cos(theta) dot.double(x) + m ell^2 dot.double(theta)
 + c_theta dot(theta) - m g ell sin(theta) = 0.
 $
 
-Because the accelerations are coupled, the MATLAB Function solves them together using
+Here $x$ is cart displacement, $theta$ is the pendulum angle measured from upright, and dots indicate time derivatives. Positive $F$ acts in the positive $x$ direction. The symbols $M$, $m$, $ell$, $c_theta$, and $g$ denote cart mass, pendulum point mass, rod length, pivot damping coefficient, and gravitational acceleration, respectively. @tab-parameters gives the values retained from Project 1, using the mass symbols in the equations and MATLAB implementation.
+
+#figure(
+  table(columns: (0.8fr, 2fr, 0.8fr, 1fr), inset: (x: 6pt, y: 5pt),
+    align: (x, y) => if x == 2 { right } else { left },
+    table.hline(stroke: 0.8pt),
+    table.header([Parameter], [Meaning], [Value], [Unit]),
+    table.hline(stroke: 0.5pt),
+    [$M$], [Cart mass], [2.0], [kg],
+    [$m$], [Pendulum point mass], [0.5], [kg],
+    [$ell$], [Rod length], [1.0], [m],
+    [$c_theta$], [Pivot damping], [0.01], [N m s/rad],
+    [$g$], [Gravity], [9.81], [m/s²],
+    table.hline(stroke: 0.8pt),
+  ), kind: table, caption: [Mechanical parameters reused from Project 1.],
+) <tab-parameters>
+
+== Linearization near upright
+
+Because the controller is intended to hold the pendulum upright, we expand about the stationary equilibrium $theta=dot(theta)=dot(x)=F=0$. Cart position can be chosen as $x=0$ because the equations do not depend on absolute position. For angles in radians, the Taylor expansions give
 
 $
-mat(M+m, m ell cos(theta); m ell cos(theta), m ell^2)
-mat(dot.double(x); dot.double(theta))
-= mat(F + m ell sin(theta) dot(theta)^2; m g ell sin(theta) - c_theta dot(theta)).
+sin(theta)=theta-theta^3/6+ dots,
+quad cos(theta)=1-theta^2/2+ dots.
 $
 
-Each acceleration then passes through two integrators to obtain velocity and position. The resulting state vector is $z=(x,dot(x),theta,dot(theta))^T$. The model parameters are
+Consequently, $sin(theta) approx theta$ and $cos(theta) approx 1$ retain the first-order behavior near upright. These approximations become accurate as the angle approaches zero. For example, at 5#sym.degree, replacing $sin(theta)$ by $theta$ introduces approximately 0.13% relative error, and replacing $cos(theta)$ by one introduces approximately 0.38% relative error.
 
-#table(columns: (0.8fr, 2fr, 0.8fr, 1fr), inset: (x: 6pt, y: 5pt),
-  align: (x, y) => if x == 2 { right } else { left },
-  table.hline(stroke: 0.8pt),
-  table.header([Parameter], [Meaning], [Value], [Unit]),
-  table.hline(stroke: 0.5pt),
-  [$M$], [Cart mass], [2.0], [kg],
-  [$m$], [Pendulum point mass], [0.5], [kg],
-  [$ell$], [Rod length], [1.0], [m],
-  [$c_theta$], [Pivot damping], [0.01], [N m s/rad],
-  [$g$], [Gravity], [9.81], [m/s²],
-  table.hline(stroke: 0.8pt),
-)
+The centrifugal term also contains products of small deviations. If $theta$ and $dot(theta)$ are each of order $epsilon$, then $sin(theta) dot(theta)^2$ is of order $epsilon^3$. It therefore contributes no first-order term. Substituting these approximations gives
 
-The track has no friction or end stops, and all four states are available directly to the feedback block. These assumptions allow the controller's angle response, cart motion, and force limit to be evaluated separately.
+$
+(M+m) dot.double(x)+m ell dot.double(theta)=F,
+$
+$
+m ell dot.double(x)+m ell^2 dot.double(theta)
++c_theta dot(theta)-m g ell theta=0.
+$
 
 #pagebreak()
 
-== Linearization and controllability
+== From coupled equations to state space
 
-To obtain the design model from the preceding equations, we expand about $z=0$ and $F=0$. First, use $sin(theta) approx theta$ and $cos(theta) approx 1$. Second, remove products of perturbations, including $theta dot(theta)^2$. The first-order equations are
-
-$
-(M+m) dot.double(x) + m ell dot.double(theta) = F,
-quad m ell dot.double(x) + m ell^2 dot.double(theta) + c_theta dot(theta) - m g ell theta = 0.
-$
-
-Eliminating one acceleration at a time gives
+To separate the accelerations, divide the second linearized equation by $m ell$ and rearrange it,
 
 $
-dot.double(x) = F/M - (m g)/M theta + c_theta/(M ell) dot(theta),
-$
-$
-dot.double(theta) = -F/(M ell) + ((M+m)g)/(M ell) theta
-- (c_theta(M+m))/(M m ell^2) dot(theta).
+ell dot.double(theta)=-dot.double(x)-c_theta/(m ell) dot(theta)+g theta.
 $
 
-Using the same state order as the nonlinear model, $dot(z)=A z+B F$ with
+Substituting this expression into the first equation eliminates $dot.double(theta)$,
 
 $
-A = mat(0,1,0,0; 0,0,-2.4525,0.005; 0,0,0,1; 0,0,12.2625,-0.025),
-quad B = mat(0;0.5;0;-0.5).
+(M+m) dot.double(x)+m(-dot.double(x)-c_theta/(m ell) dot(theta)+g theta)=F,
+$
+$
+M dot.double(x)=F+c_theta/ell dot(theta)-m g theta.
 $
 
-Before using these matrices for control, MATLAB forms $cal(C)=[B,A B,A^2 B,A^3 B]$ and finds $"rank"(cal(C))=4$. Since the state dimension is four, the model is controllable.
+Dividing by $M$ and substituting the result back into the angular equation gives
 
-The comparison in Figure 1 uses identical initial states, $z(0)=(0,0,5 pi/180,0)^T$, and zero cart force. MATLAB integrates both sets of equations for 0.5 s with tight tolerances. The largest position difference is #fmt(1000*stats.model_comparison.max_x_difference_m, digits: 3) mm, and the largest angle difference is #fmt(stats.model_comparison.max_angle_difference_deg, digits: 4)#sym.degree. This checks agreement near upright. The longer release sweep then tests the controller when larger angles and actuator saturation weaken that approximation.
+$
+dot.double(x)=F/M-(m g)/M theta+c_theta/(M ell) dot(theta),
+$
+$
+dot.double(theta)=-F/(M ell)+((M+m)g)/(M ell) theta
+-(c_theta(M+m))/(M m ell^2) dot(theta).
+$
+
+These two second-order equations become four first-order equations by defining
+
+$
+z=mat(z_1;z_2;z_3;z_4)=mat(x;dot(x);theta;dot(theta)),
+quad dot(z)=mat(z_2;-(m g)/M z_3+c_theta/(M ell) z_4+F/M;z_4;((M+m)g)/(M ell) z_3-(c_theta(M+m))/(M m ell^2) z_4-F/(M ell)).
+$
+
+Collecting the state coefficients and force coefficients gives $dot(z)=A z+B F$. With the parameters in @tab-parameters, the matrices are
+
+$
+A=mat(0,1,0,0;0,0,-2.4525,0.005;0,0,0,1;0,0,12.2625,-0.025),
+quad B=mat(0;0.5;0;-0.5).
+$
+
+Before designing the controller, MATLAB forms the controllability matrix $cal(C)=[B,A B,A^2 B,A^3 B]$ and finds $"rank"(cal(C))=4$. The rank equals the four-state dimension, so the cart force can control all four states in this linear model.
+
+== Comparison procedure
+
+Having obtained the linear model, we compare it with the original nonlinear equations under identical initial conditions and inputs. Both models run without feedback for 1 s using MATLAB's ode45 solver, relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.002 s. The nonlinear calculation uses the same acceleration function as the Simulink plant. No actuator limit is applied to these prescribed-force comparisons.
+
+Because upright is unstable without feedback, 10 or 20 s would primarily compare motion far outside the linearization region. We instead tabulate absolute differences at 0.1, 0.25, and 0.5 s and show the complete first second. The errors are $e_x(t)=abs(x_"lin"(t)-x_"nonlin"(t))$ and $e_theta(t)=abs(theta_"lin"(t)-theta_"nonlin"(t))$, reported in metres and degrees. The curves use matching colors for each input, with solid lines for the nonlinear model and dashed lines for the linear model.
+
+#pagebreak()
+
+== Initial-angle comparisons
+
+First, we release both models from 2, 5, 10, 15, 20, 25, and 30#sym.degree, with zero cart position, zero velocities, and zero applied force. @fig-model-angles compares the motion, and @tab-model-angles reports the differences at the selected times.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr,), gutter: 8pt,
+    model-sweep(model_tests.angle_runs, "x_m", [Cart position (m)], [(a) Cart motion], unit: [#sym.degree], with-legend: true, legend-position: bottom + left),
+    model-sweep(model_tests.angle_runs, "theta_deg", [Pendulum angle (deg)], [(b) Pendulum motion], unit: [#sym.degree]),
+  )
+], caption: [Uncontrolled responses from seven initial angles over 1 s. Solid lines use the nonlinear equations; dashed lines use the upright linearization. Matching colors indicate matching initial angles.]) <fig-model-angles>
+
+#figure(model-error-table(model_tests.angle_runs, [Initial angle (deg)]),
+  kind: table, caption: [Absolute model differences following unforced releases. Each time has cart-position error $e_x$ in metres and angle error $e_theta$ in degrees.],
+) <tab-model-angles>
+
+At 0.5 s, the 2#sym.degree release differs by #fmt(model_tests.angle_runs.first().angle_error_deg.last(), digits: 3)#sym.degree and #fmt(1000*model_tests.angle_runs.first().x_error_m.last(), digits: 3) mm. At 30#sym.degree, those differences increase to #fmt(model_tests.angle_runs.last().angle_error_deg.last())#sym.degree and #fmt(model_tests.angle_runs.last().x_error_m.last(), digits: 3) m. The increasing differences show why the linear model is appropriate near upright and why larger releases require verification with the nonlinear plant.
+
+#pagebreak()
+
+== Applied-force comparisons
+
+Second, we start both models upright and at rest and apply a constant horizontal force from $t=0$. The six force levels are 0.5, 1, 2, 4, 8, and 16 N. @fig-model-inputs shows the responses, and @tab-model-inputs reports the differences. These are prescribed inputs for model validation, separate from the later controller tests with a 10 N actuator limit.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr,), gutter: 8pt,
+    model-sweep(model_tests.force_runs, "x_m", [Cart position (m)], [(a) Cart motion], unit: [ N], with-legend: true),
+    model-sweep(model_tests.force_runs, "theta_deg", [Pendulum angle (deg)], [(b) Pendulum motion], unit: [ N]),
+  )
+], caption: [Uncontrolled responses to six constant cart forces applied from upright at rest. Solid lines use the nonlinear equations; dashed lines use the upright linearization. Matching colors indicate matching forces.]) <fig-model-inputs>
+
+#figure(model-error-table(model_tests.force_runs, [Force (N)]),
+  kind: table, caption: [Absolute model differences under constant cart force. Each time has cart-position error $e_x$ in metres and angle error $e_theta$ in degrees.],
+) <tab-model-inputs>
+
+At 0.5 s, the 0.5 N input gives an angle difference of #fmt(model_tests.force_runs.first().angle_error_deg.last(), digits: 4)#sym.degree, while 16 N gives #fmt(model_tests.force_runs.last().angle_error_deg.last())#sym.degree. Stronger forces drive the pendulum farther from upright, increasing the effect of the nonlinear terms. Together, the release and force comparisons support using the linear model for local controller design. They also establish the need to test that controller on the nonlinear model, as done in Appendices C and D.
 
 #pagebreak()
 
@@ -320,7 +438,8 @@ Settling time is the first sampled time after which $abs(theta)$ stays within 1#
 The release tests defined in Appendix C produce the following metrics. The final-two-second RMS checks that a successful final angle is accompanied by sustained balance. The saturation percentage is measured on the analysis grid.
 
 #let release_entries = ((initial_angle_deg: 5, metrics: stats.perturbation),) + stats.angle_stress
-#table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 5pt),
+#figure(
+  table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 5pt),
   align: (x, y) => if y == 0 or x == 4 { left } else { right },
   table.hline(stroke: 0.8pt),
   table.header([Initial angle (deg)], [Peak cart displacement (m)], [Final 2 s RMS (deg)], [Saturation (%)], [Recovered]),
@@ -333,7 +452,9 @@ The release tests defined in Appendix C produce the following metrics. The final
     [#if entry.metrics.recovered { "Yes" } else { "No" }],
   )).flatten(),
   table.hline(stroke: 0.8pt),
-)
+), kind: table,
+  caption: [Release-test recovery, cart travel, and actuator saturation.],
+) <tab-release-metrics>
 
 #figure([
   #sweep(plots.angle_runs, "u_N", [Actuator command (N)], (0, 30), [Release-test actuator commands],
@@ -348,7 +469,8 @@ The tested 20#sym.degree case recovers but reaches #fmt(stats.angle_stress.at(1)
 
 The force sweep measures continuing balance while the disturbance remains active. Its angle, travel, and actuator metrics are
 
-#table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: (x: 5pt, y: 5pt),
+#figure(
+  table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: (x: 5pt, y: 5pt),
   align: (x, y) => if y == 0 { left } else { right },
   table.hline(stroke: 0.8pt),
   table.header([Bound (N)], [RMS angle (deg)], [Peak angle (deg)], [Peak cart displacement (m)], [Saturation (%)], [Peak command (N)]),
@@ -362,7 +484,9 @@ The force sweep measures continuing balance while the disturbance remains active
     [#fmt(entry.metrics.peak_command_N)],
   )).flatten(),
   table.hline(stroke: 0.8pt),
-)
+), kind: table,
+  caption: [Random-force balance, cart travel, and actuator demand.],
+) <tab-force-metrics>
 
 #figure([
   #sweep(plots.force_runs, "u_N", [Actuator command (N)], (0, 30), [Random-force actuator commands],

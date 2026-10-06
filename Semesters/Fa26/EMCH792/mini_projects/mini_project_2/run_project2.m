@@ -13,6 +13,7 @@ M = 2.0; m = 0.5; ell = 1.0; c_theta = 0.01; g = 9.81;
 force_limit = 10.0;
 [K, design] = design_controller(M, m, ell, c_theta, g);
 A = design.A;
+compare_models();
 build_controlled_model(K, force_limit);
 model = 'inverted_pendulum_controlled';
 
