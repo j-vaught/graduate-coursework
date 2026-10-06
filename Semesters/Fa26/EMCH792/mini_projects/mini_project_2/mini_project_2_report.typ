@@ -127,7 +127,7 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
   #show: lq.layout
   #let panel-size = (2.6in, 0.95in)
   #grid(columns: (1fr, 1fr), gutter: 5pt,
-    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 1), failed-from: 3, with-legend: true, legend-position: top + left),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 1), failed-from: 3, with-legend: true, legend-position: top + right),
     sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], data-size: panel-size, ylim: (-0.15, 3.2), failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], data-size: panel-size, ylim: (-20, 400), failed-from: 3),
@@ -142,7 +142,7 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
   #show: lq.layout
   #let panel-size = (2.6in, 0.95in)
   #grid(columns: (1fr, 1fr), gutter: 5pt,
-    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 1), failed-from: 3, with-legend: true),
+    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 1), failed-from: 3, with-legend: true, legend-position: bottom + right),
     sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 1), [(b) Cart detail], data-size: panel-size, failed-from: 3),
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 10), failed-from: 3),
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 1), [(d) Angle detail], data-size: panel-size, failed-from: 3),
