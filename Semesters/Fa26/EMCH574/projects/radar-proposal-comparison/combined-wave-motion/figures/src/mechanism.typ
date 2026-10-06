@@ -10,8 +10,11 @@
     import cetz.draw: *
 
     // Five aligned columns and three aligned rows. Every block is 48 by 18.
+    let horizontal-gap = 16
+    let column-pitch = 48 + horizontal-gap
+    let point(column, offset, y) = (column * column-pitch + offset, y)
     let block(column, row, label) = {
-      let x = column * 56
+      let x = column * column-pitch
       let y = row * 39
       rect((x, y), (x + 48, y + 18), fill: white, stroke: 0.8pt + ink)
       content((x + 24, y + 9), anchor: "center", label)
@@ -32,21 +35,23 @@
     block(3, 0, [Observation usability])
 
     // Wave forcing drives both mechanical branches on the same clock.
-    connect((48, 48), (56, 48))
-    connect((24, 57), (24, 68), (80, 68), (80, 78))
-    connect((48, 87), (56, 87))
-    connect((104, 48), (112, 48))
-    connect((104, 87), (112, 87))
-    connect((104, 54), (108, 54), (108, 81), (112, 81))
+    connect(point(0, 48, 48), point(1, 0, 48))
+    connect(point(0, 24, 57), point(0, 24, 68), point(1, 24, 68), point(1, 24, 78))
+    connect(point(0, 48, 87), point(1, 0, 87))
+    connect(point(1, 48, 48), point(2, 0, 48))
+    connect(point(1, 48, 87), point(2, 0, 87))
+    connect(point(1, 48, 54), point(1, 48 + horizontal-gap / 2, 54),
+      point(1, 48 + horizontal-gap / 2, 81), point(2, 0, 81))
 
     // Propagation and acquisition geometry feed the target-return model.
-    connect((160, 87), (168, 87))
-    connect((160, 48), (164, 48), (164, 81), (168, 81))
-    connect((192, 78), (192, 57))
-    connect((224, 48), (216, 48))
-    connect((192, 39), (192, 18))
+    connect(point(2, 48, 87), point(3, 0, 87))
+    connect(point(2, 48, 48), point(2, 48 + horizontal-gap / 2, 48),
+      point(2, 48 + horizontal-gap / 2, 81), point(3, 0, 81))
+    connect(point(3, 24, 78), point(3, 24, 57))
+    connect(point(4, 0, 48), point(3, 48, 48))
+    connect(point(3, 24, 39), point(3, 24, 18))
 
     // Position quality reaches usability independently of detection.
-    connect((136, 39), (136, 9), (168, 9))
+    connect(point(2, 24, 39), point(2, 24, 9), point(3, 0, 9))
   })
 }
