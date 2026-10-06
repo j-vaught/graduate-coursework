@@ -22,10 +22,6 @@
   (radar-x + arc-x-radius * calc.cos(angle),
    radar-height + arc-y-radius * calc.sin(angle))
 })
-#align(center)[
-  $H_s = 1$ m, $T_p = 9$ s, $h = 50$ m
-]
-#v(4mm)
 #lq.diagram(
   width: 150mm,
   height: 60mm,
@@ -35,14 +31,14 @@
   ylabel: [Elevation $eta$ (m)],
   xaxis: (ticks: (0, 100, 200, 300, 400, 500), subticks: none),
   yaxis: (ticks: (-1, -0.5, 0, 0.5, 1, 1.5), subticks: none),
-  legend: (position: bottom + right, dy: -100% - 4pt, radius: 0pt),
+  legend: (position: bottom + left, pad: 5pt, radius: 0pt),
   lq.plot(field.x_m, surface-values, label: [Surface at $t = 0$ s], mark: none),
   lq.plot((0, 500), (0, 0), label: [Mean water level], mark: none),
   lq.line((radar-x, radar-height), (end-x, radar-height),
     stroke: 0.9pt + black, tip: tiptoe.stealth),
   lq.line((radar-x, radar-height), (end-x, radar-height + spread),
     stroke: (paint: black, thickness: 0.8pt, dash: "dashed"),
-    tip: tiptoe.stealth, label: [Half-power directions]),
+    tip: tiptoe.stealth, label: [Half-power rays]),
   lq.line((radar-x, radar-height), object.lower_schematic_boundary_contact_m,
     stroke: (paint: black, thickness: 0.8pt, dash: "dashed"),
     tip: tiptoe.stealth),
@@ -64,3 +60,10 @@
     circle(radius: 3pt, fill: white, stroke: 0.8pt + black)),
   lq.place(25, 1.08, [Radar]),
 )
+
+#v(3mm)
+#align(center)[
+  #block(width: 150mm)[
+    Wave obstruction for $H_s = 1$ m, $T_p = 9$ s, and $h = 50$ m.
+  ]
+]

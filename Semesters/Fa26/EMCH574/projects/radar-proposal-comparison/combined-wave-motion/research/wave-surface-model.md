@@ -33,3 +33,7 @@ The radar symbol is located at x = 25 m and elevation 0.8 m in the preview. The 
 ## Shadowed object
 
 The rectangular object is centered at x = 375 m, with an illustrative width of 8 m and exposed height of 0.5 m above its local surface elevation. Its top is at elevation 0.347757 m. These dimensions are chosen illustration inputs, not measured target specifications. The radar-to-object-top path is computed in physical coordinates. Its first surface intersection is x = 326.402313 m, elevation 0.410551 m, found by a bracketed root of the exact 1024-component surface expression. The maximum positive intrusion before the object is 0.232429 m, so the object's top is geometrically occluded. The lower schematic half-power ray likewise stops at its own first surface intersection at x = 323.290679 m. The horizontal centerline and upper ray remain clear above the crest and pass over the object. Direct geometric occlusion does not establish zero received power; diffraction remains a separate model in Appendix B.
+
+## Preview layout
+
+The legend uses Lilaq's native legend with position bottom + left and 5 pt padding inside the data area. The half-power entry is shortened to keep the box clear of the nearby wave trough. The wave parameters appear in the caption below the graph rather than in a header.
