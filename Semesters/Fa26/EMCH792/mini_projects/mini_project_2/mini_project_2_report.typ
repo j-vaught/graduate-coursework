@@ -361,7 +361,7 @@ Second, we start both models upright and at rest and apply a constant horizontal
   )
 ], caption: [Uncontrolled responses to six constant cart forces applied from upright at rest. Solid lines use the nonlinear equations; dashed lines use the upright linearization. Matching colors indicate matching forces.]) <fig-model-inputs>
 
-#figure(model-error-table(model_tests.force_runs, [Force (N)]),
+#figure(model-error-table(model_tests.force_runs, [Force (N)], time-dividers: true),
   kind: table, caption: [Percentage model errors under constant cart force, relative to the nonlinear response at each comparison time.],
 ) <tab-model-inputs>
 
