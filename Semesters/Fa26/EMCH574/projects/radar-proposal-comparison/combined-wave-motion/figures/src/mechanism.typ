@@ -1,38 +1,52 @@
 #import "@preview/cetz:0.5.2" as cetz
-#let garnet=black
-#let ink=black
-#let pale=white
-#let arr=(end:"stealth",fill:ink,length:2.2mm,width:1.4mm)
-#let mechanism()={
+
+#let ink = black
+#let arrow = (end: "stealth", fill: ink, length: 2.2mm, width: 1.4mm)
+
+#let mechanism() = {
   show math.equation: set text(font: "Latin Modern Math")
-  set text(font:"Latin Modern Roman",size:8.8pt,fill:ink)
-  cetz.canvas(length:0.78mm, {
+  set text(font: "Latin Modern Roman", size: 8.8pt, fill: ink)
+  cetz.canvas(length: 0.7mm, {
     import cetz.draw: *
-    let box(x0,y0,x1,y1,a,b,accent:false)={
-      rect((x0,y0),(x1,y1),fill:pale,stroke:0.8pt+(if accent {garnet} else {ink}))
-      content(((x0+x1)/2,(y0+y1)/2+4),anchor:"center",a)
-      content(((x0+x1)/2,(y0+y1)/2-4),anchor:"center",b)
+
+    // Four aligned columns and three aligned rows. Every block is 48 by 18.
+    let block(column, row, label) = {
+      let x = column * 59
+      let y = row * 39
+      rect((x, y), (x + 48, y + 18), fill: white, stroke: 0.8pt + ink)
+      content((x + 24, y + 9), anchor: "center", label)
     }
-    box(0,46,38,66,[Shared waves],[Elevation / phase])
-    box(0,12,38,32,[Known target],[Shape / trajectory])
-    box(48,62,92,82,[Vessel response],[Roll / pitch / heave],accent:true)
-    box(48,29,92,49,[Target + surface],[Heave / wave profile],accent:true)
-    box(102,62,150,82,[Ray-time geometry],[Pose / beam offset])
-    box(102,29,150,49,[Wave-path factor],[Clearance / diffraction])
-    box(161,47,205,67,[Target echo],[Two-way power])
-    box(102,0,150,18,[Background],[Clutter / noise])
-    box(161,10,205,30,[Fixed detector],[Return / miss])
-    box(0,-15,92,5,[Reliability output],[Outage and position quality when detected],accent:true)
-    line((38,59),(43,59),(43,72),(48,72),stroke:0.9pt+ink,mark:arr)
-    line((38,50),(43,50),(43,39),(48,39),stroke:0.9pt+ink,mark:arr)
-    line((38,22),(43,22),(43,33),(48,33),stroke:0.9pt+ink,mark:arr)
-    line((92,72),(102,72),stroke:0.9pt+ink,mark:arr)
-    line((92,39),(102,39),stroke:0.9pt+ink,mark:arr)
-    line((92,64),(97,64),(97,44),(102,44),stroke:0.9pt+ink,mark:arr)
-    line((150,72),(156,72),(156,60),(161,60),stroke:0.9pt+ink,mark:arr)
-    line((150,39),(156,39),(156,52),(161,52),stroke:0.9pt+ink,mark:arr)
-    line((183,47),(183,30),stroke:0.9pt+ink,mark:arr)
-    line((150,9),(156,9),(156,17),(161,17),stroke:0.9pt+ink,mark:arr)
-    line((161,25),(98,25),(98,-5),(92,-5),stroke:0.9pt+ink,mark:arr)
+    let connect(..points) = {
+      line(..points.pos(), stroke: 0.9pt + ink, mark: arrow)
+    }
+
+    block(0, 2, [Wave forcing])
+    block(0, 1, [Target geometry])
+    block(1, 2, [Vessel dynamics])
+    block(1, 1, [Target–surface state])
+    block(2, 2, [Acquisition geometry])
+    block(2, 1, [Propagation transfer])
+    block(3, 2, [Target echo model])
+    block(3, 1, [Target detection])
+    block(2, 0, [Clutter and noise])
+    block(3, 0, [Observation usability])
+
+    // Wave forcing drives both mechanical branches on the same clock.
+    connect((48, 87), (59, 87))
+    connect((24, 78), (24, 68), (83, 68), (83, 57))
+    connect((48, 48), (59, 48))
+    connect((107, 87), (118, 87))
+    connect((107, 48), (118, 48))
+    connect((107, 81), (112, 81), (112, 54), (118, 54))
+
+    // Antenna geometry and propagation feed the target-return model.
+    connect((166, 87), (177, 87))
+    connect((166, 48), (171, 48), (171, 81), (177, 81))
+    connect((201, 78), (201, 57))
+    connect((166, 9), (171, 9), (171, 42), (177, 42))
+    connect((201, 39), (201, 18))
+
+    // The external route carries position quality independently of detection.
+    connect((142, 96), (142, 107), (233, 107), (233, 9), (225, 9))
   })
 }
