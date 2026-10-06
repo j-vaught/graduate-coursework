@@ -52,3 +52,7 @@ It writes to `tmp/matlab/illustrative_results.json` and retains the executed fig
 `references.bib` is the centralized bibliography. Records under `research/` document literature, data observables, paper models, and technical review. `evidence.md` records final scope and verification. The IPIX example documents measured return variability rather than selecting an evaluation dataset. The full coupling needs independently synchronized wave, vessel, target, and radar measurements. The expanded benchmark distinguishes physical interventions from predictor inputs, uses grouped independent realizations, and justifies proposed numerical settings through calculations and primary sources.
 
 The complete project compiles through `latexmk`. The single-file editor preview cannot resolve the external figure PDFs and bibliography; use the saved PDF or the full project build for the complete document.
+
+## Separate observation-mechanism previews
+
+Three reviewed alternatives to the combined observation schematic are available as `wave-obstruction`, `beam-misalignment`, and `scan-time-error` in `figures/generated`, each with PDF and PNG exports. Each has its own Typst source in `figures/src`. The beam diagram shows half-power directions rather than hard beam boundaries, and the timing diagram isolates the constant-heading translation error in plan view. Geometry checks are recorded in `research/observation-diagram-review.md`. The proposal retains the original observation figure pending selection.
