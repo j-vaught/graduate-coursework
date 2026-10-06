@@ -56,3 +56,7 @@ The complete project compiles through `latexmk`. The single-file editor preview 
 ## Separate observation-mechanism previews
 
 Three reviewed alternatives to the combined observation schematic are available as `wave-obstruction`, `beam-misalignment`, and `scan-time-error` in `figures/generated`, each with PDF and PNG exports. Each has its own Typst source in `figures/src`. The beam diagram shows half-power directions rather than hard beam boundaries, and the timing diagram isolates the constant-heading translation error in plan view. Geometry checks are recorded in `research/observation-diagram-review.md`. The proposal retains the original observation figure pending selection.
+
+## Mathematical wave-surface preview
+
+`figures/generated/wave-surface.pdf` and its PNG show a reproducible irregular Airy-wave realization using the ISSC/Bretschneider spectrum. Run `uv run python src/wave_surface.py` to regenerate the numeric field, then compile `figures/src/wave-surface.typ` with Typst. Parameters and equation provenance are in `research/wave-surface-model.md`. The wave-only preview is a preparation step for replacing the obstruction diagram's illustrative sea profile.
