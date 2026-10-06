@@ -9,7 +9,7 @@ mkdir -p figures/generated
 for figure in mechanism geometry; do
     typst compile --root . "figures/src/$figure-standalone.typ" "figures/generated/$figure.pdf"
 done
-for diagram in wave-obstruction beam-misalignment scan-time-error; do
+for diagram in wave-obstruction beam-misalignment scan-time-error scan-time-error-simple; do
     typst compile --root . "figures/src/$diagram.typ" "figures/generated/$diagram.pdf"
     typst compile --root . --ppi 180 "figures/src/$diagram.typ" "figures/generated/$diagram.png"
 done

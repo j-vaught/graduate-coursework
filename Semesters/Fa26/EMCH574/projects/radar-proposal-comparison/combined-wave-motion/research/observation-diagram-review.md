@@ -21,3 +21,7 @@ Checked source coordinates and inspected full-resolution PNG exports after revis
 ## Beam figure integration
 
 The beam-misalignment figure is inserted in Appendix B with the approved caption. Blue centerline/half-power directions and orange target-direction/offset arc are imported directly from Lilaq 0.6.0's default petroff10 palette, rather than manually approximated color values. Labels and symbols remain black, and geometry is unchanged. No legend is added to this schematic.
+
+## Simplified scan-time preview
+
+The new `scan-time-error-simple` preview retains four positions and one position-error arrow. Actual radar (25,16) and true target (70,53) share displacement (45,37), identical to the displacement from assumed radar (75,16) to reconstructed target (120,53). The mapping error (50,0) equals the incorrectly assigned origin displacement. This is a plan view under constant heading. Source colors are Lilaq's default blue and orange; solid versus dashed lines also separate the two mappings. Caption candidate. Scan-time position error under constant heading. Applying the scan-midpoint radar position shifts the reconstructed target by the radar displacement, giving E_h = U abs(t_i - t_mid). No caption is embedded in the figure, and the report is unchanged pending selection.
