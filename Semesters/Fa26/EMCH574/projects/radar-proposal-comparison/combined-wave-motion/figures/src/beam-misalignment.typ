@@ -1,11 +1,14 @@
 #import "@preview/cetz:0.5.2" as cetz
+#import "@preview/lilaq:0.6.0" as lq
 
 #set page(width: 6.5in, height: 3in, margin: 0pt)
 #set text(font: "Latin Modern Roman", size: 10pt, fill: black)
 #show math.equation: set text(font: "Latin Modern Math")
 
 #let ink = rgb("#000000")
-#let arrow = (end: "stealth", fill: ink, length: 2.4mm, width: 1.5mm)
+#let beam-color = lq.color.map.petroff10.at(0)
+#let target-color = lq.color.map.petroff10.at(1)
+#let arrow(color) = (end: "stealth", fill: color, length: 2.4mm, width: 1.5mm)
 #let origin = (18, 42)
 #let ray-length = 120
 #let half-angle = 9deg
@@ -23,14 +26,14 @@
 
     // Exact symmetric half-power directions about the beam centerline.
     line(origin, polar(ray-length, half-angle),
-      stroke: (paint: ink, thickness: 0.8pt, dash: "dashed"))
+      stroke: (paint: beam-color, thickness: 0.8pt, dash: "dashed"))
     line(origin, polar(ray-length, -half-angle),
-      stroke: (paint: ink, thickness: 0.8pt, dash: "dashed"))
-    line(origin, polar(ray-length + 5, 0deg), stroke: 1.1pt + ink, mark: arrow)
+      stroke: (paint: beam-color, thickness: 0.8pt, dash: "dashed"))
+    line(origin, polar(ray-length + 5, 0deg), stroke: 1.1pt + beam-color, mark: arrow(beam-color))
 
     // Target direction lies beyond the lower half-power direction.
     let target-center = polar(116, target-angle)
-    line(origin, polar(109, target-angle), stroke: 1.1pt + ink, mark: arrow)
+    line(origin, polar(109, target-angle), stroke: 1.1pt + target-color, mark: arrow(target-color))
     rect(
       (target-center.at(0) - 2.3, target-center.at(1) - 2.3),
       (target-center.at(0) + 2.3, target-center.at(1) + 2.3),
@@ -40,9 +43,9 @@
 
     // Angular definitions. The arc endpoints use the same angles as the rays.
     arc(origin, radius: 28, start: -half-angle, stop: half-angle, anchor: "origin",
-      stroke: 0.9pt + ink)
+      stroke: 0.9pt + beam-color)
     arc(origin, radius: 38, start: target-angle, stop: 0deg, anchor: "origin",
-      stroke: 0.9pt + ink)
+      stroke: 0.9pt + target-color)
 
     // Radar symbol and uncluttered labels.
     rect((origin.at(0) - 2.5, origin.at(1) - 2.5),
