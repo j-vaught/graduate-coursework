@@ -14,6 +14,7 @@ force_limit = 10.0;
 [K, design] = design_controller(M, m, ell, c_theta, g);
 A = design.A;
 compare_models();
+controller_studies();
 build_controlled_model(K, force_limit);
 model = 'inverted_pendulum_controlled';
 

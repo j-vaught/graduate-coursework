@@ -3,6 +3,7 @@
 #let plots = json("plot_data.json")
 #let stats = json("metrics.json")
 #let model_tests = json("model_comparisons.json")
+#let ctrl = json("controller_studies.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 #let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
 #let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, yscale: "linear", failed-from: 99, with-legend: false, legend-position: top + right, data-size: none) = {
@@ -109,6 +110,37 @@
         error-value(run.angle_error_percent.at(i)))).flatten())).flatten(),
     table.hline(stroke: 0.8pt),
   )
+}
+
+#let ctrl-panel(runs, field, ylabel, panel, limit: (0, 30), size: (2.6in, 1in), labels: none, with-legend: false) = {
+  set text(size: 8pt)
+  lq.diagram(width: size.first(), height: size.last(), title: panel,
+    xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
+    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
+      else if limit.last() == 10 { (0, 5, 10) }
+      else if limit.last() == 3 { (0, 1, 2, 3) }
+      else { (0, 0.5, 1) }),
+    legend: if with-legend { (position: top + right, radius: 0pt) } else { none },
+    ..runs.enumerate().map(pair => {
+      let (i, run) = pair
+      let indices = run.time_s.enumerate().filter(pair => pair.last() <= limit.last()).map(pair => pair.first())
+      lq.plot(indices.map(j => run.time_s.at(j)), indices.map(j => run.at(field).at(j)),
+        mark: none, color: colors.at(i),
+        label: if labels == none { none } else { labels.at(i) },
+        stroke: (thickness: 1pt, dash: if i == 0 { "solid" } else if i == 1 { "dashed" } else { "dotted" }))
+    }),
+  )
+}
+#let ctrl-force(test, panel, with-legend: false) = {
+  let unlimited = test.unlimited
+  let limited = test.limited
+  let runs = (
+    (time_s: unlimited.time_s, force_N: unlimited.applied_N),
+    (time_s: limited.time_s, force_N: limited.requested_N),
+    (time_s: limited.time_s, force_N: limited.applied_N),
+  )
+  ctrl-panel(runs, "force_N", [Force (N)], panel, limit: (0, 3), size: (2.6in, 0.9in),
+    labels: ([Unlimited], [Requested, limited], [Applied, limited]), with-legend: with-legend)
 }
 
 #let velocity(field, ylabel, height: 2.6in) = {
@@ -359,38 +391,143 @@ At 0.5 s, the 0.5 N input gives an angle error of #fmt(model_tests.force_runs.fi
 
 #pagebreak()
 
-= Appendix B. LQR design and essential MATLAB functions
+= Appendix B. Controller selection, LQR design, and verification
 
-With the controllable model from Appendix A, we choose a gain that minimizes the accumulated state error and force cost,
+With the controllable linear model from Appendix A, we next choose how to generate the cart force. A proportional-integral-derivative (PID) controller combines the current output error, its accumulated history, and its rate of change. Its gains can be tuned from measured responses or with a model @MathWorks2026PIDData. For this plant, controlling angle and cart position with PID would require coordinating the two objectives, for example through nested loops.
 
-$
-J = integral_0^infinity (4x^2 + 2dot(x)^2 + 300theta^2 + 10dot(theta)^2 + 0.5u^2) dif t.
-$
+Pole-placement feedback also uses a model and the system states. The designer selects the desired closed-loop poles, and MATLAB calculates a gain that produces them @MathWorks2026PolePlacement. This directly specifies response modes but does not explicitly assign a cost to actuator effort. A linear quadratic regulator (LQR) instead calculates state feedback from penalties on state deviations and force. Model predictive control (MPC) repeatedly predicts future motion and optimizes a sequence of inputs while accounting for constraints @MathWorks2026MPC. It can represent force and track limits directly, but requires an optimization at each control update.
 
-Here $x$ is in meters, $theta$ is in radians, and $u$ is in newtons. The state-error matrix is $Q="diag"(4,2,300,10)$, and the input penalty is $R=0.5$. These weights were selected to prioritize upright balance, retain a penalty on cart displacement, damp velocity, and discourage excessive force. They are tuning choices, rather than coefficients derived from the mechanical equations.
+We select LQR because the model and all four simulated states are available. A single feedback law can address pendulum balance and cart motion together, and its cost function provides a direct way to trade motion against force demand. The resulting gain is calculated once and applied through a matrix multiplication. Unlike constrained MPC, this LQR design does not enforce the actuator limit; we examine that limit separately below.
 
-MATLAB solves the algebraic Riccati equation through its LQR routine. It returns
+To calculate the gain, we minimize the accumulated quadratic cost,
 
 $
-u=-K z, quad K=(-2.8284,-6.3204,-86.8641,-25.2346).
+J=integral_0^infinity (z^T Q z+R u^2) dif t
+=integral_0^infinity (4x^2+2dot(x)^2+300theta^2+10dot(theta)^2+0.5u^2) dif t.
 $
 
-The poles of $A-B K$ are $-0.699 plus.minus 0.548i$ and $-4.042 plus.minus 1.125i$. Their negative real parts establish stability of the linear closed loop. To verify the corresponding time response, we also simulate it from a 5#sym.degree release with no disturbance. Its final state norm after 30 s is approximately $#fmt(stats.design.linear_final_state_norm * 1e10, digits: 2) times 10^(-10)$.
+Here $x$ is measured in meters, $theta$ in radians, and $u$ in newtons. The four diagonal entries of $Q$ penalize cart position, cart velocity, pendulum angle, and angular velocity in that order. The scalar $R$ penalizes force. Increasing a weight makes the corresponding squared quantity more expensive in the optimization. Since the states have different units, the coefficients must be interpreted together with those units; their numerical sizes alone do not establish relative importance.
 
-#figure([
-  #set text(size: 10pt)
-  #lq.diagram(width: 100%, height: 0% + 2.8in,
-    xlabel: [Time (s)], ylabel: [Pendulum angle (deg)], xlim: (0, 30),
-    lq.plot(plots.linear_closed_loop.time_s, plots.linear_closed_loop.theta_deg,
-      mark: none, color: colors.first(), stroke: (thickness: 1.2pt)),
-  )
-], caption: [Linear closed-loop response used to verify the designed gain.])
+The baseline settings in @tab-lqr-design are tuning choices. MATLAB's `lqr` function solves the algebraic Riccati equation and returns the gain $K$ and the poles of $A-B K$ @MathWorks2026LQR. The control law is $u=-K z$. All four poles have negative real parts, establishing stability of the unlimited linear closed loop. The following tests examine its response and assess the weight choices.
 
-The nonlinear model in Appendix E uses this same gain, with its command limited to $plus.minus 10$ N. The nonlinear sweeps therefore evaluate how the linear design performs when the exact equations and force limit are restored.
+#figure(table(columns: (1fr, 3.8fr), inset: (x: 6pt, y: 5pt), align: left,
+  table.hline(stroke: 0.8pt), table.header([Quantity], [Baseline value]),
+  table.hline(stroke: 0.5pt),
+  [$Q$], [$"diag"(4,2,300,10)$],
+  [$R$], [0.5],
+  [$K$], [$(-2.8284,-6.3204,-86.8641,-25.2346)$],
+  [Slow pole pair], [$-0.699 plus.minus 0.548i$],
+  [Fast pole pair], [$-4.042 plus.minus 1.125i$],
+  table.hline(stroke: 0.8pt),
+), kind: table, caption: [Baseline LQR settings, feedback gain, and closed-loop poles.]) <tab-lqr-design>
 
 #pagebreak()
 
-The controller design is implemented by the following function. It constructs the matrices, checks controllability, computes the gain, and checks the closed-loop poles.
+First, we compare the uncontrolled and baseline LQR-controlled linear plants from the same 5#sym.degree release, with the cart at the origin and both velocities zero. @fig-feedback-short shows the first second. The uncontrolled angle grows away from upright, while feedback reverses that growth. The cart initially moves to correct the pendulum angle; keeping the cart stationary throughout this transient would prevent that corrective motion.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 8pt,
+    ctrl-panel((ctrl.baseline, ctrl.uncontrolled), "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 1), size: (2.6in, 1.15in), labels: ([LQR], [No feedback]), with-legend: true),
+    ctrl-panel((ctrl.baseline, ctrl.uncontrolled), "x_m", [Position (m)], [(b) Cart position], limit: (0, 1), size: (2.6in, 1.15in)),
+  )
+], caption: [Effect of LQR feedback during the first second of a 5#sym.degree release on the linear plant.]) <fig-feedback-short>
+
+The longer response in @fig-feedback-long shows the cart returning toward the origin as the pendulum settles. These simulations use ode45 with relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.005 s. Results are evaluated every 0.01 s over 30 s, with every second sample used for plotting. Unlimited responses are checked against the matrix-exponential solution at the final time.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr,), gutter: 6pt,
+    ctrl-panel((ctrl.baseline,), "theta_deg", [Angle (deg)], [(a) Pendulum angle], size: (5.8in, 0.85in)),
+    ctrl-panel((ctrl.baseline,), "x_m", [Position (m)], [(b) Cart position], size: (5.8in, 0.85in)),
+    ctrl-panel((ctrl.baseline,), "applied_N", [Force (N)], [(c) Actuator force], size: (5.8in, 0.85in)),
+  )
+], caption: [Baseline unlimited LQR response over 30 s on the linear plant, starting from 5#sym.degree.]) <fig-feedback-long>
+
+For this appendix, joint settling time $t_s$ is the first sampled time after which both $abs(theta)<=1 degree$ and $abs(x)<=0.02$ m hold through the end of the run. The baseline meets these conditions at #fmt(ctrl.baseline.metrics.settling_time_s) s, with peak cart displacement #fmt(ctrl.baseline.metrics.peak_x_m, digits: 3) m and peak force #fmt(ctrl.baseline.metrics.peak_requested_N) N. Its final state norm is $#fmt(ctrl.baseline.metrics.final_state_norm * 1e10) times 10^(-10)$, consistent with convergence to equilibrium.
+
+#pagebreak()
+
+Having verified the baseline response, we vary one penalty at a time to assess the tuning tradeoffs. All runs use the same linear plant, unlimited actuator, and 5#sym.degree release. In @fig-angle-weights, the angle penalty $q_theta$ takes values of 100, 300, and 900, while the remaining state weights and $R=0.5$ stay fixed. In @fig-force-weights, $R$ takes values of 0.1, 0.5, and 2, while $Q="diag"(4,2,300,10)$ stays fixed. The response details show the first 10 s; the metrics use all 30 s.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr, 1fr), gutter: 6pt,
+    ctrl-panel(ctrl.angle_weights, "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 10), size: (1.65in, 1.2in), labels: ([100], [300], [900]), with-legend: true),
+    ctrl-panel(ctrl.angle_weights, "x_m", [Position (m)], [(b) Cart position], limit: (0, 10), size: (1.65in, 1.2in)),
+    ctrl-panel(ctrl.angle_weights, "applied_N", [Force (N)], [(c) Actuator force], limit: (0, 10), size: (1.65in, 1.2in)),
+  )
+], caption: [Effect of changing the angle penalty $q_theta$ from the baseline value of 300. The legend gives $q_theta$; all other penalties remain fixed.]) <fig-angle-weights>
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr, 1fr), gutter: 6pt,
+    ctrl-panel(ctrl.force_weights, "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 10), size: (1.65in, 1.2in), labels: ([0.1], [0.5], [2]), with-legend: true),
+    ctrl-panel(ctrl.force_weights, "x_m", [Position (m)], [(b) Cart position], limit: (0, 10), size: (1.65in, 1.2in)),
+    ctrl-panel(ctrl.force_weights, "applied_N", [Force (N)], [(c) Actuator force], limit: (0, 10), size: (1.65in, 1.2in)),
+  )
+], caption: [Effect of changing the force penalty $R$ from the baseline value of 0.5. The legend gives $R$; all state penalties remain fixed.]) <fig-force-weights>
+
+To quantify these differences, @tab-weight-results reports the joint settling time $t_s$, peak cart displacement $x_"peak"$, peak requested force $u_"peak"$, and force effort $E_u=integral_0^(30) u(t)^2 dif t$. The baseline appears once because it belongs to both sweeps.
+
+#let tuning-runs = ctrl.angle_weights + (ctrl.force_weights.first(), ctrl.force_weights.last())
+#figure(table(columns: (0.6fr, 0.6fr, 1fr, 1fr, 1fr, 1.2fr), inset: (x: 5pt, y: 5pt),
+  align: (x, y) => if y == 0 { center } else { right },
+  table.hline(stroke: 0.8pt),
+  table.header([$q_theta$], [$R$], [$t_s$ (s)], [$x_"peak"$ (m)], [$u_"peak"$ (N)], [$E_u$ (N² s)]),
+  table.hline(stroke: 0.5pt),
+  ..tuning-runs.map(run => ([#str(run.q_theta)], [#str(run.R)],
+    [#fmt(run.metrics.settling_time_s)], [#fmt(run.metrics.peak_x_m, digits: 3)],
+    [#fmt(run.metrics.peak_requested_N)], [#fmt(run.metrics.effort_N2_s)])).flatten(),
+  table.hline(stroke: 0.8pt),
+), kind: table, caption: [Weight-sweep metrics for the unlimited linear plant following a 5#sym.degree release.]) <tab-weight-results>
+
+Increasing $q_theta$ from 100 to 900 reduces peak cart travel from 0.310 to 0.281 m, but raises peak force from 7.16 to 8.62 N and joint settling time from 4.64 to 5.49 s. Reducing $R$ to 0.1 gives faster settling and less travel, but its 11.38 N peak exceeds the intended actuator limit. Increasing $R$ to 2 reduces force effort but increases travel and settling time. The baseline retains a peak force below 10 N for this release while recovering faster and using less travel than $R=2$. We therefore retain it as a compromise for the nonlinear tests.
+
+#pagebreak()
+
+The preceding LQR calculations assume that the actuator can deliver every requested force. We now isolate the effect of its 10 N limit by using the same linear plant and gain with either $u=-K z$ or $u="sat"(-K z)$, where saturation clips the command to $[-10,10]$ N. We test 5#sym.degree and 20#sym.degree releases without disturbance. The larger release activates the force limit. @fig-limit-motion compares the angle and cart responses, while @fig-limit-force distinguishes the requested command from the applied force.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 6pt,
+    ctrl-panel((ctrl.saturation.first().unlimited, ctrl.saturation.first().limited), "theta_deg", [Angle (deg)], [(a) 5° angle], limit: (0, 10), size: (2.6in, 0.85in), labels: ([Unlimited], [Limited]), with-legend: true),
+    ctrl-panel((ctrl.saturation.first().unlimited, ctrl.saturation.first().limited), "x_m", [Position (m)], [(b) 5° cart], limit: (0, 10), size: (2.6in, 0.85in)),
+    ctrl-panel((ctrl.saturation.last().unlimited, ctrl.saturation.last().limited), "theta_deg", [Angle (deg)], [(c) 20° angle], limit: (0, 10), size: (2.6in, 0.85in)),
+    ctrl-panel((ctrl.saturation.last().unlimited, ctrl.saturation.last().limited), "x_m", [Position (m)], [(d) 20° cart], limit: (0, 10), size: (2.6in, 0.85in)),
+  )
+], caption: [Linear-plant responses with unlimited (solid) and 10 N limited (dashed) feedback.]) <fig-limit-motion>
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 6pt,
+    ctrl-force(ctrl.saturation.first(), [(a) 5° release], with-legend: true),
+    ctrl-force(ctrl.saturation.last(), [(b) 20° release]),
+  )
+], caption: [Unlimited force, limited-loop requested force, and limited-loop applied force over the first 3 s. Applied force is clipped at $plus.minus 10$ N.]) <fig-limit-force>
+
+@tab-limit-results summarizes these runs. Recovery requires the angle and cart position to remain within the settling bounds during the final 2 s. Saturation duration is the time for which the requested command exceeds 10 N in magnitude, estimated on the 0.01 s analysis grid.
+
+#figure(table(columns: (0.8fr, 1fr, 0.9fr, 1fr, 1fr, 1fr), inset: (x: 5pt, y: 4pt),
+  align: (x, y) => if y == 0 or x == 1 or x == 2 { left } else { right },
+  table.hline(stroke: 0.8pt),
+  table.header([Release (deg)], [Actuator], [Recovered], [$t_s$ (s)], [Saturated (s)], [$u_"peak"$ (N)]),
+  table.hline(stroke: 0.5pt),
+  ..ctrl.saturation.map(test => ("unlimited", "limited").map(mode => {
+    let metrics = test.at(mode).metrics
+    ([#str(test.initial_angle_deg)], [#if mode == "unlimited" { "Unlimited" } else { "10 N limit" }],
+      [#if metrics.recovered { "Yes" } else { "No" }],
+      [#if metrics.settling_time_s == none { "—" } else { fmt(metrics.settling_time_s) }],
+      [#fmt(metrics.saturation_duration_s)], [#fmt(metrics.peak_requested_N)])
+  }).flatten()).flatten(),
+  table.hline(stroke: 0.8pt),
+), kind: table, caption: [Linear-plant recovery and actuator saturation with the baseline gain. Peak force is the requested command.]) <tab-limit-results>
+
+At 5#sym.degree, the requested force remains below 10 N, so the unlimited and limited responses coincide. At 20#sym.degree, the limit increases settling time from 7.61 to 9.28 s and peak cart travel from 1.201 to 2.504 m. The actuator saturates for approximately 0.62 s, but the system still recovers. Once clipping occurs, the dynamics are no longer governed by the fixed matrix $A-B K$ alone. Its stable poles therefore do not guarantee recovery for arbitrary releases. Appendix D tests the limited controller on the nonlinear plant.
+
+#pagebreak()
+
+The preceding calculations are implemented by the controller-design function below. It constructs the linear model from the mechanical parameters, checks controllability, calculates the baseline gain, and verifies the unlimited closed-loop poles. The separate `controller_studies.m` file runs the response, weight, and saturation comparisons and exports the data used in this appendix.
 
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#ECECEC"),
   stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt)[
@@ -399,11 +536,11 @@ The controller design is implemented by the following function. It constructs th
 ]
 #raw(read("design_controller.m"), lang: "matlab", block: true)
 
-The nonlinear Simulink block then uses the function below to calculate the two accelerations. Its eighth input is the total cart force.
+To apply the same gain to the original nonlinear plant, the Simulink block uses the acceleration function below. Its eighth input is the total cart force after actuator limiting and disturbance addition.
 
 #raw(read("controlled_accelerations.m"), lang: "matlab", block: true)
 
-The separate model builder and experiment script remain runnable files alongside the report.
+Appendix E shows how these functions connect through the feedback loop. With the gain fixed, Appendix C defines the nonlinear release and random-force test protocol, and Appendix D reports the resulting operating limits.
 
 #pagebreak()
 #set page(flipped: false, margin: 1in)
