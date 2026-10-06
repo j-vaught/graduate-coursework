@@ -4,10 +4,11 @@
 #let stats = json("metrics.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 #let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
-#let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, failed-from: 99, with-legend: false, legend-position: top + right) = {
+#let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, failed-from: 99, with-legend: false, legend-position: top + right, data-size: none) = {
   set text(size: if height > 2in { 10pt } else { 8pt })
   lq.diagram(
-    width: 100%, height: 0% + height, title: panel,
+    width: if data-size == none { 100% } else { data-size.first() },
+    height: if data-size == none { 0% + height } else { data-size.last() }, title: panel,
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit, ylim: ylim,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
@@ -121,11 +122,13 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
 #pagebreak()
 
 #figure([
+  #show: lq.layout
+  #let panel-size = (2.6in, 0.95in)
   #grid(columns: (1fr, 1fr), gutter: 5pt,
-    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], height: 1.35in, failed-from: 3, with-legend: true, legend-position: top + left),
-    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], height: 1.35in, ylim: (-0.15, 3.2), failed-from: 3),
-    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], height: 0.95in, failed-from: 3),
-    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], height: 0.95in, ylim: (-20, 65), failed-from: 3),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, failed-from: 3, with-legend: true, legend-position: top + left),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], data-size: panel-size, ylim: (-0.15, 3.2), failed-from: 3),
+    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, failed-from: 3),
+    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], data-size: panel-size, ylim: (-20, 65), failed-from: 3),
   )
 ], caption: [Initial-angle sweep. Dashed traces indicate initial angles where the controller failed to stabilize.]) <fig-releases>
 
