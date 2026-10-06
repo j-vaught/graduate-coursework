@@ -149,7 +149,7 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 10), failed-from: 3),
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 3), [(d) Angle detail], data-size: panel-size, failed-from: 3),
     forcing((0, 30), [(e) Applied random forces], data-size: panel-size),
-    forcing((0, 3), [(f) Force detail], data-size: panel-size, ylim: (-10, 5)),
+    forcing((0, 3), [(f) Force detail], data-size: panel-size, ylim: (-10, 10)),
   )
 ], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed. Panels (a,c) use symmetric log scales, linear within $plus.minus 1$ m and $plus.minus 10 degree$, respectively.]) <fig-forces>
 
