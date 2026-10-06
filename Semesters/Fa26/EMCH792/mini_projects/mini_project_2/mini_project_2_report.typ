@@ -28,12 +28,12 @@
   )
 }
 
-#let forcing(limit, panel, height: 1.05in, data-size: none) = {
+#let forcing(limit, panel, height: 1.05in, data-size: none, ylim: auto) = {
   set text(size: 8pt)
   lq.diagram(
     width: if data-size == none { 100% } else { data-size.first() },
     height: if data-size == none { 0% + height } else { data-size.last() }, title: panel,
-    xlabel: [Time (s)], ylabel: [Disturbance (N)], xlim: limit,
+    xlabel: [Time (s)], ylabel: [Disturbance (N)], xlim: limit, ylim: ylim,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
     legend: none,
@@ -147,7 +147,7 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, failed-from: 3),
     sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 1), [(d) Angle detail], data-size: panel-size, failed-from: 3),
     forcing((0, 30), [(e) Applied random forces], data-size: panel-size),
-    forcing((0, 1), [(f) Force detail], data-size: panel-size),
+    forcing((0, 1), [(f) Force detail], data-size: panel-size, ylim: (-10, 5)),
   )
 ], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed.]) <fig-forces>
 
