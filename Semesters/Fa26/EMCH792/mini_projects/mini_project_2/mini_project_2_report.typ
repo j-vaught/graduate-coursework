@@ -255,7 +255,9 @@ $
 
 Consequently, $sin(theta) approx theta$ and $cos(theta) approx 1$ retain the first-order behavior near upright. These approximations become accurate as the angle approaches zero. For example, at 5#sym.degree, replacing $sin(theta)$ by $theta$ introduces approximately 0.13% relative error, and replacing $cos(theta)$ by one introduces approximately 0.38% relative error.
 
-The centrifugal term also contains products of small deviations. If $theta$ and $dot(theta)$ are each of order $epsilon$, then $sin(theta) dot(theta)^2$ is of order $epsilon^3$. It therefore contributes no first-order term. Substituting these approximations gives
+We also simplify the centrifugal term, $m ell sin(theta) dot(theta)^2$, which represents the horizontal effect of the pendulum's rotational motion on the cart. Near upright, replacing $sin(theta)$ by $theta$ makes this term approximately $m ell theta dot(theta)^2$. It contains three factors that approach zero near the stationary equilibrium. One is the angle $theta$, and the other two are the angular velocity $dot(theta)$ multiplied by itself.
+
+A first-order model retains terms proportional to a single small deviation, such as $theta$, $dot(theta)$, or $F$. The centrifugal term instead multiplies these deviations together. For example, reducing both the angle and angular velocity by a factor of ten reduces $theta dot(theta)^2$ by a factor of one thousand, while the retained gravity and damping terms decrease by only a factor of ten. Its effect therefore becomes much smaller than the retained terms as the motion approaches upright and rest. We discard it in this local linear model. This step assumes both a small angle and a small angular velocity; a small angle alone does not justify discarding it during rapid rotation. With this term removed and the trigonometric approximations substituted, the equations become
 
 $
 (M+m) dot.double(x)+m ell dot.double(theta)=F,
