@@ -1,5 +1,7 @@
 # Marine radar project comparison
 
+The selected combined direction is [Predicting Small-Target Radar Reliability Under Wave-Driven Vessel Motion](combined-wave-motion/proposal.pdf). It develops the two mechanisms below into a two-page main proposal with technical appendices, a common-state benchmark, computed figures, and a staged validation plan. Its [source and reproduction notes](combined-wave-motion/README.md) accompany the document.
+
 Prepared for EMCH574 by J.C. Vaught. Each proposal contains a standalone one-page sponsor pitch followed by a technical appendix. The appendices compare prior work, explain the mechanics, state the benchmark design, and distinguish analytical illustrations from future experimental validation.
 
 | Decision factor | Wave-conditioned detection interruptions | Whole-scan attitude correction |

@@ -1,0 +1,29 @@
+# Technical evidence and verification
+
+J.C. Vaught. Prepared 6 October 2026.
+
+The proposal joins wave-conditioned interruption forecasting and scan-time attitude correction through one shared mechanical state. Its primary outcome is a usable observation, defined by a detector return and a declared position tolerance. It compares predictors on common observations and labels within each physical truth world. A separate paired experiment compares correction methods, because the usable-observation label depends on the correction used.
+
+**Claims and boundaries.**
+
+The study is proposed. Preparation has executed the deterministic coupled illustration, a published surface-visibility model, the constant-motion limit of a published mapping method, and a measured IPIX power-gate pilot. The coupled illustration uses a prescribed deep-water sinusoid, linear modes driven by shared phase, rotated sensor separation, a Gaussian elevation beam, a dominant-edge surrogate, reciprocal two-way power, and a known-plane inverse. Synthetic clutter/noise trials, the spatial detector, learned forecasts, and the coupled field benchmark remain project work.
+
+The illustration samples phase uniformly rather than reproducing scheduled target visits. Its availability fraction is a target-power gate result, rather than detection probability. Its geometric trace is evaluated even where power is rejected and is reported separately from detected-return accuracy. The proposed rotating-scan benchmark will use actual ray timestamps and joint missingness and location metrics.
+
+The radio wavelength is 0.03 m for this illustrative X-band propagation case. CANOE's Navtech RAS6 is a different 76-77 GHz sensor; its public pilot tests geometry rather than validating X-band sea-target scattering. The knife-edge approximation is a limiting obstacle model. A moving reflective sea crest, coherent phase, multipath, and backscatter require separate treatment. Target cross section and detector processing remain explicit in the proposed model.
+
+**Literature verification.**
+
+The bibliography identifies established target detection, ocean backscatter, diffraction illumination, spinning-radar correction, registration, and vertical-motion work. Primary sources and exact DOI records are linked in `research/literature.md`. Parent review corrected author names, titles, and page ranges before document compilation. Crossref returned matching records for Panagopoulos, Janssen, and McCann in the final metadata check. Related Xie full text remains unavailable in this review, so the document does not infer its quantitative methods or claim a resolved gap against it.
+
+The current official CANOE data reference was read on 6 October 2026. It documents ray timestamps, 4 Hz radar, 400 azimuths, raw 100 Hz inertial measurements, calibration, and postprocessed navigation. It does not document synchronized along-path wave profiles or small-target visibility truth. IPIX documents target bins and environmental summaries for a mesh-wrapped sphere, rather than the complete moving-platform and wave geometry needed here. The public pilots remain separate.
+
+**Executed checks.**
+
+The Node generator passed finite-value, positive-exposure, known-plane inverse, and path-refinement assertions. The default output has 801 time samples and 180 phase samples. Doubling the 501 path subdivisions did not change the default availability fraction. The exact inverse residual is 5.6844e-14 m; target minimum exposed height is 0.1159 m; default coupled power availability is 0.1222. These checks establish the stated implementation's numerical consistency.
+
+Wijaya and van Groesen's harmonic Figure 3.4 case is evaluated with period 9 s, depth 50 m, height ratios 5 and 10, and 1400 phases. Exact dispersion gives wavelength 124.8286 m. Its geometric skyline and phase average use a wavelength/400 grid; joint phase and path refinement changes visibility by at most 0.001072. Surface visibility is not target detection probability. The Lund diagnostic uses 11 kn constant translation and 1.25 s rotation, deriving a 3.5368 m maximum midpoint error without claiming a measured paper result.
+
+The measured file is the complete official IPIX acquisition 17, hash `0476ddbba6953b2a95e1ca341ed1bfaf0da827114d7520fbffbdebfd9021e0a8`. A common receiver correction and 99th-percentile gate are trained only on the first 32,768 sweeps in ten non-target bins. Secondary target bins 8-11 are excluded. The remaining data contain 1536 primary-bin and 15,360 clutter-bin 64-sweep windows. Clutter exceeds the frozen gate in 0.990% of held-out windows, while primary bin 9 is below it in 66.602%. No nonfinite samples or declared missing-value sentinel occurs. This establishes power-gate variability, without wave-cause labels or spatial detection performance. Seconds conversion remains unresolved because tutorial and file PRF conventions differ; figures and runs use sweeps.
+
+All twelve standalone figures and the fourteen-page Letter proposal compile with Typst. Main proposal pages one and two are followed by appendices. Every rendered page was inspected for clipping, table splits, label overlap, plot readability, citations, and page structure. Python processing passes ruff formatting, lint, and ty type checks. The source package includes Typst, stable JSON records, source manifests, a pinned Python environment, a MATLAB companion, and a reproduction script. MATLAB numerical execution remains unverified.
