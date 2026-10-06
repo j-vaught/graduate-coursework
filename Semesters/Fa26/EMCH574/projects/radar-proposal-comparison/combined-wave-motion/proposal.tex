@@ -113,10 +113,12 @@ Vessel and target heave use $m\ddot z+c\dot z+kz=F_w(t)$. The first forcing rule
 \lvert H(r)\rvert=\frac{1}{\sqrt{(1-r^2)^2+(2\zeta r)^2}},\qquad\delta(r)=\operatorname{atan2}(2\zeta r,1-r^2).
 \end{equation}
 
+Figure~\ref{fig:mechanism} connects the shared wave forcing to vessel dynamics and target--surface kinematics. Acquisition geometry and propagation determine the target echo, which the fixed detector evaluates with clutter and noise. Observation usability combines detection with corrected position quality, so acquisition geometry also feeds the output directly.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{mechanism.pdf}
-\caption{Shared wave forcing drives vessel dynamics and target--surface kinematics. Acquisition geometry and propagation determine the target echo, which is evaluated with clutter and noise by a fixed detector. Observation usability combines detection with corrected position quality, so acquisition geometry also connects directly to the output.}
+\caption{Shared-wave model for usable target observations.}
 \label{fig:mechanism}
 \end{figure}
 
@@ -133,12 +135,12 @@ Mechanical response determines the radar origin and rotation at acquisition time
 \mathbf{q}_i(\epsilon)=\mathbf{s}_i+\rho_i\mathbf{R}_i\begin{pmatrix}\cos\epsilon\cos\alpha_i\\\cos\epsilon\sin\alpha_i\\\sin\epsilon\end{pmatrix}.
 \end{equation}
 
-A known synthetic target-height plane closes this inverse. Public two-dimensional returns retain an elevation interval or target-height assumption. A general angular displacement bound cannot substitute for the horizontal error of this geometry.
+A known synthetic target-height plane closes this inverse. Public two-dimensional returns retain an elevation interval or target-height assumption. A general angular displacement bound cannot substitute for the horizontal error of this geometry. Figure~\ref{fig:geometry} shows how radar and target motion change beam offset, direct-path clearance, and mapping pose. These changes produce distinct obstruction, beam-loss, and position-error mechanisms.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{geometry.pdf}
-\caption{A moving radar and target change beam offset, direct-path clearance, and the pose used for mapping. Geometric obstruction, beam loss, and position distortion are distinct outcomes of the same state.}
+\caption{Acquisition geometry and wave-path obstruction.}
 \label{fig:geometry}
 \end{figure}
 
@@ -166,21 +168,21 @@ The benchmark has two independent literature baselines. Wijaya and van Groesen c
 \begin{aligned}\chi(r,t)&=\mathbf{1}\!\left\{\frac{\eta(r,t)-H_r}{r}\geq\sup_{0<x<r}\frac{\eta(x,t)-H_r}{x}\right\},\\V(r)&=\frac{1}{M}\sum_{j=1}^{M}\chi(r,t_j).\end{aligned}
 \end{equation}
 
-For $\eta=A\cos(kr-\omega t)$, exact finite-depth dispersion gives $\lambda=124.829$ m. The reproduction averages $M=1400$ uniform phases on a grid of $\lambda/400$. It reproduces the paper's numerical visibility construction rather than digitizing its graph.
+For $\eta=A\cos(kr-\omega t)$, exact finite-depth dispersion gives $\lambda=124.829$ m. The reproduction uses the dissertation's Figure~3.4 case and averages $M=1400$ uniform phases on a grid of $\lambda/400$. It reproduces the paper's numerical visibility construction rather than digitizing its graph. In Figure~\ref{fig:visibility}, visibility at $r/\lambda=10$ is $0.153$ for $H_r/A=5$ and $0.235$ for $H_r/A=10$. Doubling phase and radial resolution changes the curves by at most $0.0011$. This surface-visibility baseline characterizes propagation rather than target detection probability.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{visibility.pdf}
-\caption{Calculated surface visibility using Wijaya and van Groesen's equations and Figure 3.4 parameter case. At $r/\lambda=10$, visibility is 0.153 for $H_r/A=5$ and 0.235 for $H_r/A=10$. Doubling phase and radial resolution changes the curves by at most 0.0011. Surface visibility supplies a propagation baseline; it is not target detection probability.}
+\caption{Calculated surface visibility for two normalized radar heights.}
 \label{fig:visibility}
 \end{figure}
 
-Lund et al. map each pulse with interpolated horizontal vessel position and heading. Their radar rotates in 1.25 s and uses a 7.5 m Cartesian grid. \cite{Lund2018SeaIceDrift} In the constant-heading limit, acquisition-time mapping is $\mathbf{x}_i=\mathbf{p}(t_i)+\mathbf{R}(\psi_i)\mathbf{r}_i$. Holding pose at the midpoint instead introduces $E_h=U\lvert t_i-t_{\mathrm{mid}}\rvert$. Using the paper's 11 kn speed example gives the following calculation.
+Lund et al. map each pulse with interpolated horizontal vessel position and heading. Their radar rotates in 1.25 s and uses a 7.5 m Cartesian grid. \cite{Lund2018SeaIceDrift} In the constant-heading limit, acquisition-time mapping is $\mathbf{x}_i=\mathbf{p}(t_i)+\mathbf{R}(\psi_i)\mathbf{r}_i$. Holding pose at the midpoint instead introduces $E_h=U\lvert t_i-t_{\mathrm{mid}}\rvert$. Using the paper's $11\,\mathrm{kn}$ speed example gives a maximum midpoint error of $3.537\,\mathrm{m}$ in Figure~\ref{fig:raytime}. Ideal ray-time mapping removes the prescribed translation error, while the $0.5\,\mathrm{m}$ reference marks the proposed position tolerance. These calculated errors are model outputs, rather than Lund et al.'s measured residuals.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{raytime.pdf}
-\caption{Calculated midpoint-pose error for constant translation at 11 kn over a 1.25 s rotation. The maximum is 3.537 m. Ideal ray-time mapping removes this prescribed translation error. The line labeled 0.5 m tolerance is the proposal's position limit. These are model calculations, not Lund et al.'s measured residuals.}
+\caption{Calculated localization error for midpoint and ray-time mapping.}
 \label{fig:raytime}
 \end{figure}
 
@@ -194,17 +196,21 @@ The calculations above establish mechanisms, while an actual radar acquisition e
 
 The first 32,768 sweeps train one common receiver correction using clutter bins 1-7 and 12-14. Unsigned-byte interpretation follows the official loader. Separate in-phase and quadrature means and scales, followed by phase-imbalance correction, are learned from that clutter and applied identically to every bin. \cite{McMaster2026IPIXProcessing} This retains target-to-clutter contrast. For corrected samples $I_n,Q_n$, nonoverlapping 64-sweep powers are $P_j=\frac{1}{64}\sum_{n=64j}^{64j+63}(I_n^2+Q_n^2)$. The development-clutter mean sets the relative dB scale; its 99th percentile sets the fixed gate at 11.346 dB.
 
+Figure~\ref{fig:measured} shows the held-out target and clutter powers under this frozen correction and gate. The file and tutorial use conflicting pulse-frequency conventions, so the horizontal axis retains sweep index. Power is expressed relative to the development-clutter mean, rather than as calibrated target radar cross section.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{measured.pdf}
-\caption{Measured target-bin and clutter-bin powers for every held-out window. The gate and receiver correction are frozen before sweep 32,768. File and tutorial pulse-frequency conventions conflict, so the horizontal axis retains sweep index. Powers are relative receiver quantities, not calibrated target cross sections.}
+\caption{Held-out target-bin and clutter-bin power in IPIX record 17.}
 \label{fig:measured}
 \end{figure}
+
+Figure~\ref{fig:survival} compares exceedance fractions across candidate power thresholds, with the vertical reference marking the frozen development gate. Clutter is pooled from ten non-target bins. The target-bin crossings provide a power-based observability proxy; the record does not provide per-sweep target-visibility labels.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{survival.pdf}
-\caption{Measured fractions above candidate power thresholds in the held-out segment. The vertical line is the frozen development gate. Pooled clutter comprises ten non-target bins. Target-bin crossings are an observability proxy, without per-sweep target-visibility labels.}
+\caption{Held-out power exceedance fractions in IPIX record 17.}
 \label{fig:survival}
 \end{figure}
 
