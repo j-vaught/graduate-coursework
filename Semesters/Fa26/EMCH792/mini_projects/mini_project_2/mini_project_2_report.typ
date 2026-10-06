@@ -246,8 +246,6 @@ Here $x$ is cart displacement, $theta$ is the pendulum angle measured from uprig
   ), kind: table, caption: [Mechanical parameters reused from Project 1.],
 ) <tab-parameters>
 
-== Linearization near upright
-
 Because the controller is intended to hold the pendulum upright, we expand about the stationary equilibrium $theta=dot(theta)=dot(x)=F=0$. Cart position can be chosen as $x=0$ because the equations do not depend on absolute position. For angles in radians, the Taylor expansions give
 
 $
@@ -271,9 +269,7 @@ $
 
 #pagebreak()
 
-== From coupled equations to state space
-
-To separate the accelerations, divide the second linearized equation by $m ell$ and rearrange it,
+With the linearized equations established, we separate the accelerations to obtain the state-space model. Divide the second linearized equation by $m ell$ and rearrange it,
 
 $
 ell dot.double(theta)=-dot.double(x)-c_theta/(m ell) dot(theta)+g theta.
@@ -314,9 +310,7 @@ $
 
 Before designing the controller, MATLAB forms the controllability matrix $cal(C)=[B,A B,A^2 B,A^3 B]$ and finds $"rank"(cal(C))=4$. The rank equals the four-state dimension, so the cart force can control all four states in this linear model.
 
-== Comparison procedure
-
-We compare both models under identical initial conditions and inputs, without feedback or actuator limits. Each runs for 1 s using MATLAB's ode45 solver, relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.002 s. The nonlinear model uses the Simulink plant's acceleration function.
+To check whether this linear model captures the nonlinear motion near upright, we compare both models under identical initial conditions and inputs, without feedback or actuator limits. Each runs for 1 s using MATLAB's ode45 solver, relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.002 s. The nonlinear model uses the Simulink plant's acceleration function.
 
 Because uncontrolled motion grows away from upright, we compare errors at 0.1, 0.25, and 0.5 s rather than 10 or 20 s. Relative to the nonlinear response, the percentage errors are
 
@@ -328,8 +322,6 @@ $
 Percentage errors are undefined at a zero reference value. All reference values at the selected times are nonzero.
 
 #pagebreak()
-
-== Initial-angle comparisons
 
 First, we release both models from 2, 5, 10, 15, 20, 25, and 30#sym.degree, with zero cart position, zero velocities, and zero applied force. @fig-model-angles compares the motion, and @tab-model-angles reports the differences at the selected times.
 
@@ -348,8 +340,6 @@ First, we release both models from 2, 5, 10, 15, 20, 25, and 30#sym.degree, with
 At 0.5 s, the 2#sym.degree release has an angle error of #fmt(model_tests.angle_runs.first().angle_error_percent.last(), digits: 3)% and a cart-position error of #fmt(model_tests.angle_runs.first().x_error_percent.last(), digits: 3)%. At 30#sym.degree, those errors increase to #fmt(model_tests.angle_runs.last().angle_error_percent.last())% and #fmt(model_tests.angle_runs.last().x_error_percent.last())%, respectively. The increasing differences show why the linear model is appropriate near upright and why larger releases require verification with the nonlinear plant.
 
 #pagebreak()
-
-== Applied-force comparisons
 
 Second, we start both models upright and at rest and apply a constant horizontal force from $t=0$. The six force levels are 0.5, 1, 2, 4, 8, and 16 N. @fig-model-inputs shows the responses, and @tab-model-inputs reports the differences. These are prescribed inputs for model validation, separate from the later controller tests with a 10 N actuator limit.
 
@@ -400,9 +390,7 @@ The nonlinear model in Appendix E uses this same gain, with its command limited 
 
 #pagebreak()
 
-== Controller and acceleration functions
-
-The preceding design is implemented by the following function. It constructs the matrices, checks controllability, computes the gain, and checks the closed-loop poles.
+The controller design is implemented by the following function. It constructs the matrices, checks controllability, computes the gain, and checks the closed-loop poles.
 
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#ECECEC"),
   stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt)[
@@ -476,9 +464,7 @@ The tested 20#sym.degree case recovers but reaches #fmt(stats.angle_stress.at(1)
 
 #pagebreak()
 
-== Random-force metrics and actuator use
-
-The force sweep measures continuing balance while the disturbance remains active. Its angle, travel, and actuator metrics are
+Following the release tests, the force sweep measures continuing balance while the disturbance remains active. Its angle, travel, and actuator metrics are
 
 #figure(
   table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: (x: 5pt, y: 5pt),
@@ -508,8 +494,6 @@ The held inputs appear over 30 s in Figure 3(e) and over 0--3 s in Figure 3(f). 
 
 #pagebreak()
 
-== Velocity states used by the controller
-
 The preceding figures show position, angle, and force. The remaining two feedback states are cart velocity and angular velocity. The following histories compare the nominal 5#sym.degree release and 2.5 N random-force test.
 
 #figure(velocity("x_dot_m_s", [Cart velocity (m/s)]),
@@ -531,8 +515,6 @@ The release velocities decay as the cart and pendulum settle. Under continuing r
 The gain from Appendix B acts on all four simulated states. The actuator block limits the command, then the sum adds the disturbance before the total force reaches the cart. Output blocks record the states, command, disturbance, and total force. This wiring implements $F="sat"(-K z)+d$.
 
 #pagebreak()
-
-== Nonlinear plant subsystem
 
 #figure(image("nonlinear_plant_diagram.png", width: 100%),
   caption: [Nonlinear equations and four integrators retained from Project 1.])
