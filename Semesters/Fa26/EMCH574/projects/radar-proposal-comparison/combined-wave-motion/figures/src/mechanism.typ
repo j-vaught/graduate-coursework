@@ -54,6 +54,6 @@
 
     // Position quality reaches usability independently of detection.
     connect(point(2, 48, 42), point(2, 48 + horizontal-gap / 2, 42),
-      point(2, 48 + horizontal-gap / 2, 15), point(3, 0, 15))
+      point(2, 48 + horizontal-gap / 2, 9), point(3, 0, 9))
   })
 }
