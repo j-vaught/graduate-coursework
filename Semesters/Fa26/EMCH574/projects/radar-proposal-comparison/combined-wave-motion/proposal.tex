@@ -12,50 +12,76 @@
 \graphicspath{{figures/generated/}}
 \title{Predicting Small-Target Radar Reliability under Wave-Driven Vessel Motion}
 \author{J.C. Vaught}
-\date{EMCH 574 (Vibrations \& Waves) \quad October 7th, 2026}
+\date{October 7th, 2026}
+% Compact title block. Keep the document body and page margins unchanged.
+\makeatletter
+\renewcommand{\@maketitle}{%
+  \newpage
+  \begin{center}
+    {\Large\@title\par}
+    \vspace{0.4em}
+    {\normalsize\@author\qquad\@date\par}
+  \end{center}
+}
+\makeatother
 \begin{document}
 \maketitle
 
 \section*{Abstract}
 
-The ultimate goal of this work is to predict whether the next radar scan will detect a small maritime target (within an acceptable position error) and identify the physical 'blockage?' when detectoin fails.
+The ultimate goal of this work is to predict whether the next radar scan will detect a small maritime target (within an acceptable position error) and identify the physical mechanism of target occlusion when detection fails.
+
+\section{Introduction \& Objective}
+
+In oceans, lakes, and other bodies of water (henceforth referred to as maritime environments), small targets can exhibit intermittent detection in radar returns. While the causes for this fading effect are numerous, the largest contributors, in no particular order, are wave geometry, radar beam motion induced by vessel pitch, and distorted scan positioning.
+
+Clearly, it is desirable to eliminate these effects and, barring that, predict when they will occur. Here, we take advantage of the fact that the same forcing function—wavelike motion of the water surface—controls all three mechanisms. For simplicity, we assume that wind effects are not modeled independently and are represented through the wave field.
+
+A wealth of literature already prescribes the individual mechanisms to build our model and the associated predictions. Waves and their interactions with vessels and objects are well-studied. In a similar fashion, inter- and intra-wave interactions (such as diffraction and propagation) are well-understood. The study of heave, pitch, and roll of vessels and their effects on radar scans is also well documented. Finally, the effects of radar beam distortion and general distortion against waves are also documented.
+
+Therefore, the objective of our work is to combine these mechanisms into a single interpretable model for estimating the probability of small target detection in the subsequent radar scan. The model will primarily be tested in a synthetic environment, but an evaluation using real-world data will be included to validate the model's predictions, relying on publicly available datasets.
 
 
-\section{Introduction}
+\section{Background \& Related Works}
 
-In oceans, lakes, and other bodies of water(henceforth referred to as maritime), small targets can disappear or `fade' in and out of radar returns. behind wave geometry, move outside a pitching radar beam, or remain detectable while its mapped position is distorted by motion during the scan. Those failures share a forcing source. Water waves move both the radar vessel and the target while changing the path between them. Treating propagation and scan correction separately therefore leaves a sponsor without a complete explanation of when an observation is usable. This project will connect the mechanisms in one predictive model and produce an operating envelope for small-target sensing.
+Small maritime targets are nearly imposible to detect when their returns are comparable or weaker than surrounding sea clutter. As a solution, signal processing techniques, such as signal averaging, time-frequency analysis, and morphological filtering on real marine radar data have been utilized. 
 
-\section{The hypothesis and contribution}
+The work done by Panagopoulos and Soraghan evaluates these techniques and show that detection should be treated as an intermittent event since a target can become hidden or shadowed by waves on an interval.\cite{Panagopoulos2004SmallTarget} Theirt work, however, makes no attmept to predict these interuptions to detections in maritiem evneoinments. 
 
-The hypothesis is that a shared estimate of wave phase, vessel response, and target motion improves one-scan-ahead forecasts of usable observations beyond detection history, motion-only features, or propagation-only features. The contribution is a controlled test of their interaction, followed by a decision map linking failure regimes to corrective action. Existing work establishes small-target detection in sea clutter, diffraction in wave illumination, and motion compensation for rotating radar. \cite{Panagopoulos2004SmallTarget,Janssen2026Diffraction,Lund2018SeaIceDrift,Burnett2021MotionDistortion} The proposed increment is to evaluate detection interruptions and conditional position quality together under the same evolving physical state and the same held-out observations.
+This indicates, somewhat obvisouly, that wave geometry changes the radar path to a target and the illumination of the sea surface. 
+Plant and Farquharson develop some work on distinguishing geometric shadowing from partial shadowing, in which diffraction and weaker scattering can affect received signals. \cite{Plant2012WaveShadowing}
+Their measurements show that a simple geometric blockage model does NOT explain all low-grazing-angle radar behavior. 
 
-\section{The coupled approach}
+
+Janssen et al. further show that diffraction changes the illumination field near and beyond wave-shadow boundaries, where geometric optics can misrepresent the illuminiation field. Of course, their work only considerrs teh illumnation field, and not the resulting radar return, and the latter half of teh detection stage must be implmented in our work.
+These findings motivate a geometric visibility baseline followed by a diffraction sensitivity model. \cite{Janssen2026Diffraction}
+
+
+Because a rotating radar acquires azimuths(or spokes; vernauclar can vary betwwen literature) at different times, its scan is formed from measurements taken at different sensor positions and orientations. Work on shipborne radar georeferencing has already studied the importance of time-tagged measurements, position, heading, and installation offsets when mapping radar imagery to geographic coordinates.\cite{Lund2018SeaIceDrift} 
+
+
+Additional research on spinning radar shows that platform motion during acquisition can heavily distort a scan, requiring correction methods to be devloped/utilized. Together, these studies motivate modeling the radar pose at each acquisition time and evaluating per-azimuth correction separately from losses that prevent a return from being detected.\cite{Burnett2021MotionDistortion}
+
+
+\section{Method, Software, \& Data}
 
 A MATLAB model will propagate prescribed linear waves and drive damped roll, pitch, and heave modes of the radar vessel and a separate target-heave mode. Shared spatial phase will determine the forcing at each body. Vessel heading and speed will change encounter frequency, while sensor separation will move the radar origin as the vessel rotates. At each azimuth timestamp, the model will calculate pointing, vertical beam gain, wave-path clearance, target illumination, and the resulting two-way echo with clutter and receiver noise. A fixed detector will supply misses; acquisition-time geometry will supply position error when a return is available.
 
 This chain gives the project a direct connection to vibration response, resonance, damping, phase, wave propagation, and sampling. The initial scope uses linear modes, nonbreaking waves, known synthetic target geometry, and a transparent diffraction surrogate. A geometric visibility calculation and an ideal knife-edge limit will precede a richer two-dimensional crest model. Ray-by-ray pose correction will be evaluated separately from beam and propagation loss, because coordinate correction cannot recreate an echo that was never acquired.
 
-\section{The sponsor's outcome}
 
-The sponsor will receive a reproducible way to distinguish three engineering responses. Scan distortion can justify time-resolved pose correction. Beam loss can justify a different mounting height, vertical coverage, or scan rate. Propagation loss can justify wave-state sensing or more conservative target tracking. The project will characterize these choices before considering a controller, creating a practical result from the course mechanics rather than expanding immediately into autonomous control.
-
-\section{The benchmark that decides the hypothesis}
+\section{Evaluation \& Metrics}
 
 The primary study will separate physical ablations from forecasting methods. Four prescribed truth conditions will retain neither vessel-motion nor wave-path modulation, motion alone, propagation alone, or their shared forcing. Within every held-out condition, all predictors will receive identical radar observations and usable-observation labels. A history reference, a motion-feature predictor, a propagation-feature predictor, and a coupled predictor will share the same fitting and calibration procedure. Complete wave realizations will be split into development and test sets before fitting, preventing adjacent samples from appearing in both sets.
 
 The primary score will be the Brier score for the next scan's usable-observation probability, supported by reliability diagrams and outage forecasts. Detection probability, empirical false alarms, consecutive misses, outage duration, and position-error distributions will show the physical consequences. A declared operational correction and position tolerance will define common usable-observation labels; a separate paired comparison will test midpoint, per-azimuth horizontal-motion, and per-azimuth attitude correction. Timing, wave-state, beam-pattern, and target-height errors will test whether an apparent gain survives realistic uncertainty.
 
-\section{Data and resources}
+\section{NEED TO DELETE section}
 
 MATLAB and a documented synthetic scene are sufficient for the semester's central experiment. CANOE provides timestamped rotating-radar intensity scans, inertial data, and calibration for a selective motion-correction pilot. IPIX provides coherent target and sea-clutter records for detector calibration and measured interruption statistics. \cite{UTIAS2026CANOE,McMaster1993IPIX} These pilots will test separate components. A complete field test requires synchronized wave profiles along the path, vessel and target motion, known target geometry, radar calibration, and acquisition timing. The public records do not supply that combined measurement set.
 
 Preparation already includes reproduced published-model calculations and a processed IPIX target record, documented in Appendix~\ref{app:published}. The sponsor's immediate support is project selection, review of the acceptable position tolerance, and identification of available radar or wave measurements. The course endpoint does not depend on procuring hardware. A later campaign will target conditions that distinguish the competing mechanisms.
 
-\section{Delivery and decision gates}
-
-By 7 October, I will freeze the coupled model, forecast horizon, detector operating point, split policy, and comparison methods. By 23 October, I will complete the MATLAB state and observation model with analytical and geometric checks. By 13 November, I will complete paired physical comparisons and development calibration. By 27 November, I will complete frozen forecast evaluation, uncertainty analysis, and the public-data pilots where suitable. By 2 December, I will deliver the report, source, configuration and data manifests, verified figures, and a radar-reliability decision map.
-
-The hypothesis advances if the coupled predictor improves held-out probability scores over the history reference and both single-mechanism predictors across at least two wave regimes, with a realization-level confidence interval excluding zero and acceptable detector false-alarm calibration. A negative result will identify when the simpler method is sufficient. The publication extension will test the surviving predictions with independent synchronized measurements and an expanded prior-work review. The resulting contribution will be an experimentally defensible operating envelope, with the physical mechanism and practical remedy tied to each failure regime.
 
 \clearpage
 
