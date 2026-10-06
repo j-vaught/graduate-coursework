@@ -115,9 +115,9 @@ We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart f
   Since we know the model and have all four states, we choose a linear-quadratic regulator (LQR). A proportional-integral-derivative (PID) controller can instead be tuned from measured response when a reliable model is unavailable @MathWorks2018PIDTuning. Here, LQR lets us assign a cost to each state error and to the force command @MathWorks2026LQR. We select weights of 4 for cart position, 2 for cart velocity, 300 for angle, and 10 for angular velocity, collected in $Q="diag"(4,2,300,10)$. The force penalty is $R=0.5$. These are design choices that emphasize balance while discouraging unnecessary motion and force. Appendix B gives the design and essential MATLAB functions.
 
 
-  MATLAB calculates $u=-K z$ and confirms that all poles of $A-B K$ have negative real parts. We also simulate the linear closed loop and verify that its states return to zero. We then connect this controller to the nonlinear Simulink model in Appendix C. The actuator limits $u$ to $plus.minus 10$ N, and a separate disturbance $d$ is added afterward, so the cart receives $F=u+d$.
+  MATLAB calculates $u=-K z$ and confirms that all poles of $A-B K$ have negative real parts. We also simulate the linear closed loop and verify that its states return to zero. We then connect this controller to the nonlinear Simulink model in Appendix E. The actuator limits $u$ to $plus.minus 10$ N, and a separate disturbance $d$ is added afterward, so the cart receives $F=u+d$.
 
-  To test the controller, we run two categories of 30 s simulations. First, we release the pendulum from 5, 10, 20, 30, 45, and 60#sym.degree to test the linearization and actuator limits. Second, we start upright and apply random cart forces with bounds of $plus.minus 2.5$, 5, 7.5, and 10 N. Each force is an independent uniform draw held for 0.1 s. The same seeded sequence is scaled for each bound. Appendix D explains this generation method and its scope. Appendix E gives the full metrics and actuator histories.
+  To test the controller, we run two categories of 30 s simulations. First, we release the pendulum from 5, 10, 20, 30, 45, and 60#sym.degree to test the linearization and actuator limits. Second, we start upright and apply random cart forces with bounds of $plus.minus 2.5$, 5, 7.5, and 10 N. Each force is an independent uniform draw held for 0.1 s. The same seeded sequence is scaled for each bound. Appendix C explains this generation method and its scope. Appendix D gives the full metrics and actuator histories.
 = RESULTS.
 
 For the initial-angle tests, @fig-releases(a,c) shows cart position and pendulum angle over 30 s. Panels (b,d) show 0--6 s details. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition from successful recovery to failure to recover therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
@@ -139,7 +139,7 @@ For the random-force tests, @fig-forces(a,c,e) shows cart position, pendulum ang
 
 = DISCUSSION.
 
-The smaller tested inputs recover or remain balanced. Failed releases stay at the actuator limit, and the 10 N disturbance also causes sustained saturation. Even successful recovery at 20#sym.degree needs #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of cart travel, so a physical track could constrain performance. The sweeps identify an operating range for this gain and force limit. The random-force result applies to the recorded sequence described in Appendix D.
+The smaller tested inputs recover or remain balanced. Failed releases stay at the actuator limit, and the 10 N disturbance also causes sustained saturation. Even successful recovery at 20#sym.degree needs #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of cart travel, so a physical track could constrain performance. The sweeps identify an operating range for this gain and force limit. The random-force result applies to the recorded sequence described in Appendix C.
 
 #figure([
   #show: lq.layout
@@ -254,7 +254,7 @@ The poles of $A-B K$ are $-0.699 plus.minus 0.548i$ and $-4.042 plus.minus 1.125
   )
 ], caption: [Linear closed-loop response used to verify the designed gain.])
 
-The nonlinear model in Appendix C uses this same gain, with its command limited to $plus.minus 10$ N. The nonlinear sweeps therefore evaluate how the linear design performs when the exact equations and force limit are restored.
+The nonlinear model in Appendix E uses this same gain, with its command limited to $plus.minus 10$ N. The nonlinear sweeps therefore evaluate how the linear design performs when the exact equations and force limit are restored.
 
 #pagebreak()
 
@@ -273,35 +273,14 @@ The nonlinear Simulink block then uses the function below to calculate the two a
 
 #raw(read("controlled_accelerations.m"), lang: "matlab", block: true)
 
-The separate model builder and experiment script remain runnable files alongside the report. The control methods are documented in the following sources.
-
-#bibliography("references.bib", title: none, style: "ieee")
-
-#pagebreak()
-#set page(flipped: true, margin: 1in)
-
-= Appendix C. Simulink feedback loop and nonlinear plant
-
-#figure(image("controlled_model_diagram.png", width: 100%),
-  caption: [Complete feedback loop. The disturbance enters above the circular sum, and the limited actuator command returns below the loop.])
-
-The gain from Appendix B acts on all four simulated states. The actuator block limits the command, then the sum adds the disturbance before the total force reaches the cart. Output blocks record the states, command, disturbance, and total force. This wiring implements $F="sat"(-K z)+d$.
-
-#pagebreak()
-
-== Nonlinear plant subsystem
-
-#figure(image("nonlinear_plant_diagram.png", width: 100%),
-  caption: [Nonlinear equations and four integrators retained from Project 1.])
-
-Inside the preceding feedback loop, the acceleration function from Appendix B drives two integrator chains. The State order block receives $(theta,dot(theta),dot(x),x)$ from top to bottom and rearranges them internally into $(x,dot(x),theta,dot(theta))$ for the gain. The display order therefore follows the diagram, while the vector sent to the controller follows the design matrices.
+The separate model builder and experiment script remain runnable files alongside the report.
 
 #pagebreak()
 #set page(flipped: false, margin: 1in)
 
-= Appendix D. Random-force generation and measurement protocol
+= Appendix C. Random-force generation and measurement protocol
 
-The feedback loop in Appendix C receives a separate external force. To generate it, MATLAB draws independent samples $xi_k$ uniformly in $[-1,1]$ and holds each value for $Delta t=0.1$ s. For force bound $a$, the applied disturbance is
+The feedback loop in Appendix E receives a separate external force. To generate it, MATLAB draws independent samples $xi_k$ uniformly in $[-1,1]$ and holds each value for $Delta t=0.1$ s. For force bound $a$, the applied disturbance is
 
 $
 d_a(t)=a xi_k, quad k Delta t <= t < (k+1) Delta t.
@@ -323,9 +302,9 @@ Settling time is the first sampled time after which $abs(theta)$ stays within 1#
 
 #pagebreak()
 
-= Appendix E. Detailed release and disturbance results
+= Appendix D. Detailed release and disturbance results
 
-The release tests defined in Appendix D produce the following metrics. The final-two-second RMS checks that a successful final angle is accompanied by sustained balance. The saturation percentage is measured on the analysis grid.
+The release tests defined in Appendix C produce the following metrics. The final-two-second RMS checks that a successful final angle is accompanied by sustained balance. The saturation percentage is measured on the analysis grid.
 
 #let release_entries = ((initial_angle_deg: 5, metrics: stats.perturbation),) + stats.angle_stress
 #table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: 5pt,
@@ -384,3 +363,29 @@ The preceding figures show position, angle, and force. The remaining two feedbac
   caption: [Pendulum angular velocity. The controller uses radians per second internally.])
 
 The release velocities decay as the cart and pendulum settle. Under continuing random pushes, the velocities continue to vary while the controller maintains balance. These signals complete the four-state record used to produce the report's position and angle responses.
+
+#pagebreak()
+#set page(flipped: true, margin: 1in)
+
+= Appendix E. Simulink feedback loop and nonlinear plant
+
+#figure(image("controlled_model_diagram.png", width: 100%),
+  caption: [Complete feedback loop. The disturbance enters above the circular sum, and the limited actuator command returns below the loop.])
+
+The gain from Appendix B acts on all four simulated states. The actuator block limits the command, then the sum adds the disturbance before the total force reaches the cart. Output blocks record the states, command, disturbance, and total force. This wiring implements $F="sat"(-K z)+d$.
+
+#pagebreak()
+
+== Nonlinear plant subsystem
+
+#figure(image("nonlinear_plant_diagram.png", width: 100%),
+  caption: [Nonlinear equations and four integrators retained from Project 1.])
+
+Inside the preceding feedback loop, the acceleration function from Appendix B drives two integrator chains. The State order block receives $(theta,dot(theta),dot(x),x)$ from top to bottom and rearranges them internally into $(x,dot(x),theta,dot(theta))$ for the gain. The display order therefore follows the diagram, while the vector sent to the controller follows the design matrices.
+
+#pagebreak()
+#set page(flipped: false, margin: 1in)
+
+= References
+
+#bibliography("references.bib", title: none, style: "ieee")
