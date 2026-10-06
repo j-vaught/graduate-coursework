@@ -36,7 +36,8 @@
 
     // Wave forcing drives both mechanical branches on the same clock.
     connect(point(0, 48, 48), point(1, 0, 48))
-    connect(point(0, 24, 57), point(0, 24, 68), point(1, 24, 68), point(1, 24, 78))
+    connect(point(0, 48, 54), point(0, 48 + horizontal-gap / 2, 54),
+      point(0, 48 + horizontal-gap / 2, 81), point(1, 0, 81))
     connect(point(0, 48, 87), point(1, 0, 87))
     connect(point(1, 48, 48), point(2, 0, 48))
     connect(point(1, 48, 87), point(2, 0, 87))
@@ -52,6 +53,7 @@
     connect(point(3, 24, 39), point(3, 24, 18))
 
     // Position quality reaches usability independently of detection.
-    connect(point(2, 24, 39), point(2, 24, 9), point(3, 0, 9))
+    connect(point(2, 48, 42), point(2, 48 + horizontal-gap / 2, 42),
+      point(2, 48 + horizontal-gap / 2, 15), point(3, 0, 15))
   })
 }
