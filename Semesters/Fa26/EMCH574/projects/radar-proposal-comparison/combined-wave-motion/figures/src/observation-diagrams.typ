@@ -20,7 +20,7 @@
     line((80, 42.5), (80, 47), stroke: 0.8pt, mark: arrow)
     content((96, 49), [Crest intrusion $d_c$])
     content((80, 8), [Wave surface])
-  } else if diagram == "beam" {
+  } else if diagram == "beam-misalignment" {
     rect((13, 43), (17, 47), fill: black)
     line((15, 45), (145, 51), stroke: 0.7pt)
     line((15, 45), (145, 29), stroke: 0.7pt)
