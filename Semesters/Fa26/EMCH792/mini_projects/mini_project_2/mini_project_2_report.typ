@@ -28,9 +28,11 @@
   )
 }
 
-#let forcing(limit, panel, height: 1.05in) = {
+#let forcing(limit, panel, height: 1.05in, data-size: none) = {
   set text(size: 8pt)
-  lq.diagram(width: 100%, height: 0% + height, title: panel,
+  lq.diagram(
+    width: if data-size == none { 100% } else { data-size.first() },
+    height: if data-size == none { 0% + height } else { data-size.last() }, title: panel,
     xlabel: [Time (s)], ylabel: [Disturbance (N)], xlim: limit,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
@@ -137,13 +139,15 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
 The smaller tested inputs recover or remain balanced. Failed releases stay at the actuator limit, and the 10 N disturbance also causes sustained saturation. Even successful recovery at 20#sym.degree needs #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of cart travel, so a physical track could constrain performance. The sweeps identify an operating range for this gain and force limit. The random-force result applies to the recorded sequence described in Appendix D.
 
 #figure([
+  #show: lq.layout
+  #let panel-size = (2.6in, 0.95in)
   #grid(columns: (1fr, 1fr), gutter: 5pt,
-    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], height: 1.25in, failed-from: 3, with-legend: true),
-    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 1), [(b) Cart detail], height: 1.25in, failed-from: 3),
-    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], height: 0.9in, failed-from: 3),
-    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 1), [(d) Angle detail], height: 0.9in, failed-from: 3),
-    forcing((0, 30), [(e) Applied random forces], height: 0.9in),
-    forcing((0, 1), [(f) Force detail], height: 0.9in),
+    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, failed-from: 3, with-legend: true),
+    sweep(plots.force_runs, "x_m", [Cart position (m)], (0, 1), [(b) Cart detail], data-size: panel-size, failed-from: 3),
+    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, failed-from: 3),
+    sweep(plots.force_runs, "theta_deg", [Pendulum angle (deg)], (0, 1), [(d) Angle detail], data-size: panel-size, failed-from: 3),
+    forcing((0, 30), [(e) Applied random forces], data-size: panel-size),
+    forcing((0, 1), [(f) Force detail], data-size: panel-size),
   )
 ], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed.]) <fig-forces>
 
