@@ -12,6 +12,7 @@
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit, ylim: ylim, yscale: yscale,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
+      else if limit.last() == 6 { (0, 1, 2, 3, 4, 5, 6) }
       else if limit.last() == 3 { (0, 0.5, 1, 1.5, 2, 2.5, 3) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
     legend: if with-legend { (radius: 0pt, position: legend-position) } else { none },
@@ -119,9 +120,9 @@ We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart f
   To test the controller, we run two categories of 30 s simulations. First, we release the pendulum from 5, 10, 20, 30, 45, and 60#sym.degree to test the linearization and actuator limits. Second, we start upright and apply random cart forces with bounds of $plus.minus 2.5$, 5, 7.5, and 10 N. Each force is an independent uniform draw held for 0.1 s. The same seeded sequence is scaled for each bound. Appendix D explains this generation method and its scope. Appendix E gives the full metrics and actuator histories.
 = RESULTS.
 
-For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition from successful recovery to failure to recover therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
+For the initial-angle tests, @fig-releases(a,c) shows cart position and pendulum angle over 30 s. Panels (b,d) show 0--6 s details. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition from successful recovery to failure to recover therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
 
-For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--3 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
+For the random-force tests, @fig-forces(a,c,e) shows cart position, pendulum angle, and applied forces over 30 s. Panels (b,d,f) show 0--3 s details. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
 
 #pagebreak()
 
@@ -130,11 +131,11 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
   #let panel-size = (2.6in, 0.95in)
   #grid(columns: (1fr, 1fr), gutter: 5pt,
     sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], data-size: panel-size, yscale: lq.scale.symlog(threshold: 1), failed-from: 3, with-legend: true, legend-position: top + right),
-    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], data-size: panel-size, ylim: (-0.15, 3.2), failed-from: 3),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 6), [(b) Cart detail], data-size: panel-size, ylim: (-0.15, 3.2), failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], data-size: panel-size, failed-from: 3),
-    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], data-size: panel-size, ylim: (-20, 400), failed-from: 3),
+    sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 6), [(d) Angle detail], data-size: panel-size, ylim: (-20, 400), failed-from: 3),
   )
-], caption: [Initial-angle sweep. Dashed traces indicate initial angles where the controller failed to stabilize. Panel (a) uses a symmetric log scale, linear within $plus.minus 1$ m.]) <fig-releases>
+], caption: [Initial-angle sweep. Dashed traces indicate initial angles where the controller failed to stabilize. Panels (b,d) show 0--6 s. Panel (a) uses a symmetric log scale, linear within $plus.minus 1$ m.]) <fig-releases>
 
 = DISCUSSION.
 
@@ -151,7 +152,7 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
     forcing((0, 30), [(e) Applied random forces], data-size: panel-size),
     forcing((0, 3), [(f) Force detail], data-size: panel-size, ylim: (-10, 10)),
   )
-], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed. Panels (a,c) use symmetric log scales, linear within $plus.minus 1$ m and $plus.minus 10 degree$, respectively.]) <fig-forces>
+], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed. Panels (b,d,f) show 0--3 s. Panels (a,c) use symmetric log scales, linear within $plus.minus 1$ m and $plus.minus 10 degree$, respectively.]) <fig-forces>
 
 #pagebreak()
 #set page(margin: 1in)
@@ -368,7 +369,7 @@ The force sweep measures continuing balance while the disturbance remains active
     height: 3.3in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
 ], caption: [Actuator use under the four disturbance bounds. The dashed 10 N case loses balance and remains saturated after failure.])
 
-The held inputs appear in Figure 3(e,f). At bounds through 7.5 N, the angle stays within 5.4#sym.degree and the actuator never saturates. The 7.5 N case ends at #fmt(stats.force_stress.at(2).metrics.final_angle_deg)#sym.degree because the pushes continue; this is ongoing disturbed balance rather than a return to zero. At 10 N, the pendulum leaves the upright region and the command saturates. Once it falls, that limited command cannot restore the local upright response.
+The held inputs appear over 30 s in Figure 3(e) and over 0--3 s in Figure 3(f). At bounds through 7.5 N, the angle stays within 5.4#sym.degree and the actuator never saturates. The 7.5 N case ends at #fmt(stats.force_stress.at(2).metrics.final_angle_deg)#sym.degree because the pushes continue; this is ongoing disturbed balance rather than a return to zero. At 10 N, the pendulum leaves the upright region and the command saturates. Once it falls, that limited command cannot restore the local upright response.
 
 #pagebreak()
 
