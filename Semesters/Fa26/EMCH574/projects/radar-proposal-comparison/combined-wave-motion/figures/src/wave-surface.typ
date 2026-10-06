@@ -20,4 +20,6 @@
   legend: (position: bottom + right, dy: -100% - 4pt, radius: 0pt),
   lq.plot(field.x_m, surface-values, label: [Surface at $t = 0$ s], mark: none),
   lq.plot((0, 500), (0, 0), label: [Mean water level], mark: none),
+  lq.place(25, 0.8, circle(radius: 3pt, fill: white, stroke: 0.8pt + black)),
+  lq.place(40, 0.8, [Radar], align: left + horizon),
 )
