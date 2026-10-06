@@ -116,6 +116,8 @@ We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart f
 
 For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
 
+For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--1 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
+
 #pagebreak()
 
 #figure([
@@ -127,7 +129,9 @@ For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s an
   )
 ], caption: [Initial-angle sweep. Dashed traces fail. Detail panels limit the vertical range to show recovery; failed traces leave that range.]) <fig-releases>
 
-For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--1 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
+= DISCUSSION.
+
+The smaller tested inputs recover or remain balanced. Failed releases stay at the actuator limit, and the 10 N disturbance also causes sustained saturation. Even successful recovery at 20#sym.degree needs #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of cart travel, so a physical track could constrain performance. The sweeps identify an operating range for this gain and force limit. The random-force result applies to the recorded sequence described in Appendix D.
 
 #figure([
   #grid(columns: (1fr, 1fr), gutter: 5pt,
@@ -139,10 +143,6 @@ For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0
     forcing((0, 1), [(f) Force detail], height: 0.9in),
   )
 ], caption: [Random-force sweep. Every bound uses the same sequence of force draws; the 10 N case is dashed.]) <fig-forces>
-
-= DISCUSSION.
-
-The smaller tested inputs recover or remain balanced. Failed releases stay at the actuator limit, and the 10 N disturbance also causes sustained saturation. Even successful recovery at 20#sym.degree needs #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of cart travel, so a physical track could constrain performance. The sweeps identify an operating range for this gain and force limit. The random-force result applies to the recorded sequence described in Appendix D.
 
 #pagebreak()
 #set page(margin: 1in)
