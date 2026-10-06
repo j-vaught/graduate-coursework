@@ -114,7 +114,7 @@ We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart f
   To test the controller, we run two categories of 30 s simulations. First, we release the pendulum from 5, 10, 20, 30, 45, and 60#sym.degree to test the linearization and actuator limits. Second, we start upright and apply random cart forces with bounds of $plus.minus 2.5$, 5, 7.5, and 10 N. Each force is an independent uniform draw held for 0.1 s. The same seeded sequence is scaled for each bound. Appendix D explains this generation method and its scope. Appendix E gives the full metrics and actuator histories.
 = RESULTS.
 
-For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
+For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition from successful recovery to failure to recover therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
 
 For the random-force tests, @fig-forces(a,b) shows cart position over 30 s and 0--1 s. Panels (c,d) show the angles, and panels (e,f) show the applied forces. The controller maintains balance at the tested 2.5, 5, and 7.5 N bounds, but loses balance at 10 N. At 2.5 N, the RMS angle is #fmt(stats.random_test.rms_angle_deg)#sym.degree and the peak is #fmt(stats.random_test.peak_angle_deg)#sym.degree.
 
