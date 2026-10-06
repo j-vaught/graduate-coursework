@@ -158,6 +158,15 @@ The smaller tested inputs recover or remain balanced. Failed releases stay at th
 #set page(margin: 1in)
 #set text(size: 10.5pt)
 #show figure.caption: set text(size: 9.5pt)
+#show heading.where(level: 1): it => block(above: 0.8em, below: 0.5em)[
+  #text(size: 14pt, weight: "bold")[#it.body]
+]
+#show heading.where(level: 2): it => block(above: 0.6em, below: 0.4em)[
+  #text(size: 12pt, weight: "bold")[#it.body]
+]
+#set table(stroke: none)
+#show table: set par(justify: false, first-line-indent: 0pt)
+#show table: set text(hyphenate: false)
 
 = Appendix A. Nonlinear equations and upright linearization
 
@@ -182,13 +191,17 @@ $
 
 Each acceleration then passes through two integrators to obtain velocity and position. The resulting state vector is $z=(x,dot(x),theta,dot(theta))^T$. The model parameters are
 
-#table(columns: (1fr, 2fr, 1.4fr), inset: 6pt,
-  [Parameter], [Meaning], [Value],
-  [$M$], [Cart mass], [2.0 kg],
-  [$m$], [Pendulum point mass], [0.5 kg],
-  [$ell$], [Rod length], [1.0 m],
-  [$c_theta$], [Pivot damping], [0.01 N m s/rad],
-  [$g$], [Gravity], [9.81 m/s²],
+#table(columns: (0.8fr, 2fr, 0.8fr, 1fr), inset: (x: 6pt, y: 5pt),
+  align: (x, y) => if x == 2 { right } else { left },
+  table.hline(stroke: 0.8pt),
+  table.header([Parameter], [Meaning], [Value], [Unit]),
+  table.hline(stroke: 0.5pt),
+  [$M$], [Cart mass], [2.0], [kg],
+  [$m$], [Pendulum point mass], [0.5], [kg],
+  [$ell$], [Rod length], [1.0], [m],
+  [$c_theta$], [Pivot damping], [0.01], [N m s/rad],
+  [$g$], [Gravity], [9.81], [m/s²],
+  table.hline(stroke: 0.8pt),
 )
 
 The track has no friction or end stops, and all four states are available directly to the feedback block. These assumptions allow the controller's angle response, cart motion, and force limit to be evaluated separately.
@@ -307,8 +320,11 @@ Settling time is the first sampled time after which $abs(theta)$ stays within 1#
 The release tests defined in Appendix C produce the following metrics. The final-two-second RMS checks that a successful final angle is accompanied by sustained balance. The saturation percentage is measured on the analysis grid.
 
 #let release_entries = ((initial_angle_deg: 5, metrics: stats.perturbation),) + stats.angle_stress
-#table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: 5pt,
-  [Initial angle (deg)], [Peak cart displacement (m)], [Final 2 s RMS (deg)], [Saturation (%)], [Recovered],
+#table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 5pt),
+  align: (x, y) => if y == 0 or x == 4 { left } else { right },
+  table.hline(stroke: 0.8pt),
+  table.header([Initial angle (deg)], [Peak cart displacement (m)], [Final 2 s RMS (deg)], [Saturation (%)], [Recovered]),
+  table.hline(stroke: 0.5pt),
   ..release_entries.map(entry => (
     [#str(entry.initial_angle_deg)],
     [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
@@ -316,6 +332,7 @@ The release tests defined in Appendix C produce the following metrics. The final
     [#fmt(100*entry.metrics.saturation_fraction)],
     [#if entry.metrics.recovered { "Yes" } else { "No" }],
   )).flatten(),
+  table.hline(stroke: 0.8pt),
 )
 
 #figure([
@@ -331,8 +348,11 @@ The tested 20#sym.degree case recovers but reaches #fmt(stats.angle_stress.at(1)
 
 The force sweep measures continuing balance while the disturbance remains active. Its angle, travel, and actuator metrics are
 
-#table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: 5pt,
-  [Bound (N)], [RMS angle (deg)], [Peak angle (deg)], [Peak cart displacement (m)], [Saturation (%)], [Peak command (N)],
+#table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: (x: 5pt, y: 5pt),
+  align: (x, y) => if y == 0 { left } else { right },
+  table.hline(stroke: 0.8pt),
+  table.header([Bound (N)], [RMS angle (deg)], [Peak angle (deg)], [Peak cart displacement (m)], [Saturation (%)], [Peak command (N)]),
+  table.hline(stroke: 0.5pt),
   ..stats.force_stress.map(entry => (
     [#fmt(entry.amplitude_N, digits: 1)],
     [#fmt(entry.metrics.rms_angle_deg)],
@@ -341,6 +361,7 @@ The force sweep measures continuing balance while the disturbance remains active
     [#fmt(100*entry.metrics.saturation_fraction)],
     [#fmt(entry.metrics.peak_command_N)],
   )).flatten(),
+  table.hline(stroke: 0.8pt),
 )
 
 #figure([
