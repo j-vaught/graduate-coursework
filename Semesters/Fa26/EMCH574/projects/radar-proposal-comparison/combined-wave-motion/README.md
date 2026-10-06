@@ -2,7 +2,7 @@
 
 J.C. Vaught. Prepared 6 October 2026 for EMCH574.
 
-[The proposal](proposal.pdf) contains a two-page sponsor pitch followed by technical appendices and a dedicated references section. The appendices cover shared mechanical forcing, ray-time geometry, diffraction and echo formation, six coupled-model plots, two published-model calculations, two measured-radar plots, benchmark design, data requirements, milestones, prior work, and references. [The editable source](proposal.tex) preserves the main proposal as exactly two pages.
+[The proposal](proposal.pdf) contains a two-page sponsor pitch followed by five technical appendices and a dedicated references section. The appendices cover shared mechanical forcing, ray-time observation geometry, published-model calculations and measured return variability, benchmark rationale and parameter design, and full related work. [The editable source](proposal.tex) preserves the main proposal as exactly two pages. The evaluation dataset and milestones remain undecided.
 
 The project predicts a usable target observation at the next scan. Waves drive the radar vessel and target, while vessel attitude changes beam coverage, wave-path clearance, and the geometry used for mapping. The benchmark distinguishes detector misses from conditional position error and separates physical truth conditions from predictor feature comparisons.
 
@@ -14,9 +14,9 @@ Run the build with Node.js, Typst, uv, latexmk, a LaTeX installation, and Popple
 ./build.sh
 ```
 
-The build executes `src/illustrative-model.mjs`, synchronizes the pinned Python environment, and executes `src/published_evidence.py`. It compiles two schematics and ten standalone plot PDFs, then the proposal. CeTZ is pinned to version 0.5.2 and Lilaq to version 0.6.0. Schematics use black and white. Every quantitative plot uses Lilaq’s default color cycle and built-in legend, positioned above the data area. No legend is drawn by hand. All diagram and plot frames are square. Text and mathematics use Latin Modern throughout the figures and the standard LaTeX article. Sections, appendices, equations, figures, and tables use automatic numbering. Numeric bracket citations resolve through the centralized bibliography.
+The build executes `src/illustrative-model.mjs`, synchronizes the pinned Python environment, and executes `src/published_evidence.py`. It compiles two schematics and ten standalone plot PDFs, then the proposal. The current document includes the two schematics, two published-model plots, and two measured-radar plots. Six additional coupled-model plots remain companion assets for later analysis. CeTZ is pinned to version 0.5.2 and Lilaq to version 0.6.0. Schematics use black and white. Every quantitative plot uses Lilaq’s default color cycle and built-in legend, positioned above the data area. No legend is drawn by hand. All diagram and plot frames are square. Text and mathematics use Latin Modern throughout the figures and the standard LaTeX article. Sections, appendices, equations, figures, and tables use automatic numbering. Numeric bracket citations resolve through the centralized bibliography.
 
-The prescribed inputs are in `data/config.json`. Coupled illustrations are in `data/illustrative.json`, with assertions in `data/checks.json`. Their default target-power availability fraction is 0.122. That quantity describes a deterministic model, rather than measured detector or forecast performance.
+The retained illustrative companion inputs are in `data/config.json`. Coupled illustrations are in `data/illustrative.json`, with assertions in `data/checks.json`. Their default target-power availability fraction is 0.122. That quantity describes a deterministic model, rather than measured detector or forecast performance.
 
 **Published models and measured data.**
 
@@ -49,6 +49,6 @@ It writes to `tmp/matlab/illustrative_results.json` and retains the executed fig
 
 **Source evidence.**
 
-`references.bib` is the centralized bibliography. Records under `research/` document literature, data observables, paper models, and technical review. `evidence.md` records final scope and verification. CANOE and IPIX support separate component pilots; the full coupling needs independently synchronized wave, vessel, target, and radar measurements.
+`references.bib` is the centralized bibliography. Records under `research/` document literature, data observables, paper models, and technical review. `evidence.md` records final scope and verification. The IPIX example documents measured return variability rather than selecting an evaluation dataset. The full coupling needs independently synchronized wave, vessel, target, and radar measurements. The expanded benchmark distinguishes physical interventions from predictor inputs, uses grouped independent realizations, and justifies proposed numerical settings through calculations and primary sources.
 
 The complete project compiles through `latexmk`. The single-file editor preview cannot resolve the external figure PDFs and bibliography; use the saved PDF or the full project build for the complete document.
