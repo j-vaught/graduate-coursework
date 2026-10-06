@@ -1,7 +1,7 @@
 #import "@preview/lilaq:0.6.0" as lq
 #let dat=json("../../data/illustrative.json")
 #let curve(x,y,label)=lq.plot(x,y,label:label,mark:none)
-#let axes(xmin,xmax,ymin,ymax,xticks,yticks,xlabel,ylabel,curves,height:43)={
+#let axes(xmin,xmax,ymin,ymax,xticks,yticks,xlabel,ylabel,curves,height:43,legend-position:none)={
   set text(font:"Latin Modern Roman",size:9pt,fill:black)
   show math.equation: set text(font:"Latin Modern Math")
   lq.diagram(
@@ -10,7 +10,7 @@
     xlabel:xlabel,ylabel:ylabel,
     xaxis:(ticks:xticks,subticks:none),
     yaxis:(ticks:yticks,subticks:none),
-    legend:(position:bottom+right,dy:-100%-4pt,radius:0pt),
+    legend:if legend-position == none {(position:bottom+right,dy:-100%-4pt,radius:0pt)} else {(position:legend-position,pad:4pt,radius:0pt)},
     ..curves,
   )
 }
