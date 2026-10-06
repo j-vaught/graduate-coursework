@@ -448,7 +448,7 @@ For this appendix, joint settling time $t_s$ is the first sampled time after whi
 
 #pagebreak()
 
-Having verified the baseline response, we vary one penalty at a time to assess the tuning tradeoffs. All runs use the same linear plant, unlimited actuator, and 5#sym.degree release. In @fig-angle-weights, the angle penalty $q_theta$ takes values of 100, 300, and 900, while the remaining state weights and $R=0.5$ stay fixed. In @fig-force-weights, $R$ takes values of 0.1, 0.5, and 2, while $Q="diag"(4,2,300,10)$ stays fixed. The response details show the first 10 s; the metrics use all 30 s.
+Having verified the baseline response, we vary one penalty at a time to assess the tuning tradeoffs. All runs use the same linear plant, unlimited actuator, and 5#sym.degree release. In @fig-angle-weights, the angle penalty $q_theta$ takes values of 100, 300, and 900, while the remaining state weights and $R=0.5$ stay fixed. The response details show the first 10 s; the metrics use all 30 s.
 
 #figure([
   #show: lq.layout
@@ -458,6 +458,8 @@ Having verified the baseline response, we vary one penalty at a time to assess t
     ctrl-panel(ctrl.angle_weights, "applied_N", [Force (N)], [(c) Actuator force], limit: (0, 10), size: (1.65in, 1.2in)),
   )
 ], caption: [Effect of changing the angle penalty $q_theta$ from the baseline value of 300. The legend gives $q_theta$; all other penalties remain fixed.]) <fig-angle-weights>
+
+We next keep $Q="diag"(4,2,300,10)$ fixed and vary the force penalty $R$ over 0.1, 0.5, and 2. @fig-force-weights shows how this changes the motion and actuator demand.
 
 #figure([
   #show: lq.layout
@@ -486,7 +488,7 @@ Increasing $q_theta$ from 100 to 900 reduces peak cart travel from 0.310 to 0.28
 
 #pagebreak()
 
-The preceding LQR calculations assume that the actuator can deliver every requested force. We now isolate the effect of its 10 N limit by using the same linear plant and gain with either $u=-K z$ or $u="sat"(-K z)$, where saturation clips the command to $[-10,10]$ N. We test 5#sym.degree and 20#sym.degree releases without disturbance. The larger release activates the force limit. @fig-limit-motion compares the angle and cart responses, while @fig-limit-force distinguishes the requested command from the applied force.
+The preceding LQR calculations assume that the actuator can deliver every requested force. We now isolate the effect of its 10 N limit by using the same linear plant and gain with either $u=-K z$ or $u="sat"(-K z)$, where saturation clips the command to $[-10,10]$ N. We test 5#sym.degree and 20#sym.degree releases without disturbance. The larger release activates the force limit. @fig-limit-motion compares the angle and cart responses.
 
 #figure([
   #show: lq.layout
@@ -497,6 +499,8 @@ The preceding LQR calculations assume that the actuator can deliver every reques
     ctrl-panel((ctrl.saturation.last().unlimited, ctrl.saturation.last().limited), "x_m", [Position (m)], [(d) 20° cart], limit: (0, 10), size: (2.6in, 0.85in)),
   )
 ], caption: [Linear-plant responses with unlimited (solid) and 10 N limited (dashed) feedback.]) <fig-limit-motion>
+
+To explain these response differences, @fig-limit-force compares the requested and applied forces. The 20#sym.degree case shows the applied force clipped while the requested command exceeds 10 N.
 
 #figure([
   #show: lq.layout
@@ -527,14 +531,26 @@ At 5#sym.degree, the requested force remains below 10 N, so the unlimited and li
 
 #pagebreak()
 
-The preceding calculations are implemented by the controller-design function below. It constructs the linear model from the mechanical parameters, checks controllability, calculates the baseline gain, and verifies the unlimited closed-loop poles. The separate `controller_studies.m` file runs the response, weight, and saturation comparisons and exports the data used in this appendix.
+The essential controller calculation is shown below. It constructs the linear model, sets the penalties, and calculates the feedback gain. The separate `controller_studies.m` file runs the response, weight, and saturation comparisons and exports the data used in this appendix.
 
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#ECECEC"),
   stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt)[
   #set text(font: "DejaVu Sans Mono", size: 7.3pt)
   #it
 ]
-#raw(read("design_controller.m"), lang: "matlab", block: true)
+```matlab
+function K = design_controller(M, m, ell, c_theta, g)
+% State order is [x; x_dot; theta; theta_dot].
+A = [0 1 0 0;
+     0 0 -m*g/M c_theta/(M*ell);
+     0 0 0 1;
+     0 0 (M+m)*g/(M*ell) -c_theta*(M+m)/(M*m*ell^2)];
+B = [0; 1/M; 0; -1/(M*ell)];
+Q = diag([4 2 300 10]);
+R = 0.5;
+K = lqr(A, B, Q, R);
+end
+```
 
 To apply the same gain to the original nonlinear plant, the Simulink block uses the acceleration function below. Its eighth input is the total cart force after actuator limiting and disturbance addition.
 
