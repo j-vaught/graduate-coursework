@@ -1,6 +1,6 @@
 # Wave surface for the first observation diagram
 
-The new preview plots an instantaneous long-crested linear gravity-wave field. It replaces the arbitrary Gaussian crest construction as the mathematical input for a future revision of the obstruction schematic. The existing schematic and proposal remain unchanged during this wave-only step.
+The new preview plots an instantaneous long-crested linear gravity-wave field. It supplies the mathematical surface for the developing obstruction diagram, now including a stable radar and a shadowed object. The proposal retains its existing figure while this preview is developed.
 
 ## Governing model
 
@@ -29,3 +29,7 @@ src/wave_surface.py computes data/wave-surface.json and data/wave-components.csv
 ## Horizontal radar beam overlay
 
 The radar symbol is located at x = 25 m and elevation 0.8 m in the preview. The centerline remains at elevation 0.8 m throughout. Two schematic half-power directions are symmetric about that centerline, and the beta arc spans both. The plot height is 60 mm, with elevation limits from -1 to 1.8 m. Since the axes have unequal physical scales, the overlay defines no numerical antenna beamwidth. The ray spread is a drawing choice, not a physical radar input or a propagation calculation. Dashed rays denote geometric directions, including their intersections with the surface. They do not imply unattenuated illumination beyond a crest.
+
+## Shadowed object
+
+The rectangular object is centered at x = 375 m, with an illustrative width of 8 m and exposed height of 0.5 m above its local surface elevation. Its top is at elevation 0.347757 m. These dimensions are chosen illustration inputs, not measured target specifications. The radar-to-object-top path is computed in physical coordinates. Its first surface intersection is x = 326.402313 m, elevation 0.410551 m, found by a bracketed root of the exact 1024-component surface expression. The maximum positive intrusion before the object is 0.232429 m, so the object's top is geometrically occluded. The lower schematic half-power ray likewise stops at its own first surface intersection at x = 323.290679 m. The horizontal centerline and upper ray remain clear above the crest and pass over the object. Direct geometric occlusion does not establish zero received power; diffraction remains a separate model in Appendix B.

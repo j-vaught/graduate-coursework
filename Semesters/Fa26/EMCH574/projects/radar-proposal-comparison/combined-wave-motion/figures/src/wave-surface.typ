@@ -5,6 +5,7 @@
 #show math.equation: set text(font: "Latin Modern Math")
 #let field = json("../../data/wave-surface.json")
 #let surface-values = field.snapshots.at(0).elevation_m
+#let object = field.obstruction_example
 // Beam rays are schematic because x and elevation use different display scales.
 // They do not set a numerical antenna beamwidth in the physical model.
 #let radar-x = 25
@@ -42,10 +43,21 @@
   lq.line((radar-x, radar-height), (end-x, radar-height + spread),
     stroke: (paint: black, thickness: 0.8pt, dash: "dashed"),
     tip: tiptoe.stealth, label: [Half-power directions]),
-  lq.line((radar-x, radar-height), (end-x, radar-height - spread),
+  lq.line((radar-x, radar-height), object.lower_schematic_boundary_contact_m,
     stroke: (paint: black, thickness: 0.8pt, dash: "dashed"),
     tip: tiptoe.stealth),
   lq.path(..beam-arc, stroke: 0.8pt + black),
+  lq.line((radar-x, radar-height), object.direct_contact_m,
+    stroke: 1pt + rgb("#73000A"), tip: tiptoe.stealth),
+  lq.place(210, 0.66, [Blocked direct path]),
+  lq.path(
+    (object.object_x_m - 4, object.object_base_m),
+    (object.object_x_m + 4, object.object_base_m),
+    (object.object_x_m + 4, object.object_top_m),
+    (object.object_x_m - 4, object.object_top_m),
+    closed: true, fill: black, stroke: 0.7pt + black, z-index: 15,
+  ),
+  lq.place(object.object_x_m, -0.68, [Object]),
   lq.place(145, 1.3, [Vertical beamwidth $beta$]),
   lq.place(375, 0.96, [Horizontal centerline]),
   lq.place(radar-x, radar-height,

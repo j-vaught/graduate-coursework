@@ -59,4 +59,4 @@ Three reviewed alternatives to the combined observation schematic are available 
 
 ## Mathematical wave-surface preview
 
-`figures/generated/wave-surface.pdf` and its PNG show a reproducible irregular Airy-wave realization using the ISSC/Bretschneider spectrum. Run `uv run python src/wave_surface.py` to regenerate the numeric field, then compile `figures/src/wave-surface.typ` with Typst. Parameters and equation provenance are in `research/wave-surface-model.md`. The wave-only preview is a preparation step for replacing the obstruction diagram's illustrative sea profile.
+`figures/generated/wave-surface.pdf` and its PNG show a reproducible irregular Airy-wave realization using the ISSC/Bretschneider spectrum. Run `uv run python src/wave_surface.py` to regenerate the numeric field, then compile `figures/src/wave-surface.typ` with Typst. Parameters and equation provenance are in `research/wave-surface-model.md`. The preview now includes a stable radar, a schematic horizontal beam, and a surface-connected object whose direct path is blocked at a calculated wave intersection.

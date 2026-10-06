@@ -62,6 +62,56 @@ def main() -> None:
     assert dispersion_error < 1e-9
     assert checks["points_per_shortest_wavelength"] > 20
     assert checks["maximum_absolute_surface_slope_at_t0"] < 0.2
+    # Object geometry is chosen for this snapshot; ray contact uses the exact
+    # continuous Fourier surface, not a hand-selected drawing intersection.
+    radar_x, radar_height, object_x, object_height = 25.0, 0.8, 375.0, 0.5
+
+    def elevation(position: float) -> float:
+        return float(np.cos(wavenumber * position + phase) @ amplitude)
+
+    object_base = elevation(object_x)
+    object_top = object_base + object_height
+
+    def contact(endpoint_x: float, endpoint_height: float) -> tuple[float, float]:
+        ray_slope = (endpoint_height - radar_height) / (endpoint_x - radar_x)
+        clearance = np.asarray(snapshots[0]["elevation_m"]) - (
+            radar_height + ray_slope * (x - radar_x)
+        )
+        hits = np.flatnonzero((x > radar_x) & (x < endpoint_x) & (clearance >= 0))
+        assert hits.size > 0
+        j = int(hits[0])
+        hit_x = brentq(
+            lambda position: (
+                elevation(position) - (radar_height + ray_slope * (position - radar_x))
+            ),
+            float(x[j - 1]),
+            float(x[j]),
+        )
+        hit_y = radar_height + ray_slope * (hit_x - radar_x)
+        assert abs(elevation(hit_x) - hit_y) < 1e-10
+        return hit_x, hit_y
+
+    direct_contact = contact(object_x, object_top)
+    lower_boundary_contact = contact(475.0, -0.1)
+    direct_height = radar_height + (object_top - radar_height) * (x - radar_x) / (
+        object_x - radar_x
+    )
+    intrusion = np.asarray(snapshots[0]["elevation_m"]) - direct_height
+    mask = (x > radar_x) & (x < object_x)
+    max_intrusion = float(np.max(intrusion[mask]))
+    assert max_intrusion > 0.2
+    obstruction = {
+        "radar_x_m": radar_x,
+        "radar_height_m": radar_height,
+        "object_x_m": object_x,
+        "object_base_m": object_base,
+        "object_top_m": object_top,
+        "object_height_m": object_height,
+        "object_width_m": 8.0,
+        "direct_contact_m": list(direct_contact),
+        "lower_schematic_boundary_contact_m": list(lower_boundary_contact),
+        "maximum_direct_path_intrusion_m": max_intrusion,
+    }
     data = {
         "model": "Long-crested linear Airy superposition with ISSC/Bretschneider spectrum",
         "parameters": {
@@ -82,6 +132,7 @@ def main() -> None:
         "x_m": x.tolist(),
         "snapshots": snapshots,
         "checks": checks,
+        "obstruction_example": obstruction,
     }
     output = ROOT / "data/wave-surface.json"
     output.write_text(json.dumps(data, indent=2, allow_nan=False) + "\n")
@@ -89,7 +140,7 @@ def main() -> None:
         writer = csv.writer(stream)
         writer.writerow(["frequency_hz", "wavenumber_per_m", "amplitude_m", "phase_rad"])
         writer.writerows(zip(frequency, wavenumber, amplitude, phase, strict=True))
-    print(json.dumps(checks, indent=2))
+    print(json.dumps({"wave_checks": checks, "obstruction": obstruction}, indent=2))
 
 
 if __name__ == "__main__":
