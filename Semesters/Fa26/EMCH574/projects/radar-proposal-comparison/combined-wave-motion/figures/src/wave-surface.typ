@@ -57,4 +57,3 @@
     circle(radius: 3pt, fill: white, stroke: 0.8pt + black)),
   lq.place(25, 1.08, [Radar]),
 )
-
