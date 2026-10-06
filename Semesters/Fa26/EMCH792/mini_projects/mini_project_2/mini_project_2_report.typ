@@ -4,7 +4,7 @@
 #let stats = json("metrics.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 #let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
-#let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, failed-from: 99, with-legend: false) = {
+#let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, failed-from: 99, with-legend: false, legend-position: top + right) = {
   set text(size: if height > 2in { 10pt } else { 8pt })
   lq.diagram(
     width: 100%, height: 0% + height, title: panel,
@@ -12,7 +12,7 @@
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
-    legend: if with-legend { (radius: 0pt) } else { none },
+    legend: if with-legend { (radius: 0pt, position: legend-position) } else { none },
     ..runs.enumerate().map(pair => {
       let (i, run) = pair
       let indices = run.response.time_s.enumerate().filter(pair =>
@@ -112,16 +112,16 @@ We reuse the nonlinear Simulink model from Project 1 and add a horizontal cart f
   MATLAB calculates $u=-K z$ and confirms that all poles of $A-B K$ have negative real parts. We also simulate the linear closed loop and verify that its states return to zero. We then connect this controller to the nonlinear Simulink model in Appendix C. The actuator limits $u$ to $plus.minus 10$ N, and a separate disturbance $d$ is added afterward, so the cart receives $F=u+d$.
 
   To test the controller, we run two categories of 30 s simulations. First, we release the pendulum from 5, 10, 20, 30, 45, and 60#sym.degree to test the linearization and actuator limits. Second, we start upright and apply random cart forces with bounds of $plus.minus 2.5$, 5, 7.5, and 10 N. Each force is an independent uniform draw held for 0.1 s. The same seeded sequence is scaled for each bound. Appendix D explains this generation method and its scope. Appendix E gives the full metrics and actuator histories.
-#pagebreak()
-
 = RESULTS.
 
 For the initial-angle tests, @fig-releases(a,b) shows cart position over 30 s and a 0--10 s detail. Panels (c,d) show the pendulum angles. The 5, 10, and 20#sym.degree cases recover; the tested 30, 45, and 60#sym.degree cases fail. The transition therefore lies between the tested 20#sym.degree and 30#sym.degree releases.
 
+#pagebreak()
+
 #figure([
   #grid(columns: (1fr, 1fr), gutter: 5pt,
-    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], height: 1.6in, failed-from: 3, with-legend: true),
-    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], height: 1.6in, ylim: (-0.15, 3.2), failed-from: 3),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 30), [(a) Full cart response], height: 1.35in, failed-from: 3, with-legend: true, legend-position: top + left),
+    sweep(plots.angle_runs, "x_m", [Cart position (m)], (0, 10), [(b) Cart detail], height: 1.35in, ylim: (-0.15, 3.2), failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 30), [(c) Full angle response], height: 0.95in, failed-from: 3),
     sweep(plots.angle_runs, "theta_deg", [Pendulum angle (deg)], (0, 10), [(d) Angle detail], height: 0.95in, ylim: (-20, 65), failed-from: 3),
   )
