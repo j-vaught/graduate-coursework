@@ -935,8 +935,6 @@ To make the paired statistics easier to interpret, the following histories show 
 
 The gain from Appendix B acts on all four simulated states. The actuator block limits the command, then the sum adds the disturbance before the total force reaches the cart. Output blocks record the states, command, disturbance, and total force. This wiring implements $F="sat"(-K z)+d$.
 
-#pagebreak()
-
 #figure(image("nonlinear_plant_diagram.png", width: 100%),
   caption: [Nonlinear equations and four integrators retained from Project 1.])
 
