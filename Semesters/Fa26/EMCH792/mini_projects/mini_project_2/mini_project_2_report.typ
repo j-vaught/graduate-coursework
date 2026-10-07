@@ -203,7 +203,7 @@
   )
 }
 
-#set page(paper: "us-letter", margin: (top: 0.75in, bottom: 1in, x: 1in),
+#set page(paper: "us-letter", margin: (top: 1in, bottom: 1in, x: 1in),
   numbering: "1", number-align: center + bottom,
   header: [#text(size: 9pt)[J.C. Vaught] #h(1fr) #text(size: 9pt)[EMCH 792]])
 #set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"),
