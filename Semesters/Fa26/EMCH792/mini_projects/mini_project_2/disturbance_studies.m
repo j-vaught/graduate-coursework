@@ -1,15 +1,15 @@
 function studies = disturbance_studies()
-% Finite-rate disturbance profiles and paired nonlinear Simulink trials.
+% Centered Gaussian and finite-rate disturbance profiles and paired nonlinear Simulink trials.
 project_dir = fileparts(mfilename('fullpath'));
 previous = pwd;
 cleanup = onCleanup(@() cd(previous));
 cd(project_dir);
 dt = 0.002; time = (0:dt:30)';
-tau = 0.1; rate = 50; seeds = 79202:79221; bounds = [2.5 5 7.5 10];
+sigma = 0.1; rate = 50; seeds = 79202:79221; bounds = [2.5 5 7.5 10];
 reversal_time = (0:dt:1.5)';
 target = -10*ones(size(reversal_time));
 target(reversal_time >= 0.5) = 10;
-studies.reversal = profiles(reversal_time, target, tau, rate, -10);
+studies.reversal = profiles(reversal_time, target, sigma, rate, -10);
 for j = 1:4
     f = studies.reversal(j).force_N;
     index = find(reversal_time >= 0.5 & f(:) >= 9, 1);
@@ -18,15 +18,15 @@ end
 rng(seeds(1), 'twister');
 unit = 2*rand(302, 1)-1;
 target = 10*unit(floor(round(time/dt)*dt/0.1+1e-8)+1);
-studies.random_profiles = profiles(time, target, tau, rate, 0);
+studies.random_profiles = profiles(time, target, sigma, rate, 0);
 for j = 1:3
-    taus = [0.05 0.1 0.2];
-    waves = profiles(time, target, taus(j), rate, 0);
+    sigmas = [0.05 0.1 0.2];
+    waves = profiles(time, target, sigmas(j), rate, 0);
     wave = waves(2);
-    wave.setting = taus(j);
-    studies.tau_sweep(j) = wave;
+    wave.setting = sigmas(j);
+    studies.sigma_sweep(j) = wave;
     rates = [25 50 100];
-    waves = profiles(time, target, tau, rates(j), 0);
+    waves = profiles(time, target, sigma, rates(j), 0);
     wave = waves(3);
     wave.setting = rates(j);
     studies.rate_sweep(j) = wave;
@@ -53,7 +53,7 @@ for mode = 1:2
                 disturbance = [(0:0.1:30.1)' bounds(b)*unit];
                 force = target;
             else
-                waves = profiles(time, target, tau, rate, 0);
+                waves = profiles(time, target, sigma, rate, 0);
                 force = waves(4).force_N(:);
                 disturbance = [time force];
             end
@@ -113,10 +113,10 @@ for b = 1:numel(bounds)
     end
 end
 studies.nominal = records([records.seed] == seeds(1));
-studies.tau_s = tau; studies.rate_limit_N_s = rate;
+studies.sigma_s = sigma; studies.rate_limit_N_s = rate;
 studies.seeds = seeds; studies.profile_step_s = dt;
 studies.analysis_step_s = 0.02; studies.max_solver_step_s = 0.005;
-fields = {'reversal', 'random_profiles', 'tau_sweep', 'rate_sweep'};
+fields = {'reversal', 'random_profiles', 'sigma_sweep', 'rate_sweep'};
 for f = 1:numel(fields)
     for j = 1:numel(studies.(fields{f}))
         wave = studies.(fields{f})(j);
@@ -133,23 +133,26 @@ fprintf(fid, '%s\n', jsonencode(studies, 'PrettyPrint', true));
 disp('Disturbance shaping and 160 nonlinear trials saved.');
 end
 
-function waves = profiles(time, target, tau, rate, initial)
+function waves = profiles(time, target, sigma, rate, initial)
 dt = time(2)-time(1);
-smooth = zeros(size(time)); limited = smooth; combined = smooth;
-smooth(1) = initial; limited(1) = initial; combined(1) = initial;
+radius = ceil(3*sigma/dt);
+offsets = (-radius:radius)'*dt;
+weights = exp(-0.5*(offsets/sigma).^2);
+weights = weights/sum(weights);
+padded = [repmat(target(1), radius, 1); target; repmat(target(end), radius, 1)];
+smooth = conv(padded, weights, 'valid');
+limited = zeros(size(time)); combined = limited;
+limited(1) = initial; combined(1) = initial;
 for i = 2:numel(time)
-    smooth(i) = target(i-1)+(smooth(i-1)-target(i-1))*exp(-dt/tau);
-    limited(i) = limited(i-1)+min(max(target(i-1)-limited(i-1), -rate*dt), rate*dt);
+    limited(i) = limited(i-1)+min(max(target(i)-limited(i-1), -rate*dt), rate*dt);
     combined(i) = combined(i-1)+min(max(smooth(i)-combined(i-1), -rate*dt), rate*dt);
 end
 forces = [target smooth limited combined];
-names = {'Held', 'Smoothed', 'Rate limited', 'Combined'};
+names = {'Held', 'Gaussian', 'Rate limited', 'Combined'};
 for j = 1:4
     force = forces(:, j);
     if j == 1
         derivative = zeros(size(force)); maximum_rate = NaN;
-    elseif j == 2
-        derivative = (target-force)/tau; maximum_rate = max(abs(derivative));
     else
         derivative = [0; diff(force)/dt]; maximum_rate = max(abs(derivative));
     end
