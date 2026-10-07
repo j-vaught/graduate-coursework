@@ -5,6 +5,7 @@
 #let model_tests = json("model_comparisons.json")
 #let ctrl = json("controller_studies.json")
 #let dist = json("disturbance_studies.json")
+#let detail = json("appendix_d_studies.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 #let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
 #let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, yscale: "linear", failed-from: 99, with-legend: false, legend-position: top + right, data-size: none) = {
@@ -162,6 +163,32 @@
     }),
   )
 }
+
+#let dplot(runs, field, ylabel, title, xfield: "time_s", limit: (0, 30), ylim: auto, size: (2.6in, 1.6in), labels: none, legend: false) = {
+  set text(size: 9.5pt)
+  lq.diagram(width: size.first(), height: size.last(), title: title,
+    xlabel: if xfield == "time_s" { [Time (s)] } else if xfield == "sigma_s" { [Gaussian width (s)] } else if xfield == "bound_N" { [Force bound (N)] } else { [Initial angle (deg)] },
+    ylabel: ylabel, xlim: limit, ylim: ylim,
+    xaxis: (ticks: if xfield == "sigma_s" { (0.05, 0.1, 0.2) } else if xfield == "bound_N" { (2.5, 5, 7.5, 10) } else if xfield == "initial_angle_deg" { (20, 22, 24, 26, 28, 30) } else if limit.last() == 6 { (0, 1, 2, 3, 4, 5, 6) } else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else { (0, 5, 10, 15, 20, 25, 30) }),
+    legend: if legend { (position: top + right, radius: 0pt) } else { none },
+    ..runs.enumerate().map(pair => {
+      let (i, run) = pair
+      let indices = run.at(xfield).enumerate().filter(p => p.last() >= limit.first() and p.last() <= limit.last() and run.at(field).at(p.first()) != none).map(p => p.first())
+      lq.plot(indices.map(j => run.at(xfield).at(j)), indices.map(j => run.at(field).at(j)),
+        mark: if xfield == "time_s" { none } else { "s" }, color: colors.at(i),
+        label: if labels == none { none } else { labels.at(i) },
+        step: if field == "force_N" and i == 0 { end } else { none }, stroke: 1.2pt)
+    }),
+  )
+}
+#let dwidth(field) = (2.5, 5, 7.5, 10).map(bound => {
+  let rows = detail.width_summary.filter(r => r.bound_N == bound)
+  (sigma_s: rows.map(r => r.sigma_s), values: rows.map(r => r.at(field)))
+})
+#let dseed(field) = (1, 2).map(mode => {
+  let rows = dist.seed_summary.filter(r => r.mode == mode)
+  (bound_N: rows.map(r => r.bound_N), values: rows.map(r => r.at(field)))
+})
 
 #let velocity(field, ylabel, height: 2.6in) = {
   set text(size: 10pt)
@@ -670,12 +697,14 @@ Finally, 160 nonlinear trials compare held and combined disturbances across seed
 
 #pagebreak()
 
-= Appendix D. Detailed release and disturbance results
+= Appendix D. Nonlinear controller performance and operating limits
 
-With the disturbance method defined in Appendix C, we collect the nonlinear performance results here. The original release tests start from 5, 10, 20, 30, 45, or 60#sym.degree with all other states and the disturbance zero. They run for 30 s with a 0.01 s maximum solver step. Metrics use a 0.02 s grid. Recovery requires the final angle and final-two-second angle RMS to be below 2#sym.degree. Actuator saturation counts samples at the 10 N limit.
+Appendix B gives us a controller designed around the upright linear model, and Appendix C defines the forces used to test it. Here we apply that controller to the nonlinear Simulink plant and ask four questions. How far can the pendulum start from upright and still recover? What changes when it fails? How does Gaussian width affect the response? Does smoothing still change the response when the forces have equal RMS strength? The gain and actuator limit remain fixed throughout.
+
+We first revisit the original release tests in @tab-release-metrics. Each starts with the cart and pendulum at rest, with no disturbance. The 20#sym.degree release recovers, while the 30#sym.degree release fails. Recovery is assessed over 30 s: the final angle and final-two-second angle RMS must be below 2#sym.degree. In the new tests, the pendulum must also stay within $plus.minus 90 degree$ throughout.
 
 #let release_entries = ((initial_angle_deg: 5, metrics: stats.perturbation),) + stats.angle_stress
-#figure(table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 2pt),
+#figure(table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 4pt),
   align: (x, y) => if y == 0 or x == 4 { left } else { right },
   table.hline(stroke: 0.8pt),
   table.header([Initial angle (deg)], [Peak cart displacement (m)], [Final 2 s RMS (deg)], [Saturation (%)], [Recovered]),
@@ -684,79 +713,217 @@ With the disturbance method defined in Appendix C, we collect the nonlinear perf
     [#fmt(entry.metrics.final_2s_rms_angle_deg, digits: 4)], [#fmt(100*entry.metrics.saturation_fraction)],
     [#if entry.metrics.recovered { "Yes" } else { "No" }])).flatten(),
   table.hline(stroke: 0.8pt),
-), kind: table, caption: [Original release-test recovery, cart travel, and actuator saturation.]) <tab-release-metrics>
+), kind: table, caption: [Original release tests. Failed-case travel includes motion after loss of balance on the model's unlimited track.]) <tab-release-metrics>
 
+To locate the transition more closely, we test every degree from 20#sym.degree to 30#sym.degree, then test the intervening interval in 0.1#sym.degree increments. @fig-release-boundary shows the travel and saturation time for each release. Failed-case metrics stop at the first sampled 90#sym.degree crossing, so falling motion does not dominate the vertical scale. Successful-case metrics use the full 30 s.
+
+#let release_curves = (true, false).map(success => {
+  let rows = detail.release.filter(r => r.recovered == success)
+  (initial_angle_deg: rows.map(r => r.initial_angle_deg),
+    travel: rows.map(r => r.peak_x_before_fall_m),
+    saturation: rows.map(r => r.saturation_before_fall_s))
+})
 #figure([
-  #sweep(plots.angle_runs, "u_N", [Actuator command (N)], (0, 30), [Release-test actuator commands],
-    height: 1.15in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
-], caption: [Original initial-angle actuator histories. The failed cases remain at the actuator limit.])
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot(release_curves, "travel", [Peak cart travel (m)], [(a) Cart travel], xfield: "initial_angle_deg", limit: (20, 30), labels: ([Recovered], [Failed]), legend: true),
+    dplot(release_curves, "saturation", [Time at limit (s)], [(b) Actuator saturation], xfield: "initial_angle_deg", limit: (20, 30)),
+  )
+], caption: [Refined release sweep. Metrics for failed trials cover only the motion up to loss of balance.]) <fig-release-boundary>
 
-The tested 20#sym.degree release recovers but reaches #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of travel. The tested 30#sym.degree release fails, placing the recovery-to-failure transition between them. No intermediate releases were tested. After failure, the model's unlimited track permits continued acceleration, and its angle records full rotations.
+The largest tested release that recovers is 20.2#sym.degree; the next release, 20.3#sym.degree, loses balance. The recovery-to-failure boundary therefore lies between these two tested angles for the stated initial conditions. Recovery at 20.2#sym.degree still requires 3.18 m of peak cart travel and 1.75 s at the force limit, so balancing alone does not establish feasibility on a short track.
 
-The velocity histories below complete the four-state record. They compare the original 5#sym.degree release and the original 2.5 N held-force trial. Release velocities decay toward rest, whereas the continuing disturbance produces continuing velocity fluctuations.
-
-#figure(velocity("x_dot_m_s", [Cart velocity (m/s)], height: 1.05in),
-  caption: [Cart velocity supplied to the state-feedback gain in the original nominal tests.])
-
-The angular velocity provides the remaining state used by the controller. The plotted units are degrees per second; the feedback calculation uses radians per second.
-
-#v(8pt)
-#figure(velocity("theta_dot_deg_s", [Angular velocity (deg/s)], height: 1.05in),
-  caption: [Pendulum angular velocity in the original nominal tests.])
+All new trials use ode45 with a 0.005 s maximum step, $10^(-7)$ relative tolerance, and $10^(-9)$ absolute tolerance. Metrics use a 0.02 s state grid. These tests hold the controller and plant parameters fixed, so their conclusions describe the tested releases and disturbance profiles for this model.
 
 #pagebreak()
 
-For the paired 5 N tests in @fig-dist-controller, both profiles use seed 79202, an upright initial state, the baseline gain, and the 10 N actuator limit. The combined settings are $sigma=0.1$ s and $L=50$ N/s.
+The refined sweep identifies two neighboring releases with different outcomes. We now compare their histories in @fig-release-detail to see how those outcomes develop. Both use the same controller and 10 N actuator limit; only the starting angle changes. The failed trace ends when the pendulum first reaches 90#sym.degree.
+
+#let boundary_labels = detail.boundary_angles_deg.map(a => [#fmt(a, digits: 1)#sym.degree])
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot(detail.boundary_runs, "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 6), labels: boundary_labels, legend: true, size: (2.6in, 1.8in)),
+    dplot(detail.boundary_runs, "x_m", [Cart position (m)], [(b) Cart motion], limit: (0, 6), size: (2.6in, 1.8in)),
+  )
+], caption: [Near-boundary releases. One recovers; the next tested release loses balance.]) <fig-release-detail>
+
+The cart must move to bring the pendulum back toward upright. That motion is governed by the force the actuator can deliver. The controller may request more than 10 N, but the plant receives only the clipped value. The following comparison shows the requested and applied forces separately for each release.
+
+#let boundary_force = detail.boundary_runs.map(r => (
+  (time_s: r.time_s, force: r.requested_N),
+  (time_s: r.time_s, force: r.applied_N),
+))
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot(boundary_force.first(), "force", [Actuator force (N)], [(a) #boundary_labels.first() release], limit: (0, 6), labels: ([Requested], [Applied]), legend: true, size: (2.6in, 1.8in)),
+    dplot(boundary_force.last(), "force", [Actuator force (N)], [(b) #boundary_labels.last() release], limit: (0, 6), labels: ([Requested], [Applied]), legend: true, size: (2.6in, 1.8in)),
+  )
+], caption: [Requested and applied force near the recovery boundary. The applied force is limited to $plus.minus 10$ N.]) <fig-release-force-detail>
+
+For the 20.2#sym.degree release, the controller eventually brings its requested force back within the actuator range and the pendulum recovers. At 20.3#sym.degree, the pendulum reaches 90#sym.degree after 3.22 s. By that point, the requested force reaches approximately 276 N in magnitude, while the applied force remains limited to 10 N. The large gap shows why the actuator cannot deliver the correction requested by this gain. Saturation also occurs in the successful trial; its presence alone does not determine the outcome.
+
+#pagebreak()
+
+Having examined releases, we next start the system upright and apply random forces. @fig-dist-controller compares the original held force with Gaussian averaging followed by rate limiting. Both use the same 5 N target and seed 79202. The shaped version uses $sigma=0.1$ s and $L=50$ N/s. Every disturbance trial lasts 30 s; balance requires $abs(theta)<90 degree$ throughout.
 
 #figure([
   #show: lq.layout
-  #grid(columns: (1fr, 1fr, 1fr), gutter: 6pt,
-    ctrl-panel(dist.controller_runs, "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 30), size: (1.65in, 0.85in), labels: ([Held], [Combined]), with-legend: true),
-    ctrl-panel(dist.controller_runs, "x_m", [Position (m)], [(b) Cart position], limit: (0, 30), size: (1.65in, 0.85in)),
-    ctrl-panel(dist.controller_runs, "applied_N", [Actuator force (N)], [(c) Actuator demand], limit: (0, 30), size: (1.65in, 0.85in)),
+  #stack(spacing: 14pt,
+    dplot(dist.controller_runs, "theta_deg", [Angle (deg)], [(a) Pendulum angle], labels: ([Held], [Gaussian + limiter]), legend: true, size: (6in, 1.25in)),
+    dplot(dist.controller_runs, "x_m", [Cart position (m)], [(b) Cart position], size: (6in, 1.25in)),
+    dplot(dist.controller_runs, "applied_N", [Actuator force (N)], [(c) Applied actuator force], size: (6in, 1.25in)),
   )
-], caption: [Nonlinear controller responses to held and combined 5 N disturbances, seed 79202.]) <fig-dist-controller>
+], caption: [Nonlinear responses to held and shaped 5 N disturbances, seed 79202.]) <fig-dist-controller>
 
-@tab-dist-nominal extends the comparison to all four bounds using Appendix C's solver settings. The 30 s metrics distinguish actual force strength from controller response; balance requires $abs(theta)<90 degree$.
+At this bound, both trials maintain balance. Shaping reduces force RMS from 2.98 to 1.61 N, while angle RMS falls from 1.39 to 1.31#sym.degree. The cart travels nearly the same distance. @tab-dist-nominal extends this comparison to the other bounds. Its large failed-case values include motion after the pendulum falls.
+
+#pagebreak()
 
 #figure([
-  #set text(size: 9pt)
-  #table(columns: (0.6fr, 1fr, 0.8fr, 1fr, 1fr, 1fr, 0.8fr), inset: (x: 4pt, y: 2pt),
+  #set text(size: 9.5pt)
+  #table(columns: (0.6fr, 1fr, 0.8fr, 1fr, 1fr, 1fr, 0.8fr), inset: (x: 4pt, y: 3pt),
     align: (x, y) => if y == 0 or x == 1 or x == 2 { left } else { right },
     table.hline(stroke: 0.8pt),
     table.header([Bound (N)], [Profile], [Balanced], [Force RMS (N)], [Angle RMS (deg)], [Peak cart (m)], [Saturated (%)]) ,
     table.hline(stroke: 0.5pt),
-    ..dist.seed_summary.map(pair => dist.nominal.filter(run => run.bound_N == pair.bound_N and run.mode == pair.mode).first()).map(run => ([#fmt(run.bound_N, digits: 1)], [#if run.mode == 1 { "Held" } else { "Combined" }],
+    ..dist.seed_summary.map(pair => dist.nominal.filter(run => run.bound_N == pair.bound_N and run.mode == pair.mode).first()).map(run => ([#fmt(run.bound_N, digits: 1)], [#if run.mode == 1 { "Held" } else { "Shaped" }],
       [#if run.balanced { "Yes" } else { "No" }], [#fmt(run.force_rms_N)], [#fmt(run.rms_angle_deg)],
       [#fmt(run.peak_x_m, digits: 3)], [#fmt(run.saturation_percent)])).flatten(),
     table.hline(stroke: 0.8pt),
   )
-], kind: table, caption: [Paired held and combined disturbance results for seed 79202.]) <tab-dist-nominal>
+], kind: table, caption: [Held and shaped disturbance results for seed 79202.]) <tab-dist-nominal>
 
-The original held-force actuator histories are retained below for comparison with Figure 3. At the original 10 N bound, the controller loses balance and remains saturated after failure.
-
-#figure([
-  #sweep(plots.force_runs, "u_N", [Actuator command (N)], (0, 30), [Original held-force actuator commands],
-    height: 1.0in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
-], caption: [Original actuator histories under the four held-force bounds. The failed 10 N case is dashed.])
-
-To test dependence on the random draws, @tab-dist-seeds summarizes 20 seeds per bound and profile. Force medians include all trials; response medians include balanced trials only.
+A single random sequence does not show how often a given bound causes failure. We therefore repeat the held-versus-shaped comparison for seeds 79202--79221. @fig-dist-seeds shows the number of trials that maintain balance and their median angle RMS. This separates the balance outcome from the amount of motion in successful trials.
 
 #figure([
-  #set text(size: 9pt)
-  #table(columns: (0.6fr, 1fr, 0.9fr, 1fr, 1fr, 1fr), inset: (x: 4pt, y: 2pt),
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot(dseed("balanced_count"), "values", [Balanced trials / 20], [(a) Balance across seeds], xfield: "bound_N", limit: (2.5, 10), ylim: (15, 20.5), labels: ([Held], [Gaussian + limiter]), legend: true),
+    dplot(dseed("median_rms_angle_deg_balanced"), "values", [Median angle RMS (deg)], [(b) Balanced-trial response], xfield: "bound_N", limit: (2.5, 10)),
+  )
+], caption: [Twenty-seed comparison of held and shaped disturbances. Angle medians include balanced trials only.]) <fig-dist-seeds>
+
+Both profiles maintain balance in every tested seed through 7.5 N. At 10 N, the held version succeeds in 18 of 20 trials and the shaped version in 19 of 20. Seed 79202 fails with both versions. @tab-dist-seeds also gives the actual force strength and cart travel, which help interpret the response differences.
+
+#figure([
+  #set text(size: 10pt)
+  #table(columns: (0.6fr, 1fr, 0.9fr, 1fr, 1fr, 1fr), inset: (x: 4pt, y: 4pt),
     align: (x, y) => if y == 0 or x == 1 { left } else { right },
     table.hline(stroke: 0.8pt),
     table.header([Bound (N)], [Profile], [Balanced / 20], [Median force RMS (N)], [Median angle RMS (deg)], [Median peak cart (m)]),
     table.hline(stroke: 0.5pt),
-    ..dist.seed_summary.map(run => ([#fmt(run.bound_N, digits: 1)], [#if run.mode == 1 { "Held" } else { "Combined" }],
+    ..dist.seed_summary.map(run => ([#fmt(run.bound_N, digits: 1)], [#if run.mode == 1 { "Held" } else { "Shaped" }],
       [#str(run.balanced_count)], [#fmt(run.median_force_rms_N)],
       [#optional-number(run.median_rms_angle_deg_balanced)], [#optional-number(run.median_peak_x_m_balanced, digits: 3)])).flatten(),
     table.hline(stroke: 0.8pt),
   )
-], kind: table, caption: [Results across seeds 79202--79221. Response medians use balanced trials only.]) <tab-dist-seeds>
+], kind: table, caption: [Results across seeds 79202--79221. Response medians include balanced trials only.]) <tab-dist-seeds>
 
-Both profiles maintain balance in all 20 trials through 7.5 N. At 10 N, the held profile maintains balance in 18 trials and the Gaussian-plus-limiter profile in 19; seed 79202 fails with both. At 5 N for that seed, shaping reduces force RMS from 2.98 to 1.61 N and angle RMS from 1.39 to 1.31 degrees, with nearly unchanged cart travel. Because force strength also changes, this comparison does not isolate the effect of Gaussian averaging at equal RMS force.
+#pagebreak()
+
+The nominal velocity histories below complete the four-state record used by the controller. After a release, the velocities decay toward rest. Under an ongoing disturbance, they continue to fluctuate even when the pendulum remains balanced.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot((plots.perturbation, plots.random_test), "x_dot_m_s", [Cart velocity (m/s)], [(a) Cart velocity], labels: ([5° release], [2.5 N held force]), legend: true),
+    dplot((plots.perturbation, plots.random_test), "theta_dot_deg_s", [Angular velocity (deg/s)], [(b) Pendulum angular velocity]),
+  )
+], caption: [Nominal velocities from the original release and held-force tests.]) <fig-dist-velocities>
+
+The corresponding original held-force actuator histories below show how increasing the force bound changes demand. At 10 N for seed 79202, loss of balance leads to sustained actuator saturation. The successful lower-bound trials continue correcting the random force without remaining at the limit.
+
+#figure([
+  #sweep(plots.force_runs, "u_N", [Actuator force (N)], (0, 30), [Original held-force actuator histories],
+    height: 1.8in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
+], caption: [Original actuator histories for the four held-force bounds. The failed 10 N case is dashed.]) <fig-dist-original-actuator>
+
+These velocity and force histories support the balance metrics above. They also show that remaining upright under a continuing disturbance does not mean the cart and pendulum have come to rest.
+
+#pagebreak()
+
+The preceding comparison uses one Gaussian width. Appendix C shows that changing this width changes the force waveform; here we test how it changes the controller's response. For each $sigma$ of 0.05, 0.1, and 0.2 s, we run all four force bounds and all 20 seeds with the same 50 N/s rate limit. This gives 240 nonlinear trials, including a repeated baseline width for direct consistency checks.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot(dwidth("median_angle_rms_deg"), "values", [Median angle RMS (deg)], [(a) Pendulum response], xfield: "sigma_s", limit: (0.05, 0.2), labels: ([2.5 N], [5 N], [7.5 N], [10 N]), legend: true),
+    dplot(dwidth("median_peak_x_m"), "values", [Median peak cart travel (m)], [(b) Cart travel], xfield: "sigma_s", limit: (0.05, 0.2)),
+    dplot(dwidth("balanced_count"), "values", [Balanced trials / 20], [(c) Balance across seeds], xfield: "sigma_s", limit: (0.05, 0.2), ylim: (15, 20.5)),
+    dplot(dwidth("median_force_rms_N"), "values", [Median force RMS (N)], [(d) Actual disturbance strength], xfield: "sigma_s", limit: (0.05, 0.2)),
+  )
+], caption: [Controller performance versus Gaussian width with a 50 N/s rate limit. Response medians include balanced trials only.]) <fig-dist-width-response>
+
+Increasing the Gaussian width reduces median angle motion and cart travel at every tested bound. At 10 N, widths of 0.05 and 0.1 s maintain balance in 19 of 20 seeds, while 0.2 s maintains balance in all 20. However, median force RMS also falls from 3.72 to 2.26 N across that sweep. These results describe the combined effect of gentler variation and lower force strength. The next comparison holds RMS strength fixed.
+
+#pagebreak()
+
+@tab-dist-width-response collects the results behind the width comparison. All lower-bound trials remain balanced at every tested width. The differences are most visible at 10 N, where the widest average removes enough rapid variation and force strength to keep all tested seeds balanced. Angle and travel medians use successful trials only; the balance count separately records failures.
+
+#figure([
+  #set text(size: 9.5pt)
+  #table(columns: (0.65fr, 0.65fr, 0.8fr, 1fr, 1fr, 1fr), inset: (x: 4pt, y: 3pt),
+    table.hline(stroke: 0.8pt), table.header([Width (s)], [Bound (N)], [Balanced / 20], [Median force RMS (N)], [Median angle RMS (deg)], [Median peak cart (m)]), table.hline(stroke: 0.5pt),
+    ..detail.width_summary.map(r => ([#fmt(r.sigma_s)], [#fmt(r.bound_N, digits: 1)], [#str(r.balanced_count)], [#fmt(r.median_force_rms_N)], [#fmt(r.median_angle_rms_deg)], [#fmt(r.median_peak_x_m, digits: 3)])).flatten(),
+    table.hline(stroke: 0.8pt),
+  )
+], kind: table, caption: [Gaussian-width results across the same 20 seeds at each force bound.]) <tab-dist-width-response>
+
+The width comparison motivates one final test. Because wider averaging reduces force strength, the preceding tests combine two effects. We now separate them by making the held and shaped forces have the same 2 N RMS over 30 s. For each seed, we generate both versions from the same 10 N target, then scale each downward to the common RMS level. Downward scaling preserves the 10 N amplitude bound and the shaped profile's 50 N/s rate limit. It also avoids clipping after scaling, which would change the waveform.
+
+For these equal-RMS trials, the largest applied disturbance peaks are 3.59 N for held inputs and 6.06 N for shaped inputs. The shaped-force rate never exceeds 38.14 N/s. The force history below illustrates how equal overall RMS can coexist with different peaks and timing.
+
+#figure([
+  #show: lq.layout
+  #dplot(detail.matched_runs, "force_N", [Disturbance force (N)], [Equal-RMS input forces, seed 79202], limit: (0, 10), labels: ([Held], [Gaussian + limiter]), legend: true, size: (6in, 1.8in))
+], caption: [Held and shaped forces scaled to 2 N RMS over 30 s. The first 10 s are shown.]) <fig-dist-matched-input>
+
+#pagebreak()
+
+With the input strength matched, @fig-dist-matched compares the resulting angle motion and cart travel for each seed. The dashed line marks equal response; points above it indicate greater motion under the shaped force.
+
+#let matched_pairs = detail.seeds.map(seed => {
+  let held = detail.matched_trials.filter(r => r.seed == seed and r.mode == 1).first()
+  let shaped = detail.matched_trials.filter(r => r.seed == seed and r.mode == 2).first()
+  (held: held, shaped: shaped)
+})
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    lq.diagram(width: 2.6in, height: 1.8in, title: [(a) Paired angle response], xlim: (0.6, 2), ylim: (0.6, 2), xlabel: [Held-force angle RMS (deg)], ylabel: [Shaped-force angle RMS (deg)],
+      lq.plot(matched_pairs.map(r => r.held.rms_angle_deg), matched_pairs.map(r => r.shaped.rms_angle_deg), mark: "s", stroke: none, color: colors.first()),
+      lq.plot((0.6, 2), (0.6, 2), mark: none, color: black, stroke: (thickness: 0.8pt, dash: "dashed")),
+    ),
+    lq.diagram(width: 2.6in, height: 1.8in, title: [(b) Paired cart travel], xlim: (0.15, 0.7), ylim: (0.15, 0.7), xlabel: [Held-force peak travel (m)], ylabel: [Shaped-force peak travel (m)],
+      lq.plot(matched_pairs.map(r => r.held.peak_x_m), matched_pairs.map(r => r.shaped.peak_x_m), mark: "s", stroke: none, color: colors.first()),
+      lq.plot((0.15, 0.7), (0.15, 0.7), mark: none, color: black, stroke: (thickness: 0.8pt, dash: "dashed")),
+    ),
+  )
+], caption: [Equal-RMS comparisons. Each point pairs the same seed; points above the dashed equality line indicate a larger response to the shaped force.]) <fig-dist-matched>
+
+At equal RMS strength, the shaped force produces a larger response. Median angle RMS increases from 0.89 to 1.57#sym.degree, and median peak cart travel increases from 0.291 to 0.537 m. All 20 seeds remain balanced with both profiles, and no trial reaches the actuator limit. The shaped force varies over longer intervals and has different peaks, so equal RMS does not imply equal effect on the cart and pendulum. Gaussian smoothing therefore cannot be described as universally improving controller performance.
+
+#figure([
+  #set text(size: 10pt)
+  #table(columns: (1fr, 0.75fr, 1fr, 1fr, 1fr, 1fr), inset: (x: 4pt, y: 4pt),
+    table.hline(stroke: 0.8pt), table.header([Profile], [Balanced / 20], [Median force RMS (N)], [Median angle RMS (deg)], [Median peak cart (m)], [Median saturation (%)]) , table.hline(stroke: 0.5pt),
+    ..detail.matched_summary.map(r => ([#if r.mode == 1 { "Held" } else { "Shaped" }], [#str(r.balanced_count)], [#fmt(r.median_force_rms_N)], [#fmt(r.median_angle_rms_deg)], [#fmt(r.median_peak_x_m, digits: 3)], [#fmt(r.median_saturation_percent)])).flatten(),
+    table.hline(stroke: 0.8pt),
+  )
+], kind: table, caption: [Equal-RMS results at 2 N across seeds 79202--79221.]) <tab-dist-matched>
+
+To make the paired statistics easier to interpret, the following histories show seed 79202 at the same RMS strength. They reveal when the shaped force produces a different angle or actuator response, even though its overall RMS is equal.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 24pt,
+    dplot(detail.matched_runs, "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 10), labels: ([Held], [Gaussian + limiter]), legend: true, size: (2.6in, 1.5in)),
+    dplot(detail.matched_runs, "applied_N", [Actuator force (N)], [(b) Actuator response], limit: (0, 10), size: (2.6in, 1.5in)),
+  )
+], caption: [Example equal-RMS controller responses for seed 79202, showing the first 10 s.]) <fig-dist-matched-history>
+
 
 #pagebreak()
 #set page(flipped: true, margin: 1in)

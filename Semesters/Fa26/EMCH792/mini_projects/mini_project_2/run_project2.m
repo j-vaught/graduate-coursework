@@ -138,6 +138,7 @@ fprintf('Model comparison: max angle difference = %.6f deg, x difference = %.6f 
 
 % Run paired held/finite-rate disturbance trials on the saved nonlinear model.
 disturbance_studies();
+appendix_d_studies();
 
 % Export the actual editable Simulink block diagram for the appendix.
 open_system(model);
