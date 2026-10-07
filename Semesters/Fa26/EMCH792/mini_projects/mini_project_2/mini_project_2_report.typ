@@ -119,7 +119,7 @@
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else if limit.last() == 10 { (0, 5, 10) }
-      else if limit.last() == 3 { (0, 1, 2, 3) }
+      else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else if limit.last() == 3 { (0, 1, 2, 3) }
       else { (0, 0.5, 1) }),
     legend: if with-legend { (position: top + right, radius: 0pt) } else { none },
     ..runs.enumerate().map(pair => {
@@ -145,11 +145,11 @@
 }
 
 #let optional-number(value, digits: 2) = if value == none { [—] } else { [#fmt(value, digits: digits)] }
-#let dist-panel(runs, field, ylabel, panel, limit: (0, 30), size: (2.6in, 1in), labels: none, with-legend: false, color-offset: 0, held: true, legend-position: top + right) = {
+#let dist-panel(runs, field, ylabel, panel, limit: (0, 30), size: (2.6in, 1in), labels: none, with-legend: false, color-offset: 0, held: true, legend-position: top + right, solid: false) = {
   set text(size: 8pt)
   lq.diagram(width: size.first(), height: size.last(), title: panel,
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
-    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) } else if limit.last() == 3 { (0, 1, 2, 3) } else { (0, 0.5, 1, 1.5) }),
+    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) } else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else if limit.last() == 3 { (0, 1, 2, 3) } else { (0, 0.5, 1, 1.5) }),
     legend: if with-legend { (position: legend-position, radius: 0pt) } else { none },
     ..runs.enumerate().map(pair => {
       let (i, run) = pair
@@ -158,7 +158,7 @@
         mark: none, color: colors.at(i + color-offset),
         label: if labels == none { [#run.label] } else { labels.at(i) },
         step: if held and run.label == "Held" { end } else { none },
-        stroke: (thickness: 0.9pt, dash: if i + color-offset == 0 { "solid" } else if i + color-offset == 1 { "dashed" } else if i + color-offset == 2 { "dotted" } else { "dash-dotted" }))
+        stroke: (thickness: 0.9pt, dash: if solid or i + color-offset == 0 { "solid" } else if i + color-offset == 1 { "dashed" } else if i + color-offset == 2 { "dotted" } else { "dash-dotted" }))
     }),
   )
 }
@@ -583,27 +583,27 @@ Appendix E shows how these functions connect through the feedback loop. With the
 
 = Appendix C. Random-force generation, shaping, and test protocol
 
-With the controller fixed in Appendix B, MATLAB draws independent uniform samples $xi_k$ in $[-1,1]$ every 0.1 s. The target $r(t)=a xi_k$ is held until the next draw, with bounds $a$ of 2.5, 5, 7.5, and 10 N. Seed 79202 reproduces the original sequence; scaling the same draws preserves timing and signs.
+With the controller fixed in Appendix B, we first test it using random forces that change every 0.1 s. Each new value is independent of the previous one, so the force can jump from near $-10$ N to near $+10$ N at a sample boundary. Such sudden jumps are useful for stressing the controller, but we also want to test a force that changes gradually, as a physical disturbance acting on a cart might. We therefore smooth the random force with Gaussian averaging and limit how quickly it can change.
 
-The held force jumps at sample boundaries. Changing from $-10$ to $+10$ N over 0.1 s requires an average rate of 200 N/s; an instantaneous reversal has no finite rate. We use Gaussian averaging to round the jumps and a separate rate limit to constrain the force speed. The appropriate speed depends on the physical force source.
+To generate the original force, MATLAB draws independent uniform values $xi_k$ in $[-1,1]$. Multiplying by the force bound $a$ gives $r(t)=a xi_k$, held until the next draw. We use bounds of 2.5, 5, 7.5, and 10 N. The same seeded draws are scaled for each bound, so their signs and timing match.
 
-First, a centered Gaussian average produces $s_i$ from the finely sampled target. Nearby samples receive greater weight than distant samples, giving
+Gaussian averaging replaces each force value with a weighted average of nearby values. Samples closest in time receive the most weight. For the smoothed force $s_i$, we use
 
 $
 w_j=exp(-(j h)^2/(2 sigma^2)), quad s_i=(sum_(j=-m)^m w_j r_(i+j))/(sum_(j=-m)^m w_j), quad m=ceil(3 sigma/h).
 $
 
-Here $sigma$ is the Gaussian width in seconds and $h=0.002$ s is the grid spacing, 50 times finer than the random draws. Larger widths suppress short peaks. The average includes samples before and after each point out to $3 sigma$, with constant endpoint extension. We generate the complete record before simulation because centered averaging anticipates target jumps rather than modeling a causal response.
+Here $sigma$ controls how much smoothing occurs. A larger value blends a longer stretch of the force record and produces gentler changes. We calculate the average every $h=0.002$ s, using samples up to $3 sigma$ before and after each point. At the ends, we extend the nearest force value. Because the average uses future samples, we generate the complete record before simulation.
 
-Gaussian averaging rounds the staircase but does not enforce a specified maximum slope. We therefore retain the separate rate limit @MathWorks2026RateLimiter, applied after averaging,
+Smoothing alone can still leave a rapid change. We therefore add a rate limiter @MathWorks2026RateLimiter that allows the force to move only a fixed amount per time step,
 
 $
 d_(i+1)=d_i+"clip"(s_(i+1)-d_i,-L h,L h).
 $
 
-Here $L$ is the maximum rate in N/s, giving $abs(dot(d))<=L$ on every interpolated segment. We use $sigma=0.1$ s and $L=50$ N/s as test settings. The limiter starts at zero for random trials and at $-10$ N for the reversal; the Gaussian average has no initial state.
+The function $"clip"$ restricts each change to $plus.minus L h$, where $L$ is the allowed rate in N/s. We choose $sigma=0.1$ s and $L=50$ N/s. The limiter starts at zero for random trials and at $-10$ N for the reversal test.
 
-To demonstrate the two operations, @fig-dist-reversal compares a held target, Gaussian averaging alone, rate limiting alone, and their combination. The target reverses at 0.5 s. With a 50 N/s limit, the full 20 N change requires at least 0.4 s. @tab-dist-reversal reports the maximum finite rate and time after the target jump to reach $+9$ N. Gaussian transitions begin before that jump, so this time is not their full transition duration.
+We first check these operations with one clear example. In @fig-dist-reversal, the target switches from $-10$ to $+10$ N at 0.5 s. We compare the original jump, Gaussian averaging, rate limiting, and both operations together.
 
 #figure([
   #show: lq.layout
@@ -612,6 +612,8 @@ To demonstrate the two operations, @fig-dist-reversal compares a held target, Ga
     dist-panel(dist.reversal.slice(1), "rate_N_s", [Rate (N/s)], [(b) Finite change rates], limit: (0, 1.5), size: (2.6in, 0.85in), color-offset: 1),
   )
 ], caption: [Force reversal at 0.5 s and the finite change rates of the three continuous profiles. The held force jumps instantaneously and has no finite rate at that instant.]) <fig-dist-reversal>
+
+The Gaussian curve rounds the jump, while the limiter caps its slope at 50 N/s. A full 20 N change at that rate needs at least 0.4 s. @tab-dist-reversal measures time from the target jump to $+9$ N. Centered averaging begins changing earlier, so these times are not full transition durations.
 
 #figure(table(columns: (1.6fr, 1fr, 1fr), inset: (x: 5pt, y: 2pt),
   align: (x, y) => if y == 0 or x == 0 { left } else { right },
@@ -623,17 +625,17 @@ To demonstrate the two operations, @fig-dist-reversal compares a held target, Ga
 
 #pagebreak()
 
-Having established the behavior for a single reversal, @fig-dist-random applies all four versions to the same 10 N random target over 30 s. The detail shows how the staircase becomes gradual motion. The profiles remain bounded because the Gaussian average uses positive normalized weights and the limiter moves toward bounded values without overshoot. MATLAB computes them before simulation; held inputs use zero-order hold, while continuous profiles use linear interpolation in the existing Simulink source block. The controller's separate 10 N actuator limit is unchanged.
+With the single jump explained, @fig-dist-random shows the same operations on the random-force sequence from seed 79202. Panel (a) shows the first 10 s, and panel (b) enlarges the first 3 s. The original force has sharp steps; Gaussian averaging rounds them, and the combined curve also obeys the rate limit.
 
 #figure([
   #show: lq.layout
   #grid(columns: (1fr, 1fr), gutter: 8pt,
-    dist-panel(dist.random_profiles, "force_N", [Force (N)], [(a) Full random-force record], limit: (0, 30), size: (2.6in, 0.75in), with-legend: true),
-    dist-panel(dist.random_profiles, "force_N", [Force (N)], [(b) First 3 s], limit: (0, 3), size: (2.6in, 0.75in)),
+    dist-panel(dist.random_profiles, "force_N", [Force (N)], [(a) First 10 s], limit: (0, 10), size: (2.6in, 0.75in), solid: true),
+    dist-panel(dist.random_profiles, "force_N", [Force (N)], [(b) First 3 s], limit: (0, 3), size: (2.6in, 0.75in), with-legend: true, solid: true),
   )
 ], caption: [Held, Gaussian-averaged, rate-limited, and combined disturbances from the same 10 N target sequence, seed 79202.]) <fig-dist-random>
 
-@tab-dist-profiles reports peak force, root-mean-square (RMS) force over 30 s, and maximum finite slope. Averaging and limiting change the disturbance's strength as well as its timing, so a bound of 10 N does not imply equal RMS force across profiles.
+The curves stay within the original force bounds. However, smoothing removes short peaks and reduces root-mean-square (RMS) force, as @tab-dist-profiles shows for the full 30 s record. Thus, the shaped force is smoother and also weaker. In Simulink, we interpolate between its fine-grid samples; the original force remains held between draws.
 
 #figure(table(columns: (1.3fr, 1fr, 1fr, 1.2fr), inset: (x: 5pt, y: 2pt),
   align: (x, y) => if y == 0 or x == 0 { left } else { right },
@@ -643,7 +645,7 @@ Having established the behavior for a single reversal, @fig-dist-random applies 
   table.hline(stroke: 0.8pt),
 ), kind: table, caption: [Actual strength and slope of the four 30 s disturbance profiles.]) <tab-dist-profiles>
 
-To assess sensitivity, @fig-dist-settings varies the Gaussian width over 0.05, 0.1, and 0.2 s without a limiter, then varies the limiter rate over 25, 50, and 100 N/s without Gaussian averaging. Both sweeps use the same 10 N target. @tab-dist-settings quantifies their effects over 30 s; the curves show the first 3 s.
+We next check how the settings change the force. @fig-dist-settings compares Gaussian widths of 0.05, 0.1, and 0.2 s without a limiter, then rate limits of 25, 50, and 100 N/s without averaging. Using the same 10 N target makes the effect of each setting visible.
 
 #figure([
   #show: lq.layout
@@ -652,6 +654,8 @@ To assess sensitivity, @fig-dist-settings varies the Gaussian width over 0.05, 0
     dist-panel(dist.rate_sweep, "force_N", [Force (N)], [(b) Maximum rate], limit: (0, 3), size: (2.6in, 0.75in), labels: ([25 N/s], [50 N/s], [100 N/s]), with-legend: true, held: false),
   )
 ], caption: [Sensitivity of the disturbance to Gaussian width and rate limit, tested separately.]) <fig-dist-settings>
+
+Larger Gaussian widths blend away more short fluctuations. Lower rate limits produce slower ramps. @tab-dist-settings quantifies these changes over 30 s. We retain $sigma=0.1$ s and $L=50$ N/s for the controller comparisons.
 
 #figure(table(columns: (1fr, 1fr, 1fr, 1fr, 1.2fr), inset: (x: 5pt, y: 2pt),
   align: (x, y) => if y == 0 or x == 0 { left } else { right },
