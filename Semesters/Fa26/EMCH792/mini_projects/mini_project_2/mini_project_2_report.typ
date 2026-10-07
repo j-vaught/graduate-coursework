@@ -222,10 +222,12 @@
 
 #align(center)[
   #text(size: 17pt, weight: "bold")[LQR Control of an Inverted Pendulum on a Cart]
-  #v(0.15em)
-  #text(size: 10pt)[Design and test a state-feedback controller that keeps an inverted pendulum upright after an initial perturbation and under random cart forces.]
 ]
 #v(0.3em)
+
+= OBJECTIVE.
+
+Design and test a state-feedback controller that keeps an inverted pendulum upright after an initial perturbation and under random cart forces.
 
 = METHODOLOGY.
 
