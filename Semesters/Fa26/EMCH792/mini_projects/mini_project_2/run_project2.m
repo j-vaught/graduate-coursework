@@ -136,6 +136,9 @@ disp('Stress test results were written to metrics.json.');
 fprintf('Model comparison: max angle difference = %.6f deg, x difference = %.6f m.\n', ...
     comparison_metrics.max_angle_difference_deg, comparison_metrics.max_x_difference_m);
 
+% Run paired held/finite-rate disturbance trials on the saved nonlinear model.
+disturbance_studies();
+
 % Export the actual editable Simulink block diagram for the appendix.
 open_system(model);
 set_param(model, 'ZoomFactor', 'FitSystem');

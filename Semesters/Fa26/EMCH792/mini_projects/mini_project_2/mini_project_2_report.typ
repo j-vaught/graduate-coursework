@@ -4,6 +4,7 @@
 #let stats = json("metrics.json")
 #let model_tests = json("model_comparisons.json")
 #let ctrl = json("controller_studies.json")
+#let dist = json("disturbance_studies.json")
 #let fmt(value, digits: 2) = str(calc.round(value, digits: digits))
 #let colors = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"), rgb("#A96B59"), rgb("#717581"))
 #let sweep(runs, field, ylabel, limit, panel, height: 1.05in, ylim: auto, yscale: "linear", failed-from: 99, with-legend: false, legend-position: top + right, data-size: none) = {
@@ -141,6 +142,25 @@
   )
   ctrl-panel(runs, "force_N", [Force (N)], panel, limit: (0, 3), size: (2.6in, 0.9in),
     labels: ([Unlimited], [Requested, limited], [Applied, limited]), with-legend: with-legend)
+}
+
+#let optional-number(value, digits: 2) = if value == none { [—] } else { [#fmt(value, digits: digits)] }
+#let dist-panel(runs, field, ylabel, panel, limit: (0, 30), size: (2.6in, 1in), labels: none, with-legend: false, color-offset: 0, held: true, legend-position: top + right) = {
+  set text(size: 8pt)
+  lq.diagram(width: size.first(), height: size.last(), title: panel,
+    xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
+    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) } else if limit.last() == 3 { (0, 1, 2, 3) } else { (0, 0.5, 1, 1.5) }),
+    legend: if with-legend { (position: legend-position, radius: 0pt) } else { none },
+    ..runs.enumerate().map(pair => {
+      let (i, run) = pair
+      let indices = run.time_s.enumerate().filter(pair => pair.last() <= limit.last()).map(pair => pair.first())
+      lq.plot(indices.map(j => run.time_s.at(j)), indices.map(j => run.at(field).at(j)),
+        mark: none, color: colors.at(i + color-offset),
+        label: if labels == none { [#run.label] } else { labels.at(i) },
+        step: if held and run.label == "Held" { end } else { none },
+        stroke: (thickness: 0.9pt, dash: if i + color-offset == 0 { "solid" } else if i + color-offset == 1 { "dashed" } else if i + color-offset == 2 { "dotted" } else { "dash-dotted" }))
+    }),
+  )
 }
 
 #let velocity(field, ylabel, height: 2.6in) = {
@@ -561,101 +581,176 @@ Appendix E shows how these functions connect through the feedback loop. With the
 #pagebreak()
 #set page(flipped: false, margin: 1in)
 
-= Appendix C. Random-force generation and measurement protocol
+= Appendix C. Random-force generation, shaping, and test protocol
 
-The feedback loop in Appendix E receives a separate external force. To generate it, MATLAB draws independent samples $xi_k$ uniformly in $[-1,1]$ and holds each value for $Delta t=0.1$ s. For force bound $a$, the applied disturbance is
+With the controller fixed in Appendix B, we next define the external force used to test it. MATLAB draws independent uniform samples $xi_k$ in $[-1,1]$ every 0.1 s. Multiplying each draw by a bound $a$ gives the target force $r(t)=a xi_k$, held until the next draw. We retain bounds of 2.5, 5, 7.5, and 10 N. Seed 79202 reproduces the original sequence, and scaling the same draws allows strength comparisons with matched timing and signs.
 
-$
-d_a(t)=a xi_k, quad k Delta t <= t < (k+1) Delta t.
-$
+The original held force changes instantaneously at sample boundaries. A reversal from $-10$ to $+10$ N completed over 0.1 s would require an average rate of 200 N/s; an instantaneous reversal has no finite rate. Whether 200 N/s is realistic depends on the source of the force. To represent a disturbance with finite response speed, we add smoothing and a separate rate limit. These address different properties of the input rather than merely changing its appearance.
 
-We use $a=2.5$, 5, 7.5, and 10 N. The generator uses the Twister algorithm with seed 79202. Every bound uses the same $xi_k$ sequence, so the tests change force strength while retaining the timing and sign of each push. A sample beyond 30 s prevents the source block from needing to extrapolate at the final solver step. Interpolation is disabled, and the source holds its last value after the final sample.
-
-This is one model of short, irregular pushes. Its theoretical mean is zero and its variance is $a^2/3$, although the finite sequence has its own sample mean. It does not model a persistent bias, correlated low-frequency force, isolated impact, or sensor noise. A different seed would produce a different trajectory. The results therefore compare the four strengths for this recorded sequence; they do not estimate a failure probability across random realizations.
-
-Both test categories run for 30 s using ode45 with a 0.01 s maximum step. Release tests set the initial angle to 5, 10, 20, 30, 45, or 60#sym.degree, with all other initial states and the disturbance zero. Random-force tests start with every state zero. The gain and actuator limit stay fixed across all trials.
-
-To compare the trials, the logged states are sampled on a uniform 0.02 s grid. Peak angle is $max_i abs(theta_i)$, and root-mean-square (RMS) angle is
+First, a low-pass filter produces $s(t)$ according to
 
 $
-theta_"RMS"=sqrt((1/N)sum_i theta_i^2).
+tau dot(s)+s=r, quad H(p)=1/(tau p+1).
 $
 
-Settling time is the first sampled time after which $abs(theta)$ stays within 1#sym.degree through the end of the run. This describes release recovery; under continuous forcing it depends on the particular later draws. Saturation fraction counts analysis samples with $abs(u)>=10$ N. For release tests, recovery requires the final angle magnitude and the RMS angle over the final two seconds to be below 2#sym.degree. For random-force tests, peak and RMS angle measure the continuing motion, and loss of upright balance is identified by leaving $plus.minus 90 degree$. Figures use every second analysis sample, while metrics use every sample. The forcing panels use the original 0.1 s values and display the actual held steps.
+Here $tau$ is the time constant and $p$ is the Laplace variable. A larger $tau$ makes the force follow the target more gradually. This filter removes force jumps but does not impose a fixed maximum slope @MathWorks2026TransferFunction. We then limit how quickly the applied disturbance $d$ can approach $s$. On the profile grid, the update is
+
+$
+d_(i+1)=d_i+"clip"(s_(i+1)-d_i,-L h,L h),
+$
+
+where $h=0.002$ s and $L$ is the maximum rate in N/s. Thus, every linear segment satisfies $abs(dot(d))<=L$. This performs the slope-limiting operation represented by a rate limiter @MathWorks2026RateLimiter. The nominal settings are $tau=0.1$ s and $L=50$ N/s. They are exploratory disturbance assumptions, not measured properties of a particular force source. The random profiles begin at zero; filter and limiter states begin at the initial force for the separate reversal test.
+
+To demonstrate the two operations, @fig-dist-reversal compares a held target, smoothing alone, rate limiting alone, and their combination. The target reverses at 0.5 s. With a 50 N/s limit, the full 20 N change requires at least 0.4 s. @tab-dist-reversal reports the maximum finite rate and the time to complete 95% of the reversal, reaching $+9$ N.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 8pt,
+    dist-panel(dist.reversal, "force_N", [Force (N)], [(a) Extreme reversal], limit: (0, 1.5), size: (2.6in, 1in), with-legend: true, legend-position: top + left),
+    dist-panel(dist.reversal.slice(1), "rate_N_s", [Rate (N/s)], [(b) Finite change rates], limit: (0, 1.5), size: (2.6in, 1in), color-offset: 1),
+  )
+], caption: [Force reversal at 0.5 s and the finite change rates of the three continuous profiles. The held force jumps instantaneously and has no finite rate at that instant.]) <fig-dist-reversal>
+
+#figure(table(columns: (1.6fr, 1fr, 1fr), inset: (x: 5pt, y: 4pt),
+  align: (x, y) => if y == 0 or x == 0 { left } else { right },
+  table.hline(stroke: 0.8pt), table.header([Profile], [Maximum rate (N/s)], [95% reversal time (s)]),
+  table.hline(stroke: 0.5pt),
+  ..dist.reversal.map(run => ([#run.label], [#optional-number(run.max_rate_N_s)], [#fmt(run.transition_95_s)])).flatten(),
+  table.hline(stroke: 0.8pt),
+), kind: table, caption: [Reversal timing and force-change rates with $tau=0.1$ s and $L=50$ N/s. A dash denotes an undefined instantaneous rate.]) <tab-dist-reversal>
+
+#pagebreak()
+
+Having established the behavior for a single reversal, @fig-dist-random applies all four versions to the same 10 N random target over 30 s. The detail shows how the staircase becomes gradual motion. The profiles remain within the target bounds because both updates move toward bounded values without overshoot. MATLAB computes them before simulation; held inputs use zero-order hold, while continuous profiles use linear interpolation in the existing Simulink source block. The controller's separate 10 N actuator limit is unchanged.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 8pt,
+    dist-panel(dist.random_profiles, "force_N", [Force (N)], [(a) Full random-force record], limit: (0, 30), size: (2.6in, 0.75in), with-legend: true),
+    dist-panel(dist.random_profiles, "force_N", [Force (N)], [(b) First 3 s], limit: (0, 3), size: (2.6in, 0.75in)),
+  )
+], caption: [Held, smoothed, rate-limited, and combined disturbances from the same 10 N target sequence, seed 79202.]) <fig-dist-random>
+
+@tab-dist-profiles reports peak force, root-mean-square (RMS) force over 30 s, and maximum finite slope. Smoothing and limiting change the disturbance's strength as well as its timing, so a bound of 10 N does not imply equal RMS force across profiles.
+
+#figure(table(columns: (1.3fr, 1fr, 1fr, 1.2fr), inset: (x: 5pt, y: 2pt),
+  align: (x, y) => if y == 0 or x == 0 { left } else { right },
+  table.hline(stroke: 0.8pt), table.header([Profile], [Peak (N)], [RMS (N)], [Maximum rate (N/s)]),
+  table.hline(stroke: 0.5pt),
+  ..dist.random_profiles.map(run => ([#run.label], [#fmt(run.peak_N)], [#fmt(run.rms_N)], [#optional-number(run.max_rate_N_s)])).flatten(),
+  table.hline(stroke: 0.8pt),
+), kind: table, caption: [Actual strength and slope of the four 30 s disturbance profiles.]) <tab-dist-profiles>
+
+To assess sensitivity, @fig-dist-settings varies the filter time constant over 0.05, 0.1, and 0.2 s without a limiter, then varies the limiter rate over 25, 50, and 100 N/s without a filter. Both sweeps use the same 10 N target. @tab-dist-settings quantifies their effects over 30 s; the curves show the first 3 s.
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr), gutter: 8pt,
+    dist-panel(dist.tau_sweep, "force_N", [Force (N)], [(a) Smoothing time constant], limit: (0, 3), size: (2.6in, 0.75in), labels: ([0.05 s], [0.1 s], [0.2 s]), with-legend: true, held: false),
+    dist-panel(dist.rate_sweep, "force_N", [Force (N)], [(b) Maximum rate], limit: (0, 3), size: (2.6in, 0.75in), labels: ([25 N/s], [50 N/s], [100 N/s]), with-legend: true, held: false),
+  )
+], caption: [Sensitivity of the disturbance to smoothing time constant and rate limit, tested separately.]) <fig-dist-settings>
+
+#figure(table(columns: (1fr, 1fr, 1fr, 1fr, 1.2fr), inset: (x: 5pt, y: 2pt),
+  align: (x, y) => if y == 0 or x == 0 { left } else { right },
+  table.hline(stroke: 0.8pt), table.header([Operation], [Setting], [Peak (N)], [RMS (N)], [Maximum rate (N/s)]),
+  table.hline(stroke: 0.5pt),
+  ..dist.tau_sweep.map(run => ([Filter], [#str(run.setting) s], [#fmt(run.peak_N)], [#fmt(run.rms_N)], [#fmt(run.max_rate_N_s)])).flatten(),
+  ..dist.rate_sweep.map(run => ([Limiter], [#str(run.setting) N/s], [#fmt(run.peak_N)], [#fmt(run.rms_N)], [#fmt(run.max_rate_N_s)])).flatten(),
+  table.hline(stroke: 0.8pt),
+), kind: table, caption: [Separate shaping sweeps using the same 10 N random target.]) <tab-dist-settings>
+
+Finally, 160 nonlinear trials compare held and combined disturbances across seeds 79202--79221 and four bounds. Each starts upright at rest and lasts 30 s. The ode45 settings are a 0.005 s maximum step, $10^(-7)$ relative tolerance, and $10^(-9)$ absolute tolerance. States are sampled every 0.02 s; balance requires $abs(theta)<90 degree$ throughout. Appendix D reports angle RMS, peak travel, saturation, and paired-seed results. Shaping changes temporal correlation and RMS strength, so these tests assess both effects together.
 
 #pagebreak()
 
 = Appendix D. Detailed release and disturbance results
 
-The release tests defined in Appendix C produce the following metrics. The final-two-second RMS checks that a successful final angle is accompanied by sustained balance. The saturation percentage is measured on the analysis grid.
+With the disturbance method defined in Appendix C, we collect the nonlinear performance results here. The original release tests start from 5, 10, 20, 30, 45, or 60#sym.degree with all other states and the disturbance zero. They run for 30 s with a 0.01 s maximum solver step. Metrics use a 0.02 s grid. Recovery requires the final angle and final-two-second angle RMS to be below 2#sym.degree. Actuator saturation counts samples at the 10 N limit.
 
 #let release_entries = ((initial_angle_deg: 5, metrics: stats.perturbation),) + stats.angle_stress
-#figure(
-  table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 5pt),
+#figure(table(columns: (0.8fr, 1.2fr, 1.2fr, 1fr, 1fr), inset: (x: 5pt, y: 2pt),
   align: (x, y) => if y == 0 or x == 4 { left } else { right },
   table.hline(stroke: 0.8pt),
   table.header([Initial angle (deg)], [Peak cart displacement (m)], [Final 2 s RMS (deg)], [Saturation (%)], [Recovered]),
   table.hline(stroke: 0.5pt),
-  ..release_entries.map(entry => (
-    [#str(entry.initial_angle_deg)],
-    [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
-    [#fmt(entry.metrics.final_2s_rms_angle_deg, digits: 4)],
-    [#fmt(100*entry.metrics.saturation_fraction)],
-    [#if entry.metrics.recovered { "Yes" } else { "No" }],
-  )).flatten(),
+  ..release_entries.map(entry => ([#str(entry.initial_angle_deg)], [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
+    [#fmt(entry.metrics.final_2s_rms_angle_deg, digits: 4)], [#fmt(100*entry.metrics.saturation_fraction)],
+    [#if entry.metrics.recovered { "Yes" } else { "No" }])).flatten(),
   table.hline(stroke: 0.8pt),
-), kind: table,
-  caption: [Release-test recovery, cart travel, and actuator saturation.],
-) <tab-release-metrics>
+), kind: table, caption: [Original release-test recovery, cart travel, and actuator saturation.]) <tab-release-metrics>
 
 #figure([
   #sweep(plots.angle_runs, "u_N", [Actuator command (N)], (0, 30), [Release-test actuator commands],
-    height: 3.3in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
-], caption: [Force used in the initial-angle sweep. The three failed cases remain at the actuator limit.])
+    height: 1.15in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
+], caption: [Original initial-angle actuator histories. The failed cases remain at the actuator limit.])
 
-The tested 20#sym.degree case recovers but reaches #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of displacement. The tested 30#sym.degree case fails, placing the transition somewhere between those two inputs for this controller. No trials between them were run. After failure, the unlimited-track model permits the cart to keep accelerating, and the angle records full rotations rather than being wrapped into a single revolution.
+The tested 20#sym.degree release recovers but reaches #fmt(stats.angle_stress.at(1).metrics.peak_cart_position_m) m of travel. The tested 30#sym.degree release fails, placing the recovery-to-failure transition between them. No intermediate releases were tested. After failure, the model's unlimited track permits continued acceleration, and its angle records full rotations.
+
+The velocity histories below complete the four-state record. They compare the original 5#sym.degree release and the original 2.5 N held-force trial. Release velocities decay toward rest, whereas the continuing disturbance produces continuing velocity fluctuations.
+
+#figure(velocity("x_dot_m_s", [Cart velocity (m/s)], height: 1.05in),
+  caption: [Cart velocity supplied to the state-feedback gain in the original nominal tests.])
+
+The angular velocity provides the remaining state used by the controller. The plotted units are degrees per second; the feedback calculation uses radians per second.
+
+#v(8pt)
+#figure(velocity("theta_dot_deg_s", [Angular velocity (deg/s)], height: 1.05in),
+  caption: [Pendulum angular velocity in the original nominal tests.])
 
 #pagebreak()
 
-Following the release tests, the force sweep measures continuing balance while the disturbance remains active. Its angle, travel, and actuator metrics are
-
-#figure(
-  table(columns: (0.75fr, 1fr, 1fr, 1.15fr, 1.05fr, 0.8fr), inset: (x: 5pt, y: 5pt),
-  align: (x, y) => if y == 0 { left } else { right },
-  table.hline(stroke: 0.8pt),
-  table.header([Bound (N)], [RMS angle (deg)], [Peak angle (deg)], [Peak cart displacement (m)], [Saturation (%)], [Peak command (N)]),
-  table.hline(stroke: 0.5pt),
-  ..stats.force_stress.map(entry => (
-    [#fmt(entry.amplitude_N, digits: 1)],
-    [#fmt(entry.metrics.rms_angle_deg)],
-    [#fmt(entry.metrics.peak_angle_deg)],
-    [#fmt(entry.metrics.peak_cart_position_m, digits: 3)],
-    [#fmt(100*entry.metrics.saturation_fraction)],
-    [#fmt(entry.metrics.peak_command_N)],
-  )).flatten(),
-  table.hline(stroke: 0.8pt),
-), kind: table,
-  caption: [Random-force balance, cart travel, and actuator demand.],
-) <tab-force-metrics>
+For the paired 5 N tests in @fig-dist-controller, both profiles use seed 79202, an upright initial state, the baseline gain, and the 10 N actuator limit. The combined settings are $tau=0.1$ s and $L=50$ N/s.
 
 #figure([
-  #sweep(plots.force_runs, "u_N", [Actuator command (N)], (0, 30), [Random-force actuator commands],
-    height: 3.3in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
-], caption: [Actuator use under the four disturbance bounds. The dashed 10 N case loses balance and remains saturated after failure.])
+  #show: lq.layout
+  #grid(columns: (1fr, 1fr, 1fr), gutter: 6pt,
+    ctrl-panel(dist.controller_runs, "theta_deg", [Angle (deg)], [(a) Pendulum angle], limit: (0, 30), size: (1.65in, 0.85in), labels: ([Held], [Combined]), with-legend: true),
+    ctrl-panel(dist.controller_runs, "x_m", [Position (m)], [(b) Cart position], limit: (0, 30), size: (1.65in, 0.85in)),
+    ctrl-panel(dist.controller_runs, "applied_N", [Actuator force (N)], [(c) Actuator demand], limit: (0, 30), size: (1.65in, 0.85in)),
+  )
+], caption: [Nonlinear controller responses to held and combined 5 N disturbances, seed 79202.]) <fig-dist-controller>
 
-The held inputs appear over 30 s in Figure 3(e) and over 0--3 s in Figure 3(f). At bounds through 7.5 N, the angle stays within 5.4#sym.degree and the actuator never saturates. The 7.5 N case ends at #fmt(stats.force_stress.at(2).metrics.final_angle_deg)#sym.degree because the pushes continue; this is ongoing disturbed balance rather than a return to zero. At 10 N, the pendulum leaves the upright region and the command saturates. Once it falls, that limited command cannot restore the local upright response.
+@tab-dist-nominal extends the comparison to all four bounds using Appendix C's solver settings. The 30 s metrics distinguish actual force strength from controller response; balance requires $abs(theta)<90 degree$.
 
-#pagebreak()
+#figure([
+  #set text(size: 9pt)
+  #table(columns: (0.6fr, 1fr, 0.8fr, 1fr, 1fr, 1fr, 0.8fr), inset: (x: 4pt, y: 2pt),
+    align: (x, y) => if y == 0 or x == 1 or x == 2 { left } else { right },
+    table.hline(stroke: 0.8pt),
+    table.header([Bound (N)], [Profile], [Balanced], [Force RMS (N)], [Angle RMS (deg)], [Peak cart (m)], [Saturated (%)]) ,
+    table.hline(stroke: 0.5pt),
+    ..dist.seed_summary.map(pair => dist.nominal.filter(run => run.bound_N == pair.bound_N and run.mode == pair.mode).first()).map(run => ([#fmt(run.bound_N, digits: 1)], [#if run.mode == 1 { "Held" } else { "Combined" }],
+      [#if run.balanced { "Yes" } else { "No" }], [#fmt(run.force_rms_N)], [#fmt(run.rms_angle_deg)],
+      [#fmt(run.peak_x_m, digits: 3)], [#fmt(run.saturation_percent)])).flatten(),
+    table.hline(stroke: 0.8pt),
+  )
+], kind: table, caption: [Paired held and combined disturbance results for seed 79202.]) <tab-dist-nominal>
 
-The preceding figures show position, angle, and force. The remaining two feedback states are cart velocity and angular velocity. The following histories compare the nominal 5#sym.degree release and 2.5 N random-force test.
+The original held-force actuator histories are retained below for comparison with Figure 3. At the original 10 N bound, the controller loses balance and remains saturated after failure.
 
-#figure(velocity("x_dot_m_s", [Cart velocity (m/s)]),
-  caption: [Cart velocity supplied to the state-feedback gain.])
+#figure([
+  #sweep(plots.force_runs, "u_N", [Actuator command (N)], (0, 30), [Original held-force actuator commands],
+    height: 1.0in, ylim: (-10.5, 10.5), failed-from: 3, with-legend: true)
+], caption: [Original actuator histories under the four held-force bounds. The failed 10 N case is dashed.])
 
-#figure(velocity("theta_dot_deg_s", [Angular velocity (deg/s)]),
-  caption: [Pendulum angular velocity. The controller uses radians per second internally.])
+To test dependence on the random draws, @tab-dist-seeds summarizes 20 seeds per bound and profile. Force medians include all trials; response medians include balanced trials only.
 
-The release velocities decay as the cart and pendulum settle. Under continuing random pushes, the velocities continue to vary while the controller maintains balance. These signals complete the four-state record used to produce the report's position and angle responses.
+#figure([
+  #set text(size: 9pt)
+  #table(columns: (0.6fr, 1fr, 0.9fr, 1fr, 1fr, 1fr), inset: (x: 4pt, y: 2pt),
+    align: (x, y) => if y == 0 or x == 1 { left } else { right },
+    table.hline(stroke: 0.8pt),
+    table.header([Bound (N)], [Profile], [Balanced / 20], [Median force RMS (N)], [Median angle RMS (deg)], [Median peak cart (m)]),
+    table.hline(stroke: 0.5pt),
+    ..dist.seed_summary.map(run => ([#fmt(run.bound_N, digits: 1)], [#if run.mode == 1 { "Held" } else { "Combined" }],
+      [#str(run.balanced_count)], [#fmt(run.median_force_rms_N)],
+      [#optional-number(run.median_rms_angle_deg_balanced)], [#optional-number(run.median_peak_x_m_balanced, digits: 3)])).flatten(),
+    table.hline(stroke: 0.8pt),
+  )
+], kind: table, caption: [Results across seeds 79202--79221. Response medians use balanced trials only.]) <tab-dist-seeds>
+
+Both profiles maintain balance in all 20 trials through 7.5 N. At 10 N, the held profile maintains balance in 18 trials and the combined profile in 19; seed 79202 fails with both. At 5 N for that seed, shaping reduces force RMS from 2.98 to 1.84 N and angle RMS from 1.39 to 1.32 degrees, with nearly unchanged cart travel. Because force strength also changes, this comparison does not isolate the effect of smoothing at equal RMS force.
 
 #pagebreak()
 #set page(flipped: true, margin: 1in)
