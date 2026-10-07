@@ -14,7 +14,7 @@
     height: if data-size == none { 0% + height } else { data-size.last() }, title: panel,
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit, ylim: ylim, yscale: yscale,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
-      else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
+      else if limit.last() == 1 { (0, 0.2, 0.4, 0.6, 0.8, 1) } else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) }
       else if limit.last() == 6 { (0, 1, 2, 3, 4, 5, 6) }
       else if limit.last() == 3 { (0, 0.5, 1, 1.5, 2, 2.5, 3) }
       else { (0, 0.2, 0.4, 0.6, 0.8, 1) }),
@@ -119,7 +119,7 @@
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
     xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) }
       else if limit.last() == 10 { (0, 5, 10) }
-      else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else if limit.last() == 3 { (0, 1, 2, 3) }
+      else if limit.last() == 1 { (0, 0.2, 0.4, 0.6, 0.8, 1) } else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else if limit.last() == 3 { (0, 1, 2, 3) }
       else { (0, 0.5, 1) }),
     legend: if with-legend { (position: top + right, radius: 0pt) } else { none },
     ..runs.enumerate().map(pair => {
@@ -149,7 +149,7 @@
   set text(size: 8pt)
   lq.diagram(width: size.first(), height: size.last(), title: panel,
     xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
-    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) } else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else if limit.last() == 3 { (0, 1, 2, 3) } else { (0, 0.5, 1, 1.5) }),
+    xaxis: (ticks: if limit.last() == 30 { (0, 10, 20, 30) } else if limit.last() == 1 { (0, 0.2, 0.4, 0.6, 0.8, 1) } else if limit.last() == 10 { (0, 2, 4, 6, 8, 10) } else if limit.last() == 3 { (0, 1, 2, 3) } else { (0, 0.5, 1, 1.5) }),
     legend: if with-legend { (position: legend-position, radius: 0pt) } else { none },
     ..runs.enumerate().map(pair => {
       let (i, run) = pair
@@ -608,8 +608,8 @@ We first check these operations with one clear example. In @fig-dist-reversal, t
 #figure([
   #show: lq.layout
   #grid(columns: (1fr, 1fr), gutter: 8pt,
-    dist-panel(dist.reversal, "force_N", [Force (N)], [(a) Extreme reversal], limit: (0, 1.5), size: (2.6in, 0.85in), with-legend: true, legend-position: top + left),
-    dist-panel(dist.reversal.slice(1), "rate_N_s", [Rate (N/s)], [(b) Finite change rates], limit: (0, 1.5), size: (2.6in, 0.85in), color-offset: 1),
+    dist-panel(dist.reversal, "force_N", [Force (N)], [(a) Extreme reversal], limit: (0, 1), size: (2.6in, 0.85in), with-legend: true, legend-position: top + left),
+    dist-panel(dist.reversal.slice(1), "rate_N_s", [Rate (N/s)], [(b) Finite change rates], limit: (0, 1), size: (2.6in, 0.85in), color-offset: 1),
   )
 ], caption: [Force reversal at 0.5 s and the finite change rates of the three continuous profiles. The held force jumps instantaneously and has no finite rate at that instant.]) <fig-dist-reversal>
 
