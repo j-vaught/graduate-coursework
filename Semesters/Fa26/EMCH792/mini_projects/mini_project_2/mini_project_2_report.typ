@@ -926,12 +926,12 @@ To make the paired statistics easier to interpret, the following histories show 
 
 
 #pagebreak()
-#set page(flipped: true, margin: 1in)
+#set page(flipped: false, margin: 1in)
 
 = Appendix E. Simulink feedback loop and nonlinear plant
 
 #figure(image("controlled_model_diagram.png", width: 100%),
-  caption: [Complete feedback loop. The disturbance enters above the circular sum, and the limited actuator command returns below the loop.])
+  caption: [Complete feedback loop with state feedback, actuator saturation, an external disturbance, and signal logging.])
 
 The gain from Appendix B acts on all four simulated states. The actuator block limits the command, then the sum adds the disturbance before the total force reaches the cart. Output blocks record the states, command, disturbance, and total force. This wiring implements $F="sat"(-K z)+d$.
 
