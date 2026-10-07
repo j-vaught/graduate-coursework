@@ -204,7 +204,8 @@
 }
 
 #set page(paper: "us-letter", margin: (top: 0.75in, bottom: 1in, x: 1in),
-  numbering: "1", number-align: center + bottom)
+  numbering: "1", number-align: center + bottom,
+  header: [#text(size: 9pt)[J.C. Vaught] #h(1fr) #text(size: 9pt)[EMCH 792]])
 #set text(font: ("Times New Roman", "New Computer Modern", "Latin Modern Roman"),
   size: 11pt, lang: "en", region: "US")
 #set par(justify: true, leading: 0.55em, first-line-indent: (amount: 1em, all: true))
@@ -222,9 +223,7 @@
 #align(center)[
   #text(size: 17pt, weight: "bold")[LQR Control of an Inverted Pendulum on a Cart]
   #v(0.15em)
-  #text(size: 10pt)[J.C. Vaught]
-  #v(0.1em)
-  #text(size: 9pt)[EMCH 792: Learning-Based Controls]
+  #text(size: 10pt)[Design and test a state-feedback controller that keeps an inverted pendulum upright after an initial perturbation and under random cart forces.]
 ]
 #v(0.3em)
 
