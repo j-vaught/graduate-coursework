@@ -43,7 +43,7 @@ An autonomous surface vessel (ASV) must reach a target while wind changes its mo
 - BlueBoat is the deployment platform.
   - Its dimensions and propulsion differ from the slide model. Sections 2–7 retain the original benchmark; the later sections define the selected hardware and identification work.
 
-#figure(f.hull(), caption: [BlueBoat hull plan with the computer and sensors grouped under label 1; $O$ denotes the hull reference origin. $B$ is the surveyed thrust-line separation. The envelope uses published length and beam; the equipment compartment is schematic. The coordinate inset defines $psi$ and $r$ independently of the bow-up plan.]) <hull>
+#figure(f.hull(), caption: [BlueBoat hull plan with the computer and sensors grouped under label 1; $O$ denotes the hull reference origin. $B$ is the surveyed thrust-line separation. The envelope uses published length and beam; the equipment compartment is schematic. Boat and map frames share origin $O$ and are drawn separately for clarity. The illustrated bow faces north, so $psi=90 degree$; surge points forward and sway points to port.]) <hull>
 
 #tbl((1.1fr, 1.15fr, 1.55fr),
   table.header([Quantity], [Slide benchmark], [BlueBoat platform]), table.hline(stroke: 0.5pt),
