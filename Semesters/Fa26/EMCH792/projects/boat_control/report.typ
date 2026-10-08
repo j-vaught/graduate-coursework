@@ -1,4 +1,7 @@
 #import "figures.typ" as f
+#import "hardware_figures.typ" as hw
+#let cv = json("data/component_validation.json")
+#set list(indent: 0.9em, body-indent: 0.55em, spacing: 4pt)
 #let validation = json("data/validation.json")
 #let metrics = validation.metrics
 #let fmt = f.fmt
@@ -32,24 +35,27 @@
 #line(length: 100%, stroke: 1pt + f.garnet)
 
 = Project objective
-An autonomous surface vessel must reach a target while wind and water disturbances change its motion. Two independent thrusters provide forward force and yaw moment, but neither produces direct lateral force. This project therefore examines how thrust, drag, and turning interact before selecting a feedback controller.
+An autonomous surface vessel (ASV) must reach a target while wind changes its motion. Two independent thrusters provide surge force and yaw moment, so guidance must turn the hull to correct lateral error. This report reproduces the presentation experiments and develops a hardware architecture for BlueBoat @Vaught2026BoatControl @BlueRobotics2025BlueBoat.
 
-The simulations reconstruct the seven experiments in the original presentation @Vaught2026BoatControl. Equal thrust produces a terminal surge speed of #fmt(metrics.surge_terminal_m_s, digits: 3) m/s. A 5 m/s crosswind produces #fmt(metrics.drift_60s_m) m of drift in 60 s. A thrust schedule that reaches a target 20 m ahead in calm conditions instead leaves errors of #fmt(metrics.blind_90s_errors_m.crosswind) m in crosswind and #fmt(metrics.blind_90s_errors_m.headwind) m in headwind after 90 s. These results establish the need for feedback and a guidance strategy that accounts for lateral underactuation.
+- The slide benchmark establishes the control problem.
+  - Equal thrust reaches #fmt(metrics.surge_terminal_m_s, digits: 3) m/s; crosswind causes #fmt(metrics.drift_60s_m) m of unpowered drift in 60 s.
+  - The nominal 20 m approach accumulates #fmt(metrics.blind_90s_errors_m.crosswind) m of crosswind error at 90 s.
+- BlueBoat is the deployment platform.
+  - Its dimensions and propulsion differ from the slide model. Sections 2–7 retain the original benchmark; the later sections define the selected hardware and identification work.
 
-#figure(f.hull(), caption: [Planar twin-thruster configuration. Positive surge points forward and positive sway points left. Thruster separation is measured between force lines.]) <hull>
+#figure(f.hull(), caption: [BlueBoat component layout in plan view. Forward is toward the bow; left is port. $B$ is the measured separation of thrust lines, not the overall beam. Component positions are mounting proposals; heading and positive yaw are counterclockwise from east.]) <hull>
 
-#tbl((1.1fr, 1fr, 1.7fr),
-  table.header([Quantity], [Value], [Role]), table.hline(stroke: 0.5pt),
-  [Hull length], [4.9 m], [Geometry shown in the slides],
-  [Mass, $m$], [180 kg], [Translational inertia],
-  [Yaw inertia, $I_z$], [446 kg m²], [Rotational inertia],
-  [Thruster separation, $B$], [2.4 m], [Yaw moment arm],
-  [Each thruster], [−100 to 250 N], [Reverse and forward force limits],
+#tbl((1.1fr, 1.15fr, 1.55fr),
+  table.header([Quantity], [Slide benchmark], [BlueBoat platform]), table.hline(stroke: 0.5pt),
+  [Length / beam], [4.9 m / unspecified], [1.20 m / 0.93 m],
+  [Mass], [180 kg], [14.5 kg bare; weigh loaded hull],
+  [Yaw inertia / spacing], [446 kg m² / 2.4 m], [Identify $I_z$; measure $B$],
+  [Propulsion], [−100 to 250 N each], [Two M200 weedless propellers],
 )
 
 #pagebreak()
 = Planar model and simulation method
-The geometry in @hull defines three degrees of freedom. The inertial pose is $bold(eta) = (x,y,psi)^T$, and the body velocity is $bold(nu) = (u,v,r)^T$. Here, $x$ and $y$ denote east and north position, $psi$ denotes heading measured counterclockwise from east, and $u$, $v$, and $r$ denote surge speed, sway speed, and yaw rate. This planar reduction follows the rigid-body, Coriolis, and damping structure of the marine-craft equations @Fossen2026MarineModel.
+The coordinate convention in @hull defines three degrees of freedom. This section uses the slide benchmark parameters in the preceding table. The inertial pose is $bold(eta) = (x,y,psi)^T$, and the body velocity is $bold(nu) = (u,v,r)^T$. Here, $x$ and $y$ denote east and north position, $psi$ denotes heading measured counterclockwise from east, and $u$, $v$, and $r$ denote surge speed, sway speed, and yaw rate. This planar reduction follows the rigid-body, Coriolis, and damping structure of the marine-craft equations @Fossen2026MarineModel.
 
 The heading rotates body velocity into the inertial frame. The resulting kinematics are
 $ dot(x) = u cos psi - v sin psi, quad dot(y) = u sin psi + v cos psi, quad dot(psi) = r. $ <kinematics>
@@ -130,7 +136,7 @@ The lateral equilibrium is $v_infinity=15.3/40=0.3825$ m/s. Integrating this mot
 = Open-loop target approach
 The wind-drift result predicts failure of a schedule calibrated only for calm water. To test that consequence, the boat starts at the origin with zero velocity and aims at $(20,0)$ m. Both thrusters apply 100 N for 13.8329 s and then switch to zero. This schedule is reconstructed from the calm slide trace because the original switching schedule was not stated. The 200 N force is supported by a trace fit of 200.58 N; the cutoff is selected so that the thrust interval plus the subsequent coast covers 20 m.
 
-#figure(f.schedule(), caption: [Reconstructed input used unchanged in calm, crosswind, and headwind environments.]) <schedule>
+#figure(f.schedule(), caption: [Expanded benchmark schedule and cutoff detail. Both force commands are equal, so the allocated yaw moment is zero. Thrust is instantaneous in these original experiments; the later component tests add actuator lag.]) <schedule>
 
 After the switch, the calm-water coast distance from speed $u_s$ is $m/d_2 ln(1+d_2 u_s/d_1)$. Adding it to the distance accumulated during thrust gives the selected 20 m endpoint. The wind cases then use the same schedule without further fitting.
 
@@ -171,27 +177,189 @@ Independent checks support the numerical implementation. The surge step agrees w
 The accompanying project stores the simulation code, input schedule, numerical checks, digitized samples, source-image hashes, and figure source. Consequently, the report can be rebuilt from the retained presentation rather than depending on inaccessible plotting code. Yaw damping and the blind schedule remain explicitly identified as reconstructed quantities.
 
 #pagebreak()
-= Feedback architecture and control feasibility
-The open-loop errors motivate the feedback architecture proposed in the presentation. Satellite position, an inertial measurement unit, and camera target measurements feed a state estimator. Guidance converts target geometry into a feasible motion reference, and the controller commands the two thrusters from the estimated state.
+= Selected hardware and mission architecture
+The benchmark shows why feedback is required. Real-time kinematic (RTK) positioning supplies the global navigation satellite system (GNSS) reference. The deployment architecture assigns image processing and guidance to AGX Orin while retaining the BlueBoat Pi 4, Navigator, and ArduRover for low-level control. This assignment keeps the motor loops independent of the image-processing workload @BlueRobotics2025BlueBoat.
 
-#figure(f.feedback(), caption: [Proposed guidance, control, and estimation architecture. The experiments in this report characterize the boat; they do not implement this closed loop.]) <feedback>
-
-The proposed controller is a linear-quadratic regulator (LQR). For the local model $dot(bold(z)) = A bold(z) + G bold(a)$, $bold(z)$ contains the six state perturbations and $bold(a)$ contains the two thrust perturbations. The regulator minimizes $J = integral_0^infinity (bold(z)^T Q bold(z)+bold(a)^T R bold(a)) dif t$, where $Q$ weights state error and $R$ weights input effort. A stabilizing solution requires a stabilizable input pair @MathWorks2026LQR. The operating point therefore determines whether LQR can address the full pose objective.
-
-At rest, the linearized model gives $dot(y)=v$ and $dot(v)=-d_v v/m$, with neither equation directly driven by the thrusters. The six-state controllability matrix has rank four, and the uncontrolled lateral-position mode has eigenvalue zero. A full-state linear regulator about rest cannot stabilize this mode. At a straight-running reference with $U=1$ m/s, the terms $dot(y)=U psi+v$ and $dot(v)=-d_v v/m-U r$ restore the necessary yaw–lateral coupling, and the rank becomes six.
-
-This finding supports a motion-based guidance strategy with a controller designed around a running reference. It also explains why arbitrary position and heading cannot both be held at rest under crosswind. At zero velocity and the nominal heading, the nonzero lateral wind force has no opposing actuator force. A heading adjustment or continued maneuvering is required.
-
-#tbl((1.35fr, 1fr, 1fr),
-  table.header([Design objective from the slides], [Target], [Status]), table.hline(stroke: 0.5pt),
-  [Recovery from 5 m and 30° error], [Settling under 30 s], [Proposed],
-  [Transient overshoot], [Under 10%], [Proposed],
-  [Position error in 5 m/s wind], [Under 0.3 m], [Proposed],
-  [Heading error in 5 m/s wind], [Under 15°], [Proposed],
-  [Each thruster command], [−100 to 250 N], [Verified for open-loop tests],
+#tbl((0.8fr, 1.55fr, 1.5fr),
+  table.header([Function], [Selection], [Reason / interface]), table.hline(stroke: 0.5pt),
+  [Companion], [AGX Orin, 64 GB configuration @Nvidia2026Orin], [Perception, fusion, guidance; Ethernet],
+  [Stereo vision], [One ZED X, 2 mm wide lens], [Global shutter; GMSL2 / ZED Link Duo capture],
+  [Inertial sensing], [VectorNav VN-110 rugged], [Gyroscope, acceleration, attitude; RS-422],
+  [Position / heading], [Septentrio mosaic-H], [RTK position; dual-antenna heading],
+  [Antennas], [Two PolaNt-xMF @Septentrio2026Polant], [Fore–aft mounting, ≈1 m baseline],
+  [Propulsion], [Existing M200 pair and ESCs], [Navigator pulse-width modulation],
 )
 
-The reconstructed results establish the model response and the control-design constraint. Damping stabilizes velocity, differential thrust generates sustained coupled motion, and constant wind produces persistent target error. The next design step is therefore to combine feasible guidance, state estimation, and constrained feedback, then evaluate the stated recovery and disturbance-rejection targets in closed-loop simulations.
+#figure(f.feedback(), caption: [High-level deployment architecture. Mission information enters guidance; sensors return measured motion and scene information. Guidance sends speed and yaw-rate references to the autopilot. The power-cut path acts independently of the companion computer.]) <feedback>
 
-#v(3pt)
+- One ZED X is the initial camera configuration @Stereolabs2026ZEDX.
+  - It already contains two synchronized imagers and a 120 mm stereo baseline.
+  - A second ZED X adds rear or side coverage. It is justified when a measured blind area limits a task, rather than to obtain the first stereo depth estimate.
+    - Use the ZED Link Duo capture card supported on AGX Orin @Stereolabs2026Capture. Reserve a second mounting point and validate synchronization, extrinsics, and execution load before enabling it.
+- RTK uses a local correction source @Septentrio2026MosaicH.
+  - Mount a reference receiver at a surveyed point in the operating tent and relay Radio Technical Commission for Maritime Services (RTCM) corrections over the permitted local link.
+  - Dual antennas give heading while stationary; the receiver reports solution status and correction age with the position.
+
+#pagebreak()
+= Signal ownership and measured outputs
+The high-level blocks in @feedback separate responsibility. The detailed interfaces below make each command and measurement explicit, so guidance inputs are not confused with motor inputs.
+
+#figure(hw.lowlevel(), caption: [Two control levels. Orin uses sensor observations and the mission goal to produce feasible $u_d$ and $r_d$. ArduRover closes its own speed and yaw-rate loops, mixes the effort, and sends motor pulse widths. Perception supplies scene geometry directly to guidance.]) <lowlevel>
+
+#tbl((1.05fr, 1.55fr, 1.4fr),
+  table.header([Boundary], [Input], [Output]), table.hline(stroke: 0.5pt),
+  [Mission → autonomy], [Waypoints, target class, task state], [Selected target / route],
+  [Perception], [Stereo images, calibration, timestamps], [Class, bearing, depth, validity],
+  [State estimator], [GNSS, gyro, acceleration, attitude], [$hat(x),hat(y),hat(psi),hat(u),hat(v),hat(r)$ and covariance],
+  [Guidance], [Route, target geometry, estimated state], [$u_d$ in m/s; $r_d$ in rad/s],
+  [Autopilot], [References; its navigation feedback], [Left / right PWM in µs],
+  [Physical plant], [Actual $T_L,T_R$; wind / waves], [Pose and body velocity],
+)
+
+- The physical plant is actuated by force, not by sensor data.
+  - An electronic speed controller (ESC) turns a pulse-width modulation (PWM) command into motor drive. The propeller converts rotation into thrust.
+  - Actual thrust is a modeled internal quantity, inferred from the installed map. This sensor suite does not directly measure thrust, torque, or motor revolutions per minute.
+- The navigation outputs are observations of boat motion.
+  - GNSS measures antenna position, inertial velocity, and dual-antenna heading. Orin and the autopilot both consume the receiver stream; Navigator’s IMU supplies autopilot propagation. The VN-110 supplies Orin’s independent motion observations.
+  - The inertial measurement unit (IMU) measures angular velocity and specific force. Its attitude and heading reference system (AHRS) provides an orientation estimate.
+    - Use dual-GNSS heading as the main absolute heading reference. Motor magnetic fields can contaminate magnetic heading.
+- The camera measures the scene relative to its optical frame.
+  - Images are the raw outputs; detection class, bearing, disparity, and depth are processed outputs. Global position requires the estimated boat pose and camera extrinsics.
+
+#pagebreak()
+= Navigation sensing and reference conventions
+The measured outputs become useful to control only after their coordinate frames and timestamps agree. Configure the autopilot’s Septentrio Binary Format dual-antenna backend and GNSS yaw source, then verify received rates and antenna offsets @ArduPilot2026Septentrio. Mount the VN-110 close to the center of gravity, survey both antenna lever arms, and calibrate the camera-to-hull transform. Use the GNSS pulse-per-second signal to discipline timestamps and record acquisition and delivery times separately.
+
+- The mosaic-H supplies the high-accuracy global reference @Septentrio2026MosaicH.
+  - The manufacturer specifies horizontal RTK accuracy of 0.6 cm plus 0.5 parts per million of baseline distance and heading accuracy of 0.15° with 1 m antenna separation.
+  - The component test assumes RTK fixed, 20 Hz updates, 2 cm position noise, and 80 ms delivery latency. It uses 0.03 m/s velocity noise and 0.15° heading noise.
+    - Inflate the estimator covariance when RTK becomes float or single-point. Stop using a stale correction status as evidence of centimeter positioning.
+- The VN-110 supplies rapid motion measurements @VectorNav2026VN110.
+  - Configure 200 Hz raw IMU output. The simulation uses 5 ms delivery latency, 0.002 rad/s gyro noise, a 0.001 rad/s residual bias, and 0.02 m/s² acceleration noise.
+    - These are integration stress assumptions. They are not derived from the manufacturer’s noise-density specification.
+  - Magnetic AHRS heading is simulated at 2° standard deviation, matching the scale of the manufacturer’s 2° RMS heading specification under calibrated magnetic conditions.
+
+For a primary antenna located at body offset $bold(ell)=(-0.5,0)^T$ m, the observation model accounts for both position and rotational velocity.
+$ bold(p)_a = bold(p) + R(psi) bold(ell), quad bold(V)_a = R(psi) [bold(v)_b + r J bold(ell)], quad J = mat(0,-1;1,0). $
+Here $bold(p)=(x,y)^T$, $bold(v)_b=(u,v)^T$, and $R(psi)$ is the planar rotation matrix. A gyro measures $r+b_g+n_g$. At the center of gravity, the planar accelerometer model after gravity compensation is
+$ a_x = dot(u)-v r+n_x, quad a_y = dot(v)+u r+n_y. $
+This rotating-frame correction avoids treating a body velocity derivative as the accelerometer output. Roll, pitch, gravity, and off-center acceleration terms must be restored for the three-dimensional deployment.
+
+The report uses east–north coordinates with leftward sway and counterclockwise yaw. ArduRover accepts body-forward velocity and yaw rate through the MAVLink message #text(font: "Menlo", size: 8pt)[SET_POSITION_TARGET_LOCAL_NED] in Guided mode @ArduPilot2026RoverGuided. Use the velocity-plus-yaw-rate mask 1511 and body frame 9. For this convention, set $v_x=u_d$, $v_y=0$, and $"yaw_rate"=-r_d$. If sending absolute heading, convert with $psi_"NED"=pi/2-psi$. The adapter sends the 50 Hz references and verifies the sign conversion in a low-speed left-turn test.
+
+#pagebreak()
+= Computer execution and response budget
+The command interface defines what must meet a deadline. Run state propagation and guidance at 50 Hz, process images at 30 Hz, and deliver the latest valid reference through a bounded queue. Camera processing uses a separate worker so a late image cannot hold the guidance loop.
+
+#figure(hw.timing(), caption: [Command-to-thrust-onset timing budget. Widths represent the allocated time intervals. The motor then approaches its static force with a separate first-order lag. All latency values are design assumptions.]) <timing>
+
+#tbl((1.3fr, 0.85fr, 1.3fr),
+  table.header([Stage], [Budget], [Meaning]), table.hline(stroke: 0.5pt),
+  [Guidance sampling], [0–20 ms], [Wait until the next 50 Hz tick],
+  [Estimator / guidance compute], [5 ms], [Execution allowance per tick],
+  [Command transport / acceptance], [10 ms], [Orin to low-level controller],
+  [Actuator dead time], [20 ms], [PWM update and drive response],
+  [Motor time constant, $tau_T$], [0.2 s], [Sensitivity tests at 0.1 and 0.4 s],
+)
+
+For a newly changed command, the onset delay is bounded by the sample wait plus the fixed delays. The nominal bound is
+$ L_"onset" <= 20+5+10+20 = 55 "ms". $
+A first-order motor reaches 90% of its final force after $tau_T ln 10=0.4605$ s from onset. The simulated command changes at 1.023 s, is sampled at 1.040 s, and starts changing thrust at 1.075 s. The sampled 90% crossing occurs 0.517 s after demand, including motor lag.
+
+- AGX Orin performance is established by execution measurements.
+  - The 5 ms guidance budget and 20 ms vision budget are targets. Processor throughput does not establish either latency.
+  - Log acquisition, dequeue, compute start/end, command send/receive, and PWM application timestamps using a common clock.
+    - Record median, 95th and 99th percentile, maximum latency, missed deadlines, power mode, temperature, and image resolution under sustained load.
+- Freshness is part of the response model.
+  - The assumed worst measurement ages are 130 ms for GNSS, 10 ms for IMU, and 63.3 ms for the camera processing stream.
+    - These bounds add one sample period to delivery latency. Propagate the state to command time and reject stale perception updates.
+  - Implement a reference watchdog with an initial 100 ms timeout. Validate neutral-command delivery and the independent kill path; ArduRover’s documented velocity-command timeout is 3 s @ArduPilot2026RoverGuided.
+
+#pagebreak()
+= Motor and propeller response
+The execution budget delays a command before the propulsion system responds. The propulsion model then maps each pulse width $p_i$ to a static thrust $T_{s,i}$ and applies a dynamic lag. The manufacturer’s M200 weedless-propeller curve at 16 V supplies the signed static lookup @BlueRobotics2026M200Reference @BlueRobotics2026MotorGuide.
+
+#figure(hw.motor(), caption: [M200 component response. Left shows manufacturer static samples converted from kilogram-force to newtons. Right applies an over-limit forward command, an over-limit reverse command, and neutral; saturation, delay, and assumed lag determine the force response.]) <motor>
+
+The static map interpolates the retained data after clipping $p_i$ to 1100–1900 µs. Commands from 1475 through 1525 µs produce zero demand, with 1500 µs neutral. The sampled component limits at 16 V are −27.56 N reverse and 55.21 N forward. The dynamic model is
+$ tau_T dot(T_i)+T_i=T_{s,i}(p_i(t-L_i),16"V"), quad i in {L,R}. $
+For a constant demand after onset $t_0$, the force response is $T_i(t)=T_s+(T_i(t_0)-T_s)e^(-(t-t_0)/tau_T)$. The simulation changes the pulse demand at 1.023, 3.023, and 5.023 s; it integrates exactly between delayed changes. Its first forward step agrees with this analytic response to $1.81 times 10^(-9)$ N.
+
+- Component thrust and installed-boat thrust require separate calibration.
+  - The curve describes the manufacturer’s M200-and-propeller component test. BlueBoat’s published total static thrust is 8.2 kgf, approximately 80.4 N @BlueRobotics2026BlueBoatProduct.
+  - The two component maxima sum to 110.4 N, approximately 37% above the published boat rating. The test conditions differ; the installed map must be measured.
+    - Mounting, guards, hull interaction, voltage, and inflow change the installed map. Use a load cell to measure each side and both sides together with the final guards installed.
+- The dynamic model has identifiable limits.
+  - Fit separate acceleration, reversal, and coast constants from synchronized force and PWM logs; test several pulse amplitudes and battery voltages.
+    - Add rate limits or a second-order rotor model when the measured response requires them. The 0.2 s lag is a starting assumption, not a manufacturer response specification.
+
+#pagebreak()
+= Boat response and parameter identification
+The motor tests establish a force history. Applying that history to the six-state slide plant exposes the consequence of finite actuator response without changing the recovered benchmark. Equal thrust uses 20 N per side; the turning test uses 20 N left and 30 N right, followed by neutral.
+
+#figure(hw.boat-response(), caption: [Component-chain tests on the slide hydrodynamic plant. Motor lag delays surge acceleration and yaw buildup. These histories compare integration assumptions; the 180 kg benchmark plant does not predict BlueBoat motion.]) <boat-response>
+
+At 2 s, ideal equal thrust gives 0.1850 m/s while the delayed $tau_T=0.2$ s chain gives 0.1429 m/s. Thus, an instantaneous-thrust simulation overstates early progress by 0.0421 m/s for this input. The yaw transient also continues after neutral while the propeller force decays.
+
+- The BlueBoat model uses measured physical parameters.
+  - Weigh the boat with batteries, guards, computer, and sensor mounts. The manufacturer allows 15 kg for batteries plus payload above the 14.5 kg bare hull @BlueRobotics2025BlueBoat.
+  - Measure the force-line spacing $B$ and loaded center of gravity; identify yaw inertia and added mass.
+    - Overall beam is not the thrust moment arm. A narrowed competition hull requires a new measurement.
+- Identify the planar force response from controlled tests.
+  - Equal-pulse steps establish surge acceleration and the linear/quadratic drag terms. Coast-down isolates drag from propeller force.
+  - Opposing and unequal thrust establish yaw response; turning runs identify sway coupling and lateral damping.
+    - Repeat in both directions and record voltage, wind, current, payload, RTK status, and temperature. Hold out complete runs for prediction checks.
+- Fit a deployment model that retains hydrodynamic inertia.
+  - Use $(M_"RB"+M_A)dot(bold(nu))+C(bold(nu))bold(nu)+D(bold(nu))bold(nu)=bold(tau)+bold(tau)_d$ with the same planar kinematics @Fossen2026MarineModel.
+  - Estimate surge, sway, and yaw drag with installed thrust maps; validate trajectories and transient error against RTK/IMU measurements.
+    - Use a three-dimensional model when roll, pitch, wave motion, or camera stabilization materially changes sensing or actuation.
+
+Because these parameters have not been measured on the selected hull, the report does not assign the slide mass, inertia, drag coefficients, or wind force to BlueBoat. The component functions and exported input data provide the calibration structure; measured logs supply its deployment coefficients.
+
+#pagebreak()
+= Sensor response under changing motion
+The force chain produces motion that each sensor samples at its own rate. The following test uses the same unequal-thrust maneuver as the preceding section, a fixed random seed, and acquisition-time truth. Measurements are plotted at delivery time, exposing delay rather than hiding it with an ideal continuous observation.
+
+#figure(hw.sensor-response(), caption: [GNSS and IMU observation tests. Position is measured at the antenna 0.5 m aft of the hull center. The IMU updates at 200 Hz; every tenth sample is displayed. Noise and latency are the stated integration assumptions.]) <sensor-response>
+
+#figure(hw.camera-response(), caption: [Stereo observation and range sensitivity. The target is at $(5,2)$ m in the benchmark frame; frames from 5 to 6 s are deliberately occluded. Range samples are returned only when valid. The error curve uses $f=700$ pixels, $b=0.12$ m, and disparity noise $sigma_d=0.5$ pixel.]) <camera-response>
+
+For a rectified stereo pair, disparity $d=p_L-p_R$ gives forward optical depth $Z=f b/d$. A target at planar bearing $beta$ has horizontal image coordinate $p_L=c_x-f tan beta$ and range $rho=Z/cos beta$. The first-order depth uncertainty is
+$ sigma_Z approx Z^2/(f b) sigma_d. $
+It is 0.60 m at 10 m depth and 2.38 m at 20 m under this disparity-noise assumption. The camera model therefore reports range validity rather than promising centimeter accuracy from stereo.
+
+- Camera latency includes capture and perception.
+  - The test processes 30 frames/s with 10 ms acquisition/transfer and 20 ms vision compute. It assumes a rectified 1920-pixel image with $f=700$ pixels; deployed intrinsics replace that approximation.
+  - Invalid, behind-camera, out-of-view, occluded, and beyond-20 m observations are withheld. The run returns 331 of 361 frames.
+    - Water glare, low texture, and object occlusion require measured validity thresholds. This geometric test does not reproduce the detector or the stereo software’s full error distribution.
+
+#pagebreak()
+= Control feasibility and competition integration
+The expanded component chain supports controller development, but it does not supply closed-loop performance results. The presentation’s proposed linear-quadratic regulator (LQR) minimizes state error and control effort around a local operating point @MathWorks2026LQR. Its feasibility depends on whether thrust can influence each relevant motion mode.
+
+- The boat is laterally underactuated.
+  - At rest, $dot(y)=v$ and $dot(v)=-d_v v/m$ have no direct thrust input. The six-state controllability matrix has rank four; the uncontrolled lateral-position integrator has eigenvalue zero.
+  - At a straight-running reference of $U=1$ m/s, yaw and lateral motion couple and the rank becomes six.
+    - Use a moving reference and constrained guidance. A full-state LQR about rest cannot stabilize arbitrary lateral position.
+- The initial deployment closes the motor loops in ArduRover.
+  - Orin sends feasible speed and turn-rate references. Route tracking or an outer-loop regulator can be evaluated without introducing a competing motor controller.
+  - An LQR that outputs individual forces requires a separate low-level implementation, allocation, saturation handling, and validated failsafes.
+    - The slide targets of under 30 s recovery, under 10% overshoot, under 0.3 m position error, and under 15° heading error remain proposed targets, not achieved results.
+
+The competition configuration also changes the boat’s physical model. The 2027 event is listed for February 18–23 in Sarasota, Florida; its handbook is pending as of October 8, 2026 @RoboNation2026Event2027. The available 2026 requirements define the present integration checks @RoboNation2026Vehicle @RoboNation2026Rules.
+
+- Geometry must fit the competition envelope.
+  - The published BlueBoat beam is 0.93 m; the 2026 width limit is 3 ft, or 0.9144 m. The nominal hull exceeds that limit by 15.6 mm.
+    - Measure the assembled hull and guards. Obtain the current rule interpretation or design narrower crossbars before claiming eligibility.
+- Propulsion must include guards and independent stopping.
+  - The requirements specify protected propellers and physical and wireless kill functions that disconnect motor/actuator power.
+    - Add guards to the final mounting layout, then remeasure thrust. Route the kill circuit outside the Orin software path shown in @feedback.
+- Power and navigation require installation-level checks.
+  - Use regulated, fused power and thermal management for Orin and the GMSL2 capture hardware; the hull’s 5 V auxiliary rail is rated at 5 A @BlueRobotics2025BlueBoat.
+  - Use local RTK corrections from equipment in the operating tent; the 2026 rules prohibit outside internet connections, including LTE corrections, during semifinal and final runs.
+    - Recheck these requirements against the 2027 handbook when released.
+
+These checks lead directly to the next experiment. Install the selected sensor stack, synchronize its logs, identify the loaded hull and guarded propulsion response, and benchmark the execution deadlines. Then evaluate feasible guidance and feedback against the original recovery targets with measured component parameters.
+
+#pagebreak()
 #bibliography("references.bib", style: "ieee", title: [References])

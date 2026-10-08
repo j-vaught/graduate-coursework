@@ -1,3 +1,4 @@
+#import "hardware_figures.typ" as hw
 #import "@preview/lilaq:0.6.0" as lq
 #import "@preview/cetz:0.4.2" as cetz
 #let runs = json("data/runs.json")
@@ -94,15 +95,7 @@
     ),
   )
 }
-#let schedule() = {
-  let stop = json("data/schedule.json").chosen_cutoff_s
-  set text(size: 9pt)
-  lq.diagram(width: 100%, height: 0% + 1.25in, xlabel: [Time (s)], ylabel: [Each thruster (N)],
-    xlim: (0, 90), ylim: (0, 110), legend: none,
-    xaxis: (ticks: (0, 15, 30, 45, 60, 75, 90)),
-    lq.plot((0, stop, stop, 90), (100, 100, 0, 0), mark: none, stroke: 1.3pt),
-  )
-}
+#let schedule() = { hw.schedule() }
 #let overlay(key, name, field, ylabel, title, limit) = {
   set text(size: 9pt)
   let points = traces.at(key)
@@ -119,51 +112,5 @@
   overlay("pulse_v", "pulse", "v", [Sway speed (m/s)], [Pulse response], (0, 20)),
   overlay("blind_crosswind_distance", "blind_crosswind", "distance", [Target distance (m)], [Crosswind response], (0, 90)),
 )
-#let hull() = {
-  set text(size: 10pt)
-  cetz.canvas(length: 0.68cm, {
-    import cetz.draw: *
-    let arrow = (end: "stealth", fill: black, stroke: black)
-    rect((-3.4, -1.65), (3.4, -0.75), fill: luma(94%), stroke: 0.8pt)
-    rect((-3.4, 0.75), (3.4, 1.65), fill: luma(94%), stroke: 0.8pt)
-    rect((-1.1, -0.75), (1.1, 0.75), fill: white, stroke: 0.8pt)
-    content((0, 0), [Computer])
-    rect((-3.7, -1.5), (-3.1, -0.9), fill: garnet, stroke: none)
-    rect((-3.7, 0.9), (-3.1, 1.5), fill: garnet, stroke: none)
-    line((-3.4, -1.2), (-1.8, -1.2), mark: arrow)
-    line((-3.4, 1.2), (-1.8, 1.2), mark: arrow)
-    content((-2.5, -1.95), $T_R$)
-    content((-2.5, 1.95), $T_L$)
-    line((1.4, 0), (3.2, 0), mark: arrow)
-    content((2.6, 0.36), [Forward, $u$])
-    line((0, 0.3), (0, 2.7), mark: arrow)
-    content((1.8, 2.6), [Leftward, $v$])
-    line((-3.4, -2.6), (3.4, -2.6), mark: (start: "stealth", end: "stealth", fill: black))
-    content((0, -2.95), [Length 4.9 m])
-    line((4.1, -1.2), (4.1, 1.2), mark: (start: "stealth", end: "stealth", fill: black))
-    content((5.8, 0), [$B = 2.4$ m])
-  })
-}
-#let feedback() = {
-  set text(size: 9pt)
-  cetz.canvas(length: 0.9cm, {
-    import cetz.draw: *
-    let arrow = (end: "stealth", fill: black)
-    let box(x, body) = {
-      rect((x, 0), (x + 2.2, 1.1), fill: white, stroke: 0.8pt)
-      content((x + 1.1, 0.55), body)
-    }
-    box(0, [Guidance])
-    box(3.0, [Controller])
-    box(6.0, [Thrusters])
-    box(9.0, [Boat])
-    for x in (2.2, 5.2, 8.2) { line((x, 0.55), (x + 0.8, 0.55), mark: arrow) }
-    line((10.1, 2.0), (10.1, 1.1), mark: arrow)
-    content((10.1, 2.3), [Wind])
-    rect((4.1, -2.2), (8.5, -1.1), fill: luma(95%), stroke: 0.8pt)
-    content((6.3, -1.65), [Sensors and state estimator])
-    line((10.1, 0), (10.1, -1.65), (8.5, -1.65), mark: arrow)
-    line((4.1, -1.65), (4.1, 0), mark: arrow)
-    content((2.75, -1.65), [Estimated state])
-  })
-}
+#let hull = hw.hull
+#let feedback = hw.feedback
