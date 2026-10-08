@@ -34,20 +34,9 @@
     content((0.6, 6.0), angle: 90deg, [PORT])
     content((5.6, 6.0), angle: 90deg, [STARBOARD])
 
-    // Keep hardware footprints and key numbers clear of the thrust arrows.
-    line((3.1, 0.667), (3.1, 7.333), stroke: (dash: "dashed", thickness: 0.55pt, paint: luma(50%)))
+    // One aggregate compartment represents onboard computing and sensing.
     rect((2.15, 4.9), (4.05, 6.25), fill: white, stroke: 0.8pt)
     tag((3.1, 5.58), 1)
-    rect((2.78, 3.75), (3.42, 4.35), fill: white, stroke: 0.8pt)
-    content((3.1, 4.05), [2])
-    rect((2.45, 7.65), (3.75, 7.97), fill: garnet, stroke: black)
-    rect((2.59, 7.74), (2.78, 7.89), fill: white, stroke: none)
-    rect((3.42, 7.74), (3.61, 7.89), fill: white, stroke: none)
-    tag((4.3, 7.81), 3)
-    for y in (0.667, 7.333) {
-      rect((2.94, y - 0.16), (3.26, y + 0.16), fill: black, stroke: none)
-      tag((3.8, y), 4)
-    }
     line((2.96, 3.1), (3.24, 3.1), stroke: 1pt)
     line((3.1, 2.96), (3.1, 3.24), stroke: 1pt)
     content((3.62, 3.1), [$O$])
@@ -65,30 +54,23 @@
     content((3.1, -1.4), [$B$ · thrust-line separation])
 
     content((11.55, 9.55), [Equipment key])
-    for (n, y, body) in (
-      (1, 8.2, [AGX Orin#linebreak()protected electronics bay]),
-      (2, 7.05, [VN-110 IMU#linebreak()near loaded center of gravity]),
-      (3, 5.9, [ZED X stereo camera#linebreak()forward-facing pair]),
-      (4, 4.75, [RTK GNSS antennas#linebreak()fore–aft baseline ≈1.0 m]),
-    ) {
-      tag((8.2, y), n)
-      content((8.8, y), anchor: "west", body)
-    }
-    line((7.85, 3.85), (15.5, 3.85), stroke: 0.5pt + luma(60%))
-    content((11.65, 3.4), [(b) Coordinate convention])
-    let origin = (11.1, 0.15)
-    line(origin, (14.7, 0.15), mark: arrow, stroke: 0.65pt)
-    line(origin, (11.1, 2.8), mark: arrow, stroke: 0.65pt)
-    content((14.5, -0.28), [East, $x$])
-    content((11.1, 3.02), [North, $y$])
-    line(origin, (12.7, 2.435), mark: arrow, stroke: 1.15pt)
-    line(origin, (8.81, 1.75), mark: arrow, stroke: 1.15pt)
-    content((14.0, 2.45), [Forward, $u$])
-    content((8.9, 2.17), [Left, $v$])
+    tag((8.2, 8.2), 1)
+    content((8.8, 8.2), anchor: "west", [Computer and sensors])
+    line((7.85, 5.85), (15.5, 5.85), stroke: 0.5pt + luma(60%))
+    content((11.65, 5.4), [(b) Coordinate convention])
+    let origin = (11.1, 2.15)
+    line(origin, (14.7, 2.15), mark: arrow, stroke: 0.65pt)
+    line(origin, (11.1, 4.8), mark: arrow, stroke: 0.65pt)
+    content((14.5, 1.72), [East, $x$])
+    content((11.1, 5.02), [North, $y$])
+    line(origin, (12.7, 4.435), mark: arrow, stroke: 1.15pt)
+    line(origin, (8.81, 3.75), mark: arrow, stroke: 1.15pt)
+    content((14.0, 4.45), [Forward, $u$])
+    content((8.9, 4.17), [Left, $v$])
     arc(origin, start: 0deg, stop: 55deg, radius: 1.2, anchor: "origin", mark: arrow, stroke: 0.7pt)
-    content((12.62, 0.88), [$psi$])
-    content((10.82, -0.1), [$O$])
-    content((11.7, -1.15), [Positive $r$ turns counterclockwise.])
+    content((12.62, 2.88), [$psi$])
+    content((10.82, 1.9), [$O$])
+    content((11.7, 0.85), [Positive $r$ turns counterclockwise.])
   })
 }
 
