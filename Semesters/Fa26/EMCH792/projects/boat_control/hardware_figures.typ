@@ -5,48 +5,93 @@
 #let sensors = json("data/component_sensors.json")
 #let arrow = (end: "stealth", fill: black, stroke: black)
 #let hull() = {
-  set text(size: 9pt)
-  cetz.canvas(length: 0.67cm, {
+  set text(size: 9.5pt)
+  cetz.canvas(length: 0.82cm, {
     import cetz.draw: *
-    rect((-4.4, 1.2), (4.4, 2.2), fill: luma(94%), stroke: 0.8pt)
-    rect((-4.4, -2.2), (4.4, -1.2), fill: luma(94%), stroke: 0.8pt)
-    rect((-1.7, -1.2), (1.7, 1.2), fill: white, stroke: 0.8pt)
-    content((0, 0.45), [AGX Orin / power])
-    rect((-0.55, -0.7), (0.55, -0.1), fill: white, stroke: 0.7pt)
-    content((0, -0.4), [VN-110])
-    circle((0, 0), radius: 0.08, fill: black)
-    rect((3.4, -0.4), (4.1, 0.4), fill: garnet, stroke: none)
-    content((5.7, -0.2), [ZED X#linebreak()forward view])
-    line((4.1, 0), (4.7, 0), mark: arrow)
-    for y in (-1.7, 1.7) {
-      rect((-4.65, y - 0.22), (-4.15, y + 0.22), fill: garnet, stroke: black)
-      line((-4.15, y), (-2.5, y), mark: arrow)
+    let dimension = (start: "stealth", end: "stealth", fill: black, stroke: black)
+    let tag(pos, number) = {
+      rect((pos.at(0)-0.23, pos.at(1)-0.23), (pos.at(0)+0.23, pos.at(1)+0.23), fill: white, stroke: 0.8pt)
+      content(pos, [#number])
     }
-    content((-3.2, 2.65), [$T_L$ / port M200])
-    content((-3.2, -2.65), [$T_R$ / starboard M200])
-    // Antennas mounted above the deck; dashed baseline is a measurement, not a force.
-    circle((-3.7, 0), radius: 0.16, fill: white, stroke: 1pt)
-    circle((3.7, 0), radius: 0.16, fill: white, stroke: 1pt)
-    line((-3.7, 0), (3.7, 0), stroke: (dash: "dashed", thickness: 0.5pt))
-    content((-3.25, 0.6), [GNSS 1])
-    content((3.05, 0.6), [GNSS 2])
-    content((0, -1.0), [Fore–aft antenna baseline ≈1 m])
-    line((0.5, 2.9), (3.0, 2.9), mark: arrow)
-    content((1.7, 3.35), [Forward, $u$])
-    line((0.5, 2.9), (0.5, 4.4), mark: arrow)
-    content((1.65, 4.35), [Left, $v$])
-    line((5.0, 2.9), (6.4, 2.9), mark: arrow)
-    line((5.0, 2.9), (5.0, 4.0), mark: arrow)
-    content((6.4, 3.3), [East, $x$])
-    content((5.2, 4.4), [North, $y$])
-    line((-4.4, -3.45), (4.4, -3.45), mark: (start: "stealth", end: "stealth", fill: black))
-    content((0, -3.85), [Published length 1.20 m · beam 0.93 m])
-    line((-5.3, -1.7), (-5.3, 1.7), mark: (start: "stealth", end: "stealth", fill: black))
-    content((-6.05, 0), [$B$])
-    content((-5.25, 3.35), [Stern])
-    content((4.0, -1.0), [Bow])
+    // The outer envelope has the published 1.20 / 0.93 aspect ratio.
+    content((3.1, 9.55), [(a) BlueBoat plan view])
+    line((0, 8.75), (6.2, 8.75), mark: dimension, stroke: 0.65pt)
+    line((0, 8.1), (0, 8.95), stroke: 0.45pt + luma(45%))
+    line((6.2, 8.1), (6.2, 8.95), stroke: 0.45pt + luma(45%))
+    content((3.1, 9.1), [Beam 0.93 m])
+    line((-1.05, 0), (-1.05, 8), mark: dimension, stroke: 0.65pt)
+    line((-1.25, 0), (-0.1, 0), stroke: 0.45pt + luma(45%))
+    line((-1.25, 8), (-0.1, 8), stroke: 0.45pt + luma(45%))
+    content((-1.65, 4), angle: 90deg, [Length 1.20 m])
+
+    // Angular outlines indicate the twin hulls; detailed hull sections are schematic.
+    line((0, 0), (1.2, 0), (1.2, 7.35), (0.6, 8), (0, 7.35), close: true, fill: luma(94%), stroke: 0.85pt)
+    line((5, 0), (6.2, 0), (6.2, 7.35), (5.6, 8), (5, 7.35), close: true, fill: luma(94%), stroke: 0.85pt)
+    rect((1.2, 1.75), (5, 2.1), fill: luma(85%), stroke: 0.65pt)
+    rect((1.2, 6.5), (5, 6.85), fill: luma(85%), stroke: 0.65pt)
+    content((3.1, 8.2), [BOW / FORWARD])
+    content((3.1, -0.35), [STERN])
+    content((0.6, 6.0), angle: 90deg, [PORT])
+    content((5.6, 6.0), angle: 90deg, [STARBOARD])
+
+    // Keep hardware footprints and key numbers clear of the thrust arrows.
+    line((3.1, 0.667), (3.1, 7.333), stroke: (dash: "dashed", thickness: 0.55pt, paint: luma(50%)))
+    rect((2.15, 4.9), (4.05, 6.25), fill: white, stroke: 0.8pt)
+    tag((3.1, 5.58), 1)
+    rect((2.78, 3.75), (3.42, 4.35), fill: white, stroke: 0.8pt)
+    content((3.1, 4.05), [2])
+    rect((2.45, 7.65), (3.75, 7.97), fill: garnet, stroke: black)
+    rect((2.59, 7.74), (2.78, 7.89), fill: white, stroke: none)
+    rect((3.42, 7.74), (3.61, 7.89), fill: white, stroke: none)
+    tag((4.3, 7.81), 3)
+    for y in (0.667, 7.333) {
+      rect((2.94, y - 0.16), (3.26, y + 0.16), fill: black, stroke: none)
+      tag((3.8, y), 4)
+    }
+    line((2.96, 3.1), (3.24, 3.1), stroke: 1pt)
+    line((3.1, 2.96), (3.1, 3.24), stroke: 1pt)
+    content((3.62, 3.1), [$O$])
+
+    // Positive thrust on either side pushes toward the bow.
+    for x in (0.6, 5.6) {
+      rect((x - 0.27, 0.05), (x + 0.27, 0.55), fill: garnet, stroke: black)
+      line((x, 0.55), (x, 2.5), mark: arrow, stroke: 1.1pt)
+    }
+    content((0.6, 2.93), [$T_L$])
+    content((5.6, 2.93), [$T_R$])
+    line((0.6, -0.75), (0.6, -1.2), stroke: 0.45pt + luma(45%))
+    line((5.6, -0.75), (5.6, -1.2), stroke: 0.45pt + luma(45%))
+    line((0.6, -1.0), (5.6, -1.0), mark: dimension, stroke: 0.65pt)
+    content((3.1, -1.4), [$B$ · thrust-line separation])
+
+    content((11.55, 9.55), [Equipment key])
+    for (n, y, body) in (
+      (1, 8.2, [AGX Orin#linebreak()protected electronics bay]),
+      (2, 7.05, [VN-110 IMU#linebreak()near loaded center of gravity]),
+      (3, 5.9, [ZED X stereo camera#linebreak()forward-facing pair]),
+      (4, 4.75, [RTK GNSS antennas#linebreak()fore–aft baseline ≈1.0 m]),
+    ) {
+      tag((8.2, y), n)
+      content((8.8, y), anchor: "west", body)
+    }
+    line((7.85, 3.85), (15.5, 3.85), stroke: 0.5pt + luma(60%))
+    content((11.65, 3.4), [(b) Coordinate convention])
+    let origin = (11.1, 0.15)
+    line(origin, (14.7, 0.15), mark: arrow, stroke: 0.65pt)
+    line(origin, (11.1, 2.8), mark: arrow, stroke: 0.65pt)
+    content((14.5, -0.28), [East, $x$])
+    content((11.1, 3.02), [North, $y$])
+    line(origin, (12.7, 2.435), mark: arrow, stroke: 1.15pt)
+    line(origin, (8.81, 1.75), mark: arrow, stroke: 1.15pt)
+    content((14.0, 2.45), [Forward, $u$])
+    content((8.9, 2.17), [Left, $v$])
+    arc(origin, start: 0deg, stop: 55deg, radius: 1.2, anchor: "origin", mark: arrow, stroke: 0.7pt)
+    content((12.62, 0.88), [$psi$])
+    content((10.82, -0.1), [$O$])
+    content((11.7, -1.15), [Positive $r$ turns counterclockwise.])
   })
 }
+
 #let feedback() = {
   set text(size: 8.5pt)
   cetz.canvas(length: 0.80cm, {
