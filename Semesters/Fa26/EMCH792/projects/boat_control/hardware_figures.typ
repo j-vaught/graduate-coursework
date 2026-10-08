@@ -6,77 +6,60 @@
 #let arrow = (end: "stealth", fill: black, stroke: black)
 #let hull() = {
   set text(size: 9.5pt)
-  cetz.canvas(length: 0.82cm, {
+  cetz.canvas(length: 0.95cm, {
     import cetz.draw: *
     let dimension = (start: "stealth", end: "stealth", fill: black, stroke: black)
     let tag(pos, number) = {
-      rect((pos.at(0)-0.23, pos.at(1)-0.23), (pos.at(0)+0.23, pos.at(1)+0.23), fill: white, stroke: 0.8pt)
+      rect((pos.at(0) - 0.23, pos.at(1) - 0.23), (pos.at(0) + 0.23, pos.at(1) + 0.23), fill: white, stroke: 0.8pt)
       content(pos, [#number])
     }
-    // The outer envelope has the published 1.20 / 0.93 aspect ratio.
-    content((3.1, 9.55), [(a) BlueBoat plan view])
-    line((0, 8.75), (6.2, 8.75), mark: dimension, stroke: 0.65pt)
-    line((0, 8.1), (0, 8.95), stroke: 0.45pt + luma(45%))
-    line((6.2, 8.1), (6.2, 8.95), stroke: 0.45pt + luma(45%))
-    content((3.1, 9.1), [Beam 0.93 m])
-    line((-1.05, 0), (-1.05, 8), mark: dimension, stroke: 0.65pt)
-    line((-1.25, 0), (-0.1, 0), stroke: 0.45pt + luma(45%))
-    line((-1.25, 8), (-0.1, 8), stroke: 0.45pt + luma(45%))
-    content((-1.65, 4), angle: 90deg, [Length 1.20 m])
+    // Bow to the right; the envelope retains the published aspect ratio.
+    line((0, 0), (7.35, 0), (8, 0.6), (7.35, 1.2), (0, 1.2), close: true, fill: luma(94%), stroke: 0.85pt)
+    line((0, 5), (7.35, 5), (8, 5.6), (7.35, 6.2), (0, 6.2), close: true, fill: luma(94%), stroke: 0.85pt)
+    rect((1.75, 1.2), (2.1, 5), fill: luma(85%), stroke: 0.65pt)
+    rect((6.5, 1.2), (6.85, 5), fill: luma(85%), stroke: 0.65pt)
+    content((8.5, 3.1), [BOW])
+    content((-0.45, 3.1), angle: 90deg, [STERN])
+    content((5.2, 5.6), [PORT])
+    content((5.2, 0.6), [STARBOARD])
 
-    // Angular outlines indicate the twin hulls; detailed hull sections are schematic.
-    line((0, 0), (1.2, 0), (1.2, 7.35), (0.6, 8), (0, 7.35), close: true, fill: luma(94%), stroke: 0.85pt)
-    line((5, 0), (6.2, 0), (6.2, 7.35), (5.6, 8), (5, 7.35), close: true, fill: luma(94%), stroke: 0.85pt)
-    rect((1.2, 1.75), (5, 2.1), fill: luma(85%), stroke: 0.65pt)
-    rect((1.2, 6.5), (5, 6.85), fill: luma(85%), stroke: 0.65pt)
-    content((3.1, 8.2), [BOW / FORWARD])
-    content((3.1, -0.35), [STERN])
-    content((0.6, 6.0), angle: 90deg, [PORT])
-    content((5.6, 6.0), angle: 90deg, [STARBOARD])
-
-    // One aggregate compartment represents onboard computing and sensing.
-    rect((2.15, 4.9), (4.05, 6.25), fill: white, stroke: 0.8pt)
-    tag((3.1, 5.58), 1)
+    rect((4.9, 2.15), (6.25, 4.05), fill: white, stroke: 0.8pt)
+    tag((5.58, 3.1), 1)
     line((2.96, 3.1), (3.24, 3.1), stroke: 1pt)
     line((3.1, 2.96), (3.1, 3.24), stroke: 1pt)
     content((3.62, 3.1), [$O$])
 
-    // Positive thrust on either side pushes toward the bow.
-    for x in (0.6, 5.6) {
-      rect((x - 0.27, 0.05), (x + 0.27, 0.55), fill: garnet, stroke: black)
-      line((x, 0.55), (x, 2.5), mark: arrow, stroke: 1.1pt)
+    // Number each thruster in its footprint; both positive forces point forward.
+    for (n, y, force) in ((2, 5.6, $T_L$), (3, 0.6, $T_R$)) {
+      rect((0.05, y - 0.27), (0.55, y + 0.27), fill: garnet, stroke: black)
+      content((0.3, y), text(fill: white)[#n])
+      line((0.55, y), (2.5, y), mark: arrow, stroke: 1.1pt)
+      content((3.05, y), force)
     }
-    content((0.6, 2.93), [$T_L$])
-    content((5.6, 2.93), [$T_R$])
-    line((0.6, -0.75), (0.6, -1.2), stroke: 0.45pt + luma(45%))
-    line((5.6, -0.75), (5.6, -1.2), stroke: 0.45pt + luma(45%))
-    line((0.6, -1.0), (5.6, -1.0), mark: dimension, stroke: 0.65pt)
-    content((3.1, -1.4), [$B$ · thrust-line separation])
 
-    content((11.55, 9.55), [Equipment key])
-    tag((8.2, 8.2), 1)
-    content((8.8, 8.2), anchor: "west", [Computer and sensors])
-    line((7.85, 5.85), (15.5, 5.85), stroke: 0.5pt + luma(60%))
-    content((11.65, 5.4), [(b) Boat and map frames])
-    content((9.0, 4.85), [Boat frame])
-    content((13.3, 4.85), [Map frame])
-    let boat-origin = (9.0, 2.35)
-    let map-origin = (13.3, 2.35)
-    line(boat-origin, (9.0, 4.05), mark: arrow, stroke: 1.15pt)
-    line(boat-origin, (7.4, 2.35), mark: arrow, stroke: 1.15pt)
-    content((9.0, 4.37), [Surge, $u$])
-    content((8.1, 1.9), [Sway, $v$])
-    content((9.23, 2.1), [$O$])
-    line(map-origin, (15.4, 2.35), mark: arrow, stroke: 0.65pt)
-    line(map-origin, (13.3, 4.05), mark: arrow, stroke: 0.65pt)
-    content((13.3, 4.37), [North, $y$])
-    content((14.8, 1.9), [East, $x$])
-    content((13.1, 2.1), [$O$])
-    arc(map-origin, start: 0deg, stop: 90deg, radius: 0.85, anchor: "origin", mark: arrow, stroke: 0.7pt)
-    content((14.5, 3.2), [$psi$])
-    content((11.65, 1.1), [Shown heading $psi=90 degree$ · bow faces north.])
-    content((11.65, 0.45), [Positive $r$ turns counterclockwise.])
+    line((0, 7.05), (8, 7.05), mark: dimension, stroke: 0.65pt)
+    line((0, 6.3), (0, 7.25), stroke: 0.45pt + luma(45%))
+    line((8, 6.3), (8, 7.25), stroke: 0.45pt + luma(45%))
+    content((4, 7.45), [Length 1.20 m])
+    line((9.05, 0), (9.05, 6.2), mark: dimension, stroke: 0.65pt)
+    line((8.1, 0), (9.25, 0), stroke: 0.45pt + luma(45%))
+    line((8.1, 6.2), (9.25, 6.2), stroke: 0.45pt + luma(45%))
+    content((9.65, 3.1), angle: 90deg, [Beam 0.93 m])
+    line((-1.15, 0.6), (-1.15, 5.6), mark: dimension, stroke: 0.65pt)
+    line((-1.35, 0.6), (-0.75, 0.6), stroke: 0.45pt + luma(45%))
+    line((-1.35, 5.6), (-0.75, 5.6), stroke: 0.45pt + luma(45%))
+    content((-1.75, 3.1), angle: 90deg, [$B$ · thrust-line separation])
 
+    // Three entries run across the bottom, with no coordinate-frame panel.
+    content((4, -0.8), [Equipment key])
+    for (n, x, body) in (
+      (1, -0.1, [Computer and#linebreak()sensors]),
+      (2, 3.8, [Port thruster#linebreak()M200, $T_L$]),
+      (3, 7.3, [Starboard thruster#linebreak()M200, $T_R$]),
+    ) {
+      tag((x, -1.65), n)
+      content((x + 0.6, -1.65), anchor: "west", body)
+    }
   })
 }
 

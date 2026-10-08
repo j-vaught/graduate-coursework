@@ -43,7 +43,7 @@ An autonomous surface vessel (ASV) must reach a target while wind changes its mo
 - BlueBoat is the deployment platform.
   - Its dimensions and propulsion differ from the slide model. Sections 2–7 retain the original benchmark; the later sections define the selected hardware and identification work.
 
-#figure(f.hull(), caption: [BlueBoat hull plan with the computer and sensors grouped under label 1; $O$ denotes the hull reference origin. $B$ is the surveyed thrust-line separation. The envelope uses published length and beam; the equipment compartment is schematic. Boat and map frames share origin $O$ and are drawn separately for clarity. The illustrated bow faces north, so $psi=90 degree$; surge points forward and sway points to port.]) <hull>
+#figure(f.hull(), caption: [BlueBoat plan view with the bow to the right. The bottom key identifies the computer and sensors (1), port thruster (2), and starboard thruster (3). Both positive thrusts point forward. $O$ denotes the hull reference origin, and $B$ denotes thrust-line separation. The envelope uses published length and beam; internal footprints are schematic.]) <hull>
 
 #tbl((1.1fr, 1.15fr, 1.55fr),
   table.header([Quantity], [Slide benchmark], [BlueBoat platform]), table.hline(stroke: 0.5pt),
@@ -55,7 +55,7 @@ An autonomous surface vessel (ASV) must reach a target while wind changes its mo
 
 #pagebreak()
 = Planar model and simulation method
-The coordinate convention in @hull defines three degrees of freedom. This section uses the slide benchmark parameters in the preceding table. The inertial pose is $bold(eta) = (x,y,psi)^T$, and the body velocity is $bold(nu) = (u,v,r)^T$. Here, $x$ and $y$ denote east and north position, $psi$ denotes heading measured counterclockwise from east, and $u$, $v$, and $r$ denote surge speed, sway speed, and yaw rate. This planar reduction follows the rigid-body, Coriolis, and damping structure of the marine-craft equations @Fossen2026MarineModel.
+The twin-thruster configuration in @hull is modeled with three degrees of freedom. This section uses the slide benchmark parameters in the preceding table. The inertial pose is $bold(eta) = (x,y,psi)^T$, and the body velocity is $bold(nu) = (u,v,r)^T$. Here, $x$ and $y$ denote east and north position, $psi$ denotes heading measured counterclockwise from east, and $u$, $v$, and $r$ denote surge speed, sway speed, and yaw rate. This planar reduction follows the rigid-body, Coriolis, and damping structure of the marine-craft equations @Fossen2026MarineModel.
 
 The heading rotates body velocity into the inertial frame. The resulting kinematics are
 $ dot(x) = u cos psi - v sin psi, quad dot(y) = u sin psi + v cos psi, quad dot(psi) = r. $ <kinematics>
