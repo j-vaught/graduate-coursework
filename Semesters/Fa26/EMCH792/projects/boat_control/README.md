@@ -52,3 +52,14 @@ The configuration selects AGX Orin 64 GB, one forward ZED X with ZED Link Duo, V
 The original presentation remains at `../boat_control_project.pptx`. Its exact embedded images and hash manifest remain in `source/slides/` and `source/manifest.json`. Earlier digitized slide traces and residuals are archived in `source/digitized_slides/` as historical material; no active simulation or figure reads them. Previous larger-boat simulations remain recoverable through Git history.
 
 On-water measurements of loaded mass, motor spacing, mass distribution, thrust, coast-down, turns, and sensor timestamps should replace the provisional configuration. The report's competition integration section retains the current geometry, local RTK, and independent stopping checks.
+
+## Configurable simulator
+
+`blueboat_sim/` adds validated JSON configurations, feature flags, paired random trials, cumulative and isolated comparisons, and a causal PWM policy boundary. The usage guide and complete feature table are in `SIMULATOR.md`; editable presets are in `configs/simulator/`. The original report rebuild commands remain available.
+
+```sh
+uv run python -m blueboat_sim compare --output build/ladder
+uv run python -m unittest discover -s tests -v
+```
+
+`figures/simulator-comparison.pdf` shows the saved feature-ladder demonstration. It depicts model differences and measurement error; it does not establish controller performance or on-water validation.
