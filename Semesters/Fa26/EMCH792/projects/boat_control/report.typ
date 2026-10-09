@@ -43,7 +43,7 @@ An autonomous surface vessel (ASV) must reach a target while wind changes its mo
 - BlueBoat is the deployment platform.
   - Its dimensions and propulsion differ from the slide model. Sections 2–7 retain the original benchmark; the later sections define the selected hardware and identification work.
 
-#figure(f.hull(), caption: [BlueBoat plan view with the bow to the right. The bottom key identifies the computer and sensors (1), port thruster (2), and starboard thruster (3). Both positive thrusts point forward. $O$ denotes the hull reference origin, and $B$ denotes thrust-line separation. The envelope uses published length and beam; internal footprints are schematic.]) <hull>
+#figure(f.hull(), caption: [Proposed BlueBoat layout with hull origin $O$ and thrust-line separation $B$.]) <hull>
 
 #tbl((1.1fr, 1.15fr, 1.55fr),
   table.header([Quantity], [Slide benchmark], [BlueBoat platform]), table.hline(stroke: 0.5pt),
@@ -83,11 +83,11 @@ The original simulation source was unavailable, so the implementation is reconst
 = Steady and differential thrust
 The first experiment isolates surge motion. Both thrusters step to 100 N at $t = 1$ s from rest. As speed rises, drag increases until it balances the 200 N total force. Setting $dot(u)=0$ in @surge gives the terminal-speed relation
 $ d_2 u_infinity^2 + d_1 u_infinity = 200, quad u_infinity = (-d_1 + sqrt(d_1^2 + 800 d_2))/(2 d_2) = 1.3451 "m/s". $
-#figure(f.equal-step(), caption: [Equal thrust produces monotonic surge acceleration toward the drag-balanced speed. Sway and yaw remain zero.]) <equal>
+#figure(f.equal-step(), caption: [Equal-thrust surge response.]) <equal>
 
 The second experiment applies $T_L=100$ N and $T_R=150$ N at $t=1$ s. The total force rises to 250 N, and the 50 N thrust difference produces a 60 N m yaw moment. Consequently, the terminal yaw rate is $r_infinity = 60/400 = 0.15$ rad/s. Rotation induces negative sway through the $-u r$ term, which feeds back into surge through $v r$.
 
-#figure(f.differential(), caption: [Differential thrust couples forward motion and turning. Translational speed and yaw rate use separate axes because their units differ.]) <differential>
+#figure(f.differential(), caption: [Differential-thrust translation and yaw response.]) <differential>
 
 #grid(columns: (1fr, 1fr), column-gutter: 20pt,
   align(center, f.turning-path()),
@@ -105,13 +105,13 @@ The second experiment applies $T_L=100$ N and $T_R=150$ N at $t=1$ s. The total 
 = Pulse response and free decay
 The steady turning response establishes the velocity coupling. A short asymmetric pulse then shows how that coupling persists after thrust is removed. The boat starts from rest, receives $T_L=150$ N and $T_R=-100$ N over $1 <= t < 2$ s, and coasts for the remainder of the 30 s experiment.
 
-#figure(f.pulse(), caption: [A one-second pulse creates a sharp yaw response and a slower sway response. The yaw panel enlarges the first 12 s to expose the transient.]) <pulse>
+#figure(f.pulse(), caption: [Sway and yaw responses to a one-second thrust pulse.]) <pulse>
 
 The pulse applies 50 N of surge force and −300 N m of yaw moment. The reconstructed yaw minimum is #fmt(metrics.pulse_min_r_rad_s, digits: 4) rad/s, while sway reaches #fmt(metrics.pulse_peak_v_m_s, digits: 4) m/s. Positive sway follows from $-u r$ when surge is positive and yaw rate is negative. Its peak occurs after the pulse because yaw-induced translation and sway damping act on different time scales.
 
 The unforced experiment starts with $(u,v,r)=(1,0.5,0.5)$ and applies zero thrust for 30 s. Each velocity approaches zero, as shown below, but the final position and heading depend on the integrated transient.
 
-#figure(f.decay(), caption: [Free decay dissipates velocity without restoring the initial pose. Yaw decays faster than sway.]) <decay>
+#figure(f.decay(), caption: [Unforced translation and yaw decay.]) <decay>
 
 This behavior follows directly from kinetic energy. Defining $E = m(u^2+v^2)/2 + I_z r^2/2$, substitution of @surge, @sway, and @yaw under zero thrust and zero wind gives
 $ dot(E) = -d_1 u^2 - d_2 abs(u)^3 - d_v v^2 - d_r r^2 <= 0. $
@@ -121,14 +121,14 @@ The rotational coupling terms cancel because they transfer energy between surge 
 = Phase-plane behavior and wind drift
 The decay experiment motivates a closer view of the sway–yaw subsystem. Holding surge at a fixed value $U$ produces the reduced equations $dot(v)=-d_v v/m-U r$ and $dot(r)=-d_r r/I_z$. These phase portraits use 25 initial pairs spanning $v_0 in [-1,1]$ m/s and $r_0 in [-0.5,0.5]$ rad/s. Surge is frozen for this diagnostic and is not integrated as a third dynamic variable.
 
-#figure(f.phase-pair(), caption: [Sway–yaw trajectories converge to the origin for both frozen surge speeds. Nonzero surge bends the trajectories through yaw–sway coupling.]) <phase>
+#figure(f.phase-pair(), caption: [Sway–yaw phase portraits at frozen surge speeds of 0 and 1 m/s.]) <phase>
 
 The reduced subsystem has decay rates $-d_v/m=-0.2222$ s⁻¹ and $-d_r/I_z=-0.8969$ s⁻¹. Both remain negative when $U$ changes, so surge modifies the transient geometry without changing these two eigenvalues. The corresponding time constants are 4.5 s for sway and 1.115 s for yaw.
 
 Wind changes the equilibrium rather than simply delaying decay. With no thrust, zero initial velocity, and 15.3 N of lateral wind force, @sway becomes $m dot(v)+d_v v=15.3$. Its solution is
 $ v(t) = F_y/d_v (1-e^(-t/tau_v)), quad y(t) = F_y/d_v [t-tau_v(1-e^(-t/tau_v))], quad tau_v=m/d_v. $
 
-#figure(f.wind(), caption: [A constant crosswind creates a bounded lateral velocity and unbounded position drift. The same input gives both curves.]) <wind>
+#figure(f.wind(), caption: [Unpowered crosswind response. Velocity settles while position continues to drift.]) <wind>
 
 The lateral equilibrium is $v_infinity=15.3/40=0.3825$ m/s. Integrating this motion produces #fmt(metrics.drift_60s_m, digits: 4) m of displacement at 60 s. Once the velocity settles, position grows almost linearly. The absence of direct lateral thrust therefore becomes a guidance problem, even when all velocity transients are damped.
 
@@ -136,11 +136,11 @@ The lateral equilibrium is $v_infinity=15.3/40=0.3825$ m/s. Integrating this mot
 = Open-loop target approach
 The wind-drift result predicts failure of a schedule calibrated only for calm water. To test that consequence, the boat starts at the origin with zero velocity and aims at $(20,0)$ m. Both thrusters apply 100 N for 13.8329 s and then switch to zero. This schedule is reconstructed from the calm slide trace because the original switching schedule was not stated. The 200 N force is supported by a trace fit of 200.58 N; the cutoff is selected so that the thrust interval plus the subsequent coast covers 20 m.
 
-#figure(f.schedule(), caption: [Expanded benchmark schedule and cutoff detail. Both force commands are equal, so the allocated yaw moment is zero. Thrust is instantaneous in these original experiments; the later component tests add actuator lag.]) <schedule>
+#figure(f.schedule(), caption: [Reconstructed equal-thrust schedule and cutoff detail.]) <schedule>
 
 After the switch, the calm-water coast distance from speed $u_s$ is $m/d_2 ln(1+d_2 u_s/d_1)$. Adding it to the distance accumulated during thrust gives the selected 20 m endpoint. The wind cases then use the same schedule without further fitting.
 
-#figure(f.blind(), caption: [The nominal schedule reaches the calm-water target but accumulates large errors under constant wind. The path panel uses separate axis scales; the distance panel gives the physical error.]) <blind>
+#figure(f.blind(), caption: [Open-loop target approach in calm water, crosswind, and headwind. Path axes use different scales.]) <blind>
 
 #tbl((1.2fr, 1fr, 1fr, 1fr),
   table.header([Environment], [$x(90)$ (m)], [$y(90)$ (m)], [Target error (m)]), table.hline(stroke: 0.5pt),
@@ -170,7 +170,7 @@ The preceding experiments retain the slide parameters and reproduce their visibl
   }).flatten(),
 )
 
-#figure(f.overlays(), caption: [Representative overlays show the rebuilt curves against sampled slide traces. The comparison uses every retained sample; only every tenth marker is displayed.]) <overlays>
+#figure(f.overlays(), caption: [Reconstructed curves against digitized slide samples; every tenth marker is shown.]) <overlays>
 
 Independent checks support the numerical implementation. The surge step agrees with its exact scalar solution to $3.18 times 10^(-11)$ m/s, the yaw step agrees to $3.46 times 10^(-13)$ rad/s, and the wind-drift solution agrees to $2.40 times 10^(-14)$ m. Halving the maximum integration step changes no state component by more than $2.38 times 10^(-10)$ in its corresponding units. The free-decay energy decreases monotonically, and every thrust input remains within the stated limits.
 
@@ -190,7 +190,7 @@ The benchmark shows why feedback is required. Real-time kinematic (RTK) position
   [Propulsion], [Existing M200 pair and ESCs], [Navigator pulse-width modulation],
 )
 
-#figure(f.feedback(), caption: [High-level deployment architecture. Mission information enters guidance; sensors return measured motion and scene information. Guidance sends speed and yaw-rate references to the autopilot. The power-cut path acts independently of the companion computer.]) <feedback>
+#figure(f.feedback(), caption: [Proposed mission, sensing, guidance, and propulsion architecture.]) <feedback>
 
 - One ZED X is the initial camera configuration @Stereolabs2026ZEDX.
   - It already contains two synchronized imagers and a 120 mm stereo baseline.
@@ -204,7 +204,7 @@ The benchmark shows why feedback is required. Real-time kinematic (RTK) position
 = Signal ownership and measured outputs
 The high-level blocks in @feedback separate responsibility. The detailed interfaces below make each command and measurement explicit, so guidance inputs are not confused with motor inputs.
 
-#figure(hw.lowlevel(), caption: [Two control levels. Orin uses sensor observations and the mission goal to produce feasible $u_d$ and $r_d$. ArduRover closes its own speed and yaw-rate loops, mixes the effort, and sends motor pulse widths. Perception supplies scene geometry directly to guidance.]) <lowlevel>
+#figure(hw.lowlevel(), caption: [Guidance on Orin and motor control in ArduRover.]) <lowlevel>
 
 #tbl((1.05fr, 1.55fr, 1.4fr),
   table.header([Boundary], [Input], [Output]), table.hline(stroke: 0.5pt),
@@ -251,7 +251,7 @@ The report uses east–north coordinates with leftward sway and counterclockwise
 = Computer execution and response budget
 The command interface defines what must meet a deadline. Run state propagation and guidance at 50 Hz, process images at 30 Hz, and deliver the latest valid reference through a bounded queue. Camera processing uses a separate worker so a late image cannot hold the guidance loop.
 
-#figure(hw.timing(), caption: [Command-to-thrust-onset timing budget. Widths represent the allocated time intervals. The motor then approaches its static force with a separate first-order lag. All latency values are design assumptions.]) <timing>
+#figure(hw.timing(), caption: [Assumed command-to-thrust-onset timing budget.]) <timing>
 
 #tbl((1.3fr, 0.85fr, 1.3fr),
   table.header([Stage], [Budget], [Meaning]), table.hline(stroke: 0.5pt),
@@ -279,7 +279,7 @@ A first-order motor reaches 90% of its final force after $tau_T ln 10=0.4605$ s 
 = Motor and propeller response
 The execution budget delays a command before the propulsion system responds. The propulsion model then maps each pulse width $p_i$ to a static thrust $T_{s,i}$ and applies a dynamic lag. The manufacturer’s M200 weedless-propeller curve at 16 V supplies the signed static lookup @BlueRobotics2026M200Reference @BlueRobotics2026MotorGuide.
 
-#figure(hw.motor(), caption: [M200 component response. Left shows manufacturer static samples converted from kilogram-force to newtons. Right applies an over-limit forward command, an over-limit reverse command, and neutral; saturation, delay, and assumed lag determine the force response.]) <motor>
+#figure(hw.motor(), caption: [Manufacturer M200 static thrust at 16 V and simulated delayed reversal.]) <motor>
 
 The static map interpolates the retained data after clipping $p_i$ to 1100–1900 µs. Commands from 1475 through 1525 µs produce zero demand, with 1500 µs neutral. The sampled component limits at 16 V are −27.56 N reverse and 55.21 N forward. The dynamic model is
 $ tau_T dot(T_i)+T_i=T_{s,i}(p_i(t-L_i),16"V"), quad i in {L,R}. $
@@ -297,7 +297,7 @@ For a constant demand after onset $t_0$, the force response is $T_i(t)=T_s+(T_i(
 = Boat response and parameter identification
 The motor tests establish a force history. Applying that history to the six-state slide plant exposes the consequence of finite actuator response without changing the recovered benchmark. Equal thrust uses 20 N per side; the turning test uses 20 N left and 30 N right, followed by neutral.
 
-#figure(hw.boat-response(), caption: [Component-chain tests on the slide hydrodynamic plant. Motor lag delays surge acceleration and yaw buildup. These histories compare integration assumptions; the 180 kg benchmark plant does not predict BlueBoat motion.]) <boat-response>
+#figure(hw.boat-response(), caption: [Motor-lag sensitivity and turning response on the slide benchmark plant.]) <boat-response>
 
 At 2 s, ideal equal thrust gives 0.1850 m/s while the delayed $tau_T=0.2$ s chain gives 0.1429 m/s. Thus, an instantaneous-thrust simulation overstates early progress by 0.0421 m/s for this input. The yaw transient also continues after neutral while the propeller force decays.
 
@@ -320,13 +320,13 @@ Because these parameters have not been measured on the selected hull, the report
 = Sensor response under changing motion
 The force chain produces motion that each sensor samples at its own rate. The following test uses the same unequal-thrust maneuver as the preceding section, a fixed random seed, and acquisition-time truth. Measurements are plotted at delivery time, exposing delay rather than hiding it with an ideal continuous observation.
 
-#figure(hw.sensor-response(), caption: [GNSS and IMU observation tests. Position is measured at the antenna 0.5 m aft of the hull center. The IMU updates at 200 Hz; every tenth sample is displayed. Noise and latency are the stated integration assumptions.]) <sensor-response>
+#figure(hw.sensor-response(), caption: [Simulated GNSS position and IMU yaw-rate observations with noise and latency.]) <sensor-response>
 
-#figure(hw.camera-response(), caption: [Stereo observation and range sensitivity. The target is at $(5,2)$ m in the benchmark frame; frames from 5 to 6 s are deliberately occluded. Range samples are returned only when valid. The error curve uses $f=700$ pixels, $b=0.12$ m, and disparity noise $sigma_d=0.5$ pixel.]) <camera-response>
+#figure(hw.camera-response(), caption: [Simulated stereo range with a 5–6 s occlusion and distance-dependent depth uncertainty.]) <camera-response>
 
-For a rectified stereo pair, disparity $d=p_L-p_R$ gives forward optical depth $Z=f b/d$. A target at planar bearing $beta$ has horizontal image coordinate $p_L=c_x-f tan beta$ and range $rho=Z/cos beta$. The first-order depth uncertainty is
+The stereo test observes a target at $(5,2)$ m in the benchmark frame and occludes frames from 5 to 6 s. For a rectified stereo pair, disparity $d=p_L-p_R$ gives forward optical depth $Z=f b/d$. A target at planar bearing $beta$ has horizontal image coordinate $p_L=c_x-f tan beta$ and range $rho=Z/cos beta$. The first-order depth uncertainty is
 $ sigma_Z approx Z^2/(f b) sigma_d. $
-It is 0.60 m at 10 m depth and 2.38 m at 20 m under this disparity-noise assumption. The camera model therefore reports range validity rather than promising centimeter accuracy from stereo.
+For $f=700$ pixels, $b=0.12$ m, and $sigma_d=0.5$ pixel, depth uncertainty is 0.60 m at 10 m and 2.38 m at 20 m. The camera model therefore reports range validity rather than promising centimeter accuracy from stereo.
 
 - Camera latency includes capture and perception.
   - The test processes 30 frames/s with 10 ms acquisition/transfer and 20 ms vision compute. It assumes a rectified 1920-pixel image with $f=700$ pixels; deployed intrinsics replace that approximation.
