@@ -1,57 +1,54 @@
-# Twin-thruster boat project report
+# BlueBoat dynamics and control feasibility
 
-The sixteen-page `boat_control_report.pdf` develops the original six-slide presentation into a technical report with recreated simulations, vector figures, equations, numerical checks, and control-design analysis. The expanded hardware sections select AGX Orin, one forward-facing ZED X with ZED Link Duo, a VectorNav VN-110, and a Septentrio mosaic-H dual-antenna RTK receiver. The author is J.C. Vaught. The retained presentation is `../boat_control_project.pptx`.
+All active simulations and figures use one BlueBoat configuration. The report covers equal M200 thrust, differential thrust and turning, a reversing pulse, free decay, frozen-surge phase portraits, unpowered wind drift, a 20 m open-loop approach, parameter sensitivity, delayed propulsion, and GNSS/IMU/stereo observations. Authorship is J.C. Vaught. Controller design remains the next task; no PID, LQR, or pole-placement controller is implemented.
 
-The report reproduces the equal-thrust step, differential-thrust step and trajectory, differential pulse, free decay, frozen-surge phase portraits, unpowered crosswind drift, and blind target approach. Thirteen digitized time traces agree with the reconstruction to within 0.806 pixel RMS. The 90 s target errors are 0.0000 m in calm conditions, 32.7038 m in crosswind, and 17.5518 m in headwind. These are simulated results for the slide model.
+## Shared configuration
+
+`platform.json` is the editable physical configuration. The published hull is 1.20 m long, 0.93 m wide, and 14.5 kg without batteries or payload. The selected two standard batteries contribute 2.4 kg, and a provisional 5 kg equipment/mount allowance gives 21.9 kg loaded mass. The allowance is a budget rather than a measured component bill of materials. The manufacturer permits 15 kg of batteries plus payload, giving a maximum total mass of 29.5 kg.
+
+The nominal thrust-line spacing is an estimated 0.75 m. Yaw inertia is a uniform-envelope geometric proxy, 4.20644 kg m². Surge drag coefficients of 4 N s/m and 10 N s²/m², sway damping of 35 N s/m, and yaw damping of 12 N m s are engineering assumptions. Added mass and three-dimensional motion are omitted. These values require identification with the final loaded hull; they are not coefficients from the larger boat in the original slides.
+
+`propulsion.py` retains the signed manufacturer M200/112 mm weedless-propeller curve at 16 V. The raw component forward maximum is 55.2134 N. A provisional installation factor of 0.728242 scales the entire curve so the two forward maxima equal BlueBoat's published total static thrust of 8.2 kgf, or 80.4145 N. This gives 40.2073 N forward and -20.0679 N reverse per side. Uniform reverse/intermediate scaling remains an assumption. All active experiments use this shared installed map, including PWM saturation and neutral deadband. Voltage-dependent and inflow-dependent thrust are not inferred from a single static curve.
+
+The battery is nominally 14.8 V and fully charged at 16.8 V; the 16 V curve is an explicit test-voltage snapshot. Wind tests use 5 m/s wind, air density 1.225 kg/m³, drag coefficient 1, and assumed frontal/lateral exposed areas of 0.18/0.30 m². Constant world-frame forces are rotated into the boat frame. Apparent-wind changes and wind-induced yaw moment are omitted.
 
 ## Rebuild
 
-Run the following commands from this directory. Python dependencies are pinned in `uv.lock`. Typst 0.15.1, Lilaq 0.6.0, and CeTZ 0.4.2 were used for the delivered figures and report.
+Run from this directory. Dependencies are pinned in `uv.lock`. Figures are authored in Typst with Lilaq 0.6.0 and CeTZ 0.4.2.
 
 ```sh
 uv sync --locked
-uv run python simulate.py
-uv run python validate.py
-uv run python components.py
 uv run ruff format .
 uv run ruff check . --fix
 uv run ty check .
+uv run python simulate.py
+uv run python validate.py
+uv run python components.py
 typst compile report.typ boat_control_report.pdf
 ```
 
-`simulate.py` extracts the original embedded images, digitizes the traces, reconstructs the nonlinear dynamics, and writes all simulation data. `validate.py` checks exact surge, yaw, and wind solutions, integration-step refinement, energy dissipation, thrust limits, linearizations, and agreement with the slides. A failing numerical assertion stops validation. No plotting library is used in Python. `figures.typ` draws every plot in Lilaq and the diagrams in CeTZ. `hardware_figures.typ` contains the new platform, architecture, timing, motor, boat-response, and sensor figures.
+`simulate.py` exports current BlueBoat runs and separate mass/drag sensitivity tests. The ideal-thrust reference tests apply bounded forces instantaneously; `components.py` applies the same physical plant with command sampling, delay, and first-order thrust lag. Both import the same propulsion and physical parameters.
 
-Individual figures can also be exported as standalone PDFs. The renderer accepts `hull`, `feedback`, `equal`, `differential`, `turning-path`, `pulse`, `decay`, `phase`, `wind`, `schedule`, `blind`, `overlays`, `lowlevel`, `timing`, `motor`, `boat-response`, `sensors`, or `camera`.
+`validate.py` checks analytic surge, yaw, and wind solutions, integration refinement, energy dissipation, feasible loading and thrust, shared parameters, finite-difference linearizations, and controllability. Component checks cover exact motor transients, common hull parameters, saturation, deadband, causal timestamps, and camera visibility. Numerical agreement verifies the implementation; it does not validate the coefficients against on-water measurements.
+
+Standalone figures use the same data as the report.
 
 ```sh
 typst compile --input figure=blind render_figure.typ figures/blind.pdf
 ```
 
-## Model and reconstruction
+Renderer choices are `hull`, `feedback`, `equal`, `differential`, `turning-path`, `pulse`, `decay`, `phase`, `wind`, `schedule`, `blind`, `overlays`, `lowlevel`, `timing`, `motor`, `boat-response`, `sensors`, and `camera`. The retained `overlays` renderer name now exports mass/drag sensitivity, replacing slide comparisons.
 
-The state order is `(x, y, psi, u, v, r)`. Position uses east and north axes, heading is counterclockwise from east, surge points forward, sway points left, and positive yaw turns left. Thrusters act along the body surge axis with a 2.4 m force-line separation. Wind forces remain fixed in the inertial frame and are rotated into the body frame during integration. Wind has no yaw moment in this model.
+## Hardware and sensor models
 
-Mass, yaw inertia, thrust limits, geometry, surge drag, and sway drag come from the slides. The yaw damping of 400 N m s is inferred from the differential-step steady rate and pulse response. The constant 15.3 N wind force is the value in the slide plots. The blind schedule was not specified, so a constant equal-thrust interval followed by coasting was fitted to the calm trace. The selected input is 100 N per thruster for 13.8329077722 s, followed by zero thrust. The same schedule is evaluated in both wind cases without refitting.
+The configuration selects AGX Orin 64 GB, one forward ZED X with ZED Link Duo, VectorNav VN-110, and Septentrio mosaic-H with two PolaNt-xMF antennas. Orin owns perception, fusion, and guidance; ArduRover retains speed/yaw-rate loops and PWM on the stock Pi 4/Navigator. The report describes interfaces and coordinate conversion, rather than claiming deployed autonomy.
 
-The original MATLAB or Python source remains unavailable. This directory is a new reproducible reconstruction, with the inferred quantities identified in the report. Raster agreement measures consistency with the retained slide images, while analytic and integration checks assess the reconstructed implementation. The trajectory and phase plots are recreated from the same equations; the thirteen raster comparisons cover time histories rather than every graphical element.
+`components.py` exposes configurable 50 Hz guidance, 20 Hz GNSS, 200 Hz IMU, and 30 Hz stereo sampling. The command-onset budget is 55 ms. The default thrust time constant is 0.2 s, with 0.1 and 0.4 s sensitivity runs. Compute times, latencies, motor lag, and sensor noise are design assumptions. The sensor run uses a fixed random seed, a primary GNSS antenna 0.5 m aft of the hull center, fixed RTK status, and a camera at the planar hull origin observing a target at (15, 3) m. Occlusion from 5 to 6 s suppresses observations; 331 of 361 frames are valid in the default run. No rendered images, learned detector, estimator, or autonomous controller are simulated.
 
-The presentation proposes a linear-quadratic regulator and performance targets but contains no closed-loop results. The report preserves that scope. Its additional controllability calculation gives rank four at rest and rank six at a 1 m/s straight-running reference. Thus, full-state linear regulation at rest cannot control the lateral-position integrator, and guidance must account for the operating point and the lack of direct sway thrust.
+## Provenance and historical material
 
-## Retained files
+`data/` contains only current model results, physical parameters, retained manufacturer M200 samples, and validation records. `source/hardware/` preserves manufacturer curve source and hash provenance. `references.bib` centralizes the primary references used in the report.
 
-`data/` contains CSV runs, complete JSON histories, digitized slide samples, the inferred schedule, parameter values, and validation results. `source/slides/` contains the exact embedded images, and `source/manifest.json` records their SHA-256 hashes and the presentation hash. `references.bib` centralizes the presentation and technical references. The editable report and figure sources are `report.typ` and `figures.typ`. `figures/` contains standalone vector exports of every figure.
+The original presentation remains at `../boat_control_project.pptx`. Its exact embedded images and hash manifest remain in `source/slides/` and `source/manifest.json`. Earlier digitized slide traces and residuals are archived in `source/digitized_slides/` as historical material; no active simulation or figure reads them. Previous larger-boat simulations remain recoverable through Git history.
 
-
-## Hardware assumptions and response tests
-
-The original 180 kg, 4.9 m slide model is a benchmark, not a calibrated BlueBoat model. The report separates those seven reproduced experiments from the proposed 1.20 m BlueBoat deployment. BlueBoat mass, force-line spacing, inertia, added mass, installed propulsion response, and drag must be measured with the final batteries, payload, and guards.
-
-`components.py` adds an event-based command pipeline, nonlinear M200 static lookup, neutral deadband, saturation, first-order thrust lag, multirate GNSS/IMU observations, and rectified stereo geometry. It writes the `component_*` and `camera_range_sensitivity.json` data. The M200 force samples are retained from the manufacturer JavaScript in `source/hardware/`; `data/m200_static.json` records the URL, source hash, conversion, and signed samples. The component curve is for 16 V static testing and does not establish installed thrust or response time.
-
-The nominal command-onset budget is 55 ms. Motor time constants of 0.1, 0.2, and 0.4 s are compared. Guidance executes at 50 Hz; GNSS, IMU, and stereo sampling are 20, 200, and 30 Hz. Acquisition/delivery delays, Orin execution times, calibration approximations, and noise parameters are explicit simulation assumptions. They are not measured execution guarantees. The sensor simulation uses a fixed seed, a 0.5 m aft GNSS lever arm, RTK fixed throughout, and a camera at the planar hull origin viewing a target at (5, 2) m. Actual camera extrinsics and image intrinsics replace these approximations during integration.
-
-The Python checks independently verify the analytic motor step, force limits, neutral deadband, pulse saturation, causal timestamps, occlusion suppression, and forward/behind/out-of-view camera cases. The original numerical and raster checks remain unchanged. The camera simulation produces geometry and measurements, not rendered images, learned detections, or a benchmark of the stereo processing software. No autonomous closed-loop controller is implemented here.
-
-Orin owns perception, fusion, and guidance. ArduRover owns the motor loops, allocation, and PWM. The autopilot receives RTK navigation through its supported dual-antenna Septentrio backend and uses Navigator IMU feedback; Orin receives the same GNSS stream plus VN-110 measurements. The report specifies the yaw sign conversion between left-positive report coordinates and right-positive MAVLink body coordinates.
-
-The 2026 competition rules provide the current design baseline because the 2027 handbook was pending on October 8, 2026. The 0.93 m published boat beam exceeds the 3 ft baseline limit by 15.6 mm. Verify final width with guards, propeller protection, independent physical/wireless power cut, and a local RTK correction source in the operating tent before declaring eligibility. `references.bib` contains the primary sources used for these decisions.
+On-water measurements of loaded mass, motor spacing, mass distribution, thrust, coast-down, turns, and sensor timestamps should replace the provisional configuration. The report's competition integration section retains the current geometry, local RTK, and independent stopping checks.

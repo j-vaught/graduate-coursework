@@ -3,7 +3,7 @@
 #import "@preview/cetz:0.4.2" as cetz
 #let runs = json("data/runs.json")
 #let phases = json("data/phases.json")
-#let traces = json("data/slide_traces.json")
+#let sensitivity = json("data/sensitivity.json")
 #let garnet = rgb("#73000A")
 #let fmt(n, digits: 2) = str(calc.round(n, digits: digits))
 #let series(name, field, label: none, dash: "solid") = {
@@ -26,27 +26,27 @@
       dash: ("solid", "dashed", "dotted").at(pair.first()))),
   )
 }
-#let equal-step() = panel("equal", ("u",), [Surge speed (m/s)], [Equal thrust], height: 2.0in, limit: (0, 40), ylim: (0, 1.5))
+#let equal-step() = panel("equal", ("u",), [Surge speed (m/s)], [Equal thrust], height: 2.0in, limit: (0, 40), ylim: (0, 1.7))
 #let differential() = {
   grid(columns: (1fr, 1fr), column-gutter: 14pt, row-gutter: 12pt,
-    panel("differential", ("u", "v"), [Speed (m/s)], [Translation], limit: (0, 60), ylim: (-1.1, 1.65), labels: ($u$, $v$)),
+    panel("differential", ("u", "v"), [Speed (m/s)], [Translation], limit: (0, 60), ylim: (-0.2, 1.6), labels: ($u$, $v$)),
     panel("differential", ("r",), [Yaw rate (rad/s)], [Rotation], limit: (0, 60), ylim: (0, 0.17)),
   )
 }
 #let turning-path() = {
   set text(size: 9pt)
   let run = runs.differential
-  // Both data axes span 30 m and the data area is square.
+  // Both data axes span 22 m and the data area is square.
   lq.diagram(width: 2.55in, height: 2.55in, xlabel: [East (m)], ylabel: [North (m)],
-    xlim: (-8, 22), ylim: (-2, 28), legend: (radius: 0pt, fill: white, position: top + right),
+    xlim: (-10, 12), ylim: (-2, 20), legend: (radius: 0pt, fill: white, position: top + right),
     lq.plot(run.x, run.y, mark: none, label: [Path], stroke: 1.25pt),
     lq.plot((0,), (0,), mark: "s", stroke: none, label: [Start]),
     lq.plot((run.x.last(),), (run.y.last(),), mark: "x", stroke: none, label: [60 s]),
   )
 }
 #let pulse() = grid(columns: (1fr, 1fr), column-gutter: 14pt,
-  panel("pulse", ("v",), [Sway speed (m/s)], [Delayed lateral response], height: 2.15in, limit: (0, 30), ylim: (0, 0.09)),
-  panel("pulse", ("r",), [Yaw rate (rad/s)], [Yaw pulse and recovery], height: 2.15in, limit: (0, 12), ylim: (-0.48, 0.03)),
+  panel("pulse", ("v",), [Sway speed (m/s)], [Delayed lateral response], height: 2.15in, limit: (0, 30), ylim: (0, 0.26)),
+  panel("pulse", ("r",), [Yaw rate (rad/s)], [Yaw pulse and recovery], height: 2.15in, limit: (0, 12), ylim: (-1.45, 0.05)),
 )
 #let decay() = grid(columns: (1fr, 1fr), column-gutter: 14pt,
   panel("decay", ("u", "v"), [Speed (m/s)], [Translation], height: 2.1in, limit: (0, 30), ylim: (0, 1.05), labels: ($u$, $v$)),
@@ -59,7 +59,7 @@
     ..phases.at(str(speed)).map(run => lq.plot(run.v, run.r, mark: none,
       color: rgb("#3F90DA"), stroke: 0.65pt)),
     ..phases.at(str(speed)).filter(run => run.r0 != 0 or run.v0 != 0).map(run => {
-      let i = 5
+      let i = 1
       lq.quiver((run.v.at(i),), (run.r.at(i),),
         (x, y) => (run.v.at(i + 2) - x, run.r.at(i + 2) - y),
         scale: 1, stroke: 0.7pt + rgb("#3F90DA"), pivot: start)
@@ -69,8 +69,8 @@
 }
 #let phase-pair() = grid(columns: (1fr, 1fr), column-gutter: 14pt, phase(0), phase(1))
 #let wind() = grid(columns: (1fr, 1fr), column-gutter: 14pt,
-  panel("wind", ("v",), [Sway speed (m/s)], [Velocity approaches equilibrium], height: 1.8in, limit: (0, 60), ylim: (0, 0.42)),
-  panel("wind", ("y",), [North displacement (m)], [Position continues to drift], height: 1.8in, limit: (0, 60), ylim: (0, 23)),
+  panel("wind", ("v",), [Sway speed (m/s)], [Velocity approaches equilibrium], height: 1.8in, limit: (0, 60), ylim: (0, 0.15)),
+  panel("wind", ("y",), [North displacement (m)], [Position continues to drift], height: 1.8in, limit: (0, 60), ylim: (0, 8.5)),
 )
 #let blind() = {
   set text(size: 9pt)
@@ -78,7 +78,7 @@
   let labels = ([Calm], [Crosswind], [Headwind])
   grid(columns: (1fr, 1fr), column-gutter: 14pt,
     lq.diagram(width: 100%, height: 0% + 2.5in, xlabel: [East (m)], ylabel: [North (m)],
-      title: [Planar paths], xlim: (-1, 22), ylim: (-1, 35),
+      title: [Planar paths], xlim: (-10, 22), ylim: (-1, 13),
       legend: (radius: 0pt, fill: white, position: top + left),
       ..cases.enumerate().map(pair => {
         let run = runs.at(pair.last())
@@ -96,21 +96,20 @@
   )
 }
 #let schedule() = { hw.schedule() }
-#let overlay(key, name, field, ylabel, title, limit) = {
+#let overlays() = {
   set text(size: 9pt)
-  let points = traces.at(key)
-  lq.diagram(width: 100%, height: 0% + 1.9in, title: title,
-    xlabel: [Time (s)], ylabel: ylabel, xlim: limit,
-    legend: (radius: 0pt, fill: white, position: top + right),
-    series(name, field, label: [Reconstruction]),
-    lq.plot(points.enumerate().filter(p => calc.rem(p.first(), 10) == 0).map(p => p.last().first()),
-      points.enumerate().filter(p => calc.rem(p.first(), 10) == 0).map(p => p.last().last()),
-      mark: "x", stroke: none, label: [Slide samples], mark-size: 2pt),
+  grid(columns: (1fr, 1fr), column-gutter: 14pt,
+    lq.diagram(width: 100%, height: 0% + 2in, title: [Loaded mass sensitivity], xlabel: [Time (s)], ylabel: [Surge speed (m/s)], xlim: (0,5), ylim: (0,1.7), legend: (radius: 0pt, fill: white, position: top + left),
+      ..("16.9", "21.9", "29.5").map(key => {
+        let d = sensitivity.mass.at(key)
+        lq.plot(d.time, d.u, mark: none, label: [#key kg])
+      })),
+    lq.diagram(width: 100%, height: 0% + 2in, title: [Assumed surge drag sensitivity], xlabel: [Time (s)], ylabel: [Surge speed (m/s)], xlim: (0,15), ylim: (0,2.5), legend: (radius: 0pt, fill: white, position: top + left),
+      ..("0.5", "1", "2").map(key => {
+        let d = sensitivity.drag.at(key)
+        lq.plot(d.time, d.u, mark: none, label: [#key × drag])
+      })),
   )
 }
-#let overlays() = grid(columns: (1fr, 1fr), column-gutter: 14pt,
-  overlay("pulse_v", "pulse", "v", [Sway speed (m/s)], [Pulse response], (0, 20)),
-  overlay("blind_crosswind_distance", "blind_crosswind", "distance", [Target distance (m)], [Crosswind response], (0, 90)),
-)
 #let hull = hw.hull
 #let feedback = hw.feedback

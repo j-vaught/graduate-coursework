@@ -1,8 +1,4 @@
-"""Assumed actuator, execution, and sensor models layered on the recovered boat model.
-
-M200 static thrust uses manufacturer data at 16 V. Timing and sensor noise are
-configurable design assumptions. The hydrodynamic plant remains the slide benchmark.
-"""
+"""Delayed M200 actuation and selected sensor models on the shared BlueBoat plant."""
 
 from __future__ import annotations
 
@@ -14,7 +10,8 @@ from typing import Any
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from simulate import DATA, FloatArray, rhs, run, write_json
+from propulsion import FORCE, INSTALLATION_SCALE, RAW_FORCE, inverse_force, static_force
+from simulate import DATA, FloatArray, P, rhs, run, write_json
 
 
 @dataclass(frozen=True)
@@ -46,6 +43,8 @@ class ComponentAssumptions:
     camera_range_gate_m: float = 20.0
     gnss_heading_sigma_deg: float = 0.150
     gnss_primary_x_m: float = -0.500
+    camera_target_x_m: float = 15.0
+    camera_target_y_m: float = 3.0
 
 
 A = ComponentAssumptions()
@@ -55,29 +54,14 @@ def wrap(angle: FloatArray) -> FloatArray:
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
 
-STATIC = json.loads((DATA / "m200_static.json").read_text())
-PWM = np.asarray(STATIC["pwm_us"], dtype=float)
-FORCE = np.asarray(STATIC["force_N"], dtype=float)
-
-
-def static_force(pwm: float) -> float:
-    """Signed piecewise linear manufacturer curve, with ESC neutral deadband."""
-    clipped = float(np.clip(pwm, 1100, 1900))
-    return 0.0 if 1475 <= clipped <= 1525 else float(np.interp(clipped, PWM, FORCE))
-
-
-def inverse_force(force: float) -> float:
-    return 1500.0 if force == 0 else float(np.interp(force, FORCE, PWM))
-
-
 def desired(time: float, scenario: str) -> tuple[float, float]:
     if scenario == "motor":
         pwm = 1500 if time < 1.023 else 1950 if time < 3.023 else 1050 if time < 5.023 else 1500
         return pwm, pwm
     if scenario == "equal":
-        return (inverse_force(20), inverse_force(20)) if time >= 1.023 else (1500, 1500)
+        return (inverse_force(15), inverse_force(15)) if time >= 1.023 else (1500, 1500)
     if scenario == "differential":
-        return (inverse_force(20), inverse_force(30)) if 1.023 <= time < 6.023 else (1500, 1500)
+        return (inverse_force(8), inverse_force(10)) if 1.023 <= time < 6.023 else (1500, 1500)
     raise ValueError(scenario)
 
 
@@ -128,6 +112,8 @@ def plant(scenario: str, assumptions: ComponentAssumptions = A) -> dict[str, Any
     assert np.isfinite(states).all()
     demand = np.asarray([desired(float(t), scenario) for t in time])
     result: dict[str, Any] = {
+        "platform": "BlueBoat",
+        "parameters": asdict(P),
         "time": time.tolist(),
         "states": states.tolist(),
         "events": [{"time": t, "left": v[0], "right": v[1]} for t, v in events[:-1]],
@@ -202,7 +188,7 @@ def sensors(result: dict[str, Any]) -> dict[str, Any]:
         "heading_status": "proxy for calibrated magnetometer-aided attitude/heading output; raw magnetic field is not simulated",
     }
     ct, cz = sampled(A.camera_period_s)
-    dx, dy = 5 - cz[:, 0], 2 - cz[:, 1]
+    dx, dy = A.camera_target_x_m - cz[:, 0], A.camera_target_y_m - cz[:, 1]
     distance = np.hypot(dx, dy)
     beta = wrap(np.arctan2(dy, dx) - cz[:, 2])
     depth = distance * np.cos(beta)
@@ -249,7 +235,7 @@ def main() -> None:
             for tau in (0.1, 0.2, 0.4)
         },
     }
-    ideal = run("Ideal equal thrust", 12, [(0, 1.023, 0, 0), (1.023, 12, 20, 20)])
+    ideal = run("Ideal equal thrust", 12, [(0, 1.023, 0, 0), (1.023, 12, 15, 15)])
     cases["equal_ideal"] = ideal
     measured = sensors(cases["differential"])
     visibility_states = np.zeros((3, 8))
@@ -333,6 +319,10 @@ def main() -> None:
             for sensor in measured.values()
         ),
     }
+    checks["shared_blueboat_parameters"] = all(
+        case["platform"] == "BlueBoat" and case["parameters"] == asdict(P)
+        for case in cases.values()
+    )
     assert max_error < 1e-6
     assert all(checks[key] for key in checks if key != "actuator_exact_step_max_error_N")
     checks["first_order_90_percent_time_error_s"] = abs(
@@ -351,7 +341,16 @@ def main() -> None:
     write_json(DATA / "component_runs.json", cases)
     write_json(DATA / "component_sensors.json", measured)
     write_json(
-        DATA / "component_validation.json", {"checks": checks, "timing": timing, "summary": summary}
+        DATA / "component_validation.json",
+        {
+            "checks": checks,
+            "timing": timing,
+            "summary": summary,
+            "installation_scale": float(INSTALLATION_SCALE),
+            "raw_forward_max_N": float(RAW_FORCE.max()),
+            "installed_forward_max_N": float(FORCE.max()),
+            "installed_reverse_min_N": float(FORCE.min()),
+        },
     )
     write_json(DATA / "camera_range_sensitivity.json", noise)
     for name, case in cases.items():

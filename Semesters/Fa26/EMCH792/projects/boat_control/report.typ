@@ -1,11 +1,13 @@
 #import "figures.typ" as f
 #import "hardware_figures.typ" as hw
 #let cv = json("data/component_validation.json")
+#let p = json("data/parameters.json")
+#let schedule = json("data/schedule.json")
 #set list(indent: 0.9em, body-indent: 0.55em, spacing: 4pt)
 #let validation = json("data/validation.json")
 #let metrics = validation.metrics
 #let fmt = f.fmt
-#set document(title: "Twin-Thruster Boat Dynamics and Control Feasibility", author: "J.C. Vaught", date: datetime(year: 2026, month: 10, day: 8))
+#set document(title: "BlueBoat Dynamics and Control Feasibility", author: "J.C. Vaught", date: datetime(year: 2026, month: 10, day: 8))
 #set page(paper: "us-letter", margin: (x: 0.85in, top: 0.8in, bottom: 0.8in),
   header: [#text(size: 9pt)[J.C. Vaught] #h(1fr) #text(size: 9pt)[EMCH 792 · Boat control]],
   footer: context align(center, text(size: 9pt, counter(page).display("1"))))
@@ -23,7 +25,7 @@
 #let section(title) = heading(title)
 
 #align(center)[
-  #text(size: 21pt)[Twin-Thruster Boat Dynamics]
+  #text(size: 21pt)[BlueBoat Dynamics]
   #v(3pt)
   #text(size: 18pt)[and Control Feasibility]
   #v(9pt)
@@ -35,150 +37,187 @@
 #line(length: 100%, stroke: 1pt + f.garnet)
 
 = Project objective
-An autonomous surface vessel (ASV) must reach a target while wind changes its motion. Two independent thrusters provide surge force and yaw moment, so guidance must turn the hull to correct lateral error. This report reproduces the presentation experiments and develops a hardware architecture for BlueBoat @Vaught2026BoatControl @BlueRobotics2025BlueBoat.
+An autonomous surface vessel (ASV) must reach a target while wind changes its motion. BlueBoat uses two M200 motors with weedless propellers to generate forward force and yaw moment. This report evaluates that platform using its published dimensions, a selected loaded configuration, and explicit motion-model assumptions @BlueRobotics2025BlueBoat @BlueRobotics2026BlueBoatProduct.
 
-- The slide benchmark establishes the control problem.
-  - Equal thrust reaches #fmt(metrics.surge_terminal_m_s, digits: 3) m/s; crosswind causes #fmt(metrics.drift_60s_m) m of unpowered drift in 60 s.
-  - The nominal 20 m approach accumulates #fmt(metrics.blind_90s_errors_m.crosswind) m of crosswind error at 90 s.
-- BlueBoat is the deployment platform.
-  - Its dimensions and propulsion differ from the slide model. Sections 2–7 retain the original benchmark; the later sections define the selected hardware and identification work.
+- Every motion experiment uses the same BlueBoat model.
+  - Equal thrust reaches #fmt(metrics.surge_terminal_m_s, digits: 3) m/s. A modeled 5 m/s crosswind causes #fmt(metrics.drift_60s_m) m of unpowered drift in 60 s.
+  - The selected sensors observe this same motion; the delayed-motor tests use the same mass, inertia, drag, and spacing.
+- The report establishes the plant for subsequent controller design.
+  - These open-loop results quantify disturbance sensitivity. They do not claim measured hull performance or closed-loop recovery.
 
-#figure(f.hull(), caption: [Proposed BlueBoat layout with hull origin $O$ and thrust-line separation $B$.]) <hull>
+#figure(f.hull(), caption: [BlueBoat layout with hull origin $O$ and thrust-line separation $B$.]) <hull>
 
-#tbl((1.1fr, 1.15fr, 1.55fr),
-  table.header([Quantity], [Slide benchmark], [BlueBoat platform]), table.hline(stroke: 0.5pt),
-  [Length / beam], [4.9 m / unspecified], [1.20 m / 0.93 m],
-  [Mass], [180 kg], [14.5 kg bare; weigh loaded hull],
-  [Yaw inertia / spacing], [446 kg m² / 2.4 m], [Identify $I_z$; measure $B$],
-  [Propulsion], [−100 to 250 N each], [Two M200 weedless propellers],
+#tbl((1.05fr, 1.2fr, 1.45fr),
+  table.header([Quantity], [Simulation value], [Basis]), table.hline(stroke: 0.5pt),
+  [Length / beam], [1.20 m / 0.93 m], [Published BlueBoat geometry],
+  [Loaded mass], [#fmt(p.mass_kg, digits: 1) kg], [Bare hull + batteries + equipment allowance],
+  [Yaw inertia / spacing], [#fmt(p.yaw_inertia_kg_m2, digits: 3) kg m² / 0.75 m], [Geometric proxy / mounting estimate],
+  [Propulsion], [Two M200 motors at 16 V], [Installed forward envelope 80.41 N],
 )
+
+#pagebreak()
+= Physical configuration and parameter basis
+The layout fixes the platform; its loading and propulsion determine the simulated response. Published values and selected configuration choices are recorded separately from coefficients that require on-water identification. All experiment files import the same configuration.
+
+#tbl((1.35fr, 0.85fr, 1.55fr),
+  table.header([Parameter], [Value], [Basis]), table.hline(stroke: 0.5pt),
+  [Deployed length / beam / height], [1.20 / 0.93 / 0.46 m], [Manufacturer @BlueRobotics2025BlueBoat],
+  [Bare mass], [14.5 kg], [Manufacturer],
+  [Batteries], [Two; 2.4 kg total], [Standard-battery selection @BlueRobotics2026BlueBoatProduct],
+  [Equipment and mounts], [5.0 kg], [Payload allowance; weigh installed equipment],
+  [Loaded mass, $m$], [#fmt(p.mass_kg, digits: 1) kg], [Sum of hull, batteries, and allowance],
+  [Batteries + payload capacity], [15.0 kg], [Selected load 7.4 kg],
+  [Thrust-line separation, $B$], [0.75 m], [Estimated motor center spacing; survey hull],
+  [Yaw inertia, $I_z$], [#fmt(p.yaw_inertia_kg_m2, digits: 3) kg m²], [Uniform planar-envelope proxy],
+  [M200 weedless-propeller diameter], [112 mm], [Manufacturer @BlueRobotics2026Weedless],
+  [Battery / static-map voltage], [14.8 V nominal / 16 V test], [4S battery; 16 V curve snapshot],
+  [Installed forward force, each], [#fmt(p.thrust_max_N) N], [Half of published 8.2 kgf boat total],
+  [Installed reverse force, each], [#fmt(p.thrust_min_N) N], [Same scaling applied to signed component curve],
+)
+
+The yaw-inertia proxy is $I_z=m(L^2+W^2)/12$. It treats the load as a uniform planar envelope; the actual twin-hull mass distribution and centrally mounted equipment require a measured replacement. The 0.75 m motor spacing is smaller than the 0.93 m beam and is not inferred as an exact manufacturer dimension.
+
+#tbl((1.35fr, 0.85fr, 1.55fr),
+  table.header([Motion coefficient], [Nominal value], [Basis]), table.hline(stroke: 0.5pt),
+  [Surge linear drag, $d_1$], [4 N s/m], [Engineering assumption],
+  [Surge quadratic drag, $d_2$], [10 N s²/m²], [Engineering assumption],
+  [Sway linear drag, $d_v$], [35 N s/m], [Engineering assumption],
+  [Yaw linear drag, $d_r$], [12 N m s], [Engineering assumption],
+)
+
+- Hydrodynamic coefficients are provisional.
+  - They are not transferred from the presentation or fitted from BlueBoat trials. The later sensitivity tests vary mass and surge drag.
+  - Added mass, propeller inflow, roll, pitch, and wave excitation are omitted from this initial planar model.
+- The voltage snapshot is explicit @BlueRobotics2026OperatorGuide.
+  - A standard 4S battery is nominally 14.8 V and fully charged at 16.8 V. The available M200 lookup describes 16 V static testing.
+  - Battery discharge and inflow require additional measured thrust maps; no voltage law is inferred from this single curve.
 
 #pagebreak()
 = Planar model and simulation method
-The twin-thruster configuration in @hull is modeled with three degrees of freedom. This section uses the slide benchmark parameters in the preceding table. The inertial pose is $bold(eta) = (x,y,psi)^T$, and the body velocity is $bold(nu) = (u,v,r)^T$. Here, $x$ and $y$ denote east and north position, $psi$ denotes heading measured counterclockwise from east, and $u$, $v$, and $r$ denote surge speed, sway speed, and yaw rate. This planar reduction follows the rigid-body, Coriolis, and damping structure of the marine-craft equations @Fossen2026MarineModel.
+The physical configuration supplies the coefficients of a three-degree-of-freedom model. The inertial pose is $bold(eta)=(x,y,psi)^T$, and body velocity is $bold(nu)=(u,v,r)^T$. Position uses east and north coordinates; heading and yaw are counterclockwise from east. Surge points forward and sway points left. The equations retain planar rigid-body coupling and damping @Fossen2026MarineModel.
 
-The heading rotates body velocity into the inertial frame. The resulting kinematics are
-$ dot(x) = u cos psi - v sin psi, quad dot(y) = u sin psi + v cos psi, quad dot(psi) = r. $ <kinematics>
-The left and right thrusters apply $T_L$ and $T_R$. Because their force lines are separated by $B$, the force and moment allocation is
-$ tau_u = T_L + T_R, quad tau_v = 0, quad tau_r = B/2 (T_R-T_L). $ <allocation>
-The nonlinear equations retain the coupling generated by rotation. With body-frame wind forces $F_u$ and $F_v$, the equations are
-$ m dot(u) = m v r + T_L + T_R - d_1 u - d_2 u abs(u) + F_u, $ <surge>
-$ m dot(v) = -m u r - d_v v + F_v, $ <sway>
-$ I_z dot(r) = B/2 (T_R - T_L) - d_r r. $ <yaw>
+Heading rotates body velocity into the inertial frame, giving
+$ dot(x)=u cos psi-v sin psi, quad dot(y)=u sin psi+v cos psi, quad dot(psi)=r. $ <kinematics>
+The two parallel thrust lines generate the force and moment
+$ tau_u=T_L+T_R, quad tau_v=0, quad tau_r=B/2 (T_R-T_L). $ <allocation>
+With body-frame wind forces $F_u$ and $F_v$, the dynamic equations are
+$ m dot(u)=m v r+T_L+T_R-d_1 u-d_2 u abs(u)+F_u, $ <surge>
+$ m dot(v)=-m u r-d_v v+F_v, $ <sway>
+$ I_z dot(r)=B/2 (T_R-T_L)-d_r r. $ <yaw>
 
-#tbl((1fr, 1fr, 1.65fr),
-  table.header([Coefficient], [Value], [Reconstruction basis]), table.hline(stroke: 0.5pt),
-  [Linear surge drag, $d_1$], [51.3 N s/m], [Stated in the slides],
-  [Quadratic surge drag, $d_2$], [72.4 N s²/m²], [Stated in the slides],
-  [Linear sway drag, $d_v$], [40 N s/m], [Stated in the slides],
-  [Linear yaw drag, $d_r$], [400 N m s], [Inferred from yaw step and pulse],
-  [5 m/s wind force], [15.3 N], [Slide-plot value],
-)
+A nominal wind speed of 5 m/s is converted to force through $F= rho_a C_D A V^2/2$. The assumed air density is 1.225 kg/m³, drag coefficient is 1, frontal area is 0.18 m², and lateral area is 0.30 m². Thus, the selected headwind force is #fmt(p.headwind_force_N, digits: 3) N and crosswind force is #fmt(p.wind_force_N, digits: 3) N. These areas include an allowance for exposed equipment and must be measured with the final mounts.
 
-For a constant inertial wind force $(F_x,F_y)$, the body components are $F_u = F_x cos psi + F_y sin psi$ and $F_v = -F_x sin psi + F_y cos psi$. The crosswind acts along positive $y$; the headwind acts along negative $x$. Wind applies no yaw moment in this model. Added mass, wave excitation, and vertical motion are outside the slide model.
+For a constant world-frame wind force $(F_x,F_y)$, the body forces are $F_u=F_x cos psi+F_y sin psi$ and $F_v=-F_x sin psi+F_y cos psi$. The tests hold this force fixed rather than recomputing apparent wind from boat velocity. Wind acts through the reference center with zero yaw moment. This provides a controlled disturbance test; off-center wind loading is a subsequent extension.
 
-The original simulation source was unavailable, so the implementation is reconstructed from the equations, captions, and embedded plot images. SciPy integrates the six-state system with relative tolerance $10^(-10)$, absolute tolerance $10^(-12)$, and a maximum step of 0.05 s. Integration restarts at every thrust switch, and results are sampled at 0.05 s intervals. The next sections apply the same model to each slide experiment.
+- The first experiments isolate hull response with ideal force application.
+  - Every force command passes through the bounded, signed installed-M200 lookup. Force onset is instantaneous in these reference tests.
+  - The later component chain applies sampling, execution delay, deadband, saturation, and thrust lag to the same hull model.
+- Integration preserves input changes.
+  - Relative and absolute tolerances are $10^(-10)$ and $10^(-12)$; the maximum step is 0.05 s. Each constant-input interval is integrated separately.
+  - Histories are exported to data files and drawn as vector figures. Numerical refinement tests check each experiment.
 
 #pagebreak()
 = Steady and differential thrust
-The first experiment isolates surge motion. Both thrusters step to 100 N at $t = 1$ s from rest. As speed rises, drag increases until it balances the 200 N total force. Setting $dot(u)=0$ in @surge gives the terminal-speed relation
-$ d_2 u_infinity^2 + d_1 u_infinity = 200, quad u_infinity = (-d_1 + sqrt(d_1^2 + 800 d_2))/(2 d_2) = 1.3451 "m/s". $
-#figure(f.equal-step(), caption: [Equal-thrust surge response.]) <equal>
+The first experiment isolates surge motion. Both M200 motors step to 15 N at $t=1$ s from rest. Drag rises until it balances the 30 N total force. Setting $dot(u)=0$ in @surge gives
+$ d_2 u_infinity^2+d_1 u_infinity=30, quad u_infinity=(-d_1+sqrt(d_1^2+120 d_2))/(2 d_2)=#fmt(metrics.surge_terminal_m_s, digits: 4) "m/s". $
+#figure(f.equal-step(), caption: [Equal-M200-thrust surge response.]) <equal>
 
-The second experiment applies $T_L=100$ N and $T_R=150$ N at $t=1$ s. The total force rises to 250 N, and the 50 N thrust difference produces a 60 N m yaw moment. Consequently, the terminal yaw rate is $r_infinity = 60/400 = 0.15$ rad/s. Rotation induces negative sway through the $-u r$ term, which feeds back into surge through $v r$.
+The second experiment applies $T_L=10$ N and $T_R=15$ N at $t=1$ s. The 5 N difference generates #fmt(metrics.differential_yaw_moment_N_m, digits: 3) N m of yaw moment, giving $r_infinity=tau_r/d_r=#fmt(metrics.differential_terminal_r_rad_s, digits: 4)$ rad/s. Rotation induces negative sway through $-u r$, which feeds back into surge through $v r$.
 
-#figure(f.differential(), caption: [Differential-thrust translation and yaw response.]) <differential>
+#figure(f.differential(), caption: [Differential-M200-thrust translation and yaw.]) <differential>
 
 #grid(columns: (1fr, 1fr), column-gutter: 20pt,
   align(center, f.turning-path()),
   [
     #v(12pt)
-    The coupled steady speeds are $u = 1.4391$ m/s and $v = -0.9714$ m/s. From @sway, $v_infinity = -m u_infinity r_infinity/d_v$, so the lateral speed persists while the boat turns.
+    The coupled terminal speeds are $u=#fmt(metrics.differential_terminal_u_m_s, digits: 4)$ m/s and $v=#fmt(metrics.differential_terminal_v_m_s, digits: 4)$ m/s. From @sway, $v_infinity=-m u_infinity r_infinity/d_v$, so lateral speed persists during the turn.
 
-    The corresponding path approaches a circular orbit. At 60 s, the boat is at $(16.49,15.73)$ m, consistent with the endpoint shown in the presentation. Equal scaling of both position axes preserves the path geometry.
+    At 60 s, the boat is at $(#fmt(metrics.differential_endpoint_m.first()),#fmt(metrics.differential_endpoint_m.last()))$ m. Equal scaling of both axes preserves the path geometry.
 
-    The steady turning radius is approximately $sqrt(u_infinity^2+v_infinity^2)/abs(r_infinity) = 11.58$ m. A constant thrust difference therefore creates sustained turning rather than convergence to a target.
+    The asymptotic turning radius is $sqrt(u_infinity^2+v_infinity^2)/abs(r_infinity)=#fmt(metrics.turning_radius_m)$ m. A constant thrust difference therefore creates sustained turning rather than convergence to a target.
   ],
 )
 
 #pagebreak()
 = Pulse response and free decay
-The steady turning response establishes the velocity coupling. A short asymmetric pulse then shows how that coupling persists after thrust is removed. The boat starts from rest, receives $T_L=150$ N and $T_R=-100$ N over $1 <= t < 2$ s, and coasts for the remainder of the 30 s experiment.
+The sustained turn establishes coupling between motion components. A short asymmetric pulse then shows how that coupling persists after thrust is removed. The boat receives $T_L=30$ N and $T_R=-15$ N over $1 <= t < 2$ s and coasts for the remainder of the 30 s test. Both commands lie within the provisional installed-M200 envelope.
 
-#figure(f.pulse(), caption: [Sway and yaw responses to a one-second thrust pulse.]) <pulse>
+#figure(f.pulse(), caption: [Sway and yaw responses to a one-second M200 pulse.]) <pulse>
 
-The pulse applies 50 N of surge force and −300 N m of yaw moment. The reconstructed yaw minimum is #fmt(metrics.pulse_min_r_rad_s, digits: 4) rad/s, while sway reaches #fmt(metrics.pulse_peak_v_m_s, digits: 4) m/s. Positive sway follows from $-u r$ when surge is positive and yaw rate is negative. Its peak occurs after the pulse because yaw-induced translation and sway damping act on different time scales.
+The pulse supplies 15 N of forward force and −16.875 N m of yaw moment. The yaw minimum is #fmt(metrics.pulse_min_r_rad_s, digits: 4) rad/s, while sway reaches #fmt(metrics.pulse_peak_v_m_s, digits: 4) m/s. Positive sway follows from $-u r$ when surge is positive and yaw is negative. Sway peaks after the pulse because turning and lateral damping act on different time scales.
 
-The unforced experiment starts with $(u,v,r)=(1,0.5,0.5)$ and applies zero thrust for 30 s. Each velocity approaches zero, as shown below, but the final position and heading depend on the integrated transient.
+The unforced test starts at $(u,v,r)=(1,0.5,0.5)$ and applies zero thrust for 30 s. Velocity approaches zero, but final position and heading depend on the integrated transient.
 
-#figure(f.decay(), caption: [Unforced translation and yaw decay.]) <decay>
+#figure(f.decay(), caption: [Unforced BlueBoat translation and yaw decay.]) <decay>
 
-This behavior follows directly from kinetic energy. Defining $E = m(u^2+v^2)/2 + I_z r^2/2$, substitution of @surge, @sway, and @yaw under zero thrust and zero wind gives
-$ dot(E) = -d_1 u^2 - d_2 abs(u)^3 - d_v v^2 - d_r r^2 <= 0. $
-The rotational coupling terms cancel because they transfer energy between surge and sway. Damping removes the remaining energy. Thus, the velocity equilibrium is attracting, while position has no restoring term. This distinction explains why the boat can stop moving without reaching the desired location.
+This behavior follows from kinetic energy. Defining $E=m(u^2+v^2)/2+I_z r^2/2$, substitution of @surge, @sway, and @yaw gives
+$ dot(E)=-d_1 u^2-d_2 abs(u)^3-d_v v^2-d_r r^2 <= 0. $
+The coupling terms cancel because they transfer energy between surge and sway. Damping removes energy, while position has no restoring term. Consequently, the boat can stop moving without reaching the desired location.
 
 #pagebreak()
 = Phase-plane behavior and wind drift
-The decay experiment motivates a closer view of the sway–yaw subsystem. Holding surge at a fixed value $U$ produces the reduced equations $dot(v)=-d_v v/m-U r$ and $dot(r)=-d_r r/I_z$. These phase portraits use 25 initial pairs spanning $v_0 in [-1,1]$ m/s and $r_0 in [-0.5,0.5]$ rad/s. Surge is frozen for this diagnostic and is not integrated as a third dynamic variable.
+Free decay motivates a closer view of the sway–yaw subsystem. Holding surge at $U$ gives $dot(v)=-d_v v/m-U r$ and $dot(r)=-d_r r/I_z$. The phase portraits use 25 initial pairs spanning $v_0 in [-1,1]$ m/s and $r_0 in [-0.5,0.5]$ rad/s. Surge is frozen for this diagnostic rather than integrated as a third state.
 
-#figure(f.phase-pair(), caption: [Sway–yaw phase portraits at frozen surge speeds of 0 and 1 m/s.]) <phase>
+#figure(f.phase-pair(), caption: [BlueBoat sway–yaw phase portraits at 0 and 1 m/s surge.]) <phase>
 
-The reduced subsystem has decay rates $-d_v/m=-0.2222$ s⁻¹ and $-d_r/I_z=-0.8969$ s⁻¹. Both remain negative when $U$ changes, so surge modifies the transient geometry without changing these two eigenvalues. The corresponding time constants are 4.5 s for sway and 1.115 s for yaw.
+The decay rates are $-d_v/m=-#fmt(p.sway_linear_N_s_m/p.mass_kg, digits: 3)$ s⁻¹ and $-d_r/I_z=-#fmt(p.yaw_linear_N_m_s/p.yaw_inertia_kg_m2, digits: 3)$ s⁻¹. Both remain negative as $U$ changes, so surge modifies the transient geometry without changing these eigenvalues. The nominal time constants are #fmt(metrics.wind_time_constant_s, digits: 3) s for sway and #fmt(metrics.yaw_time_constant_s, digits: 3) s for yaw.
 
-Wind changes the equilibrium rather than simply delaying decay. With no thrust, zero initial velocity, and 15.3 N of lateral wind force, @sway becomes $m dot(v)+d_v v=15.3$. Its solution is
-$ v(t) = F_y/d_v (1-e^(-t/tau_v)), quad y(t) = F_y/d_v [t-tau_v(1-e^(-t/tau_v))], quad tau_v=m/d_v. $
+Wind shifts the velocity equilibrium. With zero thrust, zero initial motion, and #fmt(p.wind_force_N, digits: 3) N of crosswind force, @sway has the solution
+$ v(t)=F_y/d_v (1-e^(-t/tau_v)), quad y(t)=F_y/d_v [t-tau_v(1-e^(-t/tau_v))], quad tau_v=m/d_v. $
 
-#figure(f.wind(), caption: [Unpowered crosswind response. Velocity settles while position continues to drift.]) <wind>
+#figure(f.wind(), caption: [Unpowered BlueBoat drift under modeled crosswind.]) <wind>
 
-The lateral equilibrium is $v_infinity=15.3/40=0.3825$ m/s. Integrating this motion produces #fmt(metrics.drift_60s_m, digits: 4) m of displacement at 60 s. Once the velocity settles, position grows almost linearly. The absence of direct lateral thrust therefore becomes a guidance problem, even when all velocity transients are damped.
+The lateral equilibrium is $v_infinity=F_y/d_v=#fmt(metrics.drift_terminal_m_s, digits: 4)$ m/s. Its integrated displacement is #fmt(metrics.drift_60s_m, digits: 4) m at 60 s. Position continues to drift after the velocity transient has decayed. This persistent offset is the disturbance the subsequent guidance controller must reject.
 
 #pagebreak()
 = Open-loop target approach
-The wind-drift result predicts failure of a schedule calibrated only for calm water. To test that consequence, the boat starts at the origin with zero velocity and aims at $(20,0)$ m. Both thrusters apply 100 N for 13.8329 s and then switch to zero. This schedule is reconstructed from the calm slide trace because the original switching schedule was not stated. The 200 N force is supported by a trace fit of 200.58 N; the cutoff is selected so that the thrust interval plus the subsequent coast covers 20 m.
+The drift result predicts failure of an input schedule calibrated only for calm water. The boat starts from rest at the origin and aims at $(20,0)$ m. Both M200 motors apply 15 N until $t=#fmt(schedule.chosen_cutoff_s, digits: 4)$ s, then switch to zero. The cutoff is computed from the BlueBoat model rather than fitted to a presentation curve.
 
-#figure(f.schedule(), caption: [Reconstructed equal-thrust schedule and cutoff detail.]) <schedule>
+#figure(f.schedule(), caption: [BlueBoat equal-thrust schedule and cutoff detail.]) <schedule>
 
-After the switch, the calm-water coast distance from speed $u_s$ is $m/d_2 ln(1+d_2 u_s/d_1)$. Adding it to the distance accumulated during thrust gives the selected 20 m endpoint. The wind cases then use the same schedule without further fitting.
+The calm-water coast distance from cutoff speed $u_s$ is $m/d_2 ln(1+d_2 u_s/d_1)$. Adding it to the powered distance sets the asymptotic calm endpoint to 20 m. The headwind and crosswind cases use the same schedule without recalibration.
 
-#figure(f.blind(), caption: [Open-loop target approach in calm water, crosswind, and headwind. Path axes use different scales.]) <blind>
+#figure(f.blind(), caption: [BlueBoat target approach under calm and wind conditions. Path axes use different scales.]) <blind>
 
 #tbl((1.2fr, 1fr, 1fr, 1fr),
   table.header([Environment], [$x(90)$ (m)], [$y(90)$ (m)], [Target error (m)]), table.hline(stroke: 0.5pt),
-  [Calm], [20.0000], [0.0000], [0.0000],
-  [Crosswind], [20.0000], [32.7038], [32.7038],
-  [Headwind], [2.4482], [0.0000], [17.5518],
-)
-
-Crosswind preserves the nominal forward motion because heading remains zero, but lateral displacement reaches 32.70 m. Headwind reduces progress during thrust and drives the boat backward after thrust ends. The final headwind surge speed is −0.2261 m/s. Both cases show why a preplanned input alone cannot regulate target distance in a changing environment.
-
-#pagebreak()
-= Reproduction and numerical verification
-The preceding experiments retain the slide parameters and reproduce their visible trajectories. To quantify agreement, the embedded images are extracted unchanged from the presentation, and colored traces are digitized using recorded axis calibrations. Legend regions are excluded. The root-mean-square (RMS) differences below compare reconstructed curves with the retained raster samples; the largest is #fmt(metrics.max_slide_rmse_pixels) pixel.
-
-#tbl((1.65fr, 0.65fr, 1fr, 0.6fr),
-  table.header([Slide curve], [Samples], [RMS in physical units], [RMS pixels]), table.hline(stroke: 0.5pt),
-  ..validation.source_comparisons.map(row => {
-    let names = (
-      equal_u: [Equal thrust, $u$], differential_u: [Differential thrust, $u$],
-      differential_v: [Differential thrust, $v$], differential_r: [Differential thrust, $r$],
-      pulse_v: [Pulse, $v$], pulse_r: [Pulse, $r$], decay_u: [Free decay, $u$],
-      decay_v: [Free decay, $v$], decay_r: [Free decay, $r$], wind_y: [Crosswind drift, $y$],
-      blind_calm_distance: [Target distance, calm], blind_crosswind_distance: [Target distance, crosswind],
-      blind_headwind_distance: [Target distance, headwind],
-    )
-    (names.at(row.trace), [#row.samples], [#fmt(row.rmse, digits: 5) #row.unit], [#fmt(row.rmse_pixels, digits: 3)])
+  ..("calm", "crosswind", "headwind").map(name => {
+    let row = metrics.blind_90s_states.at(name)
+    ([#name], [#fmt(row.x, digits: 4)], [#fmt(row.y, digits: 4)], [#fmt(row.distance, digits: 4)])
   }).flatten(),
 )
 
-#figure(f.overlays(), caption: [Reconstructed curves against digitized slide samples; every tenth marker is shown.]) <overlays>
+Crosswind preserves forward progress in this model because heading remains zero, but lateral displacement reaches #fmt(metrics.blind_90s_errors_m.crosswind) m at 90 s. Headwind reduces powered progress and then drives the unpowered boat backward; its final surge speed is #fmt(metrics.blind_90s_states.headwind.u, digits: 4) m/s. Thus, an open-loop schedule cannot regulate target distance under sustained wind.
 
-Independent checks support the numerical implementation. The surge step agrees with its exact scalar solution to $3.18 times 10^(-11)$ m/s, the yaw step agrees to $3.46 times 10^(-13)$ rad/s, and the wind-drift solution agrees to $2.40 times 10^(-14)$ m. Halving the maximum integration step changes no state component by more than $2.38 times 10^(-10)$ in its corresponding units. The free-decay energy decreases monotonically, and every thrust input remains within the stated limits.
+#pagebreak()
+= Numerical verification and parameter sensitivity
+The preceding results depend on the BlueBoat configuration and provisional motion coefficients. Independent analytic checks first establish that the numerical integration follows those equations. The sensitivity tests then show how uncertainty in the coefficients changes the response.
 
-The accompanying project stores the simulation code, input schedule, numerical checks, digitized samples, source-image hashes, and figure source. Consequently, the report can be rebuilt from the retained presentation rather than depending on inaccessible plotting code. Yaw damping and the blind schedule remain explicitly identified as reconstructed quantities.
+#tbl((1.65fr, 1fr, 1.25fr),
+  table.header([Verification], [Result], [Interpretation]), table.hline(stroke: 0.5pt),
+  [Surge analytic agreement], [$#calc.round(validation.checks.surge_exact_max_error_m_s*1e11,digits:2) times 10^(-11)$ m/s], [Constant equal-thrust solution],
+  [Yaw analytic agreement], [$#calc.round(validation.checks.yaw_exact_max_error_rad_s*1e12,digits:2) times 10^(-12)$ rad/s], [Constant differential moment],
+  [Wind analytic agreement], [$#calc.round(validation.checks.wind_exact_max_error_m*1e12,digits:2) times 10^(-12)$ m], [Lateral drift solution],
+  [Step refinement], [$#calc.round(validation.checks.step_refinement_max_state_difference*1e10,digits:2) times 10^(-10)$], [Maximum state difference; each state's units],
+  [Energy / thrust / loading], [Pass], [Dissipative decay and physical bounds],
+  [Controllability at rest / 1 m/s], [4 / 6], [Local linear-model ranks],
+)
+
+#figure(f.overlays(), caption: [BlueBoat mass and assumed surge-drag sensitivity.]) <overlays>
+
+- Loading changes acceleration.
+  - Compare 16.9 kg with two batteries and no added equipment, the nominal 21.9 kg configuration, and the 29.5 kg maximum loaded mass.
+  - Drag is held fixed in this isolated test; mass changes the transient without changing the modeled steady speed.
+- Drag changes both the transient and steady speed.
+  - Scale the linear and quadratic surge terms together by 0.5, 1, and 2, holding thrust and mass fixed.
+  - The resulting spread is model uncertainty, not a measured confidence interval.
+- Verification and physical validation serve different purposes.
+  - Analytic agreement checks the equations and solver. On-water logs must establish the actual inertia, drag, added mass, and installed thrust.
+  - Every active result uses BlueBoat. The original presentation remains a historical source; its larger-boat traces are not validation data for this hull.
 
 #pagebreak()
 = Selected hardware and mission architecture
-The benchmark shows why feedback is required. Real-time kinematic (RTK) positioning supplies the global navigation satellite system (GNSS) reference. The deployment architecture assigns image processing and guidance to AGX Orin while retaining the BlueBoat Pi 4, Navigator, and ArduRover for low-level control. This assignment keeps the motor loops independent of the image-processing workload @BlueRobotics2025BlueBoat.
+The BlueBoat wind tests show why feedback is required. Real-time kinematic (RTK) positioning supplies the global navigation satellite system (GNSS) reference. The deployment architecture assigns image processing and guidance to AGX Orin while retaining the BlueBoat Pi 4, Navigator, and ArduRover for low-level control. This assignment keeps the motor loops independent of the image-processing workload @BlueRobotics2025BlueBoat.
 
 #tbl((0.8fr, 1.55fr, 1.5fr),
   table.header([Function], [Selection], [Reason / interface]), table.hline(stroke: 0.5pt),
@@ -279,15 +318,16 @@ A first-order motor reaches 90% of its final force after $tau_T ln 10=0.4605$ s 
 = Motor and propeller response
 The execution budget delays a command before the propulsion system responds. The propulsion model then maps each pulse width $p_i$ to a static thrust $T_{s,i}$ and applies a dynamic lag. The manufacturer’s M200 weedless-propeller curve at 16 V supplies the signed static lookup @BlueRobotics2026M200Reference @BlueRobotics2026MotorGuide.
 
-#figure(hw.motor(), caption: [Manufacturer M200 static thrust at 16 V and simulated delayed reversal.]) <motor>
+#figure(hw.motor(), caption: [M200 static curve, installed-map assumption, and delayed reversal.]) <motor>
 
-The static map interpolates the retained data after clipping $p_i$ to 1100–1900 µs. Commands from 1475 through 1525 µs produce zero demand, with 1500 µs neutral. The sampled component limits at 16 V are −27.56 N reverse and 55.21 N forward. The dynamic model is
+The static map interpolates the retained data after clipping $p_i$ to 1100–1900 µs. Commands from 1475 through 1525 µs produce zero demand, with 1500 µs neutral. The manufacturer component limits at 16 V are −27.56 N reverse and 55.21 N forward. The boat simulations use the uniformly scaled installed envelope, #fmt(p.thrust_min_N) N reverse and #fmt(p.thrust_max_N) N forward per motor. The dynamic model is
 $ tau_T dot(T_i)+T_i=T_{s,i}(p_i(t-L_i),16"V"), quad i in {L,R}. $
-For a constant demand after onset $t_0$, the force response is $T_i(t)=T_s+(T_i(t_0)-T_s)e^(-(t-t_0)/tau_T)$. The simulation changes the pulse demand at 1.023, 3.023, and 5.023 s; it integrates exactly between delayed changes. Its first forward step agrees with this analytic response to $1.81 times 10^(-9)$ N.
+For a constant demand after onset $t_0$, the force response is $T_i(t)=T_s+(T_i(t_0)-T_s)e^(-(t-t_0)/tau_T)$. The simulation changes the pulse demand at 1.023, 3.023, and 5.023 s; it integrates exactly between delayed changes. Its first forward step agrees with this analytic response to $1.31 times 10^(-9)$ N.
 
 - Component thrust and installed-boat thrust require separate calibration.
   - The curve describes the manufacturer’s M200-and-propeller component test. BlueBoat’s published total static thrust is 8.2 kgf, approximately 80.4 N @BlueRobotics2026BlueBoatProduct.
-  - The two component maxima sum to 110.4 N, approximately 37% above the published boat rating. The test conditions differ; the installed map must be measured.
+  - The component maxima sum to 110.4 N. A factor of #fmt(p.installation_scale, digits: 4) scales the entire signed curve so the forward total matches the published 80.41 N boat envelope.
+    - This is a provisional installation model. The reverse limit and intermediate curve are inferred by uniform scaling; they are not installed-boat measurements.
     - Mounting, guards, hull interaction, voltage, and inflow change the installed map. Use a load cell to measure each side and both sides together with the final guards installed.
 - The dynamic model has identifiable limits.
   - Fit separate acceleration, reversal, and coast constants from synchronized force and PWM logs; test several pulse amplitudes and battery voltages.
@@ -295,26 +335,26 @@ For a constant demand after onset $t_0$, the force response is $T_i(t)=T_s+(T_i(
 
 #pagebreak()
 = Boat response and parameter identification
-The motor tests establish a force history. Applying that history to the six-state slide plant exposes the consequence of finite actuator response without changing the recovered benchmark. Equal thrust uses 20 N per side; the turning test uses 20 N left and 30 N right, followed by neutral.
+The motor tests establish a force history for the same BlueBoat plant used earlier. Equal thrust uses 15 N per side; the turning test uses 8 N left and 10 N right until 6.023 s, followed by neutral. These commands remain below the scaled M200 limits.
 
-#figure(hw.boat-response(), caption: [Motor-lag sensitivity and turning response on the slide benchmark plant.]) <boat-response>
+#figure(hw.boat-response(), caption: [M200 lag sensitivity and BlueBoat turning response.]) <boat-response>
 
-At 2 s, ideal equal thrust gives 0.1850 m/s while the delayed $tau_T=0.2$ s chain gives 0.1429 m/s. Thus, an instantaneous-thrust simulation overstates early progress by 0.0421 m/s for this input. The yaw transient also continues after neutral while the propeller force decays.
+At 2 s, ideal equal thrust gives #fmt(cv.summary.ideal_surge_at_2s_m_s, digits: 4) m/s while the delayed $tau_T=0.2$ s chain gives #fmt(cv.summary.delayed_surge_at_2s_m_s, digits: 4) m/s. Instantaneous thrust therefore overstates early speed by #fmt(cv.summary.ideal_surge_at_2s_m_s - cv.summary.delayed_surge_at_2s_m_s, digits: 4) m/s for this input. Yaw also persists after neutral while propeller force decays.
 
-- The BlueBoat model uses measured physical parameters.
-  - Weigh the boat with batteries, guards, computer, and sensor mounts. The manufacturer allows 15 kg for batteries plus payload above the 14.5 kg bare hull @BlueRobotics2025BlueBoat.
-  - Measure the force-line spacing $B$ and loaded center of gravity; identify yaw inertia and added mass.
-    - Overall beam is not the thrust moment arm. A narrowed competition hull requires a new measurement.
-- Identify the planar force response from controlled tests.
-  - Equal-pulse steps establish surge acceleration and the linear/quadratic drag terms. Coast-down isolates drag from propeller force.
-  - Opposing and unequal thrust establish yaw response; turning runs identify sway coupling and lateral damping.
+- Replace the provisional loading and geometry with measurements.
+  - Weigh batteries, computer, sensors, guards, mounts, and cables separately, then weigh the assembled boat.
+  - Survey thrust-line spacing and loaded center of gravity. Estimate yaw inertia from the measured mass distribution or a dedicated inertia test.
+    - A narrowed competition configuration changes both spacing and inertia and requires a separate configuration.
+- Identify the planar force response.
+  - Equal-pulse steps establish surge acceleration; coast-down helps identify linear and quadratic drag.
+  - Unequal and opposing thrust establish yaw response, while turning runs expose sway coupling and damping.
     - Repeat in both directions and record voltage, wind, current, payload, RTK status, and temperature. Hold out complete runs for prediction checks.
-- Fit a deployment model that retains hydrodynamic inertia.
-  - Use $(M_"RB"+M_A)dot(bold(nu))+C(bold(nu))bold(nu)+D(bold(nu))bold(nu)=bold(tau)+bold(tau)_d$ with the same planar kinematics @Fossen2026MarineModel.
-  - Estimate surge, sway, and yaw drag with installed thrust maps; validate trajectories and transient error against RTK/IMU measurements.
-    - Use a three-dimensional model when roll, pitch, wave motion, or camera stabilization materially changes sensing or actuation.
+- Extend the identified model when the residuals require it.
+  - Use $(M_"RB"+M_A)dot(bold(nu))+C(bold(nu))bold(nu)+D(bold(nu))bold(nu)=bold(tau)+bold(tau)_d$ to retain added mass @Fossen2026MarineModel.
+  - Fit installed thrust and motor lag using force and PWM logs before attributing response error to hull damping.
+    - Add roll, pitch, waves, and off-center wind moments when they materially affect actuation or sensing.
 
-Because these parameters have not been measured on the selected hull, the report does not assign the slide mass, inertia, drag coefficients, or wind force to BlueBoat. The component functions and exported input data provide the calibration structure; measured logs supply its deployment coefficients.
+These measurements update the shared configuration rather than creating separate parameter sets for different figures. The report already uses BlueBoat geometry and propulsion throughout; identification replaces its remaining engineering assumptions.
 
 #pagebreak()
 = Sensor response under changing motion
@@ -324,27 +364,27 @@ The force chain produces motion that each sensor samples at its own rate. The fo
 
 #figure(hw.camera-response(), caption: [Simulated stereo range with a 5–6 s occlusion and distance-dependent depth uncertainty.]) <camera-response>
 
-The stereo test observes a target at $(5,2)$ m in the benchmark frame and occludes frames from 5 to 6 s. For a rectified stereo pair, disparity $d=p_L-p_R$ gives forward optical depth $Z=f b/d$. A target at planar bearing $beta$ has horizontal image coordinate $p_L=c_x-f tan beta$ and range $rho=Z/cos beta$. The first-order depth uncertainty is
+The stereo test observes a target at $(15,3)$ m in the world frame and occludes frames from 5 to 6 s. For a rectified stereo pair, disparity $d=p_L-p_R$ gives forward optical depth $Z=f b/d$. A target at planar bearing $beta$ has horizontal image coordinate $p_L=c_x-f tan beta$ and range $rho=Z/cos beta$. The first-order depth uncertainty is
 $ sigma_Z approx Z^2/(f b) sigma_d. $
 For $f=700$ pixels, $b=0.12$ m, and $sigma_d=0.5$ pixel, depth uncertainty is 0.60 m at 10 m and 2.38 m at 20 m. The camera model therefore reports range validity rather than promising centimeter accuracy from stereo.
 
 - Camera latency includes capture and perception.
   - The test processes 30 frames/s with 10 ms acquisition/transfer and 20 ms vision compute. It assumes a rectified 1920-pixel image with $f=700$ pixels; deployed intrinsics replace that approximation.
-  - Invalid, behind-camera, out-of-view, occluded, and beyond-20 m observations are withheld. The run returns 331 of 361 frames.
+  - Invalid, behind-camera, out-of-view, occluded, and beyond-20 m observations are withheld. The run returns #cv.summary.camera_valid_frames of #cv.summary.camera_total_frames frames.
     - Water glare, low texture, and object occlusion require measured validity thresholds. This geometric test does not reproduce the detector or the stereo software’s full error distribution.
 
 #pagebreak()
 = Control feasibility and competition integration
-The expanded component chain supports controller development, but it does not supply closed-loop performance results. The presentation’s proposed linear-quadratic regulator (LQR) minimizes state error and control effort around a local operating point @MathWorks2026LQR. Its feasibility depends on whether thrust can influence each relevant motion mode.
+The shared BlueBoat component chain supports controller development, but it does not supply closed-loop performance results. The presentation’s proposed linear-quadratic regulator (LQR) minimizes state error and control effort around a local operating point @MathWorks2026LQR. Its feasibility depends on whether thrust can influence each relevant motion mode.
 
 - The boat is laterally underactuated.
   - At rest, $dot(y)=v$ and $dot(v)=-d_v v/m$ have no direct thrust input. The six-state controllability matrix has rank four; the uncontrolled lateral-position integrator has eigenvalue zero.
-  - At a straight-running reference of $U=1$ m/s, yaw and lateral motion couple and the rank becomes six.
+  - At a straight-running reference of $U=1$ m/s, yaw and lateral motion couple and the rank becomes six. The nominal trim requires 14 N total thrust, within the scaled installed-M200 envelope.
     - Use a moving reference and constrained guidance. A full-state LQR about rest cannot stabilize arbitrary lateral position.
 - The initial deployment closes the motor loops in ArduRover.
   - Orin sends feasible speed and turn-rate references. Route tracking or an outer-loop regulator can be evaluated without introducing a competing motor controller.
   - An LQR that outputs individual forces requires a separate low-level implementation, allocation, saturation handling, and validated failsafes.
-    - The slide targets of under 30 s recovery, under 10% overshoot, under 0.3 m position error, and under 15° heading error remain proposed targets, not achieved results.
+    - Under 30 s recovery, under 10% overshoot, under 0.3 m position error, and under 15° heading error are candidate controller targets. They have not been demonstrated on this BlueBoat model.
 
 The competition configuration also changes the boat’s physical model. The 2027 event is listed for February 18–23 in Sarasota, Florida; its handbook is pending as of October 8, 2026 @RoboNation2026Event2027. The available 2026 requirements define the present integration checks @RoboNation2026Vehicle @RoboNation2026Rules.
 
@@ -359,7 +399,7 @@ The competition configuration also changes the boat’s physical model. The 2027
   - Use local RTK corrections from equipment in the operating tent; the 2026 rules prohibit outside internet connections, including LTE corrections, during semifinal and final runs.
     - Recheck these requirements against the 2027 handbook when released.
 
-These checks lead directly to the next experiment. Install the selected sensor stack, synchronize its logs, identify the loaded hull and guarded propulsion response, and benchmark the execution deadlines. Then evaluate feasible guidance and feedback against the original recovery targets with measured component parameters.
+These checks lead directly to the next experiment. Install the selected sensor stack, synchronize its logs, identify the loaded hull and guarded propulsion response, and benchmark the execution deadlines. Then evaluate feasible guidance and feedback against the selected recovery targets with measured component parameters.
 
 #pagebreak()
 #bibliography("references.bib", style: "ieee", title: [References])

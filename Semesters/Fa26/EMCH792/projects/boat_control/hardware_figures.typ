@@ -152,21 +152,25 @@
 }
 #let schedule() = {
   set text(size: 9pt)
-  let stop = json("data/schedule.json").chosen_cutoff_s
+  let schedule = json("data/schedule.json")
+  let stop = schedule.chosen_cutoff_s
+  let force = schedule.chosen_total_force_N / 2
   grid(columns: (1fr, 1fr), column-gutter: 14pt,
-    lq.diagram(width: 100%, height: 0% + 1.65in, title: [Benchmark force command], xlabel: [Time (s)], ylabel: [Each thruster (N)], xlim: (0,90), ylim: (-5,110), xaxis: (ticks: (0,15,30,45,60,75,90)),
-      lq.plot((0, stop, stop, 90), (100,100,0,0), mark: none)),
-    lq.diagram(width: 100%, height: 0% + 1.65in, title: [Cutoff at 13.8329 s], xlabel: [Time (s)], ylabel: [Each thruster (N)], xlim: (13,15), ylim: (-5,110),
-      lq.plot((13, stop, stop, 15), (100,100,0,0), mark: none)),
+    lq.diagram(width: 100%, height: 0% + 1.65in, title: [BlueBoat force command], xlabel: [Time (s)], ylabel: [Each M200 (N)], xlim: (0,90), ylim: (-1,18), xaxis: (ticks: (0,15,30,45,60,75,90)),
+      lq.plot((0, stop, stop, 90), (force,force,0,0), mark: none)),
+    lq.diagram(width: 100%, height: 0% + 1.65in, title: [Cutoff at #calc.round(stop,digits:4) s], xlabel: [Time (s)], ylabel: [Each M200 (N)], xlim: (stop - 0.8,stop + 0.8), ylim: (-1,18),
+      lq.plot((stop - 0.8, stop, stop, stop + 0.8), (force,force,0,0), mark: none)),
   )
 }
 #let motor() = {
   set text(size: 9pt)
   let static = json("data/m200_static.json")
   grid(columns: (1fr, 1fr), column-gutter: 14pt,
-    lq.diagram(width: 100%, height: 0% + 2.1in, title: [Manufacturer static curve, 16 V], xlabel: [PWM pulse (µs)], ylabel: [Component thrust (N)], xlim: (1100,1900), ylim: (-35,65),
-      lq.plot(static.pwm_us, static.force_N, mark: "x", mark-size: 1.5pt)),
-    lq.diagram(width: 100%, height: 0% + 2.1in, title: [Saturation and reversal test], xlabel: [Time (s)], ylabel: [Thrust (N)], xlim: (0,7), ylim: (-35,65), legend: (radius: 0pt, fill: white, position: top + right),
+    lq.diagram(width: 100%, height: 0% + 2.1in, title: [M200 and installed-map assumption, 16 V], xlabel: [PWM pulse (µs)], ylabel: [Component thrust (N)], xlim: (1100,1900), ylim: (-35,65),
+      legend: (radius: 0pt, fill: white, position: top + left),
+      lq.plot(static.pwm_us, static.force_N, mark: none, label: [M200 component]),
+      lq.plot(static.pwm_us, static.force_N.map(v => v * json("data/parameters.json").installation_scale), mark: none, label: [Installed assumption], stroke: (dash: "dashed", thickness: 1pt))),
+    lq.diagram(width: 100%, height: 0% + 2.1in, title: [Installed saturation and reversal], xlabel: [Time (s)], ylabel: [Thrust (N)], xlim: (0,7), ylim: (-35,65), legend: (radius: 0pt, fill: white, position: top + right),
       lq.plot(cr.motor.time, cr.motor.demand_left, mark: none, label: [Static demand], stroke: (dash: "dashed", thickness: 1pt)),
       lq.plot(cr.motor.time, cr.motor.left, mark: none, label: [Lagged force])),
   )
@@ -174,12 +178,12 @@
 #let boat-response() = {
   set text(size: 9pt)
   grid(columns: (1fr, 1fr), column-gutter: 14pt,
-    lq.diagram(width: 100%, height: 0% + 2.0in, title: [Motor-lag sensitivity], xlabel: [Time (s)], ylabel: [Surge speed (m/s)], xlim: (0,4), ylim: (0,0.5), legend: (radius: 0pt, fill: white, position: top + left),
+    lq.diagram(width: 100%, height: 0% + 2.0in, title: [Motor-lag sensitivity], xlabel: [Time (s)], ylabel: [Surge speed (m/s)], xlim: (0,4), ylim: (0,1.7), legend: (radius: 0pt, fill: white, position: top + left),
       ..("equal_ideal", "equal_0.1", "equal_0.2", "equal_0.4").enumerate().map(pair => {
         let d = cr.at(pair.last())
         lq.plot(d.time, d.u, mark: none, label: ([Ideal], [$tau_T=0.1$ s], [$tau_T=0.2$ s], [$tau_T=0.4$ s]).at(pair.first()))
       })),
-    lq.diagram(width: 100%, height: 0% + 2.0in, title: [Unequal thrust then coast], xlabel: [Time (s)], ylabel: [Yaw rate (rad/s)], xlim: (0,12), ylim: (-0.002,0.032),
+    lq.diagram(width: 100%, height: 0% + 2.0in, title: [Unequal thrust then coast], xlabel: [Time (s)], ylabel: [Yaw rate (rad/s)], xlim: (0,12), ylim: (-0.005,0.07),
       lq.plot(cr.differential.time, cr.differential.r, mark: none)),
   )
 }
