@@ -67,3 +67,9 @@ uv run python -m unittest discover -s tests -v
 ## Full simulator design report
 
 `simulator_report.pdf` expands the simulator explanation into a full engineering report with implemented equations, assumption provenance, nested explanatory bullets, the complete Boolean flag catalog, parameter defaults, and nine figures. Its editable entry point is `simulator_report.typ`; chapter and figure sources, reproducible data generators, and the shared figure language are in `simulator_report/`. Rebuild instructions are in `simulator_report/README.md`.
+
+## Closed-loop controller study
+
+`controller_report.pdf` compares cascaded PID, integral-augmented LQR, and integral-augmented pole placement on the complete nonlinear simulator. The 171-trial study covers 0/5/8/10 m/s environmental cases, full-model feature ablations, a mass/drag stress case, and the eight cumulative fidelity presets, using three paired seeds and fixed tuning. It uses delivered GNSS/IMU feedback, a shared state estimate, motor-state proxies, thrust bounds, and M200 inverse-map compensation.
+
+Run `uv run python -m blueboat_sim.controller_study`, then `typst compile controller_report.typ controller_report.pdf`. Sources, plotting data, configuration records, and reproduction instructions are in `controller_report/`. Optional `--set` simulator overrides and `--linear-pwm` support follow-up experiments; keep their `--data` output separate from the report's main study.
