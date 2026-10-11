@@ -1,5 +1,5 @@
 #import "simulator_report/style.typ": *
-#set document(title: "BlueBoat Controller Design and Nonlinear Comparison", author: "J.C. Vaught", date: datetime(year: 2026, month: 10, day: 11))
+#set document(title: "BlueBoat Objective, Open Loop, and Feedback", author: "J.C. Vaught", date: datetime(year: 2026, month: 10, day: 11))
 #set page(paper: "us-letter", margin: (x: 0.72in, top: 0.73in, bottom: 0.72in),
   header: [#text(size: 8.5pt, fill: slate)[BLUEBOAT CONTROLLER STUDY] #h(1fr) #text(size: 8.5pt, fill: slate)[J.C. Vaught]],
   footer: context align(center, text(size: 9pt, counter(page).display("1"))))
@@ -24,30 +24,36 @@
 #let pretty(x, digits: 3) = if x == none { [Not settled] } else { str(calc.round(x, digits: digits)) }
 #let aggregate(case, method, metric) = summary.aggregate.find(r => r.case == case and r.method == method).metrics.at(metric)
 
-#text(size: 25pt, fill: ink)[BlueBoat Controller Design]
+#text(size: 25pt, fill: ink)[What Is the Boat Trying to Do?]
 #v(7pt)
-#text(size: 16pt)[PID, LQR, and pole placement on the nonlinear simulator]
-#v(12pt)
+#text(size: 16pt)[Open loop first, then PID, LQR, and pole placement]
+#v(10pt)
 J.C. Vaught #h(1fr) October 11, 2026
-#v(16pt)
-This study implements three controllers for the most complete BlueBoat simulator and compares them with fixed tuning. All controllers track a straight east-going line at a surge speed of 1 m/s. Wind, gusts, prescribed wave forcing, nonlinear hull motion, installed M200 propulsion, motor dynamics, command timing, sensor errors, and added inertia remain enabled in the full-model tests.
+#v(12pt)
+= The objective. Return to a line and follow it
+The previous report chose a moving-line test to compare controllers. This revision begins with the physical task. The boat should recover an east-going route from an initial position and heading error, then keep traveling close to that route at a forward speed of 1 m/s. This is a selected test objective, not a complete competition mission.
 
-- The task is moving line tracking.
-  - Recover from a 2 m northward displacement, a 0.12 rad heading error, and an initial surge speed of 0.8 m/s.
-    - North position should approach zero while surge speed approaches 1 m/s. East position is free; there is no timed arrival or along-track position target.
-- The comparison uses the same feedback and actuator boundaries.
-  - Delivered global navigation satellite system (GNSS) and inertial measurement unit (IMU) records feed a common timestamp-aware state estimate.
-    - Camera observations remain simulated but are unused by these navigation controllers. Perfect-state feedback is enabled only in the explicitly named oracle ablation.
-- Tuning is frozen before the comparison sweep.
-  - #summary.runs.len() runs cover #summary.cases.len() cases and #summary.seeds.len() paired seeds per method.
-    - The results describe this simulator and operating envelope. The simulator report documents which physical coefficients require boat measurements.
+#figure({
+  import "controller_report/figures/visual_story.typ" as visual
+  visual.objective
+}, caption: [Start north of the route. Recover it, then continue east.])
 
-#note[The controller named LQR includes integral augmentation and is therefore a linear-quadratic-integral regulator. Pole placement uses the same augmented states. Their integral terms let sustained disturbances produce a corrective bias rather than a permanent line error.]
+- Where should it go?
+  - Follow the line $N_d = 0$ m, with east to the right and north upward.
+    - The hull origin starts at $(E,N)=(0,2)$ m. Its bow points $0.12$ rad, or 6.9°, north of east. It begins at 0.8 m/s forward speed.
+- How should it move?
+  - Bring its north position toward zero while bringing forward speed $u$ toward 1 m/s.
+    - Forward speed is along the boat's own axis. East ground speed is not a separately controlled reference, and there is no required destination or arrival time.
+- What counts as recovery?
+  - After the transient, keep line distance within 0.25 m and forward speed within 0.1 m/s of the reference.
+    - A settled run stays inside both bounds through the end of the 40 s test. The report also gives continuous error scores so that a late gust does not hide otherwise good tracking.
 
-#pagebreak()
-#outline(title: [Contents], depth: 2)
-#pagebreak()
-#include "controller_report/design.typ"
+#note[Read the report in order. First identify the target route, then watch fixed equal thrust, then add feedback. The mathematical controller design is retained in the appendix after the visual comparison.]
+
 #include "controller_report/results.typ"
+#pagebreak()
+#counter(heading).update(0)
+#set heading(numbering: "A.1")
+#include "controller_report/design.typ"
 #pagebreak()
 #bibliography("references.bib", title: [References], style: "ieee")

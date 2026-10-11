@@ -1,25 +1,7 @@
 #import "../simulator_report/style.typ": *
 #import "context.typ": *
-= Control objective and shared architecture
-The two fixed thrusters generate surge force and yaw moment. They provide no direct sway force, so the vessel corrects cross-track error by changing heading while moving forward. This makes forward line tracking a suitable first comparison; zero-speed station keeping needs a different design.
-
-- The reference consists of surge speed $U = 1$ m/s and line north coordinate $N_d = 0$ m.
-  - Define $e_y = N - N_d$, $delta u = u - U$, and counterclockwise heading $psi$ from east.
-    - A northward wind can require a southward crab heading even when $e_y$ and $delta u$ are near zero. Heading error against east is therefore not a suitable primary tracking score.
-- The control outputs are two pulse-width modulation (PWM) commands.
-  - A desired total thrust $S_c$ and yaw moment $M_c$ become individual force requests.
-    - Port and starboard thrust are clipped independently to the installed M200 bounds. Both methods of state feedback and PID use the same allocation.
-
-The allocation follows from the motor separation $b = 0.75$ m. Positive yaw requires greater starboard thrust.
-$ F_(p,c) = S_c / 2 - M_c / b, quad F_(s,c) = S_c / 2 + M_c / b. $
-
-#figure(include "figures/architecture.typ", caption: [Shared feedback and actuation chain.])
-
-- The hardware boundary remains the one documented in the simulator report.
-  - AGX Orin execution uses a 50 Hz decision tick and the configured 5 ms computation, 10 ms transport, and 20 ms actuator dead time.
-    - These are simulation timing assumptions. The controller code does not benchmark the selected computer.
-  - The navigation feedback uses GNSS position, east/north velocity, and dual-antenna heading, plus IMU yaw rate.
-    - A camera is not needed for this line reference. Camera occlusion therefore has no control effect in this experiment.
+= Implementation and mathematical reference
+The preceding maps establish the objective and observed behavior. This appendix gives the sensor processing, limits, model, and gains used to produce those results.
 
 == Causal state estimate
 The controllers need body-frame velocities and a current hull position. GNSS measures a displaced antenna and arrives late, so the shared estimator first corrects its lever arm and then extrapolates the corrected measurement to the decision time. It retains the most recent valid record through random dropouts.
@@ -59,7 +41,7 @@ $ dot(hat(F_i)) = (F_(i,"nom") - hat(F_i)) / tau, quad tau = 0.2 " s". $
   - This is an independent compensation experiment, not a change in feedback gains.
     - Keep the simulator nonlinear-thrust flag enabled when evaluating compensation on the full boat model.
 
-= Linear design model
+== Linear design model
 The full nonlinear plant supplies the local design model. Linearization occurs at $u = U$, $v = r = psi = 0$, zero environmental forcing, and $F_p = F_s = 7$ N. Wind remains an external disturbance because the feedback gains should not require its true value. The underlying marine equations and coupling follow the simulator's Fossen-style model @Fossen2026MarineModel.
 
 - Added inertia is included in the design.
@@ -69,12 +51,12 @@ The full nonlinear plant supplies the local design model. Linearization occurs a
   - Motor sum and moment dynamics have the same time constant $tau$.
     - Saturation, deadband, variable map slope, waves, noise, and timing errors are evaluated in simulation rather than inserted into the linear design matrices.
 
-== Surge subsystem
+=== Surge subsystem
 Define the augmented surge state $z_s = (delta u, delta S, I_u)^T$, where $delta S = F_p + F_s - S_0$ and $dot(I_u) = delta u$. Its control input is $delta S_c = S_c - S_0$.
 $ dot(z_s) = A_s z_s + B_s delta S_c. $
 $ A_s = mat(-d_u/m_x, 1/m_x, 0; 0, -1/tau, 0; 1, 0, 0), quad B_s = mat(0; 1/tau; 0). $
 
-== Sway-yaw subsystem
+=== Sway-yaw subsystem
 The lateral augmented state is $z_l = (e_y, psi, v, r, M, I_y)^T$, where $M = b(F_s-F_p)/2$ and $dot(I_y) = e_y$. The input is desired yaw moment $M_c$.
 $ dot(z_l) = A_l z_l + B_l M_c. $
 $ A_l = mat(0, U, 1, 0, 0, 0;
@@ -89,10 +71,10 @@ $ B_l = mat(0; 0; 0; 0; 1/tau; 0). $
   - The implemented matrix coefficients are checked against central finite differences of the full nonlinear hull.
     - Separating the local subsystems does not remove nonlinear surge/sway/yaw coupling from the simulator.
 
-= Three controller designs
+== Three controller designs
 The common model and interfaces allow three different feedback choices. PID organizes feedback into familiar loops. LQR chooses gains from a quadratic cost, while pole placement chooses the local response rates explicitly. Both state-feedback controllers use the same states and integral definitions, so their different results arise from their gain choices.
 
-== Cascaded PID
+=== Cascaded PID
 The proportional-integral-derivative (PID) controller regulates surge speed and heading. An outer cross-track proportional-integral loop converts line error into desired heading, and the measured sideslip estimate compensates the difference between hull heading and direction of travel.
 $ beta = "atan2" (hat(v), max(hat(u), 0.2)). $
 $ psi_d = "clip" (-k_y e_y - k_(I y) I_y - beta, -35 degree, 35 degree). $
@@ -115,7 +97,7 @@ $ M_c = -k_(P psi) e_psi - k_(I psi) I_psi - k_(D psi) hat(r). $
   [Heading PID], [#d.settings.heading_kp, #d.settings.heading_ki, #d.settings.heading_kd], [Moment per heading, integrated heading, and yaw rate.],
   [Cross-track PI], [#d.settings.cross_kp, #d.settings.cross_ki], [Heading per cross-track error and integrated cross-track error.])
 
-== LQR with integral action
+=== LQR with integral action
 The linear quadratic regulator (LQR) minimizes an infinite-horizon quadratic cost for each augmented subsystem. The state integral therefore enters the cost along with the physical states. SciPy solves the continuous algebraic Riccati equation @SciPy2026CARE.
 $ J = integral_0^infinity (z^T Q z + a^T R a) dif t. $
 $ A^T P + P A - P B R^(-1) B^T P + Q = 0. $
@@ -128,7 +110,7 @@ $ K = R^(-1) B^T P, quad a = -K z. $
   - The integral coordinates create constant force and heading biases needed to reject steady disturbances.
     - The resulting stability statement applies locally to the unconstrained continuous linear model. The implemented sampled nonlinear system is checked by simulation.
 
-== Pole placement with integral action
+=== Pole placement with integral action
 Pole placement uses the same augmented models but requests eigenvalues directly. SciPy calculates $K$ so that the eigenvalues of $A - B K$ match the specified poles @SciPy2026PlacePoles.
 
 - Surge poles are $(-0.5, -1.3, -5.5)$ s⁻¹.
@@ -138,11 +120,11 @@ Pole placement uses the same augmented models but requests eigenvalues directly.
   - The test checks the achieved eigenvalues numerically.
     - Pole placement controls local response rates but does not itself minimize effort or guarantee robustness to latency, saturation, or model error.
 
-== Numerical gains and local poles
+=== Numerical gains and local poles
 The following gains are loaded directly from the saved design. Their units follow the state coordinates and force or moment output; gains across different coordinates should not be compared as dimensionless numbers.
 #for subsystem in ("surge", "lateral") {
   let s = d.systems.at(subsystem)
-  heading(level: 3, if subsystem == "surge" { [Surge gains] } else { [Lateral gains] })
+  heading(level: 4, if subsystem == "surge" { [Surge gains] } else { [Lateral gains] })
   data-table((1.45in, 1fr), [Method], [Gain row in the declared state order],
     [LQR + integral], [#s.gains.lqr.map(x => pretty(x)).join(", ")],
     [Pole placement], [#s.gains.pole_placement.map(x => pretty(x)).join(", ")])
