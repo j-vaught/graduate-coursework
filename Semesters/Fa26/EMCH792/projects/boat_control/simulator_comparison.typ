@@ -25,7 +25,7 @@
 #align(center)[
   #text(size: 16pt, weight: "bold")[Configurable BlueBoat simulator]
   #v(3pt)
-  Same initial state and PWM tape across cumulative model stages. Seed 792.
+  Same initial state and motor-percentage tape across cumulative model stages. Seed 792.
 ]
 #v(12pt)
 #grid(columns: (1fr, 1fr), column-gutter: 18pt, row-gutter: 18pt,
@@ -61,7 +61,7 @@
   },
 )
 #v(12pt)
-The input starts at the 1 m/s trim, adds 80 µs to both motors at 2 s, commands
+The input starts at the 1 m/s trim, adds 20 percentage points to both motors at 2 s, commands
 differential thrust at 4 s, and returns to trim at 6 s. The larger excitation
 reveals departures from the local linear model. The force panel expands the
 4 s command transition.

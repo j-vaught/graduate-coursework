@@ -8,7 +8,7 @@ All active simulations and figures use one BlueBoat configuration. The report co
 
 The nominal thrust-line spacing is an estimated 0.75 m. Yaw inertia is a uniform-envelope geometric proxy, 4.20644 kg m². Surge drag coefficients of 4 N s/m and 10 N s²/m², sway damping of 35 N s/m, and yaw damping of 12 N m s are engineering assumptions. Added mass and three-dimensional motion are omitted. These values require identification with the final loaded hull; they are not coefficients from the larger boat in the original slides.
 
-`propulsion.py` retains the signed manufacturer M200/112 mm weedless-propeller curve at 16 V. The raw component forward maximum is 55.2134 N. A provisional installation factor of 0.728242 scales the entire curve so the two forward maxima equal BlueBoat's published total static thrust of 8.2 kgf, or 80.4145 N. This gives 40.2073 N forward and -20.0679 N reverse per side. Uniform reverse/intermediate scaling remains an assumption. All active experiments use this shared installed map, including PWM saturation and neutral deadband. Voltage-dependent and inflow-dependent thrust are not inferred from a single static curve.
+`propulsion.py` retains the signed manufacturer M200/112 mm weedless-propeller curve at 16 V. The raw component forward maximum is 55.2134 N. A provisional installation factor of 0.728242 scales the entire curve so the two forward maxima equal BlueBoat's published total static thrust of 8.2 kgf, or 80.4145 N. This gives 40.2073 N forward and -20.0679 N reverse per side. Uniform reverse/intermediate scaling remains an assumption. All active experiments use this shared installed map, including command saturation and neutral deadband. Voltage-dependent and inflow-dependent thrust are not inferred from a single static curve.
 
 The battery is nominally 14.8 V and fully charged at 16.8 V; the 16 V curve is an explicit test-voltage snapshot. Wind tests use 5 m/s wind, air density 1.225 kg/m³, drag coefficient 1, and assumed frontal/lateral exposed areas of 0.18/0.30 m². Constant world-frame forces are rotated into the boat frame. Apparent-wind changes and wind-induced yaw moment are omitted.
 
@@ -55,7 +55,7 @@ On-water measurements of loaded mass, motor spacing, mass distribution, thrust, 
 
 ## Configurable simulator
 
-`blueboat_sim/` adds validated JSON configurations, feature flags, paired random trials, cumulative and isolated comparisons, and a causal PWM policy boundary. The usage guide and complete feature table are in `SIMULATOR.md`; editable presets are in `configs/simulator/`. The original report rebuild commands remain available.
+`blueboat_sim/` adds validated JSON configurations, feature flags, paired random trials, cumulative and isolated comparisons, and a causal motor-percentage policy boundary. The usage guide and complete feature table are in `SIMULATOR.md`; editable presets are in `configs/simulator/`. The original report rebuild commands remain available.
 
 ```sh
 uv run python -m blueboat_sim compare --output build/ladder
@@ -72,4 +72,4 @@ uv run python -m unittest discover -s tests -v
 
 `controller_report.pdf` now starts with a visual explanation of the line-following objective and 39 fixed-trim open-loop runs before comparing cascaded PID, integral-augmented LQR, and integral-augmented pole placement on the complete nonlinear simulator. The 171-trial study covers 0/5/8/10 m/s environmental cases, full-model feature ablations, a mass/drag stress case, and the eight cumulative fidelity presets, using three paired seeds and fixed tuning. It uses delivered GNSS/IMU feedback, a shared state estimate, motor-state proxies, thrust bounds, and M200 inverse-map compensation.
 
-Run `uv run python -m blueboat_sim.controller_study` and `uv run python -m blueboat_sim.open_loop_study`, then `typst compile controller_report.typ controller_report.pdf`. Sources, plotting data, configuration records, and reproduction instructions are in `controller_report/`. Optional `--set` simulator overrides and `--linear-pwm` support follow-up experiments; keep their `--data` output separate from the report's main study.
+Run `uv run python -m blueboat_sim.controller_study` and `uv run python -m blueboat_sim.open_loop_study`, then `typst compile controller_report.typ controller_report.pdf`. Sources, plotting data, configuration records, and reproduction instructions are in `controller_report/`. Optional `--set` simulator overrides and `--linear-command` support follow-up experiments; keep their `--data` output separate from the report's main study.

@@ -169,7 +169,7 @@ class SimulatorTests(unittest.TestCase):
                 self.assertLessEqual(measurement.available_time_s, observation.time_s + 1e-12)
                 self.assertLessEqual(measurement.sample_time_s, measurement.available_time_s)
                 self.assertNotIn("truth", measurement.values)
-            return Command(1600, 1600)
+            return Command(25, 25)
 
         result = run(c, policy=policy)
         self.assertEqual(dict(observations[0].measurements), {})
@@ -182,7 +182,7 @@ class SimulatorTests(unittest.TestCase):
 
     def test_sampling_and_delay_hold_exact_command_boundary(self) -> None:
         c = self.small("04_timing")
-        tape = [CommandChange(0, Command(1500, 1500)), CommandChange(0.023, Command(1600, 1600))]
+        tape = [CommandChange(0, Command(0, 0)), CommandChange(0.023, Command(25, 25))]
         result = run(c, tape)
         applied = next(v["time_s"] for v in result["actuation_events"] if v["target_port_N"] > 0)
         self.assertAlmostEqual(applied, 0.075, places=12)
@@ -228,7 +228,7 @@ class SimulatorTests(unittest.TestCase):
         result = run(c)
         self.assertAlmostEqual(result["history"][-1][1], 1, places=10)
         self.assertAlmostEqual(result["history"][-1][4], 1, places=10)
-        tape = [CommandChange(0, Command(1600, 1700))]
+        tape = [CommandChange(0, Command(25, 50))]
         c = replace(
             c,
             flags=replace(

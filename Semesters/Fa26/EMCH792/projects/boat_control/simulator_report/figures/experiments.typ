@@ -12,10 +12,10 @@
     (x: d.trajectory.at(n).east_m, y: d.trajectory.at(n).north_m,
       label: labels.at(i), dash: dash-styles.at(i))
   })
-  [#plot-panel("Common requested PWM tape", "Time (s)", "PWM (µs)",
-    ((x: t, y: d.port_pwm_us, label: [port], step: end),
-     (x: t, y: d.starboard_pwm_us, label: [starboard], step: end),),
-    xlim: (0, 12), ylim: (1480, 1700), height: 2.15in, legend: top + left)
+  [#plot-panel("Common motor command tape", "Time (s)", "Motor command (%)",
+    ((x: t, y: d.port_percent, label: [port], step: end),
+     (x: t, y: d.starboard_percent, label: [starboard], step: end),),
+    xlim: (0, 12), ylim: (-5, 50), height: 2.15in, legend: top + left)
   #v(4pt)
   #plot-panel("Open-loop truth trajectories", "East position (m)", "North position (m)", paths,
     xlim: (0, 15), ylim: (0, 8), height: auto, aspect-ratio: 1.0, legend: top + left)]

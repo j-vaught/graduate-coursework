@@ -15,6 +15,7 @@
   else if key.ends-with("_rad_s") { [rad/s] }
   else if key.ends-with("_m_s") { [m/s] }
   else if key.ends-with("_m2") { [m²] }
+  else if key.ends-with("_percent") { [percentage points] }
   else if key.ends-with("_us") { [µs] }
   else if key.ends-with("_px") { [px] }
   else if key.ends-with("_rad") { [rad] }

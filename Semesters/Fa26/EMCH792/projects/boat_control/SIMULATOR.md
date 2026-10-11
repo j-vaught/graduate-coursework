@@ -5,7 +5,7 @@ The simulator separates physical motion, motor response, command timing, and sen
 The component assumptions follow the report's M200 propulsion, AGX Orin computer, one ZED X stereo camera, VN-110 inertial sensor, and mosaic-H dual-antenna RTK receiver. The IMU supplies planar raw gyro and acceleration measurements. GNSS heading uses the dual antennas. The camera supplies a range and bearing observation of a configured target; computer behavior uses configurable timing rather than a processor emulator.
 
 - Use cumulative comparisons to increase model detail.
-  - Every preset receives the same absolute PWM command tape and the same initial state.
+  - Every preset receives the same absolute motor-percentage command tape and the same initial state.
   - Independent random streams keep wind, timing, and sensor trials paired across configurations.
     - Enabling a camera does not change the GNSS noise sequence. Sensor errors change observations, while open-loop commands continue to follow the same tape.
 - Use isolated comparisons to identify the effect of a feature group.
@@ -14,7 +14,22 @@ The component assumptions follow the report's M200 propulsion, AGX Orin computer
     - A zero dropout probability or zero wave amplitude intentionally produces no disturbance, even when its feature is enabled.
 - Establish improvement against evidence.
   - The comparison figure shows model differences and sensor errors. Added complexity alone does not establish better prediction.
-  - Recorded boat trajectories and timestamps will supply held-out validation data; controller tracking metrics follow when a controller is added.
+  - Recorded boat trajectories and timestamps will supply held-out validation data; controller tracking metrics are documented in the companion controller study.
+
+## Motor command convention
+
+- `Command(port_percent=25, starboard_percent=25)` requests +25% on each motor.
+  - Commands span -100% full reverse, 0% neutral, and +100% full forward.
+    - This is percent drive request, not measured thrust, motor speed, or electrical power. The nonlinear M200 map converts the request to force in newtons.
+  - The device adapter uses `pwm_us = 1500 + 4 * percent` internally.
+    - The enabled neutral deadband spans -6.25% through +6.25%. Reverse thrust remains weaker than forward thrust.
+  - At the 1 m/s nominal trim, +22.475% requests 7 N per motor.
+    - +50% requests 18.854 N and +100% requests 40.207 N before mismatch. -100% requests -20.068 N.
+- Tapes use `time_s`, `port_percent`, and `starboard_percent`.
+  - Percent commands are validated at construction. Nonfinite and out-of-range requests are rejected.
+    - `command_amplitude_percent=20` adds 20 percentage points to trim, not 20% of the trim value.
+  - Legacy pulse-width tapes remain readable with their explicit `_pwm_us` keys; Python callers use `Command.from_pwm(...)`.
+    - New exports use percentage fields. Truth and command logs retain pulse widths for device audits and add percentage fields. Result schema version 2 preserves the original truth-column positions and appends `port_percent` and `starboard_percent`.
 
 ## Feature ladder
 
@@ -39,9 +54,9 @@ The editable preset files are in `configs/simulator/`. Each file contains the co
 | `nonlinear_coupling` | Retain velocity products. Otherwise retain their local linearization, including the forward-speed/yaw coupling. |
 | `nonlinear_drag` | Use signed quadratic surge drag and configurable quadratic sway/yaw damping. Otherwise use their local tangent at the operating speed. |
 | `added_mass` | Add separate surge, sway, and yaw inertia fractions and consistent Coriolis terms. |
-| `nonlinear_thrust` | Use the signed installed-scaled M200 curve. Otherwise use its local tangent at the operating PWM. |
-| `thrust_saturation` | Clip PWM to 1100–1900 µs and clip force to the selected signed limits. Required by the bounded M200 lookup. |
-| `neutral_deadband` | Apply zero demand from 1475 through 1525 µs. |
+| `nonlinear_thrust` | Use the signed installed-scaled M200 curve. Otherwise use its local tangent at the operating motor percentage. |
+| `thrust_saturation` | Clip force to the selected signed limits. Input commands always remain within -100% to +100%. Required by the bounded M200 lookup. |
+| `neutral_deadband` | Apply zero demand from -6.25% through +6.25%. |
 | `reverse_asymmetry` | Use the weaker reverse branch. Disabling it creates a symmetric ideal comparison. |
 | `motor_lag` | Apply `actuator.lag_s` to held force demands. |
 | `motor_rate_limit` | Limit force change using `actuator.rate_limit_N_s`. The ramp-plus-lag response is integrated analytically. |
@@ -50,7 +65,7 @@ The editable preset files are in `configs/simulator/`. Each file contains the co
 | `command_delay` | Queue commands through compute, transport, and actuator dead time. |
 | `timing_jitter` | Add a bounded nonnegative delivery delay; requires sampling and delay. |
 | `missed_commands` | Randomly lose command updates using the specified probability; requires sampling. |
-| `command_watchdog` | Request neutral PWM and zero demand after no command has been applied for the configured timeout. Motor lag still governs force decay. |
+| `command_watchdog` | Request 0% motor command and zero demand after no command has been applied for the configured timeout. Motor lag still governs force decay. |
 | `wind` | Apply projected-area aerodynamic loading from wind speed and world-frame direction. |
 | `gusts` | Add a seeded correlated wind-velocity process with selectable amplitude and correlation time. |
 | `apparent_wind` | Subtract boat translation from world wind before calculating aerodynamic load. |
@@ -95,7 +110,7 @@ uv run python -m blueboat_sim compare --mode isolated --output build/isolated
 uv run python -m blueboat_sim compare --seeds 792,793,794 --output build/paired-trials
 ```
 
-Compare custom configurations by repeating `--config`. Duration, scenario, operating point, command amplitude, and initial state must match. A comparison always freezes one common absolute PWM tape. Custom command files use a list of `time_s`, `port_pwm_us`, and `starboard_pwm_us` objects; times begin at zero and increase strictly. A reversing example is in `configs/simulator/commands/reversal.json`.
+Compare custom configurations by repeating `--config`. Duration, scenario, operating point, command amplitude, and initial state must match. A comparison always freezes one common absolute motor-percentage tape. Custom command files use a list of `time_s`, `port_percent`, and `starboard_percent` objects; times begin at zero and increase strictly. A reversing example is in `configs/simulator/commands/reversal.json`.
 
 ```sh
 uv run python -m blueboat_sim run --preset 03_motor \
@@ -105,9 +120,9 @@ uv run python -m blueboat_sim run --preset 03_motor \
 
 Run outputs include `resolved_config.json`, `input_tape.json`, `result.json`, `truth.csv`, and `metrics.json`. The result records physical parameters, source provenance, sensor acquisition/availability times, pending deliveries, actual force, queued commands, watchdog events, and decision audits. The comparison exports `summary.json` and `comparison.json`. Reusing an output directory updates files for the same name and seed; choose a new directory to retain earlier trials.
 
-## Future controller boundary
+## Controller boundary
 
-`run(experiment, commands=...)` replays an open-loop program. `run(experiment, policy=...)` accepts a callback on configured command ticks. Its input is an immutable `Observation`; its output is a `Command` containing port/starboard PWM or `None` to hold the current command. No controller is supplied.
+`run(experiment, commands=...)` replays an open-loop program. `run(experiment, policy=...)` accepts a callback on configured command ticks. Its input is an immutable `Observation`; its output is a `Command` containing signed port/starboard percentages or `None` to hold the current command. PID, LQR, and pole-placement implementations use this interface; see `controller_report/README.md`.
 
 - A policy sees only delivered measurements.
   - Each measurement includes acquisition time, availability time, validity, and measured values.
@@ -115,18 +130,18 @@ Run outputs include `resolved_config.json`, `input_tape.json`, `result.json`, `t
     - The simulator stores acquisition-time truth separately for scoring. That truth is not in the policy's measurement objects.
 - Full-state feedback is an explicit idealization.
   - `perfect_state_feedback=true` adds a separate state tuple for ideal state-feedback experiments.
-  - Disabling it requires a future estimator to construct states from delivered GNSS/IMU observations.
+  - Disabling it requires an estimator to construct states from delivered GNSS/IMU observations.
 - Force allocation remains a controller integration task.
-  - The current boundary accepts PWM. A future controller can command surge force/yaw moment through a tested allocator and force-to-PWM adapter.
-  - The stock ArduRover control loops and software are not simulated by this PWM boundary.
+  - The current boundary accepts motor percentages. A controller can command surge force/yaw moment through a tested allocator and force-to-percentage adapter.
+  - The stock ArduRover control loops and software are not simulated by this motor-command boundary.
 
 ## Physical scope and verification
 
-The nonlinear rigid-body mode reproduces the report's equations. The added-mass extension uses diagonal planar inertia and consistent coupling from the [marine-craft formulation](https://www.fossen.biz/html/marineCraftModel.html). The linear mode uses the first-order tangent at the chosen operating point, including its nominal drag and PWM offsets. Initial motor force is the steady trim force; specify an appropriate initial velocity or a zero-speed operating point for launch tests.
+The nonlinear rigid-body mode reproduces the report's equations. The added-mass extension uses diagonal planar inertia and consistent coupling from the [marine-craft formulation](https://www.fossen.biz/html/marineCraftModel.html). The linear mode uses the first-order tangent at the chosen operating point, including its nominal drag and command offsets. Initial motor force is the steady trim force; specify an appropriate initial velocity or a zero-speed operating point for launch tests.
 
 The simulator retains the report's provisional loaded mass, drag, inertia, spacing, and installed thrust scaling. Added-mass fractions, slew limits, mismatch, gusts, wave amplitudes, dropouts, and latency distributions are engineering test assumptions. Battery discharge, voltage-dependent thrust, propeller inflow, water-current dynamics, roll/pitch/heave, camera images, learned perception, and GNSS float/single-point transitions need dedicated extensions.
 
-Metrics include final position/heading, peak force, integrated squared force, delivered GNSS error, valid camera observations, missed commands, and watchdog trips. Integrated squared force is a control-effort proxy, not electrical energy. Tracking and recovery metrics require a controller and a specified reference.
+Metrics include final position/heading, peak force, integrated squared force, delivered GNSS error, valid camera observations, missed commands, and watchdog trips. Integrated squared force is a control-effort proxy, not electrical energy. The companion controller study reports tracking and recovery against a straight-line reference.
 
 ```sh
 uv run python -m unittest discover -s tests -v
@@ -136,7 +151,7 @@ uv run ty check .
 
 The acceptance tests cover report-model equivalence, local linearization, added-mass energy balance, analytic motor transients and slew limits, physical bounds, causal policy observations, delayed command boundaries, watchdog neutralization, reproducible independent random streams, sensor isolation, dropout/occlusion, and integration refinement.
 
-The saved demonstration data, input tape, and resolved run metadata are in `data/configurable_simulator/`. They use seed 792 and an 80 µs excitation to exercise the M200 curve beyond one local segment. Reproduce the demonstration with `uv run python -m blueboat_sim compare --set command_amplitude_us=80 --output build/configurable-simulator`. The default 10 µs excitation is a local small-signal experiment.
+The saved demonstration data, input tape, and resolved run metadata are in `data/configurable_simulator/`. They use seed 792 and a 20 percentage-point excitation to exercise the M200 curve beyond one local segment. Reproduce the demonstration with `uv run python -m blueboat_sim compare --set command_amplitude_percent=20 --output build/configurable-simulator`. The default 2.5 percentage-point excitation is a local small-signal experiment.
 
 The comparison figure is authored in Typst/Lilaq and rebuilds with
 

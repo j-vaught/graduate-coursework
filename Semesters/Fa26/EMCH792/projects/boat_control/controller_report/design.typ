@@ -21,23 +21,27 @@ $ hat(v) = -hat(V_E) sin hat(psi) + hat(V_N) cos hat(psi). $
   - The estimator reads only delivered records and timestamps supplied by the policy interface.
     - It does not read simulation truth, environmental forces, actual thrust, motor mismatch, or future packets. It does not subtract the configured gyro bias.
 - Valid GNSS acquisition age must stay within 0.5 s and valid IMU acquisition age within 0.1 s.
-  - Until both records exist, or after either becomes stale, the policy commands neutral PWM and clears its integrators.
+  - Until both records exist, or after either becomes stale, the policy commands 0% motor command and clears its integrators.
     - This startup behavior explains the small initial speed dip in sensor-based runs.
 - This observer is timestamp extrapolation rather than an extended Kalman filter.
   - It does not model acceleration during GNSS latency or estimate sensor bias.
     - The oracle case removes this shared estimation limitation and separates it from the controller law.
 
 == Common motor proxy and limits
-State feedback uses estimates of total thrust and yaw moment as motor states. A common internal motor proxy follows the requested PWM after a nominal 35 ms delay and a 0.2 s first-order lag. The proxy uses the nominal signed M200 map and does not receive acknowledgments for missed commands.
+The public input is signed motor command $a_i in [-100,100]$ percent for port and starboard. The device adapter produces pulse-width modulation (PWM) at the actuator boundary.
+$ p_i = (1500 + 4 a_i) "µs", quad F_(i,"nom") = F_"M200"(p_i). $
+Zero is neutral. The enabled deadband covers $-6.25 <= a_i <= 6.25$. At trim, $a_i = 22.475$ gives 7 N; full forward gives 40.207 N and full reverse gives -20.068 N. Percentage denotes normalized drive command, not thrust, electrical power, or motor speed. The feedback laws retain forces in newtons and moments in newton metres, preserving their physical gains.
+
+State feedback uses estimates of total thrust and yaw moment as motor states. A common internal motor proxy follows the requested motor percentages after a nominal 35 ms delay and a 0.2 s first-order lag. The proxy uses the nominal signed M200 map and does not receive acknowledgments for missed commands.
 $ dot(hat(F_i)) = (F_(i,"nom") - hat(F_i)) / tau, quad tau = 0.2 " s". $
 
 - Requested force is clipped between approximately $-20.068$ N and $40.207$ N per thruster.
-  - The default controller converts bounded force to PWM using the inverse installed M200 lookup.
+  - The default controller converts bounded force to motor percentage using the inverse installed M200 lookup.
     - This feedforward conversion is identical for all three controllers. Motor mismatch, lag, slew limits, dropout, and timing remain in the plant.
 - Conditional anti-windup freezes all stored integrators when either force request clips.
   - Speed, cross-track, and PID heading integrals are also bounded by $2$ m, $12$ m s, and $2$ rad s, respectively.
     - The current integration candidate contributes to the command, but is stored only when feedback is ready and neither thruster clips.
-- `--linear-pwm` replaces the inverse lookup with the nominal trim tangent.
+- `--linear-command` replaces the inverse lookup with the nominal trim tangent.
   - This is an independent compensation experiment, not a change in feedback gains.
     - Keep the simulator nonlinear-thrust flag enabled when evaluating compensation on the full boat model.
 

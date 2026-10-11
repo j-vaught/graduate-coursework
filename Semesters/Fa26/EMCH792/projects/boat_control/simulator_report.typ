@@ -39,10 +39,10 @@ The simulator supplies a repeatable environment for developing boat controllers.
     - Measured boat logs establish predictive accuracy. Added model detail does not by itself establish improvement.
 
 #note[
-The current implementation includes an open-loop command program and a callback interface for future controllers. Proportional-integral-derivative control, linear quadratic regulation, pole placement, state estimation, and guidance are subsequent work. Their algorithms are not included in the saved demonstration.
+The saved demonstration uses an open-loop command program. The companion controller report adds proportional-integral-derivative control, linear quadratic regulation, pole placement, and state estimation through the same motor-percentage interface.
 ]
 
-The report follows the simulator at baseline revision `ea307b3`. Its diagrams use a dedicated navy-and-teal language, and its quantitative charts use standard plot colors. Every figure is authored in Typst with CeTZ or Lilaq, with inspectable source data retained beside the chapters.
+The physical demonstration follows baseline revision `ea307b3`, with its commands now expressed as signed motor percentages. The companion controller report supplies the subsequently implemented feedback study. Its diagrams use a dedicated navy-and-teal language, and its quantitative charts use standard plot colors. Every figure is authored in Typst with CeTZ or Lilaq, with inspectable source data retained beside the chapters.
 
 #pagebreak()
 #outline(title: [Report contents], depth: 2)

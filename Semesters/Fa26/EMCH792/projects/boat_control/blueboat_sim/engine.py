@@ -1,4 +1,4 @@
-"""Causal event scheduling, sensor delivery, and a controller-ready PWM boundary."""
+"""Causal event scheduling, sensor delivery, and a controller-ready motor-percentage boundary."""
 
 from __future__ import annotations
 
@@ -13,18 +13,37 @@ import numpy as np
 
 from propulsion import CONFIG, STATIC
 
+from .commands import percent_to_pwm, pwm_to_percent
 from .config import Experiment
 from .physics import Physics, motor_target, physical, trim
 
 
 @dataclass(frozen=True)
 class Command:
-    port_pwm_us: float
-    starboard_pwm_us: float
+    """Signed motor requests in percent. Zero is neutral; reverse is negative."""
+
+    port_percent: float
+    starboard_percent: float
+
+    def __post_init__(self) -> None:
+        self.validate()
 
     def validate(self) -> None:
-        if not all(math.isfinite(v) for v in (self.port_pwm_us, self.starboard_pwm_us)):
-            raise ValueError("PWM commands must be finite")
+        percent_to_pwm(self.port_percent)
+        percent_to_pwm(self.starboard_percent)
+
+    @classmethod
+    def from_pwm(cls, port_pwm_us: float, starboard_pwm_us: float) -> Command:
+        """Explicit adapter for legacy tapes and device calibration."""
+        return cls(pwm_to_percent(port_pwm_us), pwm_to_percent(starboard_pwm_us))
+
+    @property
+    def port_pwm_us(self) -> float:
+        return percent_to_pwm(self.port_percent)
+
+    @property
+    def starboard_pwm_us(self) -> float:
+        return percent_to_pwm(self.starboard_percent)
 
 
 @dataclass(frozen=True)
@@ -54,7 +73,8 @@ Policy = Callable[[Observation], Command | None]
 
 def default_commands(c: Experiment) -> list[CommandChange]:
     _, pulse, _ = trim(c)
-    a = c.command_amplitude_us
+    pulse = pwm_to_percent(pulse)
+    a = c.command_amplitude_percent
     choices = {
         "straight": [(0, pulse, pulse), (2, pulse + a, pulse + a), (6, pulse, pulse)],
         "turn": [
@@ -64,7 +84,7 @@ def default_commands(c: Experiment) -> list[CommandChange]:
             (6, pulse, pulse),
         ],
         "pulse": [(0, pulse, pulse), (2, pulse + a, pulse - a), (3, pulse, pulse)],
-        "coast": [(0, 1500, 1500)],
+        "coast": [(0, 0, 0)],
     }
     return [
         CommandChange(float(t), Command(float(l), float(r)))
@@ -317,6 +337,8 @@ def run(
                     "time_s": time,
                     "apply_time_s": None if missed else time + delay,
                     "missed": missed,
+                    "port_percent": command.port_percent,
+                    "starboard_percent": command.starboard_percent,
                     "port_pwm_us": command.port_pwm_us,
                     "starboard_pwm_us": command.starboard_pwm_us,
                 }
@@ -354,7 +376,15 @@ def run(
                     }
                 )
         elif kind == "log":
-            logs.append([time, *state.tolist(), *current_pulses, *target.tolist()])
+            logs.append(
+                [
+                    time,
+                    *state.tolist(),
+                    *current_pulses,
+                    *target.tolist(),
+                    *(pwm_to_percent(pulse) for pulse in current_pulses),
+                ]
+            )
     history = np.asarray(logs)
     gnss_errors = []
     for record in sensor_records["gnss"]:
@@ -382,13 +412,20 @@ def run(
     if physical(c).mass > CONFIG["bare_mass_kg"] + CONFIG["batteries_plus_payload_limit_kg"]:
         warnings.append("Selected mass exceeds the published loaded-mass envelope")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "platform": "BlueBoat",
         "config": c.resolved(),
         "physical_parameters": asdict(physical(c)),
         "platform_source": CONFIG,
         "m200_source_sha256": STATIC["sha256"],
-        "trim": {"force_each_N": trim_force, "pwm_us": trim_pwm, "slope_N_us": slope},
+        "trim": {
+            "force_each_N": trim_force,
+            "percent": pwm_to_percent(trim_pwm),
+            "slope_N_percent": 4 * slope,
+            "pwm_us": trim_pwm,
+            "slope_N_us": slope,
+        },
+        "command_units": "signed percent of drive command; not percent thrust or power",
         "columns": [
             "time_s",
             "x_m",
@@ -403,6 +440,8 @@ def run(
             "starboard_pwm_us",
             "target_port_N",
             "target_starboard_N",
+            "port_percent",
+            "starboard_percent",
         ],
         "history": logs,
         "measurements": sensor_records,

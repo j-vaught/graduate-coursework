@@ -3,11 +3,15 @@
 
 = Actuation and Command Timing <actuation-chapter>
 
-== From PWM to thrust
+== From motor percentage to thrust
 
 The propulsion model starts from Blue Robotics' signed M200 static samples at 16 V, then scales both motors uniformly to match the BlueBoat's published 8.2 kgf forward rating. This joins a component curve to an installed-boat rating as a provisional model assumption. The product information supplies the 8.2 kgf figure, and the retained technical-reference samples supply the M200 curve @BlueRobotics2026M200Reference @BlueRobotics2026BlueBoatProduct.
 
-The force assigned to a motor at PWM command $p$ follows
+Signed motor command $a$ runs from -100% full reverse through 0% neutral to +100% full forward. It denotes normalized drive request, rather than percent thrust or power. The adapter converts this to the device pulse width $p$ before evaluating the retained map.
+
+$ p(a) = (1500 + 4a) "µs". $
+
+The force assigned to a motor follows
 
 $ F_"inst"(p) = s F_"16"(p), quad s = (8.2 "kgf")(9.80665 "N"/"kgf") / (2 max_(p) F_"16"(p)). $
 
@@ -20,14 +24,14 @@ Here $F_16$ is the piecewise-linear interpolation of the retained 16 V samples, 
 
 The simulator offers two actuator descriptions so the experiment can isolate nonlinear effects from a local approximation.
 
-- The nonlinear lookup path uses the installed curve and clips PWM to 1100-1900 µs when thrust saturation is enabled.
-  - With neutral deadband enabled, commands from 1475 through 1525 µs produce zero thrust.
+- The nonlinear lookup path uses the installed curve. Input percentages stay within -100% through +100%; the saturation flag also bounds force.
+  - With neutral deadband enabled, commands from -6.25% through +6.25% produce zero thrust.
   - With reverse asymmetry enabled, commands below neutral use the signed reverse branch, retaining the lower reverse limit. When disabled, the model mirrors the forward branch into reverse and therefore removes the measured map asymmetry.
-- The local model computes $F = F_0 + k (p-p_0)$ around a selected trim.
-  - At 1 m/s, the standard linear and quadratic surge drag values require $7.0 N$ per motor. The map gives $p_0 = 1589.9 "µs"$, with a local slope $k = 0.09614 N/"µs"$.
-  - At 1600 µs, both predict $7.971 N$ because trim and 1600 µs lie in the same piecewise-linear map segment. At 1700 µs, the lookup gives $18.854 N$ while the tangent extrapolation gives $17.585 N$, a $1.269 N$ difference.
+- The local model computes $F = F_0 + k_a (a-a_0)$ around a selected trim.
+  - At 1 m/s, the standard linear and quadratic surge drag values require $7.0 N$ per motor. The map gives $a_0 = 22.475$ percent, with local slope $k_a = 0.38455$ N per percentage point.
+  - At 25%, both predict $7.971 N$ because trim and 25% lie in the same piecewise-linear map segment. At 50%, the lookup gives $18.854 N$ while the tangent extrapolation gives $17.585 N$, a $1.269 N$ difference.
 
-The force path also allows a channel mismatch after PWM-to-force conversion. Port and starboard gains default to 0.95 and 1.05, then thrust bounds are reapplied if saturation is active. For example, at the plotted 1700 µs command, the native installed lookup gives $18.85 N$ before channel gains. The channel targets become $17.91 N$ and $19.80 N$, so equal PWM commands can create a $1.89 N$ thrust difference and an unintended yaw moment.
+The force path also allows a channel mismatch after percentage-to-force conversion. Port and starboard gains default to 0.95 and 1.05, then thrust bounds are reapplied if saturation is active. For example, at the plotted 50% command, the native installed lookup gives $18.85 N$ before channel gains. The channel targets become $17.91 N$ and $19.80 N$, so equal percentage commands can create a $1.89 N$ thrust difference and an unintended yaw moment.
 
 == Motor response after a command
 
@@ -42,22 +46,22 @@ This combined law initially slews at up to $R$ and then follows the first-order 
 
 #figure(
   reversal-response(),
-  caption: [Motor force response to a 1700-to-1300 µs reversal after the target applies.],
+  caption: [Motor force response to a +50% to -50% reversal after the target applies.],
 ) <actuation-reversal-response>
 
-For this plotted reversal, each motor changes target from forward to reverse while its state starts at the corresponding 1700 µs steady force. The port target moves from $17.91 N$ to $-9.17 N$, and the starboard target moves from $19.80 N$ to $-10.14 N$. With $τ=0.2 s$ and $R=80 N/s$, the port error magnitude is $27.09 N$ and the linear portion lasts about $0.139 s$, followed by an exponential tail. The starboard linear portion lasts about $0.174 s$. The delay from command decision to applied target is separate from these motor dynamics.
+For this plotted reversal, each motor changes target from forward to reverse while its state starts at the corresponding 50% steady force. The port target moves from $17.91 N$ to $-9.17 N$, and the starboard target moves from $19.80 N$ to $-10.14 N$. With $τ=0.2 s$ and $R=80 N/s$, the port error magnitude is $27.09 N$ and the linear portion lasts about $0.139 s$, followed by an exponential tail. The starboard linear portion lasts about $0.174 s$. The delay from command decision to applied target is separate from these motor dynamics.
 
 == Command clock and delivery faults
 
 When command sampling is enabled, the configured $20 "ms"$ period gives a 50 Hz decision rate. When command delay is enabled, each command then passes through three configured delay terms: $5 "ms"$ for computation, $10 "ms"$ for transport, and $20 "ms"$ of actuator dead time. Their nominal sum is $35 "ms"$, or 1.75 command periods. Optional timing jitter adds a uniform value from zero to $3 "ms"$ per decision. Because delayed commands are queued as events, more than one command may be in flight.
 
-- Sampling and delays affect when a new PWM pair can change the target.
-  - A missed update creates no application event, so the previously applied PWM and force target remain in effect.
+- Sampling and delays affect when a new percentage pair can change the target.
+  - A missed update creates no application event, so the previously applied percentage and force target remain in effect.
   - The default missed-command probability is zero; fault experiments can raise it.
 - The optional watchdog monitors applied command freshness.
   - Its default timeout is $100 "ms"$. Each applied command schedules a timeout, and newer applications invalidate older timeout events.
-  - If the active timeout expires, both PWM commands return to 1500 µs and both force targets become zero. Enabled lag and slew limits still govern how actual force approaches zero.
+  - If the active timeout expires, both commands return to 0% and both force targets become zero. Enabled lag and slew limits still govern how actual force approaches zero.
 
-The 50 Hz command period, delay values, jitter bound, motor lag, rate limit, mismatch, and watchdog timeout are configuration values for engineering experiments. They are not measurements of onboard timing. Orin timing is represented only by an assumed computation delay; this simulator does not emulate an Orin processor, operating system, or software scheduling load. The exposed boundary accepts paired PWM commands and produces simulated thrust. It does not implement the stock autopilot software.
+The 50 Hz command period, delay values, jitter bound, motor lag, rate limit, mismatch, and watchdog timeout are configuration values for engineering experiments. They are not measurements of onboard timing. Orin timing is represented only by an assumed computation delay; this simulator does not emulate an Orin processor, operating system, or software scheduling load. The exposed boundary accepts paired motor percentages and produces simulated thrust. It does not implement the stock autopilot software.
 
 #note[Interpret each delay as an explicit test input. For a command issued at $t=1.000 s$, the nominal application time is $1.035 s$ before jitter, and the post-application force response then follows the selected motor model.]

@@ -7,7 +7,7 @@
 
 The comparison runner applies a common command record to configurations that share duration, scenario, operating point, amplitude, and initial state. The saved experiment lasts $12$ s, uses a $5$ ms integration step, and begins at $(x,y,psi,u,v,r)=(0,0,0,1,0,0)$ in SI units. Each configuration receives the same four-event pulse-and-turn input tape, and seed $792$ is used throughout.
 
-- The tape starts at trim, raises both motor commands by $80$ microseconds at $t=2$ s, creates a differential command at $t=4$ s, and returns to trim at $t=6$ s.
+- The tape starts at trim, raises both motor commands by $20$ percentage points at $t=2$ s, creates a differential command at $t=4$ s, and returns to trim at $t=6$ s.
   - Reusing the tape makes each run a controlled open-loop comparison under identical requested inputs.
   - Comparing internal motor force as well as position separates command interpretation and actuator response from hull and environmental effects.
 - The cumulative mode enables successive groups of model features on top of each preceding stage.
@@ -42,7 +42,7 @@ The feature set therefore supports repeatable sensitivity experiments. Its wind 
 
 == Reading the saved run
 
-The input tape produces clear cumulative changes in the east-north truth paths. The baseline travels $13.28$ m east and $5.79$ m north by $12$ s. The nonlinear-hull stage ends at $(10.65,5.01)$ m, showing that the same PWM tape can produce a different path when the dynamics change. The sensor stage overlays the timing-stage truth, while prescribed disturbances move the endpoint to $(9.71,7.21)$ m and uncertainty moves it to $(8.86,6.46)$ m. Those endpoints describe the supplied experiment and are not evidence of improved tracking or a better controller.
+The input tape produces clear cumulative changes in the east-north truth paths. The baseline travels $13.28$ m east and $5.79$ m north by $12$ s. The nonlinear-hull stage ends at $(10.65,5.01)$ m, showing that the same motor-percentage tape can produce a different path when the dynamics change. The sensor stage overlays the timing-stage truth, while prescribed disturbances move the endpoint to $(9.71,7.21)$ m and uncertainty moves it to $(8.86,6.46)$ m. Those endpoints describe the supplied experiment and are not evidence of improved tracking or a better controller.
 
 #figure(stage-offsets(), caption: [Selected cumulative-stage separation from the linear baseline under the same open-loop trial.]) <exp-stage-offset>
 

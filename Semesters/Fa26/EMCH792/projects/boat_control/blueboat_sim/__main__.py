@@ -25,6 +25,9 @@ def overrides(c: Experiment, values: list[str]) -> Experiment:
         key, separator, literal = value.partition("=")
         if not separator:
             raise ValueError("Overrides use --set flags.wind=true or --set duration_s=20")
+        if key == "command_amplitude_us":
+            data["command_amplitude_percent"] = json.loads(literal) / 4.0
+            continue
         parts = key.split(".")
         if len(parts) > 2:
             raise ValueError("Overrides accept a field or group.field")
@@ -43,17 +46,18 @@ def command_file(path: Path | None) -> list[CommandChange] | None:
         return None
     items = json.loads(path.read_text())
     if not isinstance(items, list):
-        raise TypeError("Command file must contain a list of time/PWM objects")
+        raise TypeError("Command file must contain a list of timed motor-percentage objects")
     result = []
     for item in items:
-        if set(item) != {"time_s", "port_pwm_us", "starboard_pwm_us"}:
-            raise ValueError("Each command needs time_s, port_pwm_us, starboard_pwm_us")
-        result.append(
-            CommandChange(
-                float(item["time_s"]),
-                Command(float(item["port_pwm_us"]), float(item["starboard_pwm_us"])),
-            )
-        )
+        if not isinstance(item, dict):
+            raise TypeError("Each command must be an object")
+        if set(item) == {"time_s", "port_percent", "starboard_percent"}:
+            command = Command(item["port_percent"], item["starboard_percent"])
+        elif set(item) == {"time_s", "port_pwm_us", "starboard_pwm_us"}:
+            command = Command.from_pwm(item["port_pwm_us"], item["starboard_pwm_us"])
+        else:
+            raise ValueError("Each command needs time_s, port_percent, starboard_percent")
+        result.append(CommandChange(float(item["time_s"]), command))
     return result
 
 
@@ -166,7 +170,7 @@ def main() -> None:
                     (
                         c.duration_s,
                         c.scenario,
-                        c.command_amplitude_us,
+                        c.command_amplitude_percent,
                         c.operating_speed_m_s,
                         c.operating_heading_rad,
                         c.initial_state,

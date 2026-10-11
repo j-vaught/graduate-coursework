@@ -90,13 +90,13 @@
   error("full_wind5",4,[Forward speed error (m/s)],offset:1)
 }
 #let commands = {
-  let pulse=open.runs.first().pwm_each_us
+  let percent=open.runs.first().percent_each
   let hs=closed.full_wind5.lqr.history
-  chart([Port and starboard commands], [Time (s)], [Applied PWM (microseconds)], (
-    (x:(0,40),y:(pulse,pulse),label:[Open loop. Both motors],dash:"dashed"),
-    (x:hs.map(r=>r.at(0)),y:hs.map(r=>r.at(9)),label:[LQR. Port],step:end),
-    (x:hs.map(r=>r.at(0)),y:hs.map(r=>r.at(10)),label:[LQR. Starboard],step:end)
-  ),height:2.2in,xlim:(0,40),yticks:range(1100,1901,step:200).map(x=>(x,str(x))))
+  chart([Port and starboard commands], [Time (s)], [Applied motor command (%)], (
+    (x:(0,40),y:(percent,percent),label:[Open loop. Both motors],dash:"dashed"),
+    (x:hs.map(r=>r.at(0)),y:hs.map(r=>r.at(13)),label:[LQR. Port],step:end),
+    (x:hs.map(r=>r.at(0)),y:hs.map(r=>r.at(14)),label:[LQR. Starboard],step:end)
+  ),height:2.2in,xlim:(0,40),ylim:(-100,100),yticks:range(-100,101,step:50).map(x=>(x,str(x))))
 }
 #let crab = {
   let h=closed.full_wind10.lqr.history

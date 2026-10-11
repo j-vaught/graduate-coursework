@@ -8,7 +8,10 @@
 = First watch the boat without feedback
 The simplest starting point is a constant motor command. Choose the nominal thrust that balances forward drag at 1 m/s, apply it to both motors, and leave it unchanged. The boat then responds to its initial heading, hydrodynamics, motor differences, and wind; no sensor reading changes the command.
 
-- The open-loop command is approximately #pretty(open.runs.first().pwm_each_us, digits: 1) microseconds to each motor.
+- Each motor uses a signed command from -100% through +100%.
+  - 0% is neutral, +100% is full forward, and -100% is full reverse.
+    - Percentage describes the drive request. Actual thrust follows the M200 curve; 50% command gives 18.85 N, compared with 40.21 N at 100%.
+- The open-loop command is approximately +#pretty(open.runs.first().percent_each, digits: 1)% motor command to each motor.
   - The nominal installed M200 map converts this to 7 N per motor, or 14 N total.
     - This balances the model's nominal forward drag at 1 m/s. It does not request a north position, a heading correction, or a turn toward the line.
 - The computer retransmits that fixed command at 50 Hz.
@@ -41,7 +44,7 @@ The preceding illustration isolated the initial-condition problem. Return next t
 - All feedback controllers receive the same type of delivered GNSS and IMU data.
   - PID uses speed, heading, and cross-track loops. LQR and pole placement use estimated state and integral feedback.
     - Each changes port and starboard commands when the estimated boat state differs from the objective. The detailed gains and equations follow in the appendix.
-- Equal PWM does not ensure equal actual thrust in the full model.
+- Equal motor percentages does not ensure equal actual thrust in the full model.
   - The model multiplies nominal port thrust by 0.95 and starboard thrust by 1.05.
     - In calm water this bias bends the fixed-command path north. At 40 s, its north position is #pretty(om("full_calm","final_n_m"), digits: 2) m on average across the three seeds.
 
@@ -81,9 +84,9 @@ LQR and pole placement remain close in this moving-line benchmark. PID has a slo
 
 #pagebreak()
 = What the controller changes and what the sensors measure
-The error plots explain the outcome. The motor commands explain the action that produces it. Open loop sends the same PWM to both motors; feedback changes their sum to regulate forward motion and their difference to steer.
+The error plots explain the outcome. The motor commands explain the action that produces it. Open loop sends the same motor percentage to both motors; feedback changes their sum to regulate forward motion and their difference to steer.
 
-#figure(visual.commands, caption: [Fixed open-loop commands and changing LQR commands in 5 m/s wind, seed 792.])
+#figure(visual.commands, caption: [Signed motor commands in 5 m/s wind, seed 792. Zero is neutral.])
 
 - Increasing both motor commands increases nominal forward thrust.
   - Increasing starboard thrust relative to port gives a counterclockwise yaw moment.
@@ -131,16 +134,16 @@ Once the path and objective are clear, the simulator flags become experiments ra
     - A more detailed simulation is a different model, not automatically a more accurate boat prediction.
 
 == Reproduce the comparison
-The 171 saved feedback runs remain unchanged. This revision adds #open.runs.len() fixed-command runs, including the nominal illustrations, matched full-model environments, and the same eight-stage ladder. Report maps use seed 792; summary values include all three seeds.
+The study contains 171 feedback runs and #open.runs.len() fixed-command runs, including the nominal illustrations, matched full-model environments, and the same eight-stage ladder. Report maps use seed 792; summary values include all three seeds.
 
 ```sh
-uv sync
+uv run python -m blueboat_sim.controller_study
 uv run python -m blueboat_sim.open_loop_study
 typst compile controller_report.typ controller_report.pdf
 ```
 
 - `data/open_loop.json` retains commands, configurations, scores, paths, and source hashes.
   - Full truth CSVs and command records are under `build/open-loop/`.
-    - Existing feedback data remain unchanged; regenerate them with `uv run python -m blueboat_sim.controller_study`.
-- All 24 project tests pass, including fixed-command independence from observations, nominal straight-line trim, and failure to correct an initial heading/line error.
-  - The preceding controller study also audited its 171 runs and checked integration-step refinement.
+    - Regenerate the feedback data with `uv run python -m blueboat_sim.controller_study`.
+- All 28 project tests pass, including fixed-command independence from observations, nominal straight-line trim, and failure to correct an initial heading/line error.
+  - Replaying all 210 runs preserves their physical results exactly.

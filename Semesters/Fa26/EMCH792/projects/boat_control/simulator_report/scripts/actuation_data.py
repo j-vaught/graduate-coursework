@@ -68,9 +68,11 @@ OUT.write_text(
             },
             "curve": {
                 "pwm_us": fine_pwm.tolist(),
+                "percent": ((fine_pwm - 1500) / 4).tolist(),
                 "raw16_N": np.interp(fine_pwm, pwm, raw).tolist(),
                 "installed_N": lookup.tolist(),
                 "tangent_pwm_us": fine_pwm[tangent_mask].tolist(),
+                "tangent_percent": ((fine_pwm[tangent_mask] - 1500) / 4).tolist(),
                 "local_tangent_N": local[tangent_mask].tolist(),
                 "force_at_1600_lookup_N": float(np.interp(1600, pwm, installed)),
                 "force_at_1600_tangent_N": float(force_each + tangent * (1600 - trim_pwm)),

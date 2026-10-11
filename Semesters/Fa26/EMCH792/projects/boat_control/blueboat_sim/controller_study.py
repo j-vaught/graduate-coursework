@@ -122,7 +122,9 @@ def main() -> None:
     parser.add_argument("--seeds", default="792,793,794")
     parser.add_argument("--case", action="append", choices=list(cases(40)))
     parser.add_argument("--set", dest="settings", action="append", default=[])
-    parser.add_argument("--linear-pwm", action="store_true")
+    parser.add_argument(
+        "--linear-command", "--linear-pwm", dest="linear_command", action="store_true"
+    )
     parser.add_argument("--output", type=Path, default=Path("build/controllers"))
     parser.add_argument("--data", type=Path, default=Path("controller_report/data"))
     args = parser.parse_args()
@@ -132,14 +134,14 @@ def main() -> None:
     configs = cases(args.duration)
     selected = args.case or list(configs)
     configs = {name: overrides(configs[name], args.settings) for name in selected}
-    settings = Settings(use_m200_inverse=not args.linear_pwm)
+    settings = Settings(use_m200_inverse=not args.linear_command)
     args.output.mkdir(parents=True, exist_ok=True)
     args.data.mkdir(parents=True, exist_ok=True)
     fingerprint = {}
     for path in sorted(Path("blueboat_sim").glob("*.py")):
         fingerprint[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
     summary: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "seeds": seeds,
         "settings": settings.__dict__,
         "source_sha256": fingerprint,

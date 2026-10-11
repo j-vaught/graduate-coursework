@@ -290,7 +290,7 @@ class Controller:
             }
         )
         self.last_time, self.previous_speed_error = o.time_s, du
-        return Command(float(pulses[0]), float(pulses[1]))
+        return Command.from_pwm(float(pulses[0]), float(pulses[1]))
 
 
 def target_lag(force: np.ndarray, target: np.ndarray, dt: float) -> np.ndarray:

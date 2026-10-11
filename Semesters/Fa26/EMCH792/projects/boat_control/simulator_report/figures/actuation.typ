@@ -3,14 +3,14 @@
 
 #let thrust-map() = plot-panel(
   "M200 static curve and local actuator approximation",
-  "PWM command (µs)",
+  "Motor command (%)",
   "Thrust per motor (N)",
   (
-    (x: d.curve.pwm_us, y: d.curve.raw16_N, label: [Raw M200 at 16 V]),
-    (x: d.curve.pwm_us, y: d.curve.installed_N, label: [Installed scaled map]),
-    (x: d.curve.tangent_pwm_us, y: d.curve.local_tangent_N, label: [Tangent near 1 m/s trim]),
+    (x: d.curve.percent, y: d.curve.raw16_N, label: [Raw M200 at 16 V]),
+    (x: d.curve.percent, y: d.curve.installed_N, label: [Installed scaled map]),
+    (x: d.curve.tangent_percent, y: d.curve.local_tangent_N, label: [Tangent near 1 m/s trim]),
   ),
-  xlim: (1100, 1900),
+  xlim: (-100, 100),
   ylim: (-32, 58),
   height: 2.65in,
 )

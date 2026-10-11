@@ -60,8 +60,8 @@ The tables below specify the enabled behavior. Baseline means `00_linear`; only 
 #data-table((1.95in, 1fr),
   [Propulsion switch], [Enabled behavior],
   [`nonlinear_thrust`], [Use the bounded, signed installed-scaled M200 lookup. Requires saturation.],
-  [`thrust_saturation`], [Clip PWM to 1100-1900 µs and force to the selected forward/reverse bounds.],
-  [`neutral_deadband`], [Set requested force to zero for PWM from 1475 through 1525 µs.],
+  [`thrust_saturation`], [Clip force to the selected forward/reverse bounds. Input percentages always stay within -100% through +100%.],
+  [`neutral_deadband`], [Set requested force to zero for commands from -6.25% through +6.25%.],
   [`reverse_asymmetry`], [Use the weaker reverse branch. With a linear actuator, scale negative force by the reverse/forward limit ratio.],
   [`motor_lag`], [Apply first-order force response using the configured time constant.],
   [`motor_rate_limit`], [Limit force change per second; combine with lag when both are enabled.],
@@ -143,7 +143,7 @@ Run the commands from `EMCH792/projects/boat_control`. The first example repeats
 ```sh
 uv sync
 uv run python -m blueboat_sim compare \
-  --set command_amplitude_us=80 \
+  --set command_amplitude_percent=20 \
   --output build/configurable-simulator
 
 uv run python -m blueboat_sim run --preset 05_sensors \
@@ -161,7 +161,7 @@ uv run python -m blueboat_sim run --preset 05_sensors \
     - Repeated `--config` arguments compare custom templates in their supplied order. Duration, scenario, operating point, command amplitude, and initial state must match.
 - Use a command tape when the input must be exactly specified.
   - `configs/simulator/commands/reversal.json` requests neutral, full forward, full reverse, and neutral at 0, 2, 4, and 6 s.
-    - Commands start at zero, use finite port/starboard PWM, and have strictly increasing times within the run.
+    - Commands start at zero, use finite port/starboard percentages within -100% to +100%, and have strictly increasing times within the run.
 
 == Outputs, auditing, and numerical limits
 
@@ -170,8 +170,8 @@ The command tape defines the requested excitation. Logs then expose the sequence
 #data-table((1.55in, 1fr),
   [Saved file], [Use],
   [`resolved_config.json`], [Reproduce all final settings after overrides.],
-  [`input_tape.json`], [Inspect the common requested PWM changes.],
-  [`truth.csv`], [Plot time, six hull states, two actual motor forces, applied PWM, and target force.],
+  [`input_tape.json`], [Inspect the common requested motor-percentage changes.],
+  [`truth.csv`], [Plot time, six hull states, two actual motor forces, applied percentages, device pulse widths, and target force.],
   [`metrics.json`], [Compare scalar summaries under the declared experiment.],
   [`result.json`], [Audit physical parameters, source hash, trim, raw sensor records, command application, watchdog trips, and policy decision timestamps.],
   [`comparison.json`], [Store matched histories and GNSS records for downstream plots; each record marks whether it was delivered.],

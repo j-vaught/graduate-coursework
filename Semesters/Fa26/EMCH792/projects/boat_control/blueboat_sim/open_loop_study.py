@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 
 from .__main__ import write_json
+from .commands import pwm_to_percent
 from .controller_study import cases
 from .engine import Command, Observation, run
 from .physics import trim
@@ -20,8 +21,8 @@ from .physics import trim
 class FixedTrim:
     """Retransmit a fixed command; sensor content cannot affect the result."""
 
-    def __init__(self, pulse_us: float):
-        self.command = Command(pulse_us, pulse_us)
+    def __init__(self, percent: float):
+        self.command = Command(percent, percent)
 
     def __call__(self, observation: Observation) -> Command:
         return self.command
@@ -60,10 +61,10 @@ def main() -> None:
         **{name: c for name, c in configs.items() if name.startswith("ladder_")},
     }
     data: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "duration_s": 40,
         "seeds": [792, 793, 794],
-        "policy": "Fixed equal nominal-trim PWM, refreshed at every decision tick; no feedback",
+        "policy": "Fixed equal nominal-trim motor percentage, refreshed at every decision tick; no feedback",
         "runs": [],
         "traces": {},
         "aggregate": [],
@@ -82,7 +83,7 @@ def main() -> None:
         for seed in data["seeds"]:
             c = replace(original, seed=seed)
             force, pulse, _ = trim(c)
-            result = run(c, policy=FixedTrim(pulse))
+            result = run(c, policy=FixedTrim(pwm_to_percent(pulse)))
             score = metrics(result["history"])
             data["runs"].append(
                 {
@@ -90,6 +91,7 @@ def main() -> None:
                     "seed": seed,
                     "metrics": score,
                     "config": c.resolved(),
+                    "percent_each": pwm_to_percent(pulse),
                     "pwm_each_us": pulse,
                     "nominal_force_each_N": force,
                 }
@@ -128,6 +130,7 @@ def main() -> None:
                         }
                     )
                 data["traces"][name] = {
+                    "columns": result["columns"],
                     "history": result["history"][::5],
                     "snapshots": snapshots,
                     "metrics": score,

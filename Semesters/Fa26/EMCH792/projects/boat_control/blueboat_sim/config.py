@@ -139,7 +139,7 @@ class Experiment:
     operating_heading_rad: float = 0.0
     initial_state: tuple[float, ...] = (0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
     scenario: str = "turn"
-    command_amplitude_us: float = 10.0
+    command_amplitude_percent: float = 2.5
     flags: Flags = field(default_factory=Flags)
     hull: Hull = field(default_factory=Hull)
     actuator: Actuator = field(default_factory=Actuator)
@@ -149,7 +149,7 @@ class Experiment:
     def validate(self) -> None:
         if not isinstance(self.name, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", self.name):
             raise ValueError("name must contain letters, numbers, underscores, or hyphens")
-        for name in ("operating_speed_m_s", "operating_heading_rad", "command_amplitude_us"):
+        for name in ("operating_speed_m_s", "operating_heading_rad", "command_amplitude_percent"):
             value = getattr(self, name)
             if (
                 not isinstance(value, (int, float))
@@ -157,6 +157,8 @@ class Experiment:
                 or not math.isfinite(value)
             ):
                 raise ValueError(f"{name} must be a finite number")
+        if not 0 <= self.command_amplitude_percent <= 100:
+            raise ValueError("command_amplitude_percent must be between 0 and 100")
         for name in ("duration_s", "integration_step_s", "log_period_s"):
             value = getattr(self, name)
             if (
@@ -270,6 +272,14 @@ class Experiment:
 def from_dict(data: dict[str, Any]) -> Experiment:
     if not isinstance(data, dict):
         raise TypeError("Experiment configuration must be an object")
+    data = dict(data)
+    if "command_amplitude_us" in data:
+        if "command_amplitude_percent" in data:
+            raise ValueError("Choose either percent or legacy pulse amplitude, not both")
+        legacy = data.pop("command_amplitude_us")
+        if isinstance(legacy, bool) or not isinstance(legacy, (int, float)):
+            raise ValueError("Legacy command amplitude must be numeric")
+        data["command_amplitude_percent"] = legacy / 4.0
     allowed = {f.name for f in fields(Experiment)}
     if unknown := set(data) - allowed:
         raise ValueError(f"Unknown experiment keys: {sorted(unknown)}")

@@ -21,8 +21,8 @@ def main() -> None:
     times = values(baseline, "time_s")
     output: dict[str, Any] = {
         "time_s": times[::10],
-        "port_pwm_us": values(baseline, "port_pwm_us")[::10],
-        "starboard_pwm_us": values(baseline, "starboard_pwm_us")[::10],
+        "port_percent": [(v - 1500) / 4 for v in values(baseline, "port_pwm_us")[::10]],
+        "starboard_percent": [(v - 1500) / 4 for v in values(baseline, "starboard_pwm_us")[::10]],
         "trajectory": {},
         "offsets": {},
         "metrics": [],
