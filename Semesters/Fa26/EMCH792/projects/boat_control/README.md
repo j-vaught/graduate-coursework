@@ -63,3 +63,7 @@ uv run python -m unittest discover -s tests -v
 ```
 
 `figures/simulator-comparison.pdf` shows the saved feature-ladder demonstration. It depicts model differences and measurement error; it does not establish controller performance or on-water validation.
+
+## Full simulator design report
+
+`simulator_report.pdf` expands the simulator explanation into a full engineering report with implemented equations, assumption provenance, nested explanatory bullets, the complete Boolean flag catalog, parameter defaults, and nine figures. Its editable entry point is `simulator_report.typ`; chapter and figure sources, reproducible data generators, and the shared figure language are in `simulator_report/`. Rebuild instructions are in `simulator_report/README.md`.
