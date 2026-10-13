@@ -66,7 +66,7 @@ uv run python -m unittest discover -s tests -v
 
 ## Full simulator design report
 
-`simulator_report.pdf` expands the simulator explanation into a full engineering report with implemented equations, assumption provenance, nested explanatory bullets, the complete Boolean flag catalog, parameter defaults, and nine figures. Its editable entry point is `simulator_report.typ`; chapter and figure sources, reproducible data generators, and the shared figure language are in `simulator_report/`. Rebuild instructions are in `simulator_report/README.md`.
+`simulator_report.pdf` expands the simulator explanation into a full engineering report with implemented equations, assumption provenance, nested explanatory bullets, the complete Boolean flag catalog, parameter defaults, and eight figures. Its editable entry point is `simulator_report.tex`; all prose, equations, lists, and tables are in that LaTeX file. Standalone Typst figure sources and their imported PDFs are in `simulator_report/figures/standalone/`. Reproducible data generators and the shared figure language remain in `simulator_report/`. Rebuild instructions are in `simulator_report/README.md`.
 
 ## Open-loop and feedback controller study
 
