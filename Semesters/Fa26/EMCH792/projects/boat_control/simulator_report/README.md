@@ -1,6 +1,6 @@
 # BlueBoat simulator report sources
 
-The combined report is `../simulator_report.pdf`, built from `../simulator_report.typ`. Seven chapters explain the implemented architecture, hull equations, propulsion and command timing, sensor measurements, configuration, experiment interpretation, and complete parameter defaults. The report uses nested bullets, numbered equations, and nine figures in the shared design defined by `style.typ`.
+The combined report is `../simulator_report.pdf`, built from `../simulator_report.typ`. Six chapters explain the hull equations, propulsion and command timing, sensor measurements, configuration, experiment interpretation, and complete parameter defaults. The report uses nested bullets, numbered equations, and eight figures in the shared design defined by `style.typ`.
 
 Run from the project directory.
 

@@ -1,5 +1,5 @@
 #import "simulator_report/style.typ": *
-#set document(title: "BlueBoat Configurable Simulator. Design and Verification", author: "J.C. Vaught", date: datetime(year: 2026, month: 10, day: 11))
+#set document(title: "BlueBoat Configurable Simulator. Design and Verification", author: "J.C. Vaught", date: datetime(year: 2026, month: 10, day: 13))
 #set page(paper: "us-letter", margin: (x: 0.72in, top: 0.73in, bottom: 0.72in),
   header: [#text(size: 8.5pt, fill: slate)[BLUEBOAT SIMULATOR] #h(1fr) #text(size: 8.5pt, fill: slate)[J.C. Vaught]],
   footer: context align(center, text(size: 9pt, counter(page).display("1"))))
@@ -24,7 +24,7 @@
 #v(7pt)
 #text(size: 16pt)[Design, assumptions, configuration, and verification]
 #v(12pt)
-J.C. Vaught #h(1fr) October 11, 2026
+J.C. Vaught #h(1fr) October 13, 2026
 #v(16pt)
 The simulator supplies a repeatable environment for developing boat controllers. It separates hull motion, M200 propulsion, command execution, and sensor delivery so that each assumption can be tested independently. This report documents the implemented equations and information flow, gives the complete flag reference, and explains the saved model comparisons.
 
@@ -47,7 +47,6 @@ The physical demonstration follows baseline revision `ea307b3`, with its command
 #pagebreak()
 #outline(title: [Report contents], depth: 2)
 #pagebreak()
-#include "simulator_report/chapters/01_architecture.typ"
 #include "simulator_report/chapters/02_dynamics.typ"
 #include "simulator_report/chapters/03_actuation.typ"
 #include "simulator_report/chapters/04_sensors.typ"
