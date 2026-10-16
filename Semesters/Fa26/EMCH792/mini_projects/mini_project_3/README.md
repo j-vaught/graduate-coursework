@@ -1,11 +1,27 @@
-# Mini Project 3. LQR starting material
+# Mini Project 3. LQR control of the inverted pendulum
 
-The original handout is `mini-project-3.pdf`. It requires LQR design about upright, application to the nonlinear model, a perturbed-upright test, comparison with the Mini Project 2 pole-placement controller, angle and control-force plots, and a discussion of the state and input weights.
+The completed report is `mini_project_3_report.pdf`. It has two main pages and two supporting appendix pages, using the same fonts, colors, margins, heading styles, gray code boxes, and aligned Simulink diagrams as Project 2. The original assignment is `mini-project-3.pdf`.
 
-`inverted_pendulum_lqr.slx` retains the manually aligned nonlinear plant and feedback diagram with the existing LQR gain. `design_lqr_controller.m` calculates that gain from Q = diag([4 2 300 10]) and R = 0.5. `controlled_accelerations.m` documents the equations already embedded in the model.
+## Run and rebuild
 
-`lqr_starting_material/` preserves previous LQR test data. These are historical results for reuse, not a completed Project 3 comparison. `lqr_weight_studies.m` is the reused linear weight-study function, adapted to call `design_lqr_controller.m`; it writes fresh results to `controller_studies.json` when run from this folder. It has not yet been re-run here.
+Run `run_project3` in MATLAB R2025a with Simulink and Control System Toolbox. The runner uses the existing `inverted_pendulum_lqr.slx`, updates its gain without rearranging blocks or connectors, and saves a standalone baseline model. `design_lqr_controller.m` defines the upright linearization and Q = diag([4 2 300 10]), R = 0.5. The nonlinear acceleration equations are embedded in the model; `controlled_accelerations.m` provides their readable source.
 
-The remaining Project 3 work is a matched comparison against the revised Project 2 pole-placement gain, using identical initial conditions, plant parameters, force limits, solver settings, and observation time. Re-run both controllers and report angle, cart motion, and applied force. The old LQR report stays preserved in the Project 2 directory.
+Compile with `typst compile mini_project_3_report.typ mini_project_3_report.pdf`. The committed `project3_results.json` and diagram images allow compilation without MATLAB. All report plots are generated in Typst with Lilaq. The MATLAB assertions are kept in the verification runner, outside the short report code listings.
 
-Before running this starting model, define `disturbance_signal = [0 0;30.1 0];` in MATLAB. Set the nonlinear plant Angle integrator initial condition to `5*pi/180` for a 5-degree release. The copied model is reference material; the matched LQR-versus-pole-placement runner is still to be written.
+## Experiments and verification
+
+Ten nonlinear runs use the same plant, 10 N actuator limit, zero disturbance, 30 s duration, 0.01 s maximum solver step, and 0.02 s analysis grid. Six runs compare pole placement with baseline LQR at 5, 10, and 20 degrees. Four additional 5-degree runs vary the angle penalty to 100 or 900 and the force penalty to 0.1 or 2; the shared baseline is reused in both sweeps. Every test starts with zero cart position and zero velocities.
+
+Joint settling requires angle within 1 degree and cart position within 0.05 m thereafter. A 90-degree crossing marks failure. Failed histories and travel stop at the first sampled crossing. Force effort is the integral of applied force squared, and is compared over the same 30 s only for recovered runs. The JSON also stores finite-horizon cost evaluated using the same baseline Q and R for every controller, not each controller's own objective.
+
+`pole_placement_reference.json` carries the actual Project 2 gain, matrices, and nominal trace. The Project 3 pole-placement trace reproduces that reference. Baseline LQR is checked against an independent integration of the exact nonlinear equations and a Riccati residual check. The saved model is reopened and tested independently with its embedded workspace data. These checks and their numerical residuals are recorded in `project3_results.json`.
+
+At 5 degrees, pole placement jointly settles in 2.76 s and LQR in 4.24 s. LQR reduces force effort from 6.016 to 5.144 N² s, while peak cart travel increases from 0.276 to 0.301 m. At 20 degrees, this LQR gain recovers in 7.88 s with 2.977 m peak cart travel; the Project 2 pole-placement gain fails at 1.92 s. The report explains this tradeoff without treating LQR as a fastest-settling controller.
+
+## Share the model
+
+`inverted_pendulum_lqr.slx` embeds the baseline gain, zero disturbance data, and a default 5-degree release. Another person can open and simulate this file using MATLAB and Simulink without helper scripts or external data. Changing the controller weights or rerunning the verification script additionally requires Control System Toolbox.
+
+## Historical reference material
+
+`lqr_starting_material/` and `lqr_weight_studies.m` preserve the earlier LQR data and linear weight-study source. They are not used for this report's results or figures. The current evidence comes from `run_project3.m` and `project3_results.json`.

@@ -13,9 +13,7 @@ B = [0; 1/M; 0; -1/(M*ell)];
 Q = diag([4 2 300 10]);
 R = 0.5;
 controllability_rank = rank(ctrb(A, B));
-assert(controllability_rank == 4, 'The linear model is not controllable.');
 [K, ~, poles] = lqr(A, B, Q, R);
-assert(all(real(poles) < 0), 'The linear closed loop is unstable.');
 
 design = struct('A', A, 'B', B, 'Q', Q, 'R', R, 'K', K, ...
     'poles_real', real(poles), 'poles_imag', imag(poles), ...
