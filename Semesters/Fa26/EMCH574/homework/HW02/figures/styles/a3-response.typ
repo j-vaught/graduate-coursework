@@ -13,15 +13,15 @@
         let event-x = events.x.at(i)
         let event-y = events.y.at(i)
         let event-label = events.label.at(i)
-        let label-x = if index == 0 { 0.55 } else { 1.20 }
-        let label-ys = if index == 0 { (3.8, 3.1) } else { (4.3, 3.5) }
+        let label-x = if i == 0 { 0.65 } else { 1.14 }
+        let label-ys = if index == 0 { (3.05, 2.7) } else { (5.45, 4.2) }
         let label-y = label-ys.at(i)
         elems.push(line(
           (label-x, label-y - 0.16),
           (event-x, event-y), stroke: (paint: color-guide, thickness: 0.45pt, cap: "butt"),
         ))
         elems.push(scatter((event-x,), (event-y,), mark: "s", size: 3.3pt, color: color-ink))
-        elems.push(place(label-x, label-y, box(fill: white, stroke: (paint: color-grid, thickness: 0.35pt), inset: 2pt)[#text(size: 7pt)[#event-label]], align: (if index == 0 { right } else { left }) + top))
+        elems.push(place(label-x, label-y, box(fill: white, stroke: (paint: color-grid, thickness: 0.35pt), inset: 2pt)[#text(size: 7pt)[#event-label]], align: (if i == 0 { right } else { left }) + top))
       }
     }
   } else {
