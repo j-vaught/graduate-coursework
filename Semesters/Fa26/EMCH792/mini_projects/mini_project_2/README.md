@@ -2,6 +2,12 @@
 
 J.C. Vaught.
 
+## Current revision
+
+Dr. Downey requested pole placement and a shorter supporting appendix. Use `pole_placement_revision/` for the revised Project 2 report, model, and tests. The files and instructions below preserve the graded LQR version. Do not run its model-builder script to regenerate the manually aligned diagrams. Reusable LQR materials for the next assignment are in `../mini_project_3/`.
+
+## Original LQR version
+
 Run `run_project2` in MATLAB from this folder. It computes the gain with `design_controller.m`, compares the linear and nonlinear models near upright, verifies the linear closed-loop response, and builds the editable `inverted_pendulum_controlled.slx` from the inherited `inverted_pendulum_simulink.slx`. It then runs 30 s release tests at 5, 10, 20, 30, 45, and 60 degrees and random-force tests at bounds of 2.5, 5, 7.5, and 10 N. MATLAB, Simulink, and Control System Toolbox are required.
 
 The script writes `metrics.json`, `plot_data.json`, and the two Simulink diagram images used by the report. The plot data include every sweep response, the linearization comparison, and the original held random-force sequence. The seed is 79202, the force update interval is 0.1 s, and the actuator command limit is 10 N.
