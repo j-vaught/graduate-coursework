@@ -100,7 +100,7 @@ assert(max(abs(d))<1e-12 && abs(z(1,3)-angle*pi/180)<1e-12);
 first=find(abs(z(:,3))>=pi/2,1);
 if isempty(first), last=numel(time); fall=-1; else, last=first; fall=time(last); end
 angles=z(:,3)*180/pi;
-recovered=isempty(first) && max(abs(angles(time>=28)))<2 && max(abs(z(time>=28,1)))<0.05;
+recovered=isempty(first) && max(abs(angles(time>=28)))<=1 && max(abs(z(time>=28,1)))<=0.05;
 outside=find(abs(angles)>1 | abs(z(:,1))>0.05,1,'last'); ts=-1;
 if recovered
  if isempty(outside),ts=0;elseif outside<numel(time),ts=time(outside+1);end
