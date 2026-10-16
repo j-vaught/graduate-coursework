@@ -1,0 +1,30 @@
+#import "/typst-figures/styles/figure.typ": *
+
+#standalone(
+  cetz-canvas(length: 11mm, {
+    let ink = (paint: color-ink, thickness: 0.8pt)
+    draw.line((0, 0), (10, 0), stroke: ink, mark: (fill: color-ink, ..arrow-medium))
+    draw.content((10, -0.28), [$x$])
+    draw.content((0, 3.4), [Displacement profiles at two times])
+    draw.content((0.1, 2.65), [$t_1$])
+    draw.content((0.1, 1.45), [$t_2=t_1+Delta t$])
+    draw.line((0, 2.5), (10, 2.5), stroke: (paint: color-grid, thickness: 0.5pt))
+    draw.line((0, 1.3), (10, 1.3), stroke: (paint: color-grid, thickness: 0.5pt))
+    draw.line((0, 2.5), (2.5, 2.5), stroke: (paint: color-deep-teal, thickness: 1.5pt))
+    draw.line((2.5, 2.5), (3.0, 2.5), stroke: (paint: color-deep-teal, thickness: 1.5pt))
+    draw.line((3.0, 2.5), (3.35, 2.25), stroke: (paint: color-deep-teal, thickness: 1.5pt))
+    draw.line((3.35, 2.25), (3.7, 2.75), stroke: (paint: color-deep-teal, thickness: 1.5pt))
+    draw.line((3.7, 2.75), (4.05, 2.5), stroke: (paint: color-deep-teal, thickness: 1.5pt))
+    draw.line((4.05, 2.5), (10, 2.5), stroke: (paint: color-deep-teal, thickness: 1.5pt))
+    draw.line((0, 1.3), (4.8, 1.3), stroke: (paint: color-secondary, thickness: 1.5pt))
+    draw.line((4.8, 1.3), (5.3, 1.3), stroke: (paint: color-secondary, thickness: 1.5pt))
+    draw.line((5.3, 1.3), (5.65, 1.05), stroke: (paint: color-secondary, thickness: 1.5pt))
+    draw.line((5.65, 1.05), (6.0, 1.55), stroke: (paint: color-secondary, thickness: 1.5pt))
+    draw.line((6.0, 1.55), (6.35, 1.3), stroke: (paint: color-secondary, thickness: 1.5pt))
+    draw.line((6.35, 1.3), (10, 1.3), stroke: (paint: color-secondary, thickness: 1.5pt))
+    draw.line((3.55, 2.5), (3.55, 1.85), stroke: (paint: color-guide, thickness: 0.65pt, dash: "dashed"))
+    draw.line((5.85, 1.3), (5.85, 1.85), stroke: (paint: color-guide, thickness: 0.65pt, dash: "dashed"))
+    draw.line((3.55, 1.85), (5.85, 1.85), stroke: (paint: color-ink, thickness: 0.8pt), mark: (fill: color-ink, ..arrow-medium))
+    draw.content((4.45, 2.08), [$Delta x$])
+  }),
+)
