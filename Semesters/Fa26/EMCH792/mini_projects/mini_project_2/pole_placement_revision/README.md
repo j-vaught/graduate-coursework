@@ -1,10 +1,10 @@
 ## Verification status
 
-This is a draft revision. MATLAB did not complete startup during preparation, so the nonlinear runs and saved gain update are unverified. The model copy still contains the original LQR gain until the runner succeeds. The design-only JSON contains an independently checked exact-rational Ackermann gain; a minimal MATLAB session returned the same gain. Simulink loading did not finish, so there are no verified nonlinear results. Build the review draft with `typst compile --input draft=true mini_project_2_pole_placement.typ mini_project_2_pole_placement.pdf`. After MATLAB runs, compile without the draft input to populate the numerical results and figures.
+Completed on October 16, 2026. All four release tests, four random-force tests, the independent linear-response check, and the standalone saved-model test passed their verification checks. Ackermann and `place` gains agree to 1.42e-13 in infinity norm. The saved model contains the pole-placement gain, embedded zero-disturbance data, and a default 5-degree release. Every block position and connector route matches the original model.
 
 # Mini Project 2. Pole-placement revision
 
-This draft addresses the grading comments with directly selected poles and a two-page main report followed by two supporting appendix pages. The original graded report and LQR results remain unchanged in the parent folder. Reusable LQR material is also staged in `../../mini_project_3/` for the next assignment.
+This revision addresses the grading comments with directly selected poles and a two-page main report followed by two supporting appendix pages. The original graded report and LQR results remain unchanged in the parent folder. Reusable LQR material is also staged in `../../mini_project_3/` for the next assignment.
 
 Run `run_pole_revision` in MATLAB R2025a with Simulink and Control System Toolbox. It applies Ackermann's formula in `design_pole_controller.m`, verifies the gain against `place`, updates only the existing model's gain and default test inputs, and runs the release and random-force tests. It does not rebuild or rearrange the model.
 

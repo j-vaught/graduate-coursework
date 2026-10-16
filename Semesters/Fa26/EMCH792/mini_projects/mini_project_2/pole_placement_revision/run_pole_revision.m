@@ -3,13 +3,16 @@ function result = run_pole_revision()
 folder = fileparts(mfilename('fullpath'));
 previous = pwd; cleanup = onCleanup(@() cd(previous)); cd(folder);
 Simulink.fileGenControl('set','CacheFolder',fullfile(tempdir,'emch792-pole-cache'), ...
-    'CodeGenFolder',fullfile(tempdir,'emch792-pole-code'));
+    'CodeGenFolder',fullfile(tempdir,'emch792-pole-code'),'createDir',true);
+fprintf('Calculating pole-placement gain.\n');
 [K,A,B,poles] = design_pole_controller();
 C = ctrb(A,B);
 assert(rank(C)==4);
 assert(norm(sort(eig(A-B*K))-sort(poles(:)),inf)<1e-8);
 assert(norm(K-place(A,B,poles),inf)<1e-8);
-model = 'inverted_pendulum_controlled'; load_system(model);
+model = 'inverted_pendulum_controlled';
+fprintf('Loading aligned Simulink model.\n');
+load_system(model);
 % Preserve every block position, connector, mask, and subsystem.
 set_param([model '/State feedback'],'Gain',mat2str(-K,17));
 set_param(model,'StopTime','30');
@@ -20,10 +23,12 @@ save_system(model);
 rng(79202,'twister'); t=(0:0.1:30.1)'; unit=2*rand(size(t))-1;
 angles=[5 10 20 30]; bounds=[2.5 5 7.5 10];
 for j=1:numel(angles)
+    fprintf('Release test %.0f degrees.\n',angles(j));
     result.releases(j)=run_case(model,angles(j),[t 0*t],K);
     result.releases(j).label_value=angles(j);
 end
 for j=1:numel(bounds)
+    fprintf('Random-force test %.1f N.\n',bounds(j));
     result.disturbances(j)=run_case(model,0,[t bounds(j)*unit],K);
     result.disturbances(j).label_value=bounds(j);
 end
@@ -44,6 +49,7 @@ result.settings=struct('duration_s',30,'seed',79202,'force_limit_N',10, ...
 fid=fopen('pole_results.json','w'); fprintf(fid,'%s\n',jsonencode(result,'PrettyPrint',true)); fclose(fid);
 close_system(model,0);
 % Reopen from disk and simulate without base-workspace input data.
+fprintf('Testing standalone saved model.\n');
 clear disturbance_signal;
 load_system(model); standalone=sim(model);
 assert(all(isfinite(standalone.state_log.Data),'all'));

@@ -1,6 +1,7 @@
 #import "@preview/lilaq:0.6.0" as lq
-#let verified = sys.inputs.at("draft", default: "false") != "true"
-#let r = json(if verified { "pole_results.json" } else { "pole_design.json" })
+#let r = json("pole_results.json")
+#let release = r.releases.first().metrics
+#let random = r.disturbances.first().metrics
 #let f(x, digits: 2) = str(calc.round(x, digits: digits))
 #let palette = (rgb("#3F90DA"), rgb("#FFA90E"), rgb("#BD1F01"), rgb("#832DB6"))
 #set page(paper: "us-letter", margin: (top: 1in, bottom: 1in, x: 1in),
@@ -29,8 +30,13 @@
   set text(size: 8pt)
   lq.diagram(width: 2.6in, height: 0% + 1.05in, title: title,
     xlabel: [Time (s)], ylabel: ylabel, xlim: (0,xmax),
+    yscale: if field == "theta_deg" { lq.scale.symlog(threshold: 10) } else { "linear" },
+    ylim: if field == "theta_deg" { (-10, 100) } else { (-10.5, 10.5) },
+    yaxis: if field == "theta_deg" {
+      (ticks: ((-10, [-10]), (0, [0]), (10, [10]), (30, [30]), (90, [90])))
+    } else { (ticks: (-10, 0, 10)) },
     xaxis: (ticks: if xmax == 30 { (0,10,20,30) } else { (0,2,4,6,8) }),
-    legend: if legend { (radius: 0pt, position: top + right) } else { none },
+    legend: if legend { (radius: 0pt, position: top + right, fill: white) } else { none },
     ..runs.enumerate().map(pair => {
       let (i,run) = pair
       let idx = run.time_s.enumerate().filter(p => p.last() <= xmax).map(p => p.first())
@@ -45,7 +51,6 @@
 ]
 #v(0.3em)
 
-#if not verified [#align(center)[#text(size: 9pt)[Draft. Simulation results pending MATLAB verification.]]]
 
 = OBJECTIVE.
 
@@ -63,42 +68,37 @@ We choose poles $p=(-1+i,-1-i,-3,-4)$ s⁻¹. The dominant pair has damping rati
 
 The desired characteristic polynomial is $phi(s)=(s^2+2s+2)(s+3)(s+4)$. We calculate the gain directly using Ackermann's formula,
 $ K=mat(0,0,0,1) cal(C)^(-1) phi(A), quad u=-K z. $
-This gives $K=(#f(r.design.K.at(0),digits:4),#f(r.design.K.at(1),digits:4),#f(r.design.K.at(2),digits:4),#f(r.design.K.at(3),digits:4))$. The accompanying MATLAB script checks that the eigenvalues of $A-B K$ match the selected poles and compares the gain with `place` @MathWorks2026PolePlacement. The script applies this gain to a copy of the existing Simulink diagram without changing its layout. The actuator clips $u$ to $plus.minus 10$ N, and the external disturbance $d$ is added afterward, giving $F="sat"(-K z)+d$.
+This gives $K=(#f(r.design.K.at(0),digits:4),#f(r.design.K.at(1),digits:4),#f(r.design.K.at(2),digits:4),#f(r.design.K.at(3),digits:4))$. MATLAB verifies that the eigenvalues of $A-B K$ match the selected poles and independently checks the gain with `place` @MathWorks2026PolePlacement. We apply this gain to the existing Simulink diagram. The actuator clips $u$ to $plus.minus 10$ N, and the external disturbance $d$ is added afterward, giving $F="sat"(-K z)+d$.
 
-The test script runs 30 s nonlinear tests from 5, 10, 20, and 30#sym.degree releases, followed by tests from upright with random forces bounded by $plus.minus 2.5$, 5, 7.5, and 10 N. Independent uniform draws are held for 0.1 s; seed 79202 supplies the same sequence at each bound. The variable-step solver uses a maximum step of 0.01 s. Analysis uses 0.02 s samples. A run loses balance when $abs(theta)>=90 degree$; failed traces stop there. Appendix A shows the retained diagrams, and Appendix B gives essential implementation code.
+We run 30 s nonlinear tests from 5, 10, 20, and 30#sym.degree releases, followed by tests from upright with random forces bounded by $plus.minus 2.5$, 5, 7.5, and 10 N. Independent uniform draws are held for 0.1 s; seed 79202 supplies the same sequence at each bound. The variable-step solver uses a maximum step of 0.01 s. Analysis uses 0.02 s samples. A run loses balance when $abs(theta)>=90 degree$; failed traces stop there. Appendix A shows the retained diagrams, and Appendix B gives essential implementation code.
 
-#pagebreak()
-#if not verified [
-= RESULTS.
-
-The pole-placement tests are implemented in `run_pole_revision.m`, but MATLAB has not completed startup on this machine. Numerical results and response figures remain pending verification. The test script will populate this section after it runs successfully.
-
-The required tests are recovery from a 5#sym.degree release and response to a bounded random cart force from upright. Additional releases and force bounds will establish where actuator saturation and nonlinear motion prevent recovery. The comparison will report angle, applied force, cart travel, and settling behavior.
-
-The pole-placement gain in the preceding section has been calculated independently with exact rational arithmetic. This verifies the characteristic polynomial of $A-B K$; nonlinear performance still requires the saved Simulink model to run. The model copy currently retains its original gain until the MATLAB runner completes the update.
-] else {
-  let release = r.releases.first().metrics
-  let random = r.disturbances.first().metrics
-  [
 = RESULTS.
 
 For the 5#sym.degree release, the nonlinear model settles within $plus.minus 1 degree$ and $plus.minus 0.05$ m after #f(release.settling_time_s) s and stays there through 30 s. Peak cart travel is #f(release.peak_cart_m) m, and peak applied force is #f(release.peak_applied_N) N. Figure 1 shows how increasing the release angle changes recovery and actuator use. Saturation limits the corrective force even though the unlimited linear poles remain stable.
 
-#figure(grid(columns: (1fr,1fr), gutter: 10pt,
+#pagebreak()
+
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr,1fr), gutter: 10pt,
   traces(r.releases,"theta_deg",[Angle (deg)],[(a) Pendulum angle],xmax:8,legend:true,degrees:true),
-  traces(r.releases,"u_N",[Applied force (N)],[(b) Actuator force],xmax:8,degrees:true)),
-  caption: [Nonlinear release tests, showing the first 8 s. Dashed traces lose balance and end at the first sampled 90° crossing. The force is clipped to ±10 N.])
+  traces(r.releases,"u_N",[Applied force (N)],[(b) Actuator force],xmax:8,degrees:true))
+],
+  caption: [Nonlinear release tests, showing the first 8 s. Dashed traces lose balance and end at the first sampled 90° crossing. The force is clipped to ±10 N. The angle axis is linear within ±10° and logarithmic beyond.])
 
 #let recovered = r.releases.filter(run => run.metrics.recovered).map(run => str(run.label_value))
 #let failed = r.releases.filter(run => not run.metrics.balanced).map(run => str(run.label_value))
-The tested releases that recover are #recovered.join(", ")#sym.degree. #if failed.len() > 0 [The #failed.join(", ")#sym.degree cases lose balance.] These results establish a tested operating range for the chosen gain and force limit. They do not follow from pole locations alone, because the controller was designed from a local linearization.
+The #recovered.join(" and ")#sym.degree releases recover. #if failed.len() > 0 [The #failed.join(" and ")#sym.degree releases lose balance.] The 10#sym.degree release recovers after #f(r.releases.at(1).metrics.settling_time_s) s, with #f(r.releases.at(1).metrics.saturation_s) s of saturation. The 20#sym.degree case reaches 90#sym.degree at #f(r.releases.at(2).metrics.fall_time_s) s. Thus, the tested transition from recovery to failure lies between 10#sym.degree and 20#sym.degree for this gain and actuator limit.
 
 The random-force tests in Figure 2 evaluate a different demand. Instead of removing one initial displacement, the controller must continually oppose an external force. At the 2.5 N bound, angle RMS is #f(random.angle_rms_deg)#sym.degree and peak angle is #f(random.peak_angle_deg)#sym.degree over 30 s. Table 1 summarizes whether each input maintains balance.
 
-#figure(grid(columns: (1fr,1fr), gutter: 10pt,
+#figure([
+  #show: lq.layout
+  #grid(columns: (1fr,1fr), gutter: 10pt,
   traces(r.disturbances,"theta_deg",[Angle (deg)],[(a) Pendulum angle],legend:true),
-  traces(r.disturbances,"u_N",[Applied force (N)],[(b) Actuator force])),
-  caption: [Nonlinear random-force tests over 30 s. Bounds label the external disturbance; panel (b) shows the separate actuator force. Dashed traces lose balance.])
+  traces(r.disturbances,"u_N",[Applied force (N)],[(b) Actuator force]))
+],
+  caption: [Nonlinear random-force tests over 30 s. Bounds label the external disturbance; panel (b) shows the separate actuator force. Dashed traces lose balance. The angle axis is linear within ±10° and logarithmic beyond.])
 
 #figure(table(columns: (1fr,1fr,1fr,1fr), align: center, stroke: none, inset: 3pt,
   table.hline(stroke: 0.8pt),table.header([Force bound (N)],[Balanced],[Angle RMS (deg)],[Peak cart travel (m)]),table.hline(stroke: 0.5pt),
@@ -109,10 +109,8 @@ The random-force tests in Figure 2 evaluate a different demand. Instead of remov
 
 = DISCUSSION.
 
-The controller meets the near-upright recovery objective with a finite actuator. Larger perturbations and sustained random forcing can exhaust that force margin. Cart travel also matters, since the model has no physical end stops. Random-force outcomes refer to this recorded sequence; the bounds define amplitude, not a guaranteed disturbance-rejection limit. The report therefore separates local pole stability from the nonlinear, force-limited performance observed in these tests.
+The controller meets the near-upright recovery objective with a finite actuator. The 10 N random-force case reaches 90#sym.degree at #f(r.disturbances.last().metrics.fall_time_s) s, after #f(r.disturbances.last().metrics.saturation_s) s of actuator saturation. The lower three bounds remain balanced for all 30 s. Cart travel also matters, since the model has no physical end stops. Random-force outcomes refer to this recorded sequence; the bounds define amplitude, not a guaranteed disturbance-rejection limit. The report therefore separates local pole stability from the nonlinear, force-limited performance observed in these tests.
 
-]
-}
 
 #pagebreak()
 #set page(margin: 1in)
@@ -132,7 +130,7 @@ The controller meets the near-upright recovery objective with a finite actuator.
 
 = Appendix A. Simulink implementation.
 
-The existing Project 2 layout is retained. The runner applies the gain calculated in Appendix B; the actuator and disturbance connections are unchanged.
+The existing Project 2 layout is retained. The gain from Appendix B is embedded in the feedback block; the actuator and disturbance connections are unchanged.
 
 #figure(image("controlled_model_diagram.png",width:100%),caption:[Retained feedback loop. The external disturbance is added after the actuator limit.])
 
