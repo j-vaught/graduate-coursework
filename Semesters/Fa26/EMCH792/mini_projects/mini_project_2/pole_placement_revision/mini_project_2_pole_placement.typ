@@ -28,7 +28,7 @@
 ]
 #let traces(runs, field, ylabel, title, xmax: 30, legend: false, degrees: false) = {
   set text(size: 8pt)
-  lq.diagram(width: 2.6in, height: 0% + 1.05in, title: title,
+  lq.diagram(width: 2.6in, height: 0% + 1.5in, title: title,
     xlabel: [Time (s)], ylabel: ylabel, xlim: (0,xmax),
     yscale: if field == "theta_deg" { lq.scale.symlog(threshold: 10) } else { "linear" },
     ylim: if field == "theta_deg" { (-10, 100) } else { (-10.5, 10.5) },
