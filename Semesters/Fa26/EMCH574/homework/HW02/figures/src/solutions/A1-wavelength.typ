@@ -8,7 +8,6 @@
     draw.line((0, baseline - 1.0), (0, baseline + 1.05), stroke: ink, mark: (fill: color-ink, ..arrow-medium))
     draw.content((12, baseline - 0.28), [$x$])
     draw.content((-0.25, baseline + 1.25), [$u$])
-    draw.content((0, baseline + 1.65), [Wavelength spans one complete spatial cycle])
     for i in range(0, 240) {
       let x = i * 0.05
       let xn = (i + 1) * 0.05

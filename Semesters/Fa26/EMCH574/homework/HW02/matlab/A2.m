@@ -8,11 +8,12 @@ lambdaIR = 10e-6;                 % m
 fFM = 89e6; f5G = 29e9;           % Hz
 fMicrowave = 2.5e9;               % Hz
 flashSecond = 32; thunderSecond = 36;
-Dexample = 1.2e-3;                % m, published example, not measured
+Dmesh = 1.2e-3;                   % m, approximate measured hole diameter
+meshPitch = 1.6e-3;               % m, approximate measured center pitch
 DelectronGiven = 2e-12;           % m, stipulated length for item 8
 disp(table(cLight,cSound,mPerMile));
 disp(table(lambdaVisible,lambdaAM,lambdaIR,fFM,f5G,fMicrowave));
-disp(table(flashSecond,thunderSecond,Dexample,DelectronGiven));
+disp(table(flashSecond,thunderSecond,Dmesh,meshPitch,DelectronGiven));
 
 % A.2.1--4 and A.2.6. Use c = lambda*f with SI inputs.
 fVisible = cLight/lambdaVisible;
@@ -36,9 +37,10 @@ disp(table(delay,distanceKm,distanceMiles,lightCorrectionMm));
 % A.2.7. The half-wavelength limit is the assignment's criterion.
 lambdaMicrowave = cLight/fMicrowave;
 Dmax = lambdaMicrowave/2;
-meshToWavelength = Dexample/lambdaMicrowave;
-boundToMesh = Dmax/Dexample;
-disp(table(lambdaMicrowave,Dmax,Dexample,meshToWavelength,boundToMesh));
+meshToWavelength = Dmesh/lambdaMicrowave; % approximate measured ratio
+boundToMesh = Dmax/Dmesh;          % approximate measured ratio
+disp(table(lambdaMicrowave,Dmax,Dmesh,meshPitch, ...
+    meshToWavelength,boundToMesh));
 
 % A.2.8. Treat the given 2 pm length as the wavelength.
 fElectronLength = cLight/DelectronGiven;

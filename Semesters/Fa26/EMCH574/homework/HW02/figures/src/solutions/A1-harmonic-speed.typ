@@ -5,7 +5,6 @@
     let ink = (paint: color-ink, thickness: 0.8pt)
     draw.line((0, 0), (12, 0), stroke: ink, mark: (fill: color-ink, ..arrow-medium))
     draw.content((12, -0.3), [$x$])
-    draw.content((0, 3.5), [A crest advances with the harmonic profile])
     draw.line((0, 1.15), (12, 1.15), stroke: (paint: color-grid, thickness: 0.5pt))
     draw.line((0, 2.35), (12, 2.35), stroke: (paint: color-grid, thickness: 0.5pt))
     for i in range(0, 240) {

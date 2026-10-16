@@ -5,7 +5,6 @@
     let ink = (paint: color-ink, thickness: 0.8pt)
     draw.line((0, 0), (10, 0), stroke: ink, mark: (fill: color-ink, ..arrow-medium))
     draw.content((10, -0.28), [$x$])
-    draw.content((0, 3.4), [Displacement profiles at two times])
     draw.content((0.1, 2.65), [$t_1$])
     draw.content((0.1, 1.45), [$t_2=t_1+Delta t$])
     draw.line((0, 2.5), (10, 2.5), stroke: (paint: color-grid, thickness: 0.5pt))
