@@ -1,47 +1,34 @@
-% A.2. Frequency, wavelength, lightning range, and microwave mesh.
-cLight = 300000*1000;             % m/s, supplied light wavespeed
-cSound = 340;                     % m/s, supplied sound wavespeed
-mPerMile = 1609.344;              % m/mi, exact conversion
-lambdaVisible = 510e-9;           % m
-lambdaAM = 550;                   % m
-lambdaIR = 10e-6;                 % m
-fFM = 89e6; f5G = 29e9;           % Hz
-fMicrowave = 2.5e9;               % Hz
-flashSecond = 32; thunderSecond = 36;
-Dmesh = 1.2e-3;                   % m, approximate measured hole diameter
-meshPitch = 1.6e-3;               % m, approximate measured center pitch
-DelectronGiven = 2e-12;           % m, stipulated length for item 8
-disp(table(cLight,cSound,mPerMile));
-disp(table(lambdaVisible,lambdaAM,lambdaIR,fFM,f5G,fMicrowave));
-disp(table(flashSecond,thunderSecond,Dmesh,meshPitch,DelectronGiven));
+% A.2. Frequencies, wavelengths, and lightning distance.
+clear; clc;
+c = 3e8; cs = 340;               % light and sound speeds, m/s
+lv = 510e-9; la = 550; li = 10e-6; % wavelengths, m
+ff = 89e6; fg = 29e9; fm = 2.5e9; % frequencies, Hz
+dt = 36-32;                     % lightning arrival delay, s
+D = 1.2e-3; p = 1.6e-3;         % measured mesh diameter and pitch, m
+de = 2e-12;                     % supplied electron length, m
+disp(table(c,cs,lv,la,li,ff,fg,fm,dt,D,p,de));
 
-% A.2.1--4 and A.2.6. Use c = lambda*f with SI inputs.
-fVisible = cLight/lambdaVisible;
-fAM = cLight/lambdaAM;
-fIR = cLight/lambdaIR;
-lambdaFM = cLight/fFM;
-lambda5G = cLight/f5G;
-disp(table(fVisible,fAM,fIR,lambdaFM,lambda5G, ...
-    'VariableNames',{'visible_Hz','AM_Hz','infrared_Hz', ...
-    'FM_m','mobile_m'}));
+% A.2.1--4. Use c = lambda*f.
+fv = c/lv; fa = c/la; fi = c/li; lf = c/ff;
+fprintf('Visible frequency = %.6g Hz\n',fv);
+fprintf('AM frequency = %.6g Hz\n',fa);
+fprintf('Infrared frequency = %.6g Hz\n',fi);
+fprintf('FM wavelength = %.6g m\n',lf);
 
-% A.2.5. Arrival delay equals sound travel time minus light time.
-delay = thunderSecond-flashSecond;
-distance = delay/(1/cSound-1/cLight);
-distanceApprox = cSound*delay;
-distanceKm = distance/1000;
-distanceMiles = distance/mPerMile;
-lightCorrectionMm = (distance-distanceApprox)*1000;
-disp(table(delay,distanceKm,distanceMiles,lightCorrectionMm));
+% A.2.5. Sound travel time minus light travel time is dt.
+d = dt/(1/cs-1/c);
+fprintf('Lightning distance = %.6g km = %.6g mi\n', ...
+    d/1000,d/1609.344);
 
-% A.2.7. The half-wavelength limit is the assignment's criterion.
-lambdaMicrowave = cLight/fMicrowave;
-Dmax = lambdaMicrowave/2;
-meshToWavelength = Dmesh/lambdaMicrowave; % approximate measured ratio
-boundToMesh = Dmax/Dmesh;          % approximate measured ratio
-disp(table(lambdaMicrowave,Dmax,Dmesh,meshPitch, ...
-    meshToWavelength,boundToMesh));
+% A.2.6--7. Mobile and microwave wavelengths.
+lg = c/fg; lm = c/fm; dm = lm/2;
+fprintf('5G wavelength = %.6g mm\n',1000*lg);
+fprintf('Microwave wavelength = %.6g mm\n',1000*lm);
+fprintf('Maximum hole diameter = %.6g mm\n',1000*dm);
+fprintf('Measured Oster hole diameter = %.3g mm; pitch = %.3g mm\n', ...
+    1000*D,1000*p);
+fprintf('Hole/wavelength = %.6g; limit/hole = %.6g\n',D/lm,dm/D);
 
-% A.2.8. Treat the given 2 pm length as the wavelength.
-fElectronLength = cLight/DelectronGiven;
-disp(table(fElectronLength));
+% A.2.8. Use the supplied length as the wavelength.
+fe = c/de;
+fprintf('Electron-length frequency = %.6g Hz (gamma ray)\n',fe);
