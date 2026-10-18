@@ -5,7 +5,9 @@
   let ink = (paint: color-ink, thickness: 0.85pt)
   let fluid = (paint: color-deep-teal, thickness: 0.75pt, dash: "dashed")
 
-  draw.line((1.25, 3.1), (7.4, 3.1), stroke: wall)
+  // Preserve the small upper-wall opening near the left end in the original.
+  draw.line((1.25, 3.1), (1.50, 3.1), stroke: wall)
+  draw.line((1.71, 3.1), (7.4, 3.1), stroke: wall)
   draw.line((1.25, 2.0), (7.4, 2.0), stroke: wall)
   draw.line((1.25, 2.0), (1.25, 3.1), stroke: wall)
   draw.line((7.4, 2.0), (7.4, 3.1), stroke: wall)
