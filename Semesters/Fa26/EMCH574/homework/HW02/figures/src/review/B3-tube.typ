@@ -12,10 +12,10 @@
   draw.content((2.5, 2.55), text(size: 7pt)[$A, rho, K, c$])
   draw.content((4.65, 2.73), text(size: 7pt)[$u(x,t)$])
   draw.line((4.3, 2.42), (5.05, 2.42), stroke: fluid,
-    mark: (fill: color-deep-teal, ..arrow-medium))
+    mark: (fill: color-deep-teal, ..arrow-small))
   draw.line((0.75, 2.55), (1.25, 2.55), stroke: ink)
   draw.line((7.4, 2.55), (8.12, 2.55), stroke: ink,
-    mark: (fill: color-ink, ..arrow-medium))
+    mark: (fill: color-ink, ..arrow-small))
   draw.content((8.35, 2.55), [$x$])
   draw.content((1.25, 1.68), text(size: 7pt)[$x=0$])
   draw.content((4.32, 1.68), [$L$])
