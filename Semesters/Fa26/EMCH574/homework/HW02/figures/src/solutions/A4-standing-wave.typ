@@ -4,18 +4,18 @@
   cetz-canvas(length: 10mm, {
     let y0 = 1.65
     let scale = 1.0
-    let wave = (paint: color-deep-teal, thickness: 1.8pt)
+    let wave = (paint: color-deep-teal, thickness: 1.8pt, cap: "butt", join: "miter")
     let guide = (paint: color-guide, thickness: 0.75pt, dash: "dashed")
     let ink = (paint: color-ink, thickness: 0.8pt)
 
     // One wavelength; x is normalized so that lambda spans four plotting units.
-    for i in range(0, 240) {
+    let points = ()
+    for i in range(0, 241) {
       let x = i * 4 / 240
-      let xn = (i + 1) * 4 / 240
       let y = y0 + scale * calc.cos(90deg * x)
-      let yn = y0 + scale * calc.cos(90deg * xn)
-      draw.line((x, y), (xn, yn), stroke: wave)
+      points.push((x, y))
     }
+    draw.line(..points, stroke: wave)
 
     draw.line((0, y0), (4.35, y0), stroke: (paint: color-guide, thickness: 0.65pt))
     draw.line((0, 0.25), (0, 3.15), stroke: ink,

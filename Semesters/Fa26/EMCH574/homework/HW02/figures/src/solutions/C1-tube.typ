@@ -4,12 +4,11 @@
   cetz-canvas(length: 10mm, {
     let ink = (paint: color-ink, thickness: 0.85pt)
     let guide = (paint: color-guide, thickness: 0.65pt, dash: "dashed")
-    let wall = (paint: color-graphite, thickness: 1.5pt)
+    let wall = (paint: color-graphite, thickness: 1.5pt, cap: "butt", join: "miter")
     let fluid = (paint: color-deep-teal, thickness: 0.75pt)
 
-    draw.line((1.25, 3.1), (7.4, 3.1), stroke: wall)
-    draw.line((1.25, 2.0), (7.4, 2.0), stroke: wall)
-    draw.line((1.25, 2.0), (1.25, 3.1), stroke: wall)
+    // One continuous wall gives both left corners proper stroke joins.
+    draw.line((7.4, 3.1), (1.25, 3.1), (1.25, 2.0), (7.4, 2.0), stroke: wall)
     draw.line((7.4, 2.0), (7.4, 3.1), stroke: (paint: color-graphite, thickness: 0.65pt, dash: "dashed"))
     draw.line((1.45, 2.55), (7.2, 2.55), stroke: fluid)
     draw.content((3.7, 2.72), text(size: 7pt)[$A, rho, K, c$])

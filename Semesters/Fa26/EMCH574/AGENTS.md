@@ -10,4 +10,6 @@ Preserve an assignment's original problem images and include each supplied image
 
 When a new analytical figure is needed, follow HW01's Typst, CeTZ, and Lilaq sources, the shared figure styles, and `PALETTE=homework`. Store editable figure sources in the homework's `figures/src/` and compiled PDFs in `figures/generated/`. MATLAB may make its interactive plots directly using the same palette. Keep figure labels, axes, units, event markers, and captions consistent with HW01.
 
+Draw connected outlines and sampled wave profiles as continuous CeTZ paths rather than independent line segments. Use `join: "miter"` for square corners and `cap: "butt"` at open ends. Preserve intentional openings in the supplied geometry.
+
 Check each problem statement against the supplied assignment before changing a value, and preserve the original assignment file separately. Rebuild the PDF and inspect rendered pages after edits. Leave unrelated coursework and existing figures unchanged.

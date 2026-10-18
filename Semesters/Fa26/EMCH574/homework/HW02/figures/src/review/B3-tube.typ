@@ -1,16 +1,14 @@
 #import "/typst-figures/styles/figure.typ": *
 
 #standalone(cetz-canvas(length: 10mm, {
-  let wall = (paint: color-graphite, thickness: 1.5pt)
+  let wall = (paint: color-graphite, thickness: 1.5pt, cap: "butt", join: "miter")
   let ink = (paint: color-ink, thickness: 0.85pt)
   let fluid = (paint: color-deep-teal, thickness: 0.75pt, dash: "dashed")
 
   // Preserve the small upper-wall opening near the left end in the original.
-  draw.line((1.25, 3.1), (1.50, 3.1), stroke: wall)
-  draw.line((1.71, 3.1), (7.4, 3.1), stroke: wall)
-  draw.line((1.25, 2.0), (7.4, 2.0), stroke: wall)
-  draw.line((1.25, 2.0), (1.25, 3.1), stroke: wall)
-  draw.line((7.4, 2.0), (7.4, 3.1), stroke: wall)
+  // Keep the perimeter connected so its four corners have mitered joins.
+  draw.line((1.50, 3.1), (1.25, 3.1), (1.25, 2.0),
+    (7.4, 2.0), (7.4, 3.1), (1.71, 3.1), stroke: wall)
   draw.content((2.5, 2.55), text(size: 7pt)[$A, rho, K, c$])
   draw.content((4.65, 2.73), text(size: 7pt)[$u(x,t)$])
   draw.line((4.3, 2.42), (5.05, 2.42), stroke: fluid,
