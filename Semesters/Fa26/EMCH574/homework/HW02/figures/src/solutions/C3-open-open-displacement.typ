@@ -1,0 +1,2 @@
+#import "C3-modes.typ": c3-plot
+#c3-plot("open-open", "displacement")
