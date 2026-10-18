@@ -38,7 +38,7 @@ P_norm = zeros(N, Nx);
 
 for m = 1:N
     U(m, :) = sin(j(m) * pi * x / L);
-    P_norm(m, :) = cos(j(m) * pi * x / L);
+    P_norm(m, :) = -cos(j(m) * pi * x / L);
 end
 
 % Palette colors matching course standard
