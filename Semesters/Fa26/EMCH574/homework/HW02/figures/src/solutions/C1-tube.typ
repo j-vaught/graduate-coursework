@@ -23,8 +23,6 @@
     draw.content((7.25, 0.62), [$L$])
     draw.content((0.35, 2.45), text(size: 7pt)[$u(0,t)=0$])
     draw.content((6.25, 3.55), text(size: 7pt)[$p(L,t)=0$])
-    draw.content((0.35, 4.1), text(size: 7pt)[closed])
-    draw.content((6.42, 4.1), text(size: 7pt)[open])
     draw.line((7.55, 2.55), (8.12, 2.55), stroke: fluid,
       mark: (fill: color-deep-teal, ..arrow-medium))
     draw.content((8.2, 2.95), text(size: 7pt)[$u$ antinode])
