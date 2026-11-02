@@ -39,9 +39,9 @@ The nonlinear Simulink plant from Mini Project 3 is retained with cart mass 2 kg
 
 The LQR uses continuous state feedback. The Simulink MPC Controller block updates every #f(r.settings.Ts_s) s. Its prediction horizon is #r.settings.prediction_horizon_steps steps (#f(r.settings.prediction_horizon_s) s), and its control horizon is #r.settings.control_horizon_steps steps. The optimizer penalizes state deviations, force, and force changes. The output weights are $(2, sqrt(2), sqrt(300), sqrt(10))$; the force and force-rate weights are #f(r.design.force_weight,digits:3) and #f(r.design.force_rate_weight), respectively. Both controllers use an applied force limit of $plus.minus #r.settings.force_limit_N$ N. MPC includes this limit in its optimization, whereas the LQR command is clipped by the actuator.
 
-Both cases start at rest with $theta=5 degree$, zero cart displacement, and zero disturbance. Each nonlinear simulation lasts 30 s. Settling requires $abs(theta)<=1 degree$ and $abs(x)<=0.05$ m thereafter. Force effort is $E_u=integral_0^(30) u(t)^2 dif t$; MPC effort uses the held input intervals. Appendix A provides the controller construction and comparison code.
+Both cases start at rest with $theta=5 degree$, zero cart displacement, and zero disturbance. Each nonlinear simulation lasts 30 s. Settling requires $abs(theta)<=1 degree$ and $abs(x)<=0.05$ m thereafter. Force effort is $E_u=integral_0^(30) u(t)^2 dif t$; MPC effort uses the held input intervals. Appendix A shows the Simulink implementation, and Appendix B gives the essential controller setup.
 
-= RESULTS AND DISCUSSION.
+= RESULTS.
 
 Figure 1 compares the responses. The LQR and MPC joint settling times are #f(a.metrics.settling_time_s) and #f(b.metrics.settling_time_s) s, respectively. Neither controller reaches the $plus.minus #r.settings.force_limit_N$ N limit in this test.
 
@@ -52,6 +52,10 @@ Figure 1 compares the responses. The LQR and MPC joint settling times are #f(a.m
     response("u_N",[Applied force (N)],[(b) Actuator force]))
 ],caption:[Matched nonlinear response from a 5° release. The first 8 s are shown.])
 
+#pagebreak()
+
+The full 30 s comparison in Table 1 quantifies cart motion and force effort in addition to settling.
+
 #figure(table(columns:(1fr,1fr,1fr),stroke:none,align:center,inset:2pt,
   table.hline(stroke:0.8pt),
   table.header([Measure],[LQR],[MPC]),table.hline(stroke:0.5pt),
@@ -61,30 +65,46 @@ Figure 1 compares the responses. The LQR and MPC joint settling times are #f(a.m
   [Force effort (N² s)],[#f(a.metrics.effort_N2_s)],[#f(b.metrics.effort_N2_s)],
   table.hline(stroke:0.8pt)),caption:[Comparison over the full 30 s simulation.])
 
-The #f(r.settings.prediction_horizon_s) s prediction horizon was selected from three tests with the same weights. A 1 s horizon did not meet the recovery criterion within 30 s; a 1.75 s horizon settled in #f(r.horizon_study.at(1).settling_time_s) s. The selected horizon settled in #f(b.metrics.settling_time_s) s and reduced peak cart travel. The $plus.minus #r.settings.force_limit_N$ N limit matches Project 3. MPC reduces force effort while increasing peak cart travel relative to LQR. These differences reflect the respective weights and update rates; the force constraint remains inactive.
+The MPC peak force is #f(b.metrics.peak_force_N) N, compared with #f(a.metrics.peak_force_N) N for LQR. Its force effort is #f(b.metrics.effort_N2_s) N² s, compared with #f(a.metrics.effort_N2_s) N² s for LQR. The reduction in force effort accompanies a rise in peak cart travel from #f(a.metrics.peak_cart_m) to #f(b.metrics.peak_cart_m) m.
+
+To select the prediction horizon, we repeat the 5° release using the same controller weights, force limit, and 0.05 s sample time. Table 2 compares the three tested horizons. The 1 s case does not meet the joint recovery criterion within 30 s. Increasing the horizon to 1.75 s reduces peak travel and gives 9.40 s settling. The 2.5 s horizon settles in #f(b.metrics.settling_time_s) s with the least peak travel among these tests.
+
+#figure(table(columns:(1fr,1fr,1fr,1fr),stroke:none,align:center,inset:3pt,
+  table.hline(stroke:0.8pt),
+  table.header([Horizon (s)],[Joint settling (s)],[Peak travel (m)],[Peak force (N)]),table.hline(stroke:0.5pt),
+  ..r.horizon_study.map(h => ([#f(h.seconds)], [#if h.recovered {f(h.settling_time_s)} else [Not recovered]], [#f(h.peak_cart_m)], [#f(h.peak_force_N)])).flatten(),
+  table.hline(stroke:0.8pt)),caption:[Prediction-horizon comparison for the same nonlinear 5° release.])
+
+= DISCUSSION.
+
+The #f(r.settings.prediction_horizon_s) s prediction horizon gives the fastest joint settling of the three tested horizons. A longer horizon lets the optimizer account for more of the coupled pendulum and cart motion, and the comparison shows the resulting reduction in cart travel for these choices. We retain the $plus.minus #r.settings.force_limit_N$ N limit to match Project 3. The nominal release uses less than the available force, so this test does not show an active-constraint advantage. The MPC and LQR also use different weights and update rates. Their measured differences therefore reflect the complete controller designs.
 
 #pagebreak()
-#set text(size: 9pt)
-#show heading.where(level: 1): it => block(above: 0.8em, below: 0.5em)[#text(size: 13pt, weight: "bold")[#it.body]]
-#show raw.where(block: true): it => block(width: 100%, fill: rgb("#ECECEC"), stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt)[#set text(font: "DejaVu Sans Mono", size: 7pt); #it]
-= Appendix A. MATLAB and Simulink implementation.
+#set text(size: 10.5pt)
+#show heading.where(level: 1): it => block(above: 0.8em, below: 0.5em)[#text(size: 14pt, weight: "bold")[#it.body]]
+#show raw.where(block: true): it => block(width: 100%, fill: rgb("#ECECEC"), stroke: 0.5pt + rgb("#A2A2A2"), inset: 6pt)[#set text(font: "DejaVu Sans Mono", size: 8pt); #it]
+= Appendix A. Simulink implementation.
 
-The Simulink model uses the nonlinear plant and state ordering from Mini Project 3. The following code constructs the MPC object, inserts its controller block into the copied model, and runs the matched comparisons.
+The Project 3 nonlinear plant is retained. The MPC block receives the four plant states and supplies the force command to the same actuator limit. The external disturbance is zero for the reported tests.
 
-#figure(image("mpc_model_diagram.png",width:100%),caption:[Simulink MPC implementation. The disturbance is zero for the reported tests.])
+#figure(image("mpc_model_diagram.png",width:100%),caption:[Simulink MPC implementation using the retained nonlinear plant.])
 
-#raw(read("build_project4.m"), lang:"matlab", block:true)
+The nonlinear plant integrates the cart and pendulum accelerations. Its state-order block returns $(x,dot(x),theta,dot(theta))$ to the controller.
 
-The upright linearization and LQR gain used by the comparison are calculated as follows.
+#figure(image("nonlinear_plant_diagram.png",width:100%),caption:[Retained nonlinear plant and state ordering from Project 3.])
 
-#raw(read("design_lqr_controller.m"), lang:"matlab", block:true)
+#pagebreak()
+= Appendix B. Essential MATLAB code.
 
-The validation script checks the saved model and compares the three prediction horizons.
+The following excerpt defines the prediction model, horizons, weights, and force constraint used by the Simulink MPC block. The complete model construction and experiment automation remain in the accompanying `build_project4.m` and `validate_project4.m` files.
 
-#raw(read("validate_project4.m"), lang:"matlab", block:true)
+#let setup = read("build_project4.m").split("Ts=0.05; p=50; m=10;").last().split("source=fullfile(prior,").first()
+#raw("[K,d]=design_lqr_controller(2,0.5,1,0.01,9.81);\nTs=0.05; p=50; m=10;" + setup, lang:"matlab", block:true)
 
-The layout functions arrange and export the model and verify the saved configuration.
+The saved model embeds the controller and can be opened and simulated directly. The full comparison and validation scripts reproduce the results and horizon study.
 
-#raw(read("format_project4_layout.m"), lang:"matlab", block:true)
-
-#raw(read("format_and_verify.m"), lang:"matlab", block:true)
+```matlab
+model = 'inverted_pendulum_mpc';
+load_system(model);
+response = sim(model);
+```
