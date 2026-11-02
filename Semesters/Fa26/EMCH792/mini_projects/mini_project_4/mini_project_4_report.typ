@@ -31,7 +31,7 @@
 
 = OBJECTIVE.
 
-Design a model predictive controller (MPC) for the inverted pendulum with a bounded actuator force and compare its nonlinear response with the linear quadratic regulator (LQR) from Mini Project 3.
+The objective is to design a model predictive controller (MPC) for the inverted pendulum with a bounded actuator force and compare its nonlinear response with the linear quadratic regulator (LQR) from Mini Project 3. The force limit represents the finite authority of the cart actuator.
 
 = METHODOLOGY.
 
@@ -45,7 +45,7 @@ The 50-step horizon looks 2.5 s ahead, while the 10-step control horizon specifi
 
 Both cases start at rest with $theta=5 degree$, zero cart displacement, and zero disturbance. Each nonlinear simulation lasts 30 s. Settling requires $abs(theta)<=1 degree$ and $abs(x)<=0.05$ m thereafter. Force effort is $E_u=integral_0^(30) u(t)^2 dif t$; MPC effort uses the held input intervals. Appendix A shows the Simulink implementation, and Appendix B gives the essential controller setup.
 
-= RESULTS.
+= RESULTS AND DISCUSSION.
 
 Figure 1 compares the responses. The LQR and MPC joint settling times are #f(a.metrics.settling_time_s) and #f(b.metrics.settling_time_s) s, respectively. Neither controller reaches the $plus.minus #r.settings.force_limit_N$ N limit in this test.
 
@@ -102,7 +102,7 @@ The nonlinear plant integrates the cart and pendulum accelerations. Its state-or
 #pagebreak()
 = Appendix B. Essential MATLAB code.
 
-The following excerpt defines the prediction model, horizons, weights, and force constraint used by the Simulink MPC block. The complete model construction and experiment automation remain in the accompanying `build_project4.m` and `validate_project4.m` files.
+The following excerpt defines the prediction model, horizons, weights, and force constraint used by the Simulink MPC block. The state-space model supplies the four state outputs; the controller settings define the force bound and penalties. Direct state input avoids adding an observer to the simulated comparison. The complete model construction and experiment automation remain in the accompanying `build_project4.m` and `validate_project4.m` files.
 
 #let setup = read("build_project4.m").split("Ts=0.05; p=50; m=10;").last().split("source=fullfile(prior,").first()
 #raw("[K,d]=design_lqr_controller(2,0.5,1,0.01,9.81);\nTs=0.05; p=50; m=10;" + setup, lang:"matlab", block:true)
