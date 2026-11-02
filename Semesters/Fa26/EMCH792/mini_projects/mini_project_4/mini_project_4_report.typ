@@ -13,9 +13,9 @@
 #show heading.where(level: 1): it => block(above: 0.6em, below: 0.3em)[#text(size: 11pt, weight: "bold")[#it.body]]
 #show figure.caption: set text(size: 9pt)
 #set figure(gap: 4pt)
-#let response(field,ylabel,title,legend:false) = {
+#let response(field,ylabel,title,legend:false,width:2.65in,height:1.45in) = {
   set text(size:8pt)
-  lq.diagram(width:2.65in,height:1.45in,title:title,
+  lq.diagram(width:width,height:height,title:title,
     xlabel:[Time (s)],ylabel:ylabel,xlim:(0,8),
     xaxis:(ticks:(0,2,4,6,8)),
     legend:if legend {(radius:0pt,position:top+right,fill:white)} else {none},
@@ -37,7 +37,11 @@ Design a model predictive controller (MPC) for the inverted pendulum with a boun
 
 The nonlinear Simulink plant from Mini Project 3 is retained with cart mass 2 kg, pendulum mass 0.5 kg, rod length 1 m, pivot damping 0.01 N m s/rad, and gravity 9.81 m/s². The state vector $z=(x,dot(x),theta,dot(theta))^T$ contains cart position, cart velocity, pendulum angle from upright, and angular velocity. The upright linearization $dot(z)=A z+B u$ is the MPC prediction model. The simulation supplies the four plant states directly to the controller.
 
-The LQR uses continuous state feedback. The Simulink MPC Controller block updates every #f(r.settings.Ts_s) s. Its prediction horizon is #r.settings.prediction_horizon_steps steps (#f(r.settings.prediction_horizon_s) s), and its control horizon is #r.settings.control_horizon_steps steps. The optimizer penalizes state deviations, force, and force changes. The output weights are $(2, sqrt(2), sqrt(300), sqrt(10))$; the force and force-rate weights are #f(r.design.force_weight,digits:3) and #f(r.design.force_rate_weight), respectively. Both controllers use an applied force limit of $plus.minus #r.settings.force_limit_N$ N. MPC includes this limit in its optimization, whereas the LQR command is clipped by the actuator.
+The LQR applies the fixed feedback law $u=-K z$ continuously. MPC instead predicts future motion from the current state, then selects a sequence of forces that balances predicted state error against force and changes in force. Only the first optimized force is applied and held until the next sample. The plant state is then read again and the optimization repeats, allowing the plan to respond to the nonlinear plant.
+
+The Simulink MPC Controller block updates every #f(r.settings.Ts_s) s. Its prediction horizon is #r.settings.prediction_horizon_steps steps (#f(r.settings.prediction_horizon_s) s), and its control horizon is #r.settings.control_horizon_steps steps. The optimizer penalizes state deviations, force, and force changes. The output weights are $(2, sqrt(2), sqrt(300), sqrt(10))$; the force and force-rate weights are #f(r.design.force_weight,digits:3) and #f(r.design.force_rate_weight), respectively. Both controllers use an applied force limit of $plus.minus #r.settings.force_limit_N$ N. MPC includes this limit in its optimization, whereas the LQR command is clipped by the actuator.
+
+The 50-step horizon looks 2.5 s ahead, while the 10-step control horizon specifies how far ahead the optimizer can vary its moves. The angle weight emphasizes upright balance, and the cart-position weight discourages correcting the angle by allowing the cart to drift indefinitely. The force-rate weight discourages abrupt changes in the command.
 
 Both cases start at rest with $theta=5 degree$, zero cart displacement, and zero disturbance. Each nonlinear simulation lasts 30 s. Settling requires $abs(theta)<=1 degree$ and $abs(x)<=0.05$ m thereafter. Force effort is $E_u=integral_0^(30) u(t)^2 dif t$; MPC effort uses the held input intervals. Appendix A shows the Simulink implementation, and Appendix B gives the essential controller setup.
 
@@ -50,11 +54,13 @@ Figure 1 compares the responses. The LQR and MPC joint settling times are #f(a.m
   #grid(columns:(1fr,1fr),gutter:10pt,
     response("theta_deg",[Angle (deg)],[(a) Pendulum angle],legend:true),
     response("u_N",[Applied force (N)],[(b) Actuator force]))
-],caption:[Matched nonlinear response from a 5° release. The first 8 s are shown.])
+],caption:[Matched nonlinear response from a 5° release. The first 8 s are shown on the 0.02 s analysis grid.])
 
 #pagebreak()
 
-The full 30 s comparison in Table 1 quantifies cart motion and force effort in addition to settling.
+Figure 2 shows the cart motion that accompanies the angular correction. The cart first moves in the positive direction to recover the pendulum, then returns toward the origin. MPC reaches #f(b.metrics.peak_cart_m) m of travel, compared with #f(a.metrics.peak_cart_m) m for LQR. The full 30 s comparison in Table 1 quantifies this tradeoff alongside settling and effort.
+
+#figure(align(center)[#response("x_m",[Cart position (m)],none,legend:true,width:4.7in,height:1.35in)],caption:[Cart response to the matched 5° release. The first 8 s are shown.])
 
 #figure(table(columns:(1fr,1fr,1fr),stroke:none,align:center,inset:2pt,
   table.hline(stroke:0.8pt),
@@ -65,7 +71,7 @@ The full 30 s comparison in Table 1 quantifies cart motion and force effort in a
   [Force effort (N² s)],[#f(a.metrics.effort_N2_s)],[#f(b.metrics.effort_N2_s)],
   table.hline(stroke:0.8pt)),caption:[Comparison over the full 30 s simulation.])
 
-The MPC peak force is #f(b.metrics.peak_force_N) N, compared with #f(a.metrics.peak_force_N) N for LQR. Its force effort is #f(b.metrics.effort_N2_s) N² s, compared with #f(a.metrics.effort_N2_s) N² s for LQR. The reduction in force effort accompanies a rise in peak cart travel from #f(a.metrics.peak_cart_m) to #f(b.metrics.peak_cart_m) m.
+MPC reduces peak force from #f(a.metrics.peak_force_N) to #f(b.metrics.peak_force_N) N and reduces force effort from #f(a.metrics.effort_N2_s) to #f(b.metrics.effort_N2_s) N² s. Both angles cross upright before returning to zero, and both carts return within the 0.05 m settling bound. The lower force demand therefore comes with slightly greater cart travel and a 0.12 s increase in joint settling time.
 
 To select the prediction horizon, we repeat the 5° release using the same controller weights, force limit, and 0.05 s sample time. Table 2 compares the three tested horizons. The 1 s case does not meet the joint recovery criterion within 30 s. Increasing the horizon to 1.75 s reduces peak travel and gives 9.40 s settling. The 2.5 s horizon settles in #f(b.metrics.settling_time_s) s with the least peak travel among these tests.
 
@@ -77,7 +83,7 @@ To select the prediction horizon, we repeat the 5° release using the same contr
 
 = DISCUSSION.
 
-The #f(r.settings.prediction_horizon_s) s prediction horizon gives the fastest joint settling of the three tested horizons. A longer horizon lets the optimizer account for more of the coupled pendulum and cart motion, and the comparison shows the resulting reduction in cart travel for these choices. We retain the $plus.minus #r.settings.force_limit_N$ N limit to match Project 3. The nominal release uses less than the available force, so this test does not show an active-constraint advantage. The MPC and LQR also use different weights and update rates. Their measured differences therefore reflect the complete controller designs.
+The #f(r.settings.prediction_horizon_s) s prediction horizon gives the fastest joint settling of the three tested horizons. A longer horizon lets the optimizer account for more of the coupled pendulum and cart motion, and the comparison shows the resulting reduction in cart travel for these choices. We retain the $plus.minus #r.settings.force_limit_N$ N limit to match Project 3. The nominal release uses less than the available force, so this test does not show an active-constraint advantage. The optimizer reports a successful solution throughout the nominal MPC run. The saved model reproduces this response after reopening, while the LQR angle and force histories match the Project 3 baseline. The MPC and LQR use different weights and update rates, so their measured differences reflect the complete controller designs.
 
 #pagebreak()
 #set text(size: 10.5pt)
