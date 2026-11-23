@@ -8,10 +8,7 @@
       let x0 = 14
       let x1 = 106
       let y = 18
-      draw.line((x0, 5), (x0, 31), stroke: (paint: color-graphite, thickness: 3pt))
-      for yy in range(6, 31, step: 3) {
-        draw.line((x0 - 3, yy), (x0, yy + 3), stroke: (paint: color-graphite, thickness: 0.5pt))
-      }
+      fixed-support((x0, y - 10), length: 20, direction: 90deg, hatch-side: 1)
       draw.rect((x0, y - 2), (x1, y + 2), fill: white, stroke: ink)
       draw.content((58, y + 8), text(size: 12pt, fill: black)[$L, h, b, E, rho$])
       draw.line((x1 + 5, y - 2), (x1 + 5, y + 21), ..motion)

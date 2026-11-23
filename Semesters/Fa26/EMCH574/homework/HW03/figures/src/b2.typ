@@ -8,11 +8,7 @@
       let x0 = 14
       let x1 = 114
       let y0 = 20
-      // Fixed wall and square hatching.
-      draw.line((x0, 10), (x0, 30), stroke: (paint: color-graphite, thickness: 3pt))
-      for y in range(11, 30, step: 3) {
-        draw.line((x0 - 3, y), (x0, y + 3), stroke: (paint: color-graphite, thickness: 0.5pt))
-      }
+      fixed-support((x0, y0 - 10), length: 20, direction: 90deg, hatch-side: 1)
       draw.rect((x0, y0 - 4), (x1, y0 + 4), fill: white, stroke: ink)
       draw.content((38, y0), text(size: 12pt, fill: black)[$m, E, I$])
       draw.line((72, y0 - 1), (72, y0 + 13), ..motion)
