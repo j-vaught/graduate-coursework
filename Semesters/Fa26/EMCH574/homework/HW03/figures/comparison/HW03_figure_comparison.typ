@@ -1,5 +1,5 @@
 #set page(paper: "us-letter", flipped: true, margin: (x: 0.55in, y: 0.43in),
-  footer: context [#set text(size: 9pt); J.C. Vaught #h(1fr) EMCH 574 · Homework 03 #h(1fr) #counter(page).display() / 2])
+  footer: context [#set text(size: 9pt); J.C. Vaught #h(1fr) EMCH 574 · Homework 03 #h(1fr) #counter(page).display() / #counter(page).final().first()])
 #set text(font: "New Computer Modern", size: 12pt)
 #set document(title: "Homework 03 figure comparison", author: "J.C. Vaught")
 #let pair(number, title, note, before, after) = block(width: 100%)[
@@ -34,3 +34,8 @@
 #grid(columns: (1.8in, 1fr), gutter: 8pt, align: horizon,
   image("/HW01/figures/generated/fig_pC2.pdf", width: 100%),
   text(size: 10pt)[HW01 reference · C.2 and C.6 use the same tip-mass cantilever drawing. The HW03 beam and reed share its clamped support and span geometry.])
+#pagebreak()
+#heading[Axial vibration of slender bars]
+#pair("C.6", "Wave motion in a uniform bar", [The arrow shows axial displacement $u(x,t)$ along the bar. The cross-sectional area $A$, density $rho$, and elastic modulus $E$ are uniform.], "../extracted-014.png", "../generated/c6.pdf")
+#v(10pt)
+#pair("C.9", "Finite bar with two free ends", [The bar extends from $x=0$ to $x=L$. Both ends are free, and $c$ denotes the axial wave speed.], "../extracted-016.png", "../generated/c9.pdf")
