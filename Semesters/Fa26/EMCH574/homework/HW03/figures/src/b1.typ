@@ -1,0 +1,17 @@
+#import "/typst-figures/styles/figure.typ": *
+#standalone(cetz-canvas(length: 1mm, {
+  let ink = (paint: color-graphite, thickness: .9pt, cap: "butt", join: "miter")
+  let arrow = (stroke: .8pt + color-graphite, mark: (end: "stealth", fill: color-graphite))
+  draw.rect((0,0), (100,2.5), stroke: ink, fill: white)
+  draw.line((60,0),(60,2.5),stroke: .6pt)
+  draw.line((64,0),(64,2.5),stroke: .6pt)
+  draw.content((62,-3),[$d x$])
+  draw.content((27,-3),[$m, E I$])
+  draw.line((0,1),(0,15),..arrow)
+  draw.content((1.6,15),[$z$])
+  draw.line((100,1),(109,1),..arrow)
+  draw.content((111,1),[$x$])
+  draw.bezier((0,9), (100,18), (25,21), (40,-2), stroke: (paint: color-graphite, thickness: .8pt, dash: "dashed"))
+  draw.line((84,2.5),(84,13.38),stroke: (paint: color-secondary, thickness: .8pt, dash: "dashed"),mark:(end:"stealth",fill:color-secondary))
+  draw.content((92,8),[$w(x,t)$])
+}))

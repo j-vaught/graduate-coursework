@@ -39,3 +39,13 @@
 #pair("C.6", "Wave motion in a uniform bar", [The arrow shows axial displacement $u(x,t)$ along the bar. The cross-sectional area $A$, density $rho$, and elastic modulus $E$ are uniform.], "../extracted-014.png", "../generated/c6.pdf")
 #v(10pt)
 #pair("C.9", "Finite bar with two free ends", [The bar extends from $x=0$ to $x=L$. Both ends are free, and $c$ denotes the axial wave speed.], "../extracted-016.png", "../generated/c9.pdf")
+#pagebreak()
+#heading[String geometry and point excitation]
+#pair("A.1", "Tension on a string element", [The element view follows the force directions in Dr. Giurgiutiu’s notes (p. 141). The change in tangent angle produces the transverse force.], "../extracted-000.png", "../generated/a1.pdf")
+#v(10pt)
+#pair("A.6(b)", "Point excitation and pickup", [The force acts at $x_e$ and the pickup measures the displacement at $x_0$.], "../extracted-005.png", "../generated/a6b.pdf")
+#pagebreak()
+#heading[Beam motion and tuning-fork geometry]
+#pair("B.1", "Transverse beam displacement", [The dashed curve gives the displaced beam axis. The element of length $dif x$ identifies the section used in the force and moment balances.], "../extracted-006.png", "../generated/b1.pdf")
+#v(10pt)
+#pair("B.4", "Measured tuning fork", [The two prong lengths bracket the effective cantilever length used to estimate the fundamental frequency.], "../extracted-010.png", "../generated/b4lower.pdf")

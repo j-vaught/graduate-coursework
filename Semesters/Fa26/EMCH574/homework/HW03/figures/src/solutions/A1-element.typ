@@ -1,0 +1,17 @@
+#import "/typst-figures/styles/figure.typ": *
+#standalone(cetz-canvas(length: 1mm, {
+ let ink=(paint:black,thickness:1pt,cap:"butt")
+ let arr=(stroke:ink,mark:(end:"stealth",fill:black))
+ draw.line((0,0),(45,7),stroke:(paint:color-secondary,thickness:2pt))
+ draw.line((0,0),(-13,-2),..arr)
+ draw.line((45,7),(58,10),..arr)
+ draw.content((-7,2),[$T$])
+ draw.content((53,14),[$T$])
+ draw.content((22,8),[$dif s$])
+ draw.line((0,-6),(45,-6),stroke:0.55pt+black)
+ draw.line((0,-5),(0,-7),stroke:0.55pt+black)
+ draw.line((45,-5),(45,-7),stroke:0.55pt+black)
+ draw.content((22,-9),[$dif x$])
+ draw.content((0,4),[$alpha$])
+ draw.content((43,12),[$alpha+dif alpha$])
+}))
