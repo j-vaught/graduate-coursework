@@ -1,0 +1,45 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,amsmath,graphicx,booktabs}
+\usepackage[margin=0.8in,columnsep=0.25in]{geometry}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\title{Predicting Small-Target Radar Reliability under Wave-Driven Vessel Motion}
+\author{J.C. Vaught\\University of South Carolina}
+\date{EMCH 574 working manuscript}
+\begin{document}
+\maketitle
+
+\section*{Abstract}
+A rotating marine radar can miss a floating target when a wave crest obstructs its return path or vessel rotation moves the target away from the beam center. A return that survives both effects can still be assigned the wrong position because the vessel moves during the scan. This study asks when estimates of the common wave forcing and mechanical response improve a forecast of the next usable observation. A preliminary analysis of Dartmouth IPIX radar record 17 found that 66.60\% of held-out target-bin windows fell below a power gate fitted to development clutter. That measurement establishes the scale of return intermittency in one record. A paired simulation experiment is specified to test how much predictive information the mechanical response adds across encounter frequencies.
+
+\section{Mechanical basis}
+Encounter frequency connects wave direction and vessel speed to the motion seen by the radar. For a linear component with wave vector $\mathbf{k}$, angular frequency $\omega$, and vessel velocity $\mathbf{v}$, the forcing frequency is $\Omega=|\omega-\mathbf{k}\cdot\mathbf{v}|$. Evaluating each component at the vessel and the target preserves their relative phase. The same crest can therefore change both antenna pointing and clearance along the propagation path. Prior investigations quantify wave shadowing and scan-time mapping as distinct effects \cite{Plant2012WaveShadowing,Lund2018SeaIceDrift}.
+
+For a damped pitch mode with inertia $I$, damping $c$, stiffness $k$, and harmonic wave moment $M_0$, the pitch amplitude and phase follow from the complex response
+\begin{equation}
+\hat\theta(\Omega)=\frac{M_0}{k-I\Omega^2+\mathrm{i}c\Omega}.
+\end{equation}
+Changing vessel heading changes $\Omega$ even when the wave period and the vessel's natural frequency remain fixed. Near resonance, both pitch amplitude and its phase relative to the crest change. The engineering question is whether this phase relationship gives enough advance information to forecast the next radar visit.
+
+\section{Forecast experiment}
+At visit $i$, the forecast uses the observation history and state estimates available when that visit ends. The outcome at $i+1$ is one if the target is detected and its horizontal position error under a fixed correction falls within a declared tolerance. A missed target receives a zero. The tolerance, correction, and detector operating point will be fixed on development data.
+
+Four scenes will share wave phases, target trajectories, and noise draws. They will enable neither mechanism, vessel motion alone, wave-path modulation alone, or both together. Within each scene, four logistic models will use history alone, history plus vessel motion, history plus propagation, or all three sets of inputs. Holding out complete wave realizations and response regimes tests whether any gain transfers to unfamiliar forcing.
+
+The primary comparison is the paired difference in Brier score between the combined predictor and each single-mechanism predictor \cite{Brier1950Verification}. Reliability curves will show whether predicted probabilities agree with observed frequencies. Resampling complete realizations will give intervals for the paired differences. Reporting these differences against $\Omega/\sqrt{k/I}$ ties any gain or loss to the forced response. A separate comparison of scan-midpoint and per-azimuth corrections will use the same acquired returns and report their miss fraction alongside position error.
+
+\section{Measured return intermittency}
+Dartmouth IPIX record 17 provides an observed example of the event that a power-based detector must resolve \cite{McMaster1993IPIX}. The first 32,768 sweeps of horizontally transmitted and received radar data were used to estimate a common receiver correction and a 99th-percentile clutter gate. The remaining 98,304 sweeps were divided into nonoverlapping 64-sweep windows. The power exceeded the gate in 152 of 15,360 held-out clutter decisions. In primary target bin 9, 1,023 of 1,536 windows fell below the same threshold.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/generated/survival.pdf}
+\caption{Held-out power distributions for the primary target bin and clutter in IPIX record 17.}
+\end{figure}
+
+The measurement establishes that a known target bin can spend much of an acquisition below a clutter-calibrated threshold. The record lacks synchronized wave phase and vessel attitude, so the cause of any individual low-power window remains unresolved. The matched scenes provide the mechanism labels needed for that comparison. Held-out forecast scores and a separate acquired-file check remain to be obtained before drawing a conclusion about predictive performance.
+
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+\end{document}
