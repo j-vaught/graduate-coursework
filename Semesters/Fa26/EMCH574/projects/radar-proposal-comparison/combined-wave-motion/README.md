@@ -1,4 +1,4 @@
-# Separating buoy registration error and echo loss under wave-driven vessel motion
+# Overlapping benefits of antenna leveling and radar registration on a wave-excited vessel
 
 The November [working manuscript](manuscript.pdf) and [editable source](manuscript.tex) report the approved EMCH 574 motion-correction study. The [October proposal](proposal.pdf) contains the original forecasting comparison. Blackboard lists the project PDF as due December 2, 2026 at 3:30 p.m. Eastern.
 
@@ -26,12 +26,31 @@ uv run python src/reference_neighborhood.py --output research/reference-neighbor
 uv run python src/verify_operating_grid.py --outdir data
 uv run python src/verify_negative_leveling.py --output data/verification_negative_leveling.csv
 uv run python src/verify_operating_phase.py --outdir data
+uv run python src/pointing_registration_factorial.py --output data/pointing_registration_factorial.csv
+uv run python src/latency_noise_grid.py
+uv run python src/surge_phase_factorial.py
+uv run python src/independence_check.py --output data/independence_check.csv
+uv run python src/noisy_independence_check.py --output data/noisy_independence_check.csv
+uv run python src/propagation_check.py --output data/propagation_check.csv
+uv run python src/multipath_check.py --output data/multipath_check.csv
+uv run python src/bearing_clock_check.py --output data/bearing-clock-check.csv
+uv run python src/clock_policy.py --output data/clock_policy.csv
+uv run python src/directional_seas.py --output data/directional_seas.csv
+uv run python src/tracker_check.py data/tracker-check.csv
 ./figures/operating/build.sh
 ./build-manuscript.sh
 cp build/asme/manuscript.pdf manuscript.pdf
 ```
 
 The [experiment results](data/experiment-results.json) contain the study configuration, per-realization counts, contiguous outage lengths, and pilot traces. The [numerical audit](research/operating-audit.md) records the eligibility and paired-count checks. The [input sources](research/operating-reference.md) distinguish the commercial radar specifications from the prescribed hull and propagation assumptions.
+
+The empirical checks use the public records cited in the paper. Set `RADAR_DATA_CACHE` to a directory on the host’s storage drive. The Dartmouth and CANOE commands retrieve the indicated raw data. For the tank replay, extract the [CK-14e deposit](https://doi.org/10.5281/zenodo.17315035) into `ck14` under the cache directory so it contains `CSV/` and `processed/`.
+
+```sh
+uv run python src/dartmouth_margin_check.py --raw-dir "$RADAR_DATA_CACHE/dartmouth" --download --output data/dartmouth_margin_check.csv
+uv run --script src/canoe_registration.py "$RADAR_DATA_CACHE/canoe" data
+uv run python src/ck14_hull_response.py "$RADAR_DATA_CACHE/ck14" --response data/ck14-response.csv --retrofit data/ck14-retrofit.csv
+```
 
 ## October proposal
 

@@ -17,6 +17,14 @@ SPEEDS = (48, 36, 24)
 AMPLITUDES = (0.17, 0.34, 0.56)
 FREQUENCIES = np.linspace(0.173, 0.613, 25)
 TURN = 2 * np.pi
+MARGIN_CASES = (
+    ("fixed", 10, 0),
+    ("dwell", 10, 10),
+    ("dwell_half", 10, 5),
+    ("fixed", 5, 0),
+    ("dwell", 5, 10),
+    ("dwell_half", 5, 5),
+)
 
 
 def visit_times(rpm):
@@ -69,13 +77,12 @@ def evaluate_cell(frequency, amplitude, starts, phase_samples, ray_samples):
         margin_by_speed[rpm] = np.interp(phase, phases, margins, period=TURN)
 
     rows = []
-    for margin_model in ("fixed", "dwell"):
+    for margin_model, reference_margin, dwell_coefficient in MARGIN_CASES:
         gaps = {}
         usable = {}
         for rpm in SPEEDS:
-            shift = 0.0
-            if margin_model == "dwell":
-                shift = 10 * np.log10((60 / rpm) / model.PERIOD)
+            dwell_ratio = (60 / rpm) / model.PERIOD
+            shift = reference_margin - model.MARGIN + dwell_coefficient * np.log10(dwell_ratio)
             acquired = (margin_by_speed[rpm] + shift) >= 0
             gaps[rpm] = longest_update_gaps(visit_times(rpm), acquired)
             usable[rpm] = float(acquired.mean())
@@ -88,12 +95,16 @@ def evaluate_cell(frequency, amplitude, starts, phase_samples, ray_samples):
             "window_s": DURATION,
             "common_phase_records": len(starts),
             "margin_model": margin_model,
+            "reference_margin_db": reference_margin,
+            "dwell_coefficient": dwell_coefficient,
             "selected_rpm": selected,
             "oracle_rpm": oracle,
             "selected_p95_s": actual[selected],
             "oracle_p95_s": actual[oracle],
             "selected_gain_over_48_rpm_s": actual[48] - actual[selected],
             "selected_gain_over_24_rpm_s": actual[24] - actual[selected],
+            "fixed_48_gain_over_24_rpm_s": actual[24] - actual[48],
+            "fixed_48_gain_over_36_rpm_s": actual[36] - actual[48],
             "oracle_gain_over_48_rpm_s": actual[48] - actual[oracle],
             "selected_regret_s": actual[selected] - actual[oracle],
             "paired_p95_selected_minus_48_rpm_s": p95(gaps[selected] - gaps[48]),
@@ -108,13 +119,23 @@ def evaluate_cell(frequency, amplitude, starts, phase_samples, ray_samples):
 
 
 def summarize(rows):
-    for margin_model in ("fixed", "dwell"):
-        cells = [row for row in rows if row["margin_model"] == margin_model]
+    for margin_model, reference_margin, dwell_coefficient in MARGIN_CASES:
+        cells = [
+            row
+            for row in rows
+            if row["margin_model"] == margin_model
+            and row["reference_margin_db"] == reference_margin
+        ]
         selections = {rpm: sum(row["selected_rpm"] == rpm for row in cells) for rpm in SPEEDS}
-        print(f"{margin_model}: {len(cells)} cells, selections {selections}")
+        print(
+            f"{reference_margin} dB, dwell coefficient {dwell_coefficient}: "
+            f"{len(cells)} cells, selections {selections}"
+        )
         for column in (
             "selected_gain_over_48_rpm_s",
             "selected_gain_over_24_rpm_s",
+            "fixed_48_gain_over_24_rpm_s",
+            "fixed_48_gain_over_36_rpm_s",
             "oracle_gain_over_48_rpm_s",
             "selected_regret_s",
         ):
@@ -150,7 +171,7 @@ def main():
                 )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     summarize(rows)

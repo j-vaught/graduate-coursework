@@ -5,20 +5,20 @@
 \ConfDate{August 1--4, 2027}
 \ConfCity{Philadelphia, PA}
 \PaperNo{}
-\title{Separating Buoy Registration Error and Echo Loss Under Wave-Driven Vessel Motion}
+\title{Overlapping Benefits of Antenna Leveling and Radar Registration on a Wave-Excited Vessel}
 \SetAuthors{J.C. Vaught\affil{1}}
 \SetAffiliation{1}{University of South Carolina, Columbia, SC}
 \begin{document}
 \maketitle
 \begin{abstract}
-A buoy track can lose an update when an echo fades or when vessel motion moves its mapped position outside tolerance. We cross antenna pointing and registration time on identical wave-driven visits to determine how much each intervention recovers on its own and after the other is installed. Treating echo survival and position error as independent overestimated the gain from registration by up to 9.11 percentage points. In one simulated condition, leveling alone gained 24.01 percentage points in usable positions. After spoke-time registration was installed, the same hardware gained only 0.85 points. Most of its stand-alone benefit came from relocating echoes that both antennas received. Across 111 regular-wave conditions with prescribed range and bearing errors, replacing a 625 ms pose delay with exact timing gained a median 3.37 points at a 0.50 m tolerance. Replacing a 50 ms delay gained only 0.07 points. On two recorded 4 Hz vessel-radar clips, median repeat separation of matched returns improved by 6 mm and less than 1 mm. In simulations of revisit timing, a frequency-based selector never beat fixed 48 rpm across 40 held-out conditions. The value of a retrofit therefore depends on how the existing radar timestamps returns, which echoes survive, and which correction is already installed.
+A vessel designer can correct the pose assigned to a radar echo or stabilize the antenna that receives it. Because both interventions can relocate an echo, adding their stand-alone gains can count the same buoy position twice. We quantify this interaction by crossing antenna pointing and registration time on the same wave-driven visits. A usable position must clear an echo threshold and fall within 0.50 m of the target. For a forward target in one regular wave with zero yaw, exact observations, and a 625 ms pose age, leveling gained 24.01 percentage points before timing correction and 0.85 points afterward. With prescribed range and bearing errors, the difference between those gains fell from 23.16 to 4.54 points. At 50 ms its magnitude stayed below 0.48 points throughout the forward, zero-yaw grid. A $1^\circ$ yaw oscillation reversed the interaction in the original wave, making the combined retrofit more effective than the sum of its parts. In eight inland-water radar sessions, correcting individual spoke times reduced the mean repeat separation of persistent returns by 0.22 mm (95\% interval, $-0.50$ to $+0.94$ mm). A replay driven by measured tank-test heave and pitch also produced overlap at a 0.25 m tolerance, while every fix passed at 0.50 m. The installed timestamp, heading motion, and available echo margin jointly determine which retrofit can recover a position.
 \keywords{forced vibration, marine radar, vessel motion, wave diffraction, scan registration}
 \end{abstract}
 
 \section{Introduction}
 A tracker on a small vessel can miss a buoy position because a crest attenuates the echo or because the assigned pose puts a surviving echo outside tolerance. Both events depend on wave phase. Estimating their rates independently can therefore misstate how many positions a timestamp correction would recover. A stabilized mount complicates the choice further because it can change the location assigned to an existing echo as well as the power available during acquisition.
 
-We ask whether a designer should change the timestamp, the pointing, or the scan period. A four-arm comparison measures each retrofit alone and after the other is installed on the same scheduled visits. We test a separable model of echo and position losses, measure sensitivity to hull damping and propagation, and compare two timestamp policies on recorded radar returns. The denominator is all attempted visits. Track continuity is evaluated separately over equal elapsed time.
+We ask how much a stabilized mount adds once a radar already assigns a pose to each spoke. A four-arm comparison measures each retrofit alone and after the other is installed on the same scheduled visits. We test a separable model of echo and position losses, measure sensitivity to hull damping and propagation, and compare two timestamp policies on recorded radar returns. All comparisons use attempted visits as the denominator. We then examine whether the recovered updates shorten gaps over equal elapsed time.
 
 \input{literature-background}
 
@@ -53,7 +53,7 @@ The Furuno DRS4D-NXT provides a documented rotation period and vertical beamwidt
 \begin{equation}
  L(e)=80\log_{10}(2)(e/\beta)^2\quad \text{dB}.
 \end{equation}
-The nominal radar wavelength approximates the X-band carrier. The 10 dB boresight margin is a control on proximity to the detector threshold. Range, freeboard, lever arm, 25-degree heading, and the modal gains define a test geometry and vessel, without a fitted sea trial. The 0.35 Hz natural frequency places a resonance within the wave-frequency sweep. We vary damping, wave amplitude, and echo margin so that results depending on those choices can be identified. With this convention, the two-way loss at $|e|=\beta/2$ is 6.02 dB. For the vessel-fixed case $e$ comes from the true line of sight expressed in the moving body frame. The level case uses elevation above a horizontal plane through the same origin.
+The 10 dB boresight margin sets the distance to threshold. The 0.35 Hz natural frequency places a prescribed hull resonance inside the sweep. With this convention, the two-way loss at $|e|=\beta/2$ is 6.02 dB. For the vessel-fixed case $e$ comes from the true line of sight expressed in the moving body frame. The level case uses elevation above a horizontal plane through the same origin.
 
 \begin{table}[tb]
 \caption{Reference inputs. The manufacturer specifies the first two entries. All remaining values are study assumptions.}\label{tab:inputs}
@@ -85,7 +85,7 @@ For an acquired return, mapping uses slant range $\rho$, antenna-frame azimuth $
  (z_T-o_z)/\rho &= a_z\cos\epsilon+b_z\sin\epsilon,\\
  \hat{\mathbf{x}} &= \mathbf{o}+\rho(\mathbf{a}\cos\epsilon+\mathbf{b}\sin\epsilon).
 \end{align}
-With known $z_T$, the horizontal range from the assigned origin is $[\rho^2-(z_T-o_z)^2]^{1/2}$. For a forward target with zero roll and yaw and an exact origin, a pure pitch error leaves the reconstructed ray in the same vertical plane. The present geometry therefore gives horizontal errors through origin displacement and coupled attitude, and need not describe a side-looking target or a turning vessel. A midpoint pose represents an entire rotation by a single timestamp, as might be available in an assembled scan. It serves here as a controlled timing error. Existing pulse-timestamped systems can instead be evaluated against their measured latency. The midpoint estimate uses $Q$ and $\mathbf{o}$ at the scan midpoint. The per-spoke estimate uses the same measured return and both quantities at the spoke time. Ideal level pointing recalculates acquisition and azimuth in a level frame at that time. The fourth arm applies a midpoint origin to the level-pointed echo. Its horizontal axes remain level at both times. All four arms share wave phase and visit times. The base case supplies exact range, bearing, and instantaneous target elevation, so residual per-spoke mapping error is zero to numerical precision. This isolates the motion contribution to the 0.50 m tolerance. At 100 m a one-degree bearing error corresponds to 1.75 m cross-range, and the manual quotes bearing accuracy of $\pm1^\circ$ \cite{Furuno2016DRS4DNXT}.
+With known $z_T$, the horizontal range from the assigned origin is $[\rho^2-(z_T-o_z)^2]^{1/2}$. For horizontal range near 100 m and a vertical separation below 3 m, a 0.50 m height error changes this horizontal range by less than 0.02 m. Bearing-plane tilt can still affect cross-range. For a forward target with zero roll and yaw and an exact origin, a pure pitch error leaves the reconstructed ray in the same vertical plane. The present geometry therefore gives horizontal errors through origin displacement and coupled attitude, and need not describe a side-looking target or a turning vessel. A midpoint pose represents an entire rotation by a single timestamp, as might be available in an assembled scan. It serves here as a controlled timing error. Existing pulse-timestamped systems can instead be evaluated against their measured latency. The midpoint estimate uses $Q$ and $\mathbf{o}$ at the scan midpoint. The per-spoke estimate uses the same return with both quantities at acquisition. Ideal leveling has unlimited bandwidth and zero lag. It recalculates acquisition and azimuth in a level frame at that time. The fourth arm applies a midpoint origin to the level-pointed echo. Its horizontal axes remain level at both times. All four arms share wave phase and visit times. The base case supplies exact range, bearing, and instantaneous target elevation, so residual per-spoke mapping error is zero to numerical precision. This isolates the motion contribution to the 0.50 m tolerance. At 100 m a one-degree bearing error corresponds to 1.75 m cross-range, and the manual quotes bearing accuracy of $\pm1^\circ$ \cite{Furuno2016DRS4DNXT}.
 
 \subsection{What a pose delay changes}
 A time error acts on position and attitude together. For a single component, write a pose coordinate as $x(t)=X\cos(\omega t+\varphi)$. Applying the pose from $t-\tau$ gives the following peak coordinate mismatch over one cycle,
@@ -96,35 +96,44 @@ A time error acts on position and attitude together. For a single component, wri
 For short delays the mismatch grows approximately as $2\pi f|X|\tau$. The factor $X$ includes the mechanical frequency response for pitch, roll, and heave. The second factor depends on the timing of the radar measurement. Thus equal peak pitch does not imply equal attitude mismatch at a given delay. Equation~\eqref{eq:pose-delay} bounds an individual coordinate. Horizontal position error also depends on the lever arm, the viewing direction, and the phases at which an echo survives. We therefore evaluate registration with the full inverse geometry on the actual set of acquired spokes.
 
 \section{Paired experimental design}
-Each rotation schedules one visit a quarter-turn after the scan midpoint. Keeping visit times fixed pairs the interventions and neglects the change in crossing time as the target bearing moves. Every scheduled visit enters the denominator. A visit either falls below the echo threshold, yields a position outside tolerance, or yields a usable update. We measure both the usable fraction and the longest elapsed gap within a common observation window.
+Each scheduled visit supplies an acquisition indicator $A_p$ for pointing policy $p$ and a position-pass indicator $B_{pr}$ for pose time $r$. Here $p$ is body-fixed or level and $r$ is stale or spoke time. We compute the usable fraction $U_{pr}=N^{-1}\sum_i A_{p,i}B_{pr,i}$ over all $N$ attempts. The interaction between the two retrofits is the change in the gain from leveling when timing has already been corrected,
+\begin{equation}
+ I=(U_{\rm level,spoke}-U_{\rm body,spoke})
+   -(U_{\rm level,stale}-U_{\rm body,stale}).
+ \label{eq:interaction}
+\end{equation}
+A negative $I$ means adding the stand-alone gains overstates the combined improvement by $|I|$. Equivalently, $I$ measures how much leveling changes the return on a timestamp correction. Each rotation in the main grid schedules one visit a quarter-turn after its midpoint. Identical visit times isolate both retrofits while neglecting the change in beam-crossing time as the target bearing moves.
 
 Regular-wave states and rigid-body pose are evaluated analytically at each visit. The production ray calculation uses 601 equal path subdivisions with the endpoints excluded. The operating map samples 17 equally spaced frequencies from 0.16 to 0.62 Hz and 11 amplitudes from 0.04 to 0.60 m. Filtering out $ka>0.20$ or pitch or roll exceeding $10^\circ$ leaves 111 combinations. At this gain, damping, and heading the slope cap alone limits the linear peak pitch to less than $8.8^\circ$. The angle cap removes no additional cells. Each combination uses 32 independently seeded initial wave phases with 192 scheduled visits per phase. Initial phases use a base seed of 5742026. Common phase draws pair the processing cases. A reported random-phase interval uses the paired differences for the 32 realizations, with half-width $1.96$ times their sample standard deviation divided by $\sqrt{32}$. This measures phase-sampling uncertainty in the modeled mean. Adjacent visits share wave dynamics and do not provide independent replicates.
 
-For the timing comparison we prescribe $3^\circ$ peak pitch at 0.20, 0.28, 0.35, and 0.42 Hz by changing wave amplitude. Separate controls shift pitch phase at fixed wave amplitude or distribute the reference elevation variance among seven components on the same heading. The component weights and phases are available with the simulation.
+For the clock comparison we vary amplitude to maintain $3^\circ$ peak pitch. At a 2.5 s scan period, a $90^\circ$ shift of the pitch excitation at fixed wave amplitude changes usable fractions from 55.0 to 56.5\% at 0.28 Hz and from 64.5 to 65.1\% at 0.42 Hz. Across frequencies, holding peak pitch fixed changes wave amplitude and hence crest clearance. The within-frequency comparison isolates phase.
 
 \input{operating-verification}
-\input{field-benchmark}
-\input{empirical-check}
 \input{operating-results}
 
+\section{Sensitivity to vessel motion and wave shape}
 \input{nonlinear-results}
 \input{crest-sensitivity}
 \input{directional-seas}
+\section{Track continuity}
 \input{tracker-check}
 \input{outage-clock}
 \input{clock-policy}
 
-\section{Design implications}
-Two measurements determine whether the modeled gains justify an intervention. For registration, replay identical echoes with their original and corrected timestamps and compare both against an independently tracked buoy. Measure the residual range, bearing, and height errors after correction. At 100 m, $0.29^\circ$ of bearing error alone consumes the 0.50 m budget. The manufacturer specifies bearing accuracy of $\pm1^\circ$. That specification does not establish the precision of the buoy centroid. A measured latency well below the simulated failure threshold or a residual exceeding tolerance can eliminate the return on a timestamp change.
+\section{Evidence from measured motion and radar returns}
+\input{hull-response-check}
+\input{field-benchmark}
+\input{empirical-check}
 
-For pointing, log all attempted visits together with calibrated echo and clutter powers, antenna attitude, and commanded and attained angles. Interleaved pointing policies or synchronized antennas can separate changes in pointing from changes in sea state. A reflected ray in the still-water reference geometry differs in length from the direct ray by about 0.29 wavelengths. Interference, clutter, and target scattering can therefore change the margin distribution that determines whether leveling recovers any visits. For track continuity, compare scanners over equal durations and retain intervals with no update. Compare any adaptive clock against the fastest available fixed setting with its measured dwell-dependent sensitivity.
+\section{Design implications}
+For an installed radar, first measure pose age and paired registration residuals using independent buoy positions. At 100 m, $0.29^\circ$ bearing error alone consumes the 0.50 m budget. Next log calibrated power margins on every attempted visit. Their concentration below threshold bounds the opportunity for a change in pointing. Establishing the realized gain requires paired pointing histories, obtainable with interleaved policies or synchronized antennas, and measurements of the attained beam angle. For clock selection, compare gap durations at measured dwell-dependent sensitivity.
 
 \section{Conclusion}
-The stand-alone hardware and software retrofits corrected many of the same positions. Adding their individual gains would double count those recoveries. In two 4 Hz field clips the measured change in median repeatability was at most 6 mm. Across the noisy simulation grid, reducing an existing 50 ms delay yielded less than one additional usable position per hundred visits in every cell. At the largest noiseless midpoint gain, quadratic pitch damping reduced the registration gain from 23.76 to 1.40 points at $\chi=0.50$. At the smaller reference wave the apparent pointing benefit disappeared under an alternative propagation law. In the clock experiment the fastest fixed speed matched or beat the frequency-based rule in every held-out case. The resulting design priorities depend on the residual error of real echoes, the fraction of visits near the detector threshold, and the longest gap the tracker can tolerate.
+Leveling can improve the position assigned to an echo that either antenna would have received. In the strongest interaction cell that shared mapping benefit dominated the additional gain from acquiring new echoes. A $1^\circ$ yaw oscillation reversed the interaction in the same wave. With a 50 ms pose age and noisy measurements, its magnitude stayed below half a point across the zero-yaw grid. The 4 Hz field replay likewise gave no resolved improvement in mean repeatability across sessions. A retrofit decision therefore begins with the installed timestamp and the distribution of position errors on surviving echoes. The remaining opportunity for acquisition can be bounded from the fraction of attempted visits lying close enough to the power threshold for steering to recover them.
 
 \section*{Data and code availability}
-The simulation, per-realization counts, model checks, and scripts for the sensitivity studies accompany the manuscript in the EMCH 574 project directory of the author's repository \cite{Vaught2026RadarStudy}. The scripts reproduce the tables and plotting inputs from the specified configurations.
+The versioned replication package includes the simulation, per-realization counts, measured-data manifests, and figure sources \cite{Vaught2026RadarStudy}. The scripts reproduce the tables and plotting inputs from the specified configurations.
 
 \bibliographystyle{asmeconf}
-\bibliography{operating-refs,references,review-additions,nonlinear-model}
+\bibliography{operating-refs,references,review-additions,nonlinear-model,multipath-refs}
 \end{document}

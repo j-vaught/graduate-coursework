@@ -6,17 +6,21 @@ The crest model represents each distinct regular-wave maximum by one edge.
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 import numpy as np
 
 import paired_experiment as model
+from pointing_registration_factorial import level_mapping_errors
 
 PHASE_COUNT = 32
 VISITS = 192
 PATH_SUBDIVISIONS = 601
 METHODS = ("effective_single_edge", "crest_single_edge", "crest_deygout")
 CASES = (("reference", 0.350, 0.150), ("largest_registration_gain", 0.3325, 0.432))
+SPARSE_FREQUENCIES = (0.160, 0.275, 0.390, 0.505, 0.620)
+SPARSE_AMPLITUDES = (0.040, 0.208, 0.376, 0.544)
 
 
 def knife_loss(nu):
@@ -107,20 +111,19 @@ def summarize(name, frequency, amplitude):
     for phase in range(PHASE_COUNT):
         run = model.run(frequency, amplitude, phase, visits=VISITS, samples=PATH_SUBDIVISIONS)
         angle_loss = (
-            80
-            * np.log10(2)
-            * (np.array([run["body_angle"], run["body_angle"], run["level_angle"]]) / model.BETA)
-            ** 2
+            80 * np.log10(2) * (np.array([run["body_angle"], run["level_angle"]]) / model.BETA) ** 2
         )
         baseline_path_loss = model.MARGIN - angle_loss[0] - run["margin_motion"]
         crest_paths = 2 * regular_crest_losses(run, frequency, amplitude, phase)
         assert np.all(crest_paths[1] >= crest_paths[0])
         two_way_path_loss = np.vstack((baseline_path_loss, crest_paths))
         receive_margin = model.MARGIN - angle_loss[None, :, :] - two_way_path_loss[:, None, :]
-        detected = receive_margin >= 0
-        good = detected & (run["errors"][None, :, :] <= model.TOLERANCE)
-        np.testing.assert_array_equal(detected[0], run["acquired"])
-        np.testing.assert_array_equal(good[0], run["usable"])
+        detected = receive_margin[:, [0, 0, 1, 1], :] >= 0
+        level_midpoint = level_mapping_errors(run, phase, {})
+        errors = np.insert(run["errors"], 2, level_midpoint, axis=0)
+        good = detected & (errors[None, :, :] <= model.TOLERANCE)
+        np.testing.assert_array_equal(detected[0, [0, 1, 3]], run["acquired"])
+        np.testing.assert_array_equal(good[0, [0, 1, 3]], run["usable"])
         acquired.append(detected)
         usable.append(good)
         path_losses.append(two_way_path_loss)
@@ -147,9 +150,12 @@ def summarize(name, frequency, amplitude):
                 "level_acquired": int(level.sum()),
                 "midpoint_usable": int(count[0]),
                 "spoke_usable": int(count[1]),
-                "level_spoke_usable": int(count[2]),
+                "level_midpoint_usable": int(count[2]),
+                "level_spoke_usable": int(count[3]),
                 "registration_gain_pp": (count[1] - count[0]) * 100 / total,
-                "level_gain_pp": (count[2] - count[1]) * 100 / total,
+                "level_gain_pp": (count[3] - count[1]) * 100 / total,
+                "standalone_level_gain_pp": (count[2] - count[0]) * 100 / total,
+                "registration_after_level_gain_pp": (count[3] - count[2]) * 100 / total,
                 "level_acquisition_wins": int(np.count_nonzero(level & ~body)),
                 "level_acquisition_losses": int(np.count_nonzero(body & ~level)),
                 "body_classification_changes_vs_effective_edge": int(
@@ -169,16 +175,25 @@ def summarize(name, frequency, amplitude):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--baseline", type=Path, default=Path("data/experiment-results.json"))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     check_propagation()
-    rows = [row for case in CASES for row in summarize(*case)]
+    # Test a regularly spaced subset without using the observed gains to select cells.
+    eligible = json.loads(args.baseline.read_text())["operating_map"]
+    sparse = [
+        ("sparse_grid", cell["frequency_hz"], cell["amplitude_m"])
+        for cell in eligible
+        if np.any(np.isclose(cell["frequency_hz"], SPARSE_FREQUENCIES))
+        and np.any(np.isclose(cell["amplitude_m"], SPARSE_AMPLITUDES))
+    ]
+    rows = [row for case in (*CASES, *sparse) for row in summarize(*case)]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
-    print(f"Verified the NTIA four-edge example and wrote {len(rows)} cases to {args.output}.")
+    print(f"Verified the NTIA four-edge example and scored {len(sparse)} sparse operating cells.")
 
 
 if __name__ == "__main__":
