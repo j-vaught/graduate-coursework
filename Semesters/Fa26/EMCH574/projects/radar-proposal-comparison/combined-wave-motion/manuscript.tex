@@ -18,7 +18,7 @@ A vessel designer can correct the pose assigned to a radar echo or stabilize the
 \section{Introduction}
 A tracker on a small vessel can miss a buoy position because a crest attenuates the echo or because the assigned pose puts a surviving echo outside tolerance. Both events depend on wave phase. Estimating their rates independently can therefore misstate how many positions a timestamp correction would recover. A stabilized mount complicates the choice further because it can change the location assigned to an existing echo as well as the power available during acquisition.
 
-We ask how much a stabilized mount adds once a radar already assigns a pose to each spoke. A four-arm comparison measures each retrofit alone and after the other is installed on the same scheduled visits. We test a separable model of echo and position losses, measure sensitivity to hull damping and propagation, and compare two timestamp policies on recorded radar returns. Simulated usable fractions use attempted visits as the denominator. The noisy grid prescribes $0.25^\circ$ bearing precision. At 100 m, $1^\circ$ of bearing error alone is over three times the position tolerance. We then examine whether the recovered updates shorten gaps over equal elapsed time.
+We ask how much a stabilized mount adds once a radar already assigns a pose to each spoke. A four-arm comparison measures each retrofit alone and after the other is installed on the same scheduled visits. We test a separable model of echo and position losses, measure sensitivity to hull damping and propagation, and compare two timestamp policies on recorded radar returns. Simulated usable fractions use attempted visits as the denominator. The noisy overlap estimates apply at $0.25^\circ$ bearing standard deviation. The cited radar specifies $\pm1^\circ$ accuracy, equivalent to 1.75 m at 100 m. In a separate $1^\circ$ noise test only 7.10\% of visits met tolerance even with exact timing. We then examine whether the recovered updates shorten gaps over equal elapsed time.
 
 \input{literature-background}
 
@@ -49,28 +49,13 @@ The still-water hull reference point is $(0,0,1.20)$ m. The 100 m target distanc
 
 
 \section{Acquisition and registration}
-The Furuno DRS4D-NXT provides a documented rotation period and vertical beamwidth for the study \cite{Furuno2016DRS4DNXT}. Table~\ref{tab:inputs} distinguishes those specifications from the modeled conditions. Let $\beta$ be the full one-way half-power beamwidth and $e$ the buoy elevation in the antenna frame. A Gaussian power pattern on both transmit and receive gives two-way angular loss
+The Furuno DRS4D-NXT specifies a $25^\circ$ full vertical beamwidth and a 2.5 s rotation at 24 rpm \cite{Furuno2016DRS4DNXT}. We prescribe a 0.03 m wavelength, 2.00 m antenna height, 0.22 m buoy freeboard, 100 m nominal range, and $25^\circ$ wave heading. The reference wave has amplitude 0.15 m at the 0.35 Hz natural frequency and the linear damping ratio is 0.15. With one-way half-power beamwidth $\beta$ (full width) and target elevation $e$ in the antenna frame, the two-way Gaussian angular loss is
 \begin{equation}
  L(e)=80\log_{10}(2)(e/\beta)^2\quad \text{dB}.
 \end{equation}
 The 10 dB boresight margin sets the distance to threshold. The 0.35 Hz natural frequency places a prescribed hull resonance inside the sweep. With this convention, the two-way loss at $|e|=\beta/2$ is 6.02 dB. For the vessel-fixed case $e$ comes from the true line of sight expressed in the moving body frame. The level case uses elevation above a horizontal plane through the same origin.
 
-\begin{table}[tb]
-\caption{Reference inputs. The manufacturer specifies the first two entries. All remaining values are study assumptions.}\label{tab:inputs}
-\centering\small
-\begin{tabular}{@{}ll@{}}\toprule
-Quantity & Value \\ \midrule
-Full vertical beamwidth & $25^\circ$ \\
-Rotation period at fixed 24 rpm & 2.5 s \\
-Nominal radar height / buoy freeboard & 2.00 / 0.22 m \\
-Nominal buoy range / wavelength & 100 / 0.03 m \\
-Wave propagation angle to bow & $25^\circ$ \\
-Pitch natural frequency / damping & 0.35 Hz / 0.15 \\
-Reference wave frequency / amplitude & 0.35 Hz / 0.15 m \\
-Clear boresight margin & 10 dB \\
-Horizontal error tolerance & 0.50 m \\
-\bottomrule\end{tabular}
-\end{table}
+
 
 Wave shadowing can alter low-grazing-angle marine radar returns \cite{Plant2012WaveShadowing}. To represent this effect with an explicit threshold, we approximate the water profile by its most obstructive effective knife edge \cite{ITUR2025P526}. Along the direct ray of slant length $\rho$, let $s$ be the fractional distance from the antenna and let $d(s)$ be water height above the ray. With wavelength $\lambda$, the normalized obstruction is
 \begin{equation}
@@ -131,7 +116,7 @@ For the clock comparison we vary amplitude to maintain $3^\circ$ peak pitch. At 
 For an installed radar, first measure pose age and paired registration residuals using independent buoy positions. At 100 m, $0.29^\circ$ bearing error alone consumes the 0.50 m budget. Next log calibrated power margins on every attempted visit. Their concentration below threshold bounds the opportunity for a change in pointing. Establishing the realized gain requires paired pointing histories, obtainable with interleaved policies or synchronized antennas, and measurements of the attained beam angle. For clock selection, compare gap durations at measured dwell-dependent sensitivity.
 
 \section{Conclusion}
-Leveling can improve the position assigned to an echo that either antenna would have received. In the strongest interaction cell that shared mapping benefit dominated the additional gain from acquiring new echoes. A $1^\circ$ yaw oscillation reversed the interaction in the same wave. With a 50 ms pose age and noisy measurements, its magnitude stayed below half a point across the zero-yaw grid. The 4 Hz field replay gave no resolved improvement in mean repeatability across sessions, a metric insensitive to a shared position bias. A retrofit decision therefore begins with the installed timestamp and the distribution of position errors on surviving echoes. The remaining opportunity for acquisition can be bounded from the fraction of attempted visits lying close enough to the power threshold for steering to recover them.
+Leveling can improve the position assigned to an echo that either antenna would have received. In the strongest interaction cell that shared mapping benefit dominated the additional gain from acquiring new echoes. A $1^\circ$ yaw oscillation reversed the interaction in the same wave. With a 50 ms pose age and noisy measurements, its magnitude stayed below half a point across the zero-yaw grid. The 4 Hz field replay gave no resolved improvement in mean repeatability across sessions, a metric that cancels shared position bias and leaves centimeter-scale absolute errors unresolved. A retrofit decision therefore begins with the installed timestamp and the distribution of position errors on surviving echoes. The remaining opportunity for acquisition can be bounded from the fraction of attempted visits lying close enough to the power threshold for steering to recover them.
 
 \section*{Data and code availability}
 The versioned replication package includes the simulation, per-realization counts, measured-data manifests, and figure sources \cite{Vaught2026RadarStudy}. The scripts reproduce the tables and plotting inputs from the specified configurations.
