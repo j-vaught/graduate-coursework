@@ -1,3 +1,4 @@
+#import "../../series.typ": series-stroke
 #import "/typst-figures/styles/figure.typ": *
 #let d = json("data/A6.json")
 #let kind = "frf"
@@ -12,7 +13,7 @@
       legend: if kind == "frf" { (position: top + right) } else { none },
       ..ys.enumerate().map(pair => {
         let (i,y) = pair
-        plot(xs,y,stroke:(paint:plot-color-cycle.at(calc.rem(i,plot-color-cycle.len())),thickness:0.8pt),
+        plot(xs,y,stroke:series-stroke(i),
           label: if kind == "frf" { ("(a)", "(b)", "(c)").at(i) } else { none })
       }))
   ]
