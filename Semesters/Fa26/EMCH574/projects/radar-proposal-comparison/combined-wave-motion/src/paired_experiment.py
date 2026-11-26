@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
+from numpy.typing import NDArray
 
 G = 9.81
 RAD = np.pi / 180
@@ -31,6 +34,19 @@ SEED = 5742026
 HULL_PITCH_GAIN = 0.25
 MAX_STEEPNESS = 0.20
 MAX_ANGLE_DEG = 10.0
+PitchResponse = Callable[[NDArray[np.float64]], NDArray[np.float64]]
+
+
+class SensitivityInputs(TypedDict, total=False):
+    damping: float
+    margin: float
+    tol: float
+    scan: float
+    irregular: bool
+    scan_offset: float
+    height_sigma_m: float
+    bearing_sigma_deg: float
+    range_sigma_m: float
 
 
 def rotation(pitch, roll):
@@ -80,24 +96,33 @@ def wave(x, y, t, freq, amp, ph):
     return (amp[:, None] * np.cos(theta)).sum(axis=0).reshape(x.shape)
 
 
-def pose(t, freq, amp, ph, damping, pitch_phase=0.0):
+def pose(
+    t, freq, amp, ph, damping, pitch_phase=0.0, *, pitch_response: PitchResponse | None = None
+):
+    """Return antenna pose, optionally evaluating pitch from its regular-wave phase."""
     omega = 2 * np.pi * freq
     k = omega**2 / G
-    exp_t = np.exp(1j * (omega[:, None] * t[None, :] - ph[:, None]))
+    wave_phase = omega[:, None] * t[None, :] - ph[:, None]
+    exp_t = np.exp(1j * wave_phase)
     # Local slope is k a sin(omega t - phi). Positive Ry tilts the
     # bow down, so its slope-following pitch excitation has the opposite sign.
-    pitch = np.real(
-        (
-            1j
-            * HULL_PITCH_GAIN
-            * k
-            * amp
-            * np.cos(HEADING)
-            * transfer(freq, NATURAL, damping)
-            * np.exp(1j * pitch_phase)
-        )[:, None]
-        * exp_t
-    ).sum(axis=0)
+    if pitch_response is None:
+        pitch = np.real(
+            (
+                1j
+                * HULL_PITCH_GAIN
+                * k
+                * amp
+                * np.cos(HEADING)
+                * transfer(freq, NATURAL, damping)
+                * np.exp(1j * pitch_phase)
+            )[:, None]
+            * exp_t
+        ).sum(axis=0)
+    else:
+        if len(freq) != 1:
+            raise ValueError("A periodic pitch response requires a single wave component")
+        pitch = pitch_response(wave_phase[0] + pitch_phase)
     roll = np.real(
         (
             0.6
@@ -123,8 +148,8 @@ def inverse_plane(rho, alpha, origin, r, height):
     body_a = np.column_stack((np.cos(alpha), np.sin(alpha), np.zeros(len(alpha))))
     a = np.einsum("nij,nj->ni", r, body_a)
     b = r[:, :, 2]
-    l = np.hypot(a[:, 2], b[:, 2])
-    q = (height - origin[:, 2]) / (rho * l)
+    vertical_projection = np.hypot(a[:, 2], b[:, 2])
+    q = (height - origin[:, 2]) / (rho * vertical_projection)
     valid = np.abs(q) <= 1
     eps = np.arcsin(np.clip(q, -1, 1)) - np.arctan2(a[:, 2], b[:, 2])
     xyz = origin + rho[:, None] * (np.cos(eps)[:, None] * a + np.sin(eps)[:, None] * b)
@@ -150,8 +175,14 @@ def run(
     height_sigma_m=0.0,
     scan_offset=0.25,
     phase_origin=None,
+    pitch_response: PitchResponse | None = None,
+    surface_model=wave,
+    pose_model=pose,
+    *,
+    target_azimuth_deg=0.0,
+    component_model=components,
 ):
-    f, a, p = components(freq, amplitude, phase, irregular)
+    f, a, p = component_model(freq, amplitude, phase, irregular)
     if phase_origin is not None:
         assert not irregular
         p = np.array([phase_origin])
@@ -163,12 +194,17 @@ def run(
         t = np.asarray(times)
         visits = len(t)
         mid = np.floor(t / scan + 0.5) * scan
-    origin, r, pitch, roll = pose(t, f, a, p, damping, pitch_phase)
-    midpoint, rm, _, _ = pose(mid, f, a, p, damping, pitch_phase)
-    target_x = np.full(visits, RANGE)
-    target_y = np.zeros(visits)
+    origin, r, pitch, roll = pose_model(
+        t, f, a, p, damping, pitch_phase, pitch_response=pitch_response
+    )
+    midpoint, rm, _, _ = pose_model(
+        mid, f, a, p, damping, pitch_phase, pitch_response=pitch_response
+    )
+    target_azimuth = target_azimuth_deg * RAD
+    target_x = np.full(visits, RANGE * np.cos(target_azimuth))
+    target_y = np.full(visits, RANGE * np.sin(target_azimuth))
     target = np.column_stack(
-        (target_x, target_y, TARGET_HEIGHT + wave(target_x, target_y, t, f, a, p))
+        (target_x, target_y, TARGET_HEIGHT + surface_model(target_x, target_y, t, f, a, p))
     )
     v = target - origin
     rho = np.linalg.norm(v, axis=1)
@@ -179,7 +215,7 @@ def run(
 
     fraction = np.arange(1, samples) / samples
     pos = origin[:, None, :] + fraction[None, :, None] * v[:, None, :]
-    surface = wave(pos[:, :, 0], pos[:, :, 1], t[:, None], f, a, p)
+    surface = surface_model(pos[:, :, 0], pos[:, :, 1], t[:, None], f, a, p)
     h = surface - pos[:, :, 2]
     nu = h * np.sqrt(2 / (WAVELENGTH * rho[:, None] * fraction[None, :] * (1 - fraction[None, :])))
     nu_max = np.max(nu, axis=1)
@@ -225,7 +261,7 @@ def run(
         "t": t,
         "pitch": pitch,
         "roll": roll,
-        "wave": wave(np.zeros(visits), np.zeros(visits), t, f, a, p),
+        "wave": surface_model(np.zeros(visits), np.zeros(visits), t, f, a, p),
         "margin_motion": margin_motion,
         "margin_level": margin_level,
         "errors": errors,
@@ -251,9 +287,12 @@ def summarize(runs):
     outside = np.array([v["outside"] for v in runs])
     gain = values[:, 1] - values[:, 0]
     added = values[:, 2] - values[:, 1]
+
     # Equal-weight, independent realizations; normal intervals describe
     # realization-to-realization Monte Carlo variability.
-    se = lambda z: 1.96 * np.std(z, axis=0, ddof=1) / np.sqrt(len(z))
+    def interval_halfwidth(z):
+        return 1.96 * np.std(z, axis=0, ddof=1) / np.sqrt(len(z))
+
     pooled = [[length for v in runs for length in v["run_lengths"][i]] for i in range(3)]
     realizations = []
     for phase_index, case in enumerate(runs):
@@ -275,13 +314,13 @@ def summarize(runs):
         "realizations": realizations,
         "run_lengths": pooled,
         "fraction": values.mean(axis=0).tolist(),
-        "fraction_ci95_halfwidth": se(values).tolist(),
+        "fraction_ci95_halfwidth": interval_halfwidth(values).tolist(),
         "below": below.mean(axis=0).tolist(),
         "outside": outside.mean(axis=0).tolist(),
         "correction_gain": float(gain.mean()),
-        "correction_ci95_halfwidth": float(se(gain)),
+        "correction_ci95_halfwidth": float(interval_halfwidth(gain)),
         "stabilization_gain": float(added.mean()),
-        "stabilization_ci95_halfwidth": float(se(added)),
+        "stabilization_ci95_halfwidth": float(interval_halfwidth(added)),
         "maxrun_mean": np.mean([v["maxrun"] for v in runs], axis=0).tolist(),
         "maxrun_p95": np.quantile([v["maxrun"] for v in runs], 0.95, axis=0).tolist(),
     }
@@ -312,7 +351,7 @@ def main():
     args = p.parse_args()
     phases = 8 if args.quick else 32
     visits = 96 if args.quick else 192
-    kw = {"visits": visits, "samples": 601}
+    path_samples = 601
     grid = []
     frequencies = np.linspace(0.16, 0.62, 13) if args.quick else np.linspace(0.16, 0.62, 17)
     amplitudes = np.linspace(0.04, 0.60, 8) if args.quick else np.linspace(0.04, 0.60, 11)
@@ -328,7 +367,9 @@ def main():
             )
             if k * a > MAX_STEEPNESS or peak_pitch / RAD > MAX_ANGLE_DEG:
                 continue
-            result = summarize([run(f, a, k, **kw) for k in range(phases)])
+            result = summarize(
+                [run(f, a, k, visits=visits, samples=path_samples) for k in range(phases)]
+            )
             grid.append(
                 dict(
                     frequency_hz=float(f),
@@ -354,7 +395,15 @@ def main():
             for coupling_phase in [0.0, np.pi / 2]:
                 result = summarize(
                     [
-                        run(f, needed, k, scan=scan, pitch_phase=coupling_phase, **kw)
+                        run(
+                            f,
+                            needed,
+                            k,
+                            scan=scan,
+                            pitch_phase=coupling_phase,
+                            visits=visits,
+                            samples=path_samples,
+                        )
                         for k in range(phases)
                     ]
                 )
@@ -367,7 +416,8 @@ def main():
                             scan=scan,
                             pitch_phase=coupling_phase,
                             phase_origin=2 * np.pi * k / phases,
-                            **kw,
+                            visits=visits,
+                            samples=path_samples,
                         )
                         for k in range(phases)
                     ]
@@ -420,7 +470,7 @@ def main():
     )
     assert wave_slope_bound <= MAX_STEEPNESS and max(pitch_bound, roll_bound) <= MAX_ANGLE_DEG
     sensitivity = []
-    for name, options in [
+    sensitivity_inputs: list[tuple[str, SensitivityInputs]] = [
         ("reference", {}),
         ("damping_low", {"damping": 0.12}),
         ("damping_high", {"damping": 0.30}),
@@ -435,7 +485,8 @@ def main():
         ("scan_offset_near_half", {"scan_offset": 0.49}),
         ("target_height_error_025m", {"height_sigma_m": 0.25}),
         ("measurement_noise_idealized", {"bearing_sigma_deg": 0.25, "range_sigma_m": 0.25}),
-    ]:
+    ]
+    for name, options in sensitivity_inputs:
         effective_damping = options.get("damping", DAMPING)
         reference_k = (2 * np.pi * 0.35) ** 2 / G
         peak_regular = (
@@ -447,7 +498,12 @@ def main():
             / RAD
         )
         assert reference_k * 0.15 <= MAX_STEEPNESS and peak_regular <= MAX_ANGLE_DEG
-        result = summarize([run(0.35, 0.15, k, **kw, **options) for k in range(phases)])
+        result = summarize(
+            [
+                run(0.35, 0.15, k, visits=visits, samples=path_samples, **options)
+                for k in range(phases)
+            ]
+        )
         sensitivity.append(dict(name=name, **result))
     # Find deterministic phase realization showing both mechanisms.
     candidates = []
@@ -466,7 +522,7 @@ def main():
             transfer(np.array([f]), NATURAL, DAMPING)[0]
         ) / RAD > MAX_ANGLE_DEG:
             continue
-        r = run(f, a, 0, **kw)
+        r = run(f, a, 0, visits=visits, samples=path_samples)
         both = np.any(~r["acquired"][0]) and np.any(r["acquired"][0] & ~r["usable"][0])
         candidates.append({"frequency_hz": f, "amplitude_m": a, "both": bool(both), "result": r})
     pilot = next((v for v in candidates if v["both"]), candidates[0])
@@ -476,7 +532,12 @@ def main():
             "radar_manual": "https://www.furunousa.com/-/media/sites/furuno/document_library/documents/manuals/public_manuals/ifr36490a_drs4dnxt.pdf",
             "vertical_beamwidth_deg": 25,
             "scan_period_s": 2.5,
-            "physical_model": "Regular deep-water component plus damped pitch/roll/heave and prescribed orbital surge; single effective knife-edge wave obstruction; deterministic threshold; known target elevation; ideal zero-latency per-spoke pose; level stabilized pointing.",
+            "physical_model": (
+                "Regular deep-water component plus damped pitch/roll/heave and prescribed "
+                "orbital surge; single effective knife-edge wave obstruction; "
+                "deterministic threshold; known target elevation; ideal zero-latency "
+                "per-spoke pose; level stabilized pointing."
+            ),
             "assumptions": {
                 "range_m": RANGE,
                 "heading_deg": 25,
@@ -502,16 +563,33 @@ def main():
                 "irregular_steepness_bound": wave_slope_bound,
                 "irregular_pitch_bound_deg": pitch_bound,
                 "irregular_roll_bound_deg": roll_bound,
-                "irregular": "seven independent random phases, prescribed spectrum with equal wave-elevation RMS to regular case",
-                "measurement_noise": "Sensitivity only: independent zero-mean Gaussian bearing and slant-range error with prescribed standard deviations 0.25 deg and 0.25 m; common draws pair processing cases. These illustrative error distributions are not derived from manufacturer specifications.",
-                "caveat": "Target visit times are prescribed on a uniform schedule at a quarter scan from the pose timestamp; platform motion does not shift spoke acquisition time. Known instantaneous target height is supplied to inverse geometry. Detection is deterministic, with no clutter or receiver noise.",
+                "irregular": (
+                    "seven independent random phases, prescribed spectrum with equal "
+                    "wave-elevation RMS to regular case"
+                ),
+                "measurement_noise": (
+                    "Sensitivity only: independent zero-mean Gaussian bearing and slant-range "
+                    "error with prescribed standard deviations 0.25 deg and 0.25 m; common "
+                    "draws pair processing cases. These illustrative error distributions are "
+                    "not derived from manufacturer specifications."
+                ),
+                "caveat": (
+                    "Target visit times are prescribed on a uniform schedule at a quarter "
+                    "scan from the pose timestamp; platform motion does not shift spoke "
+                    "acquisition time. Known instantaneous target height is supplied to "
+                    "inverse geometry. Detection is deterministic, with no clutter or "
+                    "receiver noise."
+                ),
             },
             "classifications": [
                 "mid_scan_pose",
                 "per_spoke_pose",
                 "ideal_level_pointing_per_spoke_pose",
             ],
-            "confidence": "95% normal interval of the mean across independently sampled phase realizations; gains paired per realization",
+            "confidence": (
+                "95% normal interval of the mean across independently sampled phase "
+                "realizations; gains paired per realization"
+            ),
             "created": "2026-11-26",
         },
         "operating_map": grid,

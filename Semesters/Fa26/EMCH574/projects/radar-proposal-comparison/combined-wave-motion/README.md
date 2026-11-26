@@ -1,4 +1,4 @@
-# Wave-driven limits of radar motion correction on small vessels
+# Separating buoy registration error and echo loss under wave-driven vessel motion
 
 The November [working manuscript](manuscript.pdf) and [editable source](manuscript.tex) report the approved EMCH 574 motion-correction study. The [October proposal](proposal.pdf) contains the original forecasting comparison. Blackboard lists the project PDF as due December 2, 2026 at 3:30 p.m. Eastern.
 
@@ -11,9 +11,20 @@ uv sync --locked
 uv run python src/paired_experiment.py --output data/experiment-results.json
 uv run python src/verify_operating_checks.py --config data/config.json --outdir data
 uv run python src/verify_operating_experiment.py --outdir data
+uv run python src/bearing_lever_sensitivity.py --output data/bearing_lever_sensitivity.csv
+uv run python src/hull_kinematics.py --output data/hull_kinematics.csv
+uv run python src/registration_components.py --output data/registration_components.csv
+uv run python src/registration_envelope.py --output data/registration_envelope.csv
+uv run python src/acquisition_bounds.py --output data/acquisition_bounds.csv
+uv run python src/outage_bandwidth.py --output data/outage_bandwidth.csv
+uv run python src/outage_clock.py --output data/outage_clock.csv
+uv run python src/crest_sensitivity.py --output data/crest_sensitivity.csv
+uv run python src/autonaut_pitch_benchmark.py --output data/autonaut_pitch_benchmark.csv
+uv run python src/nonlinear_pitch.py --output data/nonlinear_pitch.csv
 uv run python src/timestamp_sensitivity.py --output data/timestamp_sensitivity.csv
 uv run python src/reference_neighborhood.py --output research/reference-neighborhood.csv
 uv run python src/verify_operating_grid.py --outdir data
+uv run python src/verify_negative_leveling.py --output data/verification_negative_leveling.csv
 uv run python src/verify_operating_phase.py --outdir data
 ./figures/operating/build.sh
 ./build-manuscript.sh
