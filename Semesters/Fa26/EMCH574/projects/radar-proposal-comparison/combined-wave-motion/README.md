@@ -8,6 +8,8 @@ Run the following commands in this directory on a configured COMECH or COCESR ho
 
 ```sh
 uv sync --locked
+uv run ruff check src
+uv run ty check --extra-search-path src src
 uv run python src/paired_experiment.py --output data/experiment-results.json
 uv run python src/verify_operating_checks.py --config data/config.json --outdir data
 uv run python src/verify_operating_experiment.py --outdir data
@@ -22,7 +24,7 @@ uv run python src/crest_sensitivity.py --output data/crest_sensitivity.csv
 uv run python src/autonaut_pitch_benchmark.py --output data/autonaut_pitch_benchmark.csv
 uv run python src/nonlinear_pitch.py --output data/nonlinear_pitch.csv
 uv run python src/timestamp_sensitivity.py --output data/timestamp_sensitivity.csv
-uv run python src/reference_neighborhood.py --output research/reference-neighborhood.csv
+uv run python src/reference_neighborhood.py --output data/reference_neighborhood.csv
 uv run python src/verify_operating_grid.py --outdir data
 uv run python src/verify_negative_leveling.py --output data/verification_negative_leveling.csv
 uv run python src/verify_operating_phase.py --outdir data
@@ -40,6 +42,12 @@ uv run python src/tracker_check.py data/tracker-check.csv
 ./figures/operating/build.sh
 ./build-manuscript.sh
 cp build/asme/manuscript.pdf manuscript.pdf
+```
+
+Readers building the archived figures need Typst and the listed packages. The paper uses LuaLaTeX, BibTeX, and latexmk. Outside the project’s compute hosts, the equivalent paper build from this directory is
+
+```sh
+TEXINPUTS="$PWD/format/asmeconf:" BSTINPUTS="$PWD/format/asmeconf:" latexmk -lualatex -halt-on-error -outdir=build/asme manuscript.tex
 ```
 
 The [experiment results](data/experiment-results.json) contain the study configuration, per-realization counts, contiguous outage lengths, and pilot traces. The [numerical audit](research/operating-audit.md) records the eligibility and paired-count checks. The [input sources](research/operating-reference.md) distinguish the commercial radar specifications from the prescribed hull and propagation assumptions.

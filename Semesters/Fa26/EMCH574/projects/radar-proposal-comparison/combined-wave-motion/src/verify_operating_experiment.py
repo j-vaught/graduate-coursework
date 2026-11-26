@@ -42,16 +42,9 @@ def run():
     convergence = []
     paired_error_max = 0.0
     for f, amp, phase, irregular in cases:
-        options = {
-            "freq": f,
-            "amplitude": amp,
-            "phase": phase,
-            "visits": 192,
-            "irregular": irregular,
-        }
-        reference = model.run(**options, samples=2401)
+        reference = model.run(f, amp, phase, visits=192, irregular=irregular, samples=2401)
         for n in (151, 301, 601, 1201):
-            result = model.run(**options, samples=n)
+            result = model.run(f, amp, phase, visits=192, irregular=irregular, samples=n)
             paired_error_max = max(paired_error_max, np.nanmax(result["errors"][1:]))
             convergence.append(
                 {
@@ -122,7 +115,11 @@ def run():
         "pitch_response": response,
         "temporal_sampling": temporal,
         "maximum_exact_pose_error_m": float(paired_error_max),
-        "caveat": "Temporal check samples acquisition phase densely over 40 s. Production visits remain discrete rotation schedules; this is not a sampling-error estimate for finite wave records.",
+        "caveat": (
+            "Temporal check samples acquisition phase densely over 40 s. Production visits "
+            "remain discrete rotation schedules; this is not a sampling-error estimate for "
+            "finite wave records."
+        ),
     }
     (out / "verification_paired_checks.json").write_text(json.dumps(checks, indent=2) + "\n")
     print(json.dumps(checks, indent=2))

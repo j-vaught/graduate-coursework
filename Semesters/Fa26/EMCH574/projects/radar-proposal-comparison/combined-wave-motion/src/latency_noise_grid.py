@@ -1,5 +1,6 @@
 """Compare latency corrections on identical noisy echoes throughout the screened grid."""
 
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -81,13 +82,17 @@ def cell_results(frequency, amplitude):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=Path("data/latency_noise_grid.csv"))
+    args = parser.parse_args()
     archive = json.loads(Path("data/experiment-results.json").read_text())
     rows = [
         row
         for cell in archive["operating_map"]
         for row in cell_results(cell["frequency_hz"], cell["amplitude_m"])
     ]
-    with Path("data/latency_noise_grid.csv").open("w", newline="") as handle:
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)

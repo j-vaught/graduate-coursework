@@ -255,6 +255,78 @@ def persistent_echo_pairs(
     return pairs, windows
 
 
+def static_repeat_control(
+    route: str,
+    window: int,
+    scans: list[np.ndarray],
+    targets_xy: np.ndarray,
+    centre_xy: np.ndarray,
+    ranges: tuple[int, ...],
+    bearings: np.ndarray,
+) -> list[dict[str, Any]]:
+    """Match synthetic point returns with the primary recorded-return rule."""
+    masks, _ = persistent_masks(scans, centre_xy)
+    point_ids = [np.flatnonzero(mask) for mask in masks]
+    selected = [frame[mask] for frame, mask in zip(scans, masks, strict=True)]
+    neutral = [frame.mean(axis=1) for frame in selected]
+    pair_limit = len(scans) - ECHO_LAG_SCANS
+    match_gate = MATCH_RULES[0][1]
+    matches, separations = [], []
+    for first in range(pair_limit):
+        second = first + ECHO_LAG_SCANS
+        if len(neutral[first]) == 0 or len(neutral[second]) == 0:
+            continue
+        nearest, mutual = mutual_neighbors(neutral[first], neutral[second], match_gate)
+        b_matches = nearest[mutual]
+        np.testing.assert_array_equal(point_ids[first][mutual], point_ids[second][b_matches])
+        matches.append(point_ids[first][mutual])
+        separations.append(
+            np.linalg.norm(selected[first][mutual] - selected[second][b_matches], axis=2)
+        )
+    matched_points = np.concatenate(matches)
+    separation = np.vstack(separations)
+    abs_error = np.linalg.norm(np.stack(scans) - targets_xy[:, None, :], axis=3)
+    outputs = []
+    for range_idx, distance in enumerate(ranges):
+        ids = range_idx * len(bearings) + np.arange(len(bearings))
+        for label, included in [
+            ("all", ids),
+            *zip(map(str, bearings), np.split(ids, len(ids)), strict=True),
+        ]:
+            distances = separation[np.isin(matched_points, included)]
+            all_absolute = abs_error[:, included].reshape(-1, 2)
+            mean_repeat = np.full(2, np.nan)
+            p95_repeat = np.full(2, np.nan)
+            if distances.size:
+                mean_repeat = distances.mean(axis=0)
+                p95_repeat = np.quantile(distances, 0.95, axis=0)
+            p95_absolute = np.quantile(all_absolute, 0.95, axis=0)
+            outputs.append(
+                {
+                    "route": route,
+                    "window_percentile": window,
+                    "nominal_range_m": distance,
+                    "test_point_enu_angle_deg": label,
+                    "lag_rotations": ECHO_LAG_SCANS,
+                    "virtual_visits": len(all_absolute),
+                    "possible_same_point_pairs": len(included) * pair_limit,
+                    "matched_same_point_pairs": len(distances),
+                    "midpoint_abs_error_mean_m": float(all_absolute[:, 0].mean()),
+                    "spoke_time_abs_error_mean_m": float(all_absolute[:, 1].mean()),
+                    "midpoint_abs_error_p95_m": float(p95_absolute[0]),
+                    "spoke_time_abs_error_p95_m": float(p95_absolute[1]),
+                    "midpoint_abs_error_max_m": float(all_absolute[:, 0].max()),
+                    "spoke_time_abs_error_max_m": float(all_absolute[:, 1].max()),
+                    "midpoint_abs_error_over_0p50m": int(np.sum(all_absolute[:, 0] > TOLERANCE_M)),
+                    "midpoint_repeat_separation_mean_m": float(mean_repeat[0]),
+                    "spoke_time_repeat_separation_mean_m": float(mean_repeat[1]),
+                    "midpoint_repeat_separation_p95_m": float(p95_repeat[0]),
+                    "spoke_time_repeat_separation_p95_m": float(p95_repeat[1]),
+                }
+            )
+    return outputs
+
+
 def range_lag_diagnostics(
     route: str,
     window: int,
@@ -514,6 +586,7 @@ def run_window(
     echoes: list[np.ndarray] = []
     echo_ranges: list[np.ndarray] = []
     echo_times: list[np.ndarray] = []
+    virtual_scans: list[np.ndarray] = []
     spoke_displacement = []
     spoke_heading_change = []
     scan_start_us = []
@@ -569,8 +642,6 @@ def run_window(
         echo_ranges.append(distance_bins[peak_bin[echo_row]])
         echo_times.append(utc[echo_row])
 
-        if not replay_virtual:
-            continue
         delta_world = targets[None, :, :] - origin[:, None, :]
         delta_body = np.einsum("sji,stj->sti", rotation, delta_world)
         bearing = np.arctan2(delta_body[:, :, 1], delta_body[:, :, 0])
@@ -593,6 +664,9 @@ def run_window(
         mid_error = np.linalg.norm(midpoint[:, :2] - targets[:, :2], axis=1)
         spoke_error = np.linalg.norm(deskewed[:, :2] - targets[:, :2], axis=1)
         assert np.max(spoke_error) < 1e-8
+        virtual_scans.append(np.stack((midpoint[:, :2], deskewed[:, :2]), axis=1))
+        if not replay_virtual:
+            continue
 
         for index, (beam_row, error_mid, error_spoke) in enumerate(
             zip(row, mid_error, spoke_error, strict=True)
@@ -695,7 +769,19 @@ def run_window(
         ),
         "max_spoke_midpoint_abs_heading_difference_deg": float(np.max(spoke_heading_change)),
     }
-    return visits, summary, sources, echo_pairs, echo_summary, diagnostics, [telemetry]
+    positive_control = static_repeat_control(
+        route, window, virtual_scans, targets[:, :2], centre[:2], ranges, bearing_deg
+    )
+    return (
+        visits,
+        summary,
+        sources,
+        echo_pairs,
+        echo_summary,
+        diagnostics,
+        [telemetry],
+        positive_control,
+    )
 
 
 def run_route(cache: Path, route: str, max_range_m: int) -> list[tuple[list[dict[str, Any]], ...]]:
@@ -720,7 +806,7 @@ def main() -> None:
     with ThreadPoolExecutor(4) as pool:
         runs = list(pool.map(lambda item: run_route(args.cache, *item), ROUTES.items()))
     results = [run for route in runs for run in route]
-    visits, virtual_summary, inputs, pairs, windows, diagnostics, telemetry = (
+    visits, virtual_summary, inputs, pairs, windows, diagnostics, telemetry, positive_control = (
         [row for batch in batches for row in batch] for batches in zip(*results, strict=True)
     )
     unique_inputs = {(row["public_source"], row["selection"]): row for row in inputs}
@@ -734,6 +820,7 @@ def main() -> None:
         "canoe-echo-session-summary.csv": sessions,
         "canoe-echo-intervals.csv": intervals,
         "canoe-motion-telemetry.csv": telemetry,
+        "canoe-static-repeat-control.csv": positive_control,
         "canoe-echo-range-lag.csv": diagnostics,
         "canoe-echo-range-lag-summary.csv": summarize_range_lag(diagnostics),
     }

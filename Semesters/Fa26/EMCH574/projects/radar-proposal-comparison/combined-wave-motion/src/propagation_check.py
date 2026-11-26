@@ -1,7 +1,10 @@
 """Compare effective-edge and crest-based propagation on the same radar visits.
 
-The Deygout construction follows NTIA TR-26-580, Section 3.3.3 and Appendix C.
-The crest model represents each distinct regular-wave maximum by one edge.
+The all-edge construction follows the recursive geometry in NTIA TR-26-580,
+Section 3.3.3 and Appendix C. The pruned variants stop at a subpath whose
+leading edge has zero approximate loss. The pruned three-edge variant also
+retains at most the main edge and one secondary edge per side. Each variant
+uses the same distinct regular-wave maxima as candidate crests.
 """
 
 import argparse
@@ -17,7 +20,13 @@ from pointing_registration_factorial import level_mapping_errors
 PHASE_COUNT = 32
 VISITS = 192
 PATH_SUBDIVISIONS = 601
-METHODS = ("effective_single_edge", "crest_single_edge", "crest_deygout")
+METHODS = (
+    "effective_single_edge",
+    "crest_single_edge",
+    "crest_deygout",
+    "crest_deygout_pruned",
+    "crest_deygout_pruned_three",
+)
 CASES = (("reference", 0.350, 0.150), ("largest_registration_gain", 0.3325, 0.432))
 SPARSE_FREQUENCIES = (0.160, 0.275, 0.390, 0.505, 0.620)
 SPARSE_AMPLITUDES = (0.040, 0.208, 0.376, 0.544)
@@ -30,11 +39,11 @@ def knife_loss(nu):
 
 
 def crest_edge_losses(distance, height, wavelength):
-    """Return one-way losses for the primary and all recursive subpath edges."""
+    """Return primary, all-edge, pruned, and pruned three-edge one-way losses."""
 
-    def split(left, right):
+    def split(left, right, depth):
         if right - left <= 1:
-            return 0.0, 0.0
+            return 0.0, 0.0, 0.0, 0.0
         inner = slice(left + 1, right)
         before = distance[inner] - distance[left]
         after = distance[right] - distance[inner]
@@ -43,17 +52,22 @@ def crest_edge_losses(distance, height, wavelength):
         primary = int(np.argmax(nu))
         loss = knife_loss(nu[primary])
         index = left + 1 + primary
-        _, left_loss = split(left, index)
-        _, right_loss = split(index, right)
-        return loss, loss + left_loss + right_loss
+        _, left_all, left_pruned, left_capped = split(left, index, depth + 1)
+        _, right_all, right_pruned, right_capped = split(index, right, depth + 1)
+        all_edges = loss + left_all + right_all
+        if nu[primary] <= -0.78:
+            return loss, all_edges, 0.0, 0.0
+        pruned = loss + left_pruned + right_pruned
+        capped = loss + left_capped + right_capped if depth == 0 else loss
+        return loss, all_edges, pruned, capped
 
-    return split(0, len(distance) - 1)
+    return split(0, len(distance) - 1, 0)
 
 
 def check_propagation():
     wavelength = 0.20
     straight = np.array([0.0, 100.0])
-    assert crest_edge_losses(straight, np.zeros(2), wavelength) == (0.0, 0.0)
+    assert crest_edge_losses(straight, np.zeros(2), wavelength) == (0.0, 0.0, 0.0, 0.0)
     single = np.array([0.0, 50.0, 100.0])
     expected = knife_loss(np.sqrt(2 / wavelength * (1 / 50 + 1 / 50)))
     np.testing.assert_allclose(crest_edge_losses(single, np.array([0, 1, 0]), wavelength), expected)
@@ -63,13 +77,20 @@ def check_propagation():
     distance = np.array([0.0, 1200.0, 2800.0, 4400.0, 5800.0, 6600.0])
     height = np.array([0.0, 140.0, 260.0, 200.0, 220.0, 0.0])
     published_example = crest_edge_losses(distance, height, wavelength)
-    np.testing.assert_allclose(published_example, (41.27, 99.87), atol=0.02, rtol=0)
+    np.testing.assert_allclose(published_example, (41.27, 99.87, 99.87, 76.26), atol=0.02, rtol=0)
     np.testing.assert_allclose(
         crest_edge_losses(distance[-1] - distance[::-1], height[::-1], wavelength),
         published_example,
         atol=1e-12,
         rtol=0,
     )
+
+    # Both crest tips are clear on the full chord, but a chord ending at
+    # the taller-normalized crest can put the second tip within its Fresnel zone.
+    distance = np.array([0.0, 82.0, 95.0, 100.0])
+    height = np.array([2.0, 0.04, 0.04, 0.22])
+    primary, full, pruned, capped = crest_edge_losses(distance, height, model.WAVELENGTH)
+    assert primary == pruned == capped == 0.0 and full > 0.0
 
 
 def regular_crest_fractions(start_phase, phase_advance):
@@ -115,7 +136,9 @@ def summarize(name, frequency, amplitude):
         )
         baseline_path_loss = model.MARGIN - angle_loss[0] - run["margin_motion"]
         crest_paths = 2 * regular_crest_losses(run, frequency, amplitude, phase)
-        assert np.all(crest_paths[1] >= crest_paths[0])
+        assert np.all(crest_paths[1] >= crest_paths[2])
+        assert np.all(crest_paths[2] >= crest_paths[3])
+        assert np.all(crest_paths[3] >= crest_paths[0])
         two_way_path_loss = np.vstack((baseline_path_loss, crest_paths))
         receive_margin = model.MARGIN - angle_loss[None, :, :] - two_way_path_loss[:, None, :]
         detected = receive_margin[:, [0, 0, 1, 1], :] >= 0
@@ -148,6 +171,8 @@ def summarize(name, frequency, amplitude):
                 "scheduled_visits": total,
                 "body_acquired": int(body.sum()),
                 "level_acquired": int(level.sum()),
+                "both_policies_all_missed": bool(not (body | level).any()),
+                "primary_crest_clear_visits": int(np.count_nonzero(losses[:, 1] == 0.0)),
                 "midpoint_usable": int(count[0]),
                 "spoke_usable": int(count[1]),
                 "level_midpoint_usable": int(count[2]),
@@ -166,7 +191,7 @@ def summarize(name, frequency, amplitude):
                 ),
                 "path_loss_median_two_way_db": float(np.median(losses[:, index])),
                 "max_added_secondary_loss_two_way_db": float(
-                    np.max(losses[:, index] - losses[:, 1]) if index == 2 else 0.0
+                    np.max(losses[:, index] - losses[:, 1]) if index >= 2 else 0.0
                 ),
             }
         )

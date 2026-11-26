@@ -197,7 +197,11 @@ def main():
         "midpoint_bound_m": speed * scan / 2,
         "midpoint_max_error_m": float(max(midpoint_error)),
         "original_model_path_convergence": paths,
-        "limitations": "Translation bound uses a constant velocity, perfect range and a common flat target plane. Path test applies to the prescribed single-wave illustrative model, not the new experiment.",
+        "limitations": (
+            "Translation bound uses a constant velocity, perfect range and a common flat "
+            "target plane. Path test applies to the prescribed single-wave illustrative "
+            "model, not the new experiment."
+        ),
     }
     (out / "verification_checks.json").write_text(json.dumps(checks, indent=2) + "\n")
 

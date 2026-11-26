@@ -3,6 +3,13 @@
 Pass the published data repository at commit 9844883148636fe651aa73afa6d2b9fbb3562e91
 (https://github.com/cnr-inm-mao/ck14-e_experimental-data) as the first argument.
 The archival deposit is https://doi.org/10.5281/zenodo.17315035.
+
+The SMC IMU User Guide v5.2, Sec. 2.2, defines bow-down pitch and upward heave.
+https://www.shipmotion.eu/files/SMC%20IMU%20User%20Guide%20v5.2.pdf
+The Teledyne PDS User Manual, Sec. 4.4.1.2, shows project-selectable pitch units.
+https://www.teledynemarine.com/en-us/products/SiteAssets/PDS/Teledyne%20PDS%20User%20Manual.pdf
+Because the public export does not state its project units, also test reversing
+the recorded pitch and heave signs individually and jointly in the overlap case.
 """
 
 from __future__ import annotations
@@ -226,6 +233,16 @@ def run_benchmark(directory, index, wavelength_ratio, raw):
         pose = harmonic_pose(pitch_rao * model.RAD, heave_rao)
         for bearing in (0, 45, 90):
             radar.extend(replay_radar(response, pose_name, pose, bearing))
+        if index == 2 and pose_name != "prescribed":
+            for label, pitch_sign, heave_sign in (
+                ("pitch_reversed", -1, 1),
+                ("heave_reversed", 1, -1),
+                ("both_reversed", -1, -1),
+            ):
+                changed_pose = harmonic_pose(
+                    pitch_sign * pitch_rao * model.RAD, heave_sign * heave_rao
+                )
+                radar.extend(replay_radar(response, f"{pose_name}_{label}", changed_pose, 45))
     return response, radar
 
 
