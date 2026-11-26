@@ -3,4 +3,4 @@
 #let d = json("data/B3.json")
 #set text(font: "New Computer Modern", size: 9pt)
 #set page(width: auto, height: auto, margin: 3pt, fill: white)
-#lq.diagram(width: 10cm, height: 5cm, xlabel: [$x/L$], ylabel: [$W_5$], lq.plot(d.x,d.w.at(4), stroke: series-stroke(4), mark: none))
+#lq.diagram(width: 10cm, height: 5cm, ylim: (-1, 1), xlabel: [$x/L$], ylabel: [$hat(W)_5$], lq.plot(d.x,d.w.at(4), stroke: series-stroke(4), mark: none))

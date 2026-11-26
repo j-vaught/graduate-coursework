@@ -12,10 +12,13 @@ for j=1:N
     q=gamma(j)*x;
     W(j,:)=cosh(q)-cos(q)-beta(j)*(sinh(q)-sin(q));
     W(j,:)=W(j,:)/sqrt(trapz(x,W(j,:).^2)/L);
-    figure; plot(x,W(j,:)); grid on
-    xlabel('x (m)'); ylabel('W_j'); title(sprintf('Mode %d',j))
 end
-figure; plot(x,W'); grid on; xlabel('x (m)'); ylabel('W_j')
+Wplot=W./max(abs(W),[],2);
+for j=1:N
+    figure; plot(x,Wplot(j,:)); ylim([-1 1]); grid on
+    xlabel('x (m)'); ylabel('Unit-peak mode shape'); title(sprintf('Mode %d',j))
+end
+figure; plot(x,Wplot'); ylim([-1 1]); grid on; xlabel('x (m)'); ylabel('Unit-peak mode shape')
 legend('1','2','3','4','5')
 G=zeros(N);
 for j=1:N
