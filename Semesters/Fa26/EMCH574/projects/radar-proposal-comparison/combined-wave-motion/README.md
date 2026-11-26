@@ -1,4 +1,27 @@
-# Predicting Small-Target Radar Reliability Under Wave-Driven Vessel Motion
+# Wave-driven limits of radar motion correction on small vessels
+
+The November [working manuscript](manuscript.pdf) and [editable source](manuscript.tex) report the approved EMCH 574 motion-correction study. The [October proposal](proposal.pdf) contains the original forecasting comparison. Blackboard lists the project PDF as due December 2, 2026 at 3:30 p.m. Eastern.
+
+## Reproducing the manuscript
+
+Run the following commands in this directory on a configured COMECH or COCESR host. The experiment uses the locked Python dependencies, the figures use Typst with CeTZ and Lilaq, and the manuscript uses the bundled conference class. The checked-in figure PDFs permit rebuilding the paper directly with the final two commands.
+
+```sh
+uv sync --locked
+uv run python src/paired_experiment.py --output data/experiment-results.json
+uv run python src/verify_operating_checks.py --config data/config.json --outdir data
+uv run python src/verify_operating_experiment.py --outdir data
+uv run python src/reference_neighborhood.py --output research/reference-neighborhood.csv
+uv run python src/verify_operating_grid.py --outdir data
+uv run python src/verify_operating_phase.py --outdir data
+./figures/operating/build.sh
+./build-manuscript.sh
+cp build/asme/manuscript.pdf manuscript.pdf
+```
+
+The [experiment results](data/experiment-results.json) contain the study configuration, per-realization counts, contiguous outage lengths, and pilot traces. The [numerical audit](research/operating-audit.md) records the eligibility and paired-count checks. The [input sources](research/operating-reference.md) distinguish the commercial radar specifications from the prescribed hull and propagation assumptions.
+
+## October proposal
 
 J.C. Vaught. Prepared 6 October 2026 for EMCH574.
 

@@ -1,6 +1,8 @@
 # Marine radar project comparison
 
-The selected combined direction is [Predicting Small-Target Radar Reliability Under Wave-Driven Vessel Motion](combined-wave-motion/proposal.pdf). It develops the two mechanisms below into a two-page main proposal with technical appendices, a common-state benchmark, justified parameter tables, published-model and measured-radar figures, and full related work. Its evaluation dataset and milestones remain undecided. Its restrained LaTeX layout uses Latin Modern text and mathematics, automatic cross-references, and Lilaq plots with default colors and built-in legends. Its [source and reproduction notes](combined-wave-motion/README.md) accompany the document.
+The November working manuscript is [Wave-Driven Limits of Radar Motion Correction on Small Vessels](combined-wave-motion/manuscript.pdf). The [editable manuscript](combined-wave-motion/manuscript.tex) and [experiment reproduction instructions](combined-wave-motion/README.md) accompany it.
+
+The original October proposal is [Predicting Small-Target Radar Reliability Under Wave-Driven Vessel Motion](combined-wave-motion/proposal.pdf). It develops the two mechanisms below into a two-page main proposal with technical appendices, a common-state benchmark, justified parameter tables, published-model and measured-radar figures, and full related work. Its restrained LaTeX layout uses Latin Modern text and mathematics, automatic cross-references, and Lilaq plots with default colors and built-in legends. Its [source and reproduction notes](combined-wave-motion/README.md) accompany the document.
 
 Prepared for EMCH574 by J.C. Vaught. Each proposal contains a standalone one-page sponsor pitch followed by a technical appendix. The appendices compare prior work, explain the mechanics, state the benchmark design, and distinguish analytical illustrations from future experimental validation.
 

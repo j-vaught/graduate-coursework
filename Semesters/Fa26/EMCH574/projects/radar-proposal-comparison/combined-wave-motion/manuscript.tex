@@ -1,45 +1,114 @@
-\documentclass[10pt,twocolumn,letterpaper]{article}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern,amsmath,graphicx,booktabs}
-\usepackage[margin=0.8in,columnsep=0.25in]{geometry}
-\usepackage[numbers,sort&compress]{natbib}
-\usepackage[hidelinks]{hyperref}
-\title{Predicting Small-Target Radar Reliability under Wave-Driven Vessel Motion}
-\author{J.C. Vaught\\University of South Carolina}
-\date{EMCH 574 working manuscript}
+\documentclass[nofoot]{asmeconf}
+\input{manuscript-fonts}
+\usepackage{graphicx,booktabs}
+\renewcommand{\dbltopfraction}{0.88}
+\renewcommand{\textfraction}{0.08}
+\ConfName{EMCH 574 Final Project}
+\ConfAcronym{Working manuscript}
+\ConfDate{November 2026}
+\ConfCity{Columbia, South Carolina}
+\PaperNo{}
+\title{Wave-Driven Limits of Radar Motion Correction on Small Vessels}
+\SetAuthors{J.C. Vaught\affil{1}}
+\SetAffiliation{1}{University of South Carolina, Columbia, SC}
 \begin{document}
 \maketitle
+\begin{abstract}
+Correcting the pose of a rotating radar at each spoke can recover the position of a buoy only if the radar acquired its echo. To determine where this distinction matters, we coupled a damped vessel response to wave obstruction, antenna gain, and scan timing. Each scheduled visit to a water-following buoy was evaluated with scan-midpoint registration, per-spoke registration of the same return, and ideal level pointing with per-spoke registration. A usable visit required a detectable echo and horizontal error within 0.50 m. Across 111 admissible regular-wave conditions, the largest gain from per-spoke correction occurred at 0.3325 Hz and 0.432 m wave amplitude. It increased usable visits from 14.29\% to 38.05\%, with ideal leveling providing a further 0.88 percentage points. At a smaller resonant wave amplitude, all acquired returns already met the tolerance. Leveling instead increased acquisition from 92.97\% to 100\%. With peak pitch fixed at three degrees, scan timing could change the 95th percentile of the longest outage from one visit to seven with little change in the usable fraction. Acquisition margin, registration error, and outage duration therefore distinguish design cases that a peak-pitch criterion groups together.
+\end{abstract}
 
-\section*{Abstract}
-A rotating marine radar can miss a floating target when a wave crest obstructs its return path or vessel rotation moves the target away from the beam center. A return that survives both effects can still be assigned the wrong position because the vessel moves during the scan. This study asks when estimates of the common wave forcing and mechanical response improve a forecast of the next usable observation. A preliminary analysis of Dartmouth IPIX radar record 17 found that 66.60\% of held-out target-bin windows fell below a power gate fitted to development clutter. That measurement establishes the scale of return intermittency in one record. A paired simulation experiment is specified to test how much predictive information the mechanical response adds across encounter frequencies.
+\section{Introduction}
+A small vessel carrying a rotating radar changes attitude between the first and last spokes of a scan. When a buoy echo survives, the position assigned to it depends on which vessel pose is used to map that spoke. When a passing crest or a pointing loss drives the return below threshold, even exact knowledge of the vessel pose cannot supply the missing range and bearing. A designer deciding between timestamped registration and a stabilized antenna therefore needs to know which event prevented a usable observation.
 
-\section{Mechanical basis}
-Encounter frequency connects wave direction and vessel speed to the motion seen by the radar. For a linear component with wave vector $\mathbf{k}$, angular frequency $\omega$, and vessel velocity $\mathbf{v}$, the forcing frequency is $\Omega=|\omega-\mathbf{k}\cdot\mathbf{v}|$. Evaluating each component at the vessel and the target preserves their relative phase. The same crest can therefore change both antenna pointing and clearance along the propagation path. Prior investigations quantify wave shadowing and scan-time mapping as distinct effects \cite{Plant2012WaveShadowing,Lund2018SeaIceDrift}.
+Per-pulse georeferencing already supports shipboard measurements of surface currents. Hessner et al. used time-resolved navigation and heading and discussed why a broad vertical beam can accommodate vessel motion in their application \cite{Hessner2019Reliability}. On smaller vessels, Simpson et al. used wave and buoy signatures to georeference marine radar images for wave forecasting \cite{Simpson2020Forecasting}. Shipboard phased-array studies have examined motion-compensated pointing \cite{Mar2013Motion}, and moving-platform studies have quantified radar registration bias \cite{Chen2014Registration}. These results motivate testing the two interventions on a common denominator. A low error among surviving returns can coexist with long periods without a usable buoy position.
 
-For a damped pitch mode with inertia $I$, damping $c$, stiffness $k$, and harmonic wave moment $M_0$, the pitch amplitude and phase follow from the complex response
+We therefore evaluate all scheduled buoy visits, including those that produce no echo. Wave phase governs the vessel response, the buoy elevation, and the obstruction along their common propagation path. Holding that phase fixed across the three treatments gives each failed visit a physical interpretation. A matched-pitch experiment then tests whether peak angular excursion alone predicts the fraction and timing of usable visits.
+
+\begin{figure*}[t]
+\centering\includegraphics[width=.94\textwidth]{figures/operating/geometry.pdf}
+\caption{Radar and buoy geometry. The level and vessel-fixed axes pass through the same displaced antenna origin. The path clearance depends on the instantaneous elevations of both endpoints and of the intervening water.}
+\label{fig:geometry}
+\end{figure*}
+
+\section{Wave forcing and vessel response}
+Let $x$ point along the nominal bow and $z$ upward. The nominal buoy location is $(100,0)$ m in the horizontal plane. For a deep-water component with amplitude $a$, frequency $f$, direction $\gamma$, and initial phase $\psi$, the surface elevation follows from the dispersion relation \cite{MITOCW2005LinearWaves},
 \begin{equation}
-\hat\theta(\Omega)=\frac{M_0}{k-I\Omega^2+\mathrm{i}c\Omega}.
+ \eta(\mathbf{x},t)=a\cos(\mathbf{k}\cdot\mathbf{x}-\omega t+\psi),
+ \quad k=\omega^2/g,\quad \omega=2\pi f .
 \end{equation}
-Changing vessel heading changes $\Omega$ even when the wave period and the vessel's natural frequency remain fixed. Near resonance, both pitch amplitude and its phase relative to the crest change. The engineering question is whether this phase relationship gives enough advance information to forecast the next radar visit.
+Here $\mathbf{k}=k(\cos\gamma,\sin\gamma)$ and $g=9.81$ m/s$^2$. The vessel has zero mean forward speed. Consequently, the nominal encounter frequency equals the wave frequency. Each component drives the hull at its mean location. The instantaneous radar and buoy positions enter the subsequent obstruction calculation.
 
-\section{Forecast experiment}
-At visit $i$, the forecast uses the observation history and state estimates available when that visit ends. The outcome at $i+1$ is one if the target is detected and its horizontal position error under a fixed correction falls within a declared tolerance. A missed target receives a zero. The tolerance, correction, and detector operating point will be fixed on development data.
+The pitch angle $\theta$ is positive bow down. The pitch mode follows the longitudinal slope with prescribed static gain $G=0.25$. With damping ratio $\zeta$, natural frequency $f_n$, and $\omega_n=2\pi f_n$, its forced equation and steady-state response factor are
+\begin{align}
+ \ddot\theta+2\zeta\omega_n\dot\theta+\omega_n^2\theta
+ &=-\omega_n^2G\,\partial_x\eta(\mathbf{0},t),\\
+ H(r,\zeta)&=(1-r^2+2\mathrm{i}\zeta r)^{-1},\quad r=f/f_n .
+\end{align}
+Thus peak pitch is $Gka\cos\gamma\,|H|$. To reproduce the other degrees of freedom, let $q=\exp[\mathrm{i}(\omega t-\psi)]$ and take the real part of each expression. Pitch is $\mathrm{i}Gka\cos\gamma\,Hq$, roll is $0.6Gka\sin\gamma\,Hq\exp(\mathrm{i}\pi/3)$, and surge is $\mathrm{i}a\cos\gamma\,q$. Heave is $aH(f/0.80,0.30)q$. Linear superposition gives the irregular-wave response. These coefficients prescribe a reproducible hull response. Measured response spectra depend on hull, loading, and encounter conditions, as demonstrated for the AutoNaut by Mounet et al. \cite{Mounet2024Hydrodynamic}.
 
-Four scenes will share wave phases, target trajectories, and noise draws. They will enable neither mechanism, vessel motion alone, wave-path modulation alone, or both together. Within each scene, four logistic models will use history alone, history plus vessel motion, history plus propagation, or all three sets of inputs. Holding out complete wave realizations and response regimes tests whether any gain transfers to unfamiliar forcing.
+The body rotation is $Q=R_y(\theta)R_x(\phi)$, where $\phi$ is roll. Applying it to the antenna lever arm $(0.6,0,0.8)$ m and adding surge and heave gives the antenna origin $\mathbf{o}$. The buoy remains horizontally fixed and its scattering point follows the local water level at a fixed offset. Figure~\ref{fig:geometry} shows why leveling the antenna changes pointing without moving either endpoint of the propagation path.
 
-The primary comparison is the paired difference in Brier score between the combined predictor and each single-mechanism predictor \cite{Brier1950Verification}. Reliability curves will show whether predicted probabilities agree with observed frequencies. Resampling complete realizations will give intervals for the paired differences. Reporting these differences against $\Omega/\sqrt{k/I}$ ties any gain or loss to the forced response. A separate comparison of scan-midpoint and per-azimuth corrections will use the same acquired returns and report their miss fraction alongside position error.
 
-\section{Measured return intermittency}
-Dartmouth IPIX record 17 provides an observed example of the event that a power-based detector must resolve \cite{McMaster1993IPIX}. The first 32,768 sweeps of horizontally transmitted and received radar data were used to estimate a common receiver correction and a 99th-percentile clutter gate. The remaining 98,304 sweeps were divided into nonoverlapping 64-sweep windows. The power exceeded the gate in 152 of 15,360 held-out clutter decisions. In primary target bin 9, 1,023 of 1,536 windows fell below the same threshold.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\linewidth]{figures/generated/survival.pdf}
-\caption{Held-out power distributions for the primary target bin and clutter in IPIX record 17.}
-\end{figure}
+\section{Acquisition and registration}
+The Furuno DRS4D-NXT provides a documented rotation period and vertical beamwidth for the study \cite{Furuno2016DRS4DNXT}. Table~\ref{tab:inputs} distinguishes those specifications from the modeled conditions. Let $\beta$ be the full one-way half-power beamwidth and $e$ the buoy elevation in the antenna frame. A Gaussian power pattern on both transmit and receive gives two-way angular loss
+\begin{equation}
+ L(e)=80\log_{10}(2)(e/\beta)^2\quad \text{dB}.
+\end{equation}
+With this convention, the two-way loss at $|e|=\beta/2$ is 6.02 dB. For the vessel-fixed case $e$ comes from the true line of sight expressed in the moving body frame. The level case uses elevation above a horizontal plane through the same origin.
 
-The measurement establishes that a known target bin can spend much of an acquisition below a clutter-calibrated threshold. The record lacks synchronized wave phase and vessel attitude, so the cause of any individual low-power window remains unresolved. The matched scenes provide the mechanism labels needed for that comparison. Held-out forecast scores and a separate acquired-file check remain to be obtained before drawing a conclusion about predictive performance.
+\begin{table}[tb]
+\caption{Reference inputs. The manufacturer specifies the first two entries. All remaining values are study assumptions.}\label{tab:inputs}
+\centering\small
+\begin{tabular}{@{}ll@{}}\toprule
+Quantity & Value \\ \midrule
+Full vertical beamwidth & $25^\circ$ \\
+Rotation period at fixed 24 rpm & 2.5 s \\
+Nominal radar height / buoy freeboard & 2.00 / 0.22 m \\
+Nominal buoy range / wavelength & 100 / 0.03 m \\
+Wave direction from bow & $25^\circ$ \\
+Pitch natural frequency / damping & 0.35 Hz / 0.15 \\
+Reference wave frequency / amplitude & 0.35 Hz / 0.15 m \\
+Clear boresight margin & 10 dB \\
+Horizontal error tolerance & 0.50 m \\
+\bottomrule\end{tabular}
+\end{table}
 
-\bibliographystyle{unsrtnat}
-\bibliography{references}
+Wave shadowing can alter low-grazing-angle marine radar returns \cite{Plant2012WaveShadowing}. To represent this effect with an explicit threshold, we approximate the water profile by its most obstructive effective knife edge \cite{ITUR2025P526}. Along the direct ray of slant length $\rho$, let $s$ be the fractional distance from the antenna and let $d(s)$ be water height above the ray. With wavelength $\lambda$, the normalized obstruction is
+\begin{equation}
+ \nu=\max_{0<s<1}\ d(s)\sqrt{2/[\lambda\rho s(1-s)]}.
+\end{equation}
+For $\nu>-0.78$, put $u=\nu-0.1$ and set one-way loss $J=6.9+20\log_{10}(\sqrt{1+u^2}+u)$ dB, floored at zero. Otherwise $J=0$. With clear boresight margin $M_0$, the echo is acquired when $L(e)\le h$, where $h=M_0-2J$. This deterministic model fixes the clear-path margin and omits clutter, multipath, target scintillation, and range-dependent spreading over the small range excursions considered here.
+
+This inequality identifies the visits that leveling can recover. Recovery requires $L(e_{\rm level})\le h<L(e_{\rm body})$. If $h<0$, even zero pointing loss cannot produce an echo. A tilted beam can also point closer to the buoy, in which case leveling can lose a visit. With no diffraction and 10 dB margin the limiting offset is $16.1^\circ$. At the reference wave, summing conservative bounds on heave, buoy height, and lever motion gives $|e_{\rm level}|\le1.26^\circ$. The combined pitch and roll tilt is bounded by $3.33^\circ$. The resulting body pointing loss is at most 0.81 dB, so a reference miss caused by pointing requires more than 9.19 dB of two-way diffraction. A measurement of pitch alone does not identify these near-threshold visits.
+
+For an acquired return, mapping uses slant range $\rho$, antenna-frame azimuth $\alpha$, and the assumed scattering-point elevation $z_T$. Define $\mathbf{a}=Q(\cos\alpha,\sin\alpha,0)^\mathsf{T}$ and $\mathbf{b}=Q(0,0,1)^\mathsf{T}$. The near-horizontal solution for elevation $\epsilon$ and mapped position $\hat{\mathbf{x}}$ satisfies
+\begin{align}
+ (z_T-o_z)/\rho &= a_z\cos\epsilon+b_z\sin\epsilon,\\
+ \hat{\mathbf{x}} &= \mathbf{o}+\rho(\mathbf{a}\cos\epsilon+\mathbf{b}\sin\epsilon).
+\end{align}
+The midpoint estimate uses $Q$ and $\mathbf{o}$ at the scan midpoint. The per-spoke estimate uses the same measured return and both quantities at the spoke time. Ideal level pointing recalculates acquisition and azimuth in a level frame at that time. All three use the same wave and visit times. The base case supplies exact range, bearing, and instantaneous target elevation, so residual per-spoke mapping error is zero to numerical precision. This isolates the motion contribution to the 0.50 m tolerance. At 100 m a one-degree bearing error corresponds to 1.75 m cross-range, and the manual quotes bearing accuracy of $\pm1^\circ$ \cite{Furuno2016DRS4DNXT}.
+
+\section{Paired experimental design}
+The pilot realization was chosen to expose both acquisition and mapping failures within the slope and attitude limits. Its single-record counts illustrate the mechanisms. The operating map provides the broader comparison. Each rotation schedules one visit a quarter rotation after its midpoint. This prescribed timing holds the sampling phase fixed when the processing case changes. A usable visit requires both nonnegative echo margin and horizontal error at or below tolerance. Dividing each outcome count by all scheduled visits partitions the record into below-threshold echoes, acquired echoes outside tolerance, and usable positions. Consecutive unusable visits form outages within each record. A run reaching a record boundary measures the observed portion of the outage.
+
+The operating map samples 17 equally spaced frequencies from 0.16 to 0.62 Hz and 11 amplitudes from 0.04 to 0.60 m. Filtering out $ka>0.20$ or pitch or roll exceeding $10^\circ$ leaves 111 combinations. Each combination uses 32 independently seeded initial wave phases with 192 scheduled visits per phase. Common phase draws pair the processing cases. A reported random-phase interval uses the paired differences for the 32 realizations, with half-width $1.96$ times their sample standard deviation divided by $\sqrt{32}$. This measures phase-sampling uncertainty in the modeled mean. Adjacent visits share wave dynamics and do not provide independent replicates.
+
+To separate peak attitude from timing, the matched-pitch cases choose amplitude to give $3^\circ$ peak pitch at each of four frequencies, and compare three rotation periods and two pitch-forcing phase offsets. The longest trial period, 3.75 s, is a timing perturbation. The 0.20 Hz case requires 0.998 m amplitude, outside the operating-map amplitude window but inside its slope and angle limits. Uniform phase sampling supplements the independent-phase estimates for these periodic cases. A seven-component sensitivity uses component amplitudes proportional to the square roots of prescribed spectral weights, matching the regular reference in root-mean-square surface elevation. Independently shifting the component phases breaks the regular wave's fixed crest sequence. Its conservative slope and pitch bounds are 0.196 and $6.25^\circ$, respectively.
+
+\input{operating-verification}
+\input{operating-results}
+
+\section{Design implications}
+The same correction strategy gives different outcomes because the limiting event changes. At the largest correction-gain cell, timestamped pose recovers positions from echoes already available to the receiver. The remaining usable fraction is below 40\% even with ideal level pointing. Improving pose timing alone cannot address that residual loss. At the smaller resonant reference wave, every acquired return already satisfies the mapping tolerance. There, the useful diagnostic is the distribution of angular loss relative to the small margin remaining after diffraction. Comparing only the largest pitch in each record would miss both the change in mechanism and the duration of the resulting gaps.
+
+These results support a specific measurement sequence for a vessel trial. Synchronized spoke times, navigation poses, and an independently surveyed buoy position would allow the same acquired returns to be mapped twice. That directly tests the registration gain. Establishing the pointing gain requires additional measurements of acquisition, wave geometry, and antenna orientation across all scheduled visits. A stabilized mount would also need its achievable bandwidth, latency, and travel included in the comparison. Ideal leveling here is one fixed pointing policy and can tilt a beam away from a low buoy that vessel motion happened to favor.
+
+The most consequential calibration inputs are the vessel response and available echo margin. The chosen slope gain and damping prescribe the magnitude and phase of the antenna motion. The single-edge approximation maps the instantaneous water profile to a reciprocal attenuation without a sea-clutter detector. Both determine which side of the threshold a visit occupies. Applying the numerical gain to a specific boat therefore requires a measured response at its loading and heading, a measured mount lever arm, and synchronized radar evidence to determine the effective margin. Until then, the simulated partitions identify mechanisms and test conditions for that trial.
+
+\section{Conclusion}
+For the modeled buoy and vessel, per-spoke registration provided its largest benefit near pitch resonance at 0.3325 Hz and 0.432 m amplitude, recovering 23.76 percentage points of scheduled visits. Ideal leveling added 0.88 points there. At the 0.35 Hz, 0.15 m reference wave the ordering reversed, with zero registration gain and 7.03 points from leveling. At fixed peak pitch, rotation timing also changed the longest observed gaps while leaving the mean usable fraction nearly constant. Reporting acquisition failures, mapping failures, and consecutive outages together distinguishes a problem that better pose timestamps can solve from one that requires better echo margin or different pointing.
+
+\bibliographystyle{asmeconf}
+\bibliography{operating-refs,references}
 \end{document}
