@@ -181,6 +181,7 @@ def run(
     *,
     target_azimuth_deg=0.0,
     component_model=components,
+    horizontal_orbit=False,
 ):
     f, a, p = component_model(freq, amplitude, phase, irregular)
     if phase_origin is not None:
@@ -206,6 +207,11 @@ def run(
     target = np.column_stack(
         (target_x, target_y, TARGET_HEIGHT + surface_model(target_x, target_y, t, f, a, p))
     )
+    if horizontal_orbit:
+        # The Airy-wave horizontal displacement is -a sin(phase) along propagation.
+        # Evaluate both orbital components at the mean point to first order.
+        displacement = wave(target_x, target_y, t, f, a, p + np.pi / 2)
+        target[:, :2] += displacement[:, None] * np.array([np.cos(HEADING), np.sin(HEADING)])
     v = target - origin
     rho = np.linalg.norm(v, axis=1)
     body = np.einsum("nji,nj->ni", r, v)
@@ -265,6 +271,7 @@ def run(
         "margin_motion": margin_motion,
         "margin_level": margin_level,
         "errors": errors,
+        "positions": np.stack((baseline, correct, stabilized)),
         "acquired": acquisitions,
         "usable": usable,
         "below": below,

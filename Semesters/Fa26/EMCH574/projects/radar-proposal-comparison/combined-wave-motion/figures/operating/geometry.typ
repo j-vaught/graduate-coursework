@@ -10,7 +10,7 @@
 // Editable settings (lengths in cm of drawing space)
 // ---------------------------------------------------------------------------
 #let fig-width = 6.5in
-#let base-size = 9pt
+#let base-size = 10pt
 
 #let garnet = rgb("#73000A")     // vessel-fixed beam axis only
 #let water = rgb("#ECECEC")      // 10% black
@@ -42,8 +42,11 @@
 }
 
 // Vessel: pivot on the free surface, hull rotated bow-up by pitch-angle
-#let phase-local = (-0.6, 2.6)   // antenna phase center in vessel frame
-#let ant-top-local = (-0.67, 2.9) // top center of antenna aperture in vessel frame
+// The body origin is the pitch pivot O; the lever r from O to A points
+// forward (+x, toward the buoy) and upward, matching the signs of the model
+// lever (0.6, 0, 0.8) m. Non-scale illustration.
+#let phase-local = (1.4, 2.6)    // antenna phase center A in vessel frame
+#let ant-top-local = (1.33, 2.9) // top center of antenna aperture in vessel frame
 
 // Buoy sits in the trough behind the grazing crest
 #let buoy-x = x-crest + 1.5 * lam
@@ -54,6 +57,10 @@
 #let beam-len = 7.0
 #let arc-r = 5.4
 #let lbl-ref = [level beam axis]
+#let lbl-theta = $theta < 0$
+#let lbl-pivot = $O$
+#let lbl-lever = $bold(r)$
+#let lbl-A = $A$
 #let lbl-beam = [vessel-fixed beam axis]
 #let lbl-los = [line of sight]
 #let lbl-crest = [grazing crest]
@@ -136,10 +143,19 @@
       close: true, fill: white)
     // deckhouse
     rect((-1.35, 0.45), (0.15, 1.05), fill: white)
-    // mast
-    line((-0.66, 1.05), (-0.66, 2.3))
+    // mast (forward of the pivot, standing on the deck)
+    line((1.33, 0.45), (1.33, 2.3))
     // antenna aperture; its forward face carries the phase center
-    rect((-0.74, 2.3), (-0.6, 2.9), fill: black)
+    rect((1.26, 2.3), (1.4, 2.9), fill: black)
+    // lever r from pivot O to phase center A (body frame: forward, up)
+    line((0, 0), phase-local,
+      stroke: (paint: black, thickness: 0.5pt, dash: "densely-dashed"),
+      mark: arrow-mark(black))
+    // pivot marker
+    rect((-0.08, -0.08), (0.08, 0.08), fill: white, stroke: (paint: black, thickness: 0.6pt))
+    rect((-0.03, -0.03), (0.03, 0.03), fill: black, stroke: none)
+    content((-0.14, -0.02), lbl-pivot, anchor: "east", padding: 0)
+    content((0.5, 1.45), lbl-lever, anchor: "east", padding: 0)
   })
 
   // --- Buoy ---------------------------------------------------------------
@@ -171,7 +187,7 @@
   let th-r = arc-r + 0.18
   content(
     (A.at(0) + th-r * calc.cos(pitch-angle / 2), A.at(1) + th-r * calc.sin(pitch-angle / 2)),
-    text(fill: black, $theta$), anchor: "west", padding: 0)
+    text(fill: black, lbl-theta), anchor: "west", padding: 0)
 
   // --- Labels -------------------------------------------------------------
   content((R-end.at(0) + 0.15, R-end.at(1)), lbl-ref, anchor: "west", padding: 0)
@@ -179,9 +195,10 @@
   // line-of-sight labels run parallel to the sloped path, offset along its normal
   let los-angle = calc.atan(los-slope)
   let off(x, d) = (x - d * uy, los-y(x) + d * ux)
-  let x-los = A.at(0) + 6.6
-  content(off(x-los, -0.12), lbl-los, anchor: "north", angle: los-angle, padding: 0)
-  content(off(G.at(0), 0.12), lbl-crest, anchor: "south", angle: los-angle, padding: 0)
+  let x-los = A.at(0) + 5.2
+  content(off(x-los, -0.2), lbl-los, anchor: "north", angle: los-angle, padding: 0)
+  content(off(G.at(0), 0.2), lbl-crest, anchor: "south", angle: los-angle, padding: 0)
+  content((A.at(0) + 0.12, A.at(1) - 0.2), lbl-A, anchor: "north-west", padding: 0)
   content((T.at(0), T.at(1) + 0.15), lbl-radar, anchor: "south", padding: 0)
   content((B.at(0) + refl-r + 0.15, B.at(1)), lbl-buoy, anchor: "west", padding: 0)
 }))
