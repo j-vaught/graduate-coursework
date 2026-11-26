@@ -111,7 +111,7 @@ def pose(t, freq, amp, ph, damping, pitch_phase=0.0):
         * exp_t
     ).sum(axis=0)
     heave = np.real((amp * transfer(freq, 0.8, 0.3))[:, None] * exp_t).sum(axis=0)
-    # Deep-water horizontal orbital displacement is a prescribed surge proxy.
+    # Surge amplitude and phase are prescribed relative to the surface elevation.
     surge = np.real((1j * amp * np.cos(HEADING))[:, None] * exp_t).sum(axis=0)
     ref = np.column_stack((surge, np.zeros_like(t), RADAR_HEIGHT - LEVER[2] + heave))
     r = rotation(pitch, roll)

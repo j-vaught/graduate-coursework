@@ -11,6 +11,7 @@ uv sync --locked
 uv run python src/paired_experiment.py --output data/experiment-results.json
 uv run python src/verify_operating_checks.py --config data/config.json --outdir data
 uv run python src/verify_operating_experiment.py --outdir data
+uv run python src/timestamp_sensitivity.py --output data/timestamp_sensitivity.csv
 uv run python src/reference_neighborhood.py --output research/reference-neighborhood.csv
 uv run python src/verify_operating_grid.py --outdir data
 uv run python src/verify_operating_phase.py --outdir data

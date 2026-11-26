@@ -8,9 +8,11 @@ Sources:
 - https://mirrors.ctan.org/macros/latex/contrib/asmeconf/asmeconf.cls
 - https://mirrors.ctan.org/macros/latex/contrib/asmeconf/asmeconf.bst
 
-Use `\\documentclass{asmeconf}` and `\\bibliographystyle{asmeconf}`. The class sets ASME conference layout, fonts, and heading styles. It loads the mathematics and citation support. Add only project-specific packages such as `graphicx` and `booktabs`.
+ASME's current conference-specific header and sample paper are published at https://idetc.secure-platform.com/a/page/Help/author_resources/conference-specific-templates. The governing layout requirements are at https://www.asme.org/publications-submissions/proceedings/formatting-the-paper. ASME lists `asmeconf` as its courtesy LaTeX template at https://www.asme.org/publications-submissions/proceedings/author-guidelines/elements-of-a-paper/author-templates.
 
-For IDETC-CIE 2027, use the conference-specific header `Proceedings of the ASME 2027 International Design Engineering Technical Conferences and Computers and Information in Engineering Conference`, `IDETC/CIE2027`, `August 1--4, 2027`, and `Philadelphia, PA`. Keep `\\PaperNo{}` empty until ASME assigns a number; do not use a made-up number or a placeholder in a circulated draft. Use the class option `nofoot` for drafts so the PDF does not imply that ASME has accepted or copyrighted the paper. Confirm the portal's current conference header before final submission.
+Use `\\documentclass{asmeconf}` and `\\bibliographystyle{asmeconf}`. The class supplies the conference page layout, two-column body, margins, and the Times-like and Arial-like font families used by the author template. It loads the mathematics and citation support. Add only project-specific packages such as `graphicx` and `booktabs`; leave the class's column and spacing settings at their defaults.
+
+For IDETC-CIE 2027, use the conference-specific header `Proceedings of the ASME 2027 International Design Engineering Technical Conferences and Computers and Information in Engineering Conference`, `IDETC/CIE2027`, `August 1--4, 2027`, and `Philadelphia, PA`. Keep `\\PaperNo{}` empty until ASME assigns a number; do not use a made-up number or placeholder. The class option `nofoot` keeps the page number while suppressing the ASME copyright footer in a review draft. Remove `nofoot` only when preparing the publication version under ASME's final instructions.
 
 On a configured COMECH or COCESR host, build with `./build-manuscript.sh`. The script places compiled output in `build/asme/` and uses the class and bibliography files in this directory.
 
